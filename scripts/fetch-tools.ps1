@@ -12,8 +12,9 @@
   reaches every machine on its next build, and no unpinned binary is put where the build copies from.
 
   ffmpeg: our own build (scripts/build-ffmpeg.sh), from the GitHub release
-    rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD>. The repository is private, so this needs the
-    GitHub CLI, signed in (gh auth login), or GH_TOKEN set, as it is in the workflows.
+    rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD> in RPM_TOOLS_REPO. If the plain download fails
+    (the repository is private) and the GitHub CLI is installed, it is downloaded with gh instead,
+    which needs a sign-in (gh auth login) or GH_TOKEN.
   fpcalc: acoustid/chromaprint official release archives.
 
 .PARAMETER Rid
@@ -108,12 +109,17 @@ function Expand-Gzip([string] $Source, [string] $Destination) {
 
 try {
   # --- ffmpeg -------------------------------------------------------------------------------
-  if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-    throw "ffmpeg is published in the private repository $($v.RPM_TOOLS_REPO); install the GitHub CLI and run gh auth login"
-  }
   Write-Host "tools: downloading ffmpeg $($v.FFMPEG_VERSION)-rpm$($v.RPM_FFMPEG_BUILD) for $Rid ..."
-  & gh release download $ffmpegTag -R $v.RPM_TOOLS_REPO -p "ffmpeg-$Rid.gz" -D $work
-  if ($LASTEXITCODE -ne 0) { throw "gh could not download ffmpeg-$Rid.gz from $ffmpegTag" }
+  $ffmpegUrl = "https://github.com/$($v.RPM_TOOLS_REPO)/releases/download/$ffmpegTag/ffmpeg-$Rid.gz"
+  try {
+    Invoke-WebRequest -Uri $ffmpegUrl -OutFile (Join-Path $work "ffmpeg-$Rid.gz") -UseBasicParsing
+  } catch {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+      throw "could not download $ffmpegUrl. If $($v.RPM_TOOLS_REPO) is private, install the GitHub CLI and run gh auth login"
+    }
+    & gh release download $ffmpegTag -R $v.RPM_TOOLS_REPO -p "ffmpeg-$Rid.gz" -D $work --clobber
+    if ($LASTEXITCODE -ne 0) { throw "gh could not download ffmpeg-$Rid.gz from $ffmpegTag" }
+  }
   $ffmpegDl = Join-Path $work "ffmpeg$exeSuffix"
   Expand-Gzip -Source (Join-Path $work "ffmpeg-$Rid.gz") -Destination $ffmpegDl
   Assert-Pinned $ffmpegDl "ffmpeg-$Rid.gz from $ffmpegTag" $ffmpegPin $ffmpegPinKey

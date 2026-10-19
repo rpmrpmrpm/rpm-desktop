@@ -14,8 +14,9 @@
 # build copies from.
 #
 # ffmpeg: the project's own build (scripts/build-ffmpeg.sh), from the GitHub release
-#   rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD>. The repository is private, so this needs the
-#   GitHub CLI with a sign-in (gh auth login), or GH_TOKEN set, as it is in the workflows.
+#   rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD> in RPM_TOOLS_REPO. It is downloaded with curl.
+#   If that fails (the repository is private) and the GitHub CLI is installed, it is downloaded with
+#   gh instead, which needs a sign-in (gh auth login) or GH_TOKEN.
 # fpcalc: acoustid/chromaprint official release archives.
 
 set -euo pipefail
@@ -105,11 +106,14 @@ check_pinned() {
 
 # --- ffmpeg -----------------------------------------------------------------------------------
 echo "tools: downloading ffmpeg ${FFMPEG_VERSION}-rpm${RPM_FFMPEG_BUILD} for $RID ..."
-if ! command -v gh >/dev/null; then
-  echo "fetch-tools: ffmpeg is published in the private repository $RPM_TOOLS_REPO; install the GitHub CLI and run gh auth login" >&2
-  exit 1
+FFMPEG_URL="https://github.com/$RPM_TOOLS_REPO/releases/download/$FFMPEG_TAG/ffmpeg-$RID.gz"
+if ! curl -fsSL "$FFMPEG_URL" -o "$WORK/ffmpeg-$RID.gz"; then
+  if ! command -v gh >/dev/null; then
+    echo "fetch-tools: could not download $FFMPEG_URL. If $RPM_TOOLS_REPO is private, install the GitHub CLI and run gh auth login" >&2
+    exit 1
+  fi
+  gh release download "$FFMPEG_TAG" -R "$RPM_TOOLS_REPO" -p "ffmpeg-$RID.gz" -D "$WORK" --clobber
 fi
-gh release download "$FFMPEG_TAG" -R "$RPM_TOOLS_REPO" -p "ffmpeg-$RID.gz" -D "$WORK"
 gunzip -c "$WORK/ffmpeg-$RID.gz" > "$WORK/ffmpeg$EXE_SUFFIX"
 check_pinned "$WORK/ffmpeg$EXE_SUFFIX" "ffmpeg-$RID.gz from $FFMPEG_TAG" "$FFMPEG_PIN" "$FFMPEG_PIN_KEY"
 install_tool "$WORK/ffmpeg$EXE_SUFFIX" "$FFMPEG_OUT"

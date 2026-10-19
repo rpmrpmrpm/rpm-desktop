@@ -4,9 +4,8 @@
 #   scripts/fetch-tools.sh, scripts/fetch-tools.ps1   download the published ffmpeg and fpcalc
 #   scripts/fetch-angle.sh                        downloads the ANGLE pair for the Mac app
 #   RPM.Desktop/RPM.Desktop.csproj                checks the binaries a build or publish ships
-#   scripts/release-mac.sh, .github/workflows/release-rpm-desktop.yml   run the shipped binaries
-#   .github/workflows/build-rpm-ffmpeg.yml        builds win-x64 and linux-x64, publishes the release
-#   .github/workflows/deploy-rpm-cloud-api.yml    puts the linux-x64 ffmpeg in the transcoder
+#   .github/workflows/build-ffmpeg.yml            builds every RID and publishes the release
+#   the release scripts and the transcoder deploy, which are not in this repo
 #   scripts/gen_credits.py                        writes these versions into the About screen
 # Plain KEY=VALUE lines so bash can source it and PowerShell can split it.
 
@@ -25,7 +24,7 @@ RPM_FFMPEG_BUILD=1
 
 # The GitHub release that holds the built ffmpeg: rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD>,
 # one asset per RID named ffmpeg-<rid>.gz.
-RPM_TOOLS_REPO=ChivanCOM/FOBO-Ai-Tools
+RPM_TOOLS_REPO=rpmrpmrpm/rpm-desktop
 
 # fpcalc, from the official Chromaprint release archives.
 CHROMAPRINT_VERSION=1.6.0

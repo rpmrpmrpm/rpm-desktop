@@ -1,0 +1,113 @@
+name: Build ffmpeg
+
+# Builds the ffmpeg rpm ships, for every RID, with scripts/build-ffmpeg.sh and the versions in
+# scripts/tool-versions.txt, and publishes it to the GitHub release
+# rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD>. fetch-tools.{sh,ps1} download it from there.
+#
+# Run it by hand after a change to either file. A published asset is never replaced: a changed
+# build needs a new RPM_FFMPEG_BUILD, and so a new tag. After the run, pin the new binaries in
+# tool-versions.txt (FFMPEG_BINARY_SHA256_*); fetch-tools prints the line to write for each one.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the mingw-w64 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mingw-w64 nasm pkg-config make
+      - name: Build
+        run: bash scripts/build-ffmpeg.sh win-x64 --work rpm-ffmpeg
+      # The artifacts only carry the builds to the publish job. The release keeps them, so one day
+      # is enough.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-win-x64
+          path: rpm-ffmpeg/dist/ffmpeg-win-x64.gz
+          retention-days: 1
+
+  linux:
+    runs-on: ubuntu-24.04
+    # The transcoder's own OS (Amazon Linux 2023), so the binary needs no newer glibc than the
+    # transcoder has. A build on the runner's Ubuntu would need a newer one.
+    container: amazonlinux:2023
+    steps:
+      - name: Install the toolchain
+        run: dnf install -y git gcc make nasm openssl-devel pkgconf-pkg-config gawk tar gzip xz binutils findutils diffutils file
+      - uses: actions/checkout@v7
+      # The work folder is inside the checkout: in a container, runner.temp is a path on the host,
+      # which the upload step cannot see.
+      - name: Build
+        run: bash scripts/build-ffmpeg.sh linux-x64 --work rpm-ffmpeg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-linux-x64
+          path: rpm-ffmpeg/dist/ffmpeg-linux-x64.gz
+          retention-days: 1
+
+  macos:
+    # Apple silicon. The x64 build is cross-compiled on the same machine.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install nasm
+        run: brew install nasm
+      - name: Build
+        run: |
+          bash scripts/build-ffmpeg.sh osx-arm64 --work rpm-ffmpeg
+          bash scripts/build-ffmpeg.sh osx-x64 --work rpm-ffmpeg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-osx
+          path: rpm-ffmpeg/dist/ffmpeg-osx-*.gz
+          retention-days: 1
+
+  publish:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          source scripts/tool-versions.txt
+          TAG="rpm-ffmpeg-${FFMPEG_VERSION}-${RPM_FFMPEG_BUILD}"
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            # The notes are the source offer for the binaries: the exact upstream sources, and the
+            # script and commit that built them.
+            {
+              echo "ffmpeg ${FFMPEG_VERSION}-rpm${RPM_FFMPEG_BUILD}, LGPL 2.1 or later."
+              echo
+              echo "Built by scripts/build-ffmpeg.sh at ${GITHUB_SHA} from:"
+              echo "- https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz (sha256 ${FFMPEG_SHA256})"
+              echo "- https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz (sha256 ${LAME_SHA256})"
+              echo "- https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz (sha256 ${ZLIB_SHA256})"
+            } > notes.md
+            gh release create "$TAG" --title "ffmpeg ${FFMPEG_VERSION}-rpm${RPM_FFMPEG_BUILD}" \
+              --notes-file notes.md --target "$GITHUB_SHA" --latest=false
+          fi
+
+          published="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          for f in dist/*.gz; do
+            if printf '%s\n' "$published" | grep -qx "$(basename "$f")"; then
+              echo "::error::$(basename "$f") is already published under $TAG. A changed build needs a new RPM_FFMPEG_BUILD."
+              exit 1
+            fi
+          done
+          gh release upload "$TAG" dist/*.gz
