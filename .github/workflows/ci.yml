@@ -1,10 +1,12 @@
 name: CI
 
+# Runs only when the code changes, so a change to the docs does not start a build.
 on:
   pull_request:
+    paths: ['RPM.*/**', 'tools/**', '*.props', '*.targets', 'global.json', '.github/workflows/ci.yml']
   push:
     branches: [main]
-    paths-ignore: ['**.md', '.github/ISSUE_TEMPLATE/**']
+    paths: ['RPM.*/**', 'tools/**', '*.props', '*.targets', 'global.json', '.github/workflows/ci.yml']
 
 permissions:
   contents: read
