@@ -30,8 +30,9 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
-      # The vinyl restorer tests run ffmpeg from the PATH.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # The vinyl restorer tests run ffmpeg from the PATH. The DataGrid text tests need an installed
+      # font that draws Japanese.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
       - run: dotnet test RPM.Core.Tests
         working-directory: rpm-desktop
       - run: dotnet test RPM.Fingerprint.Tests
