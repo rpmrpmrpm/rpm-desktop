@@ -19,7 +19,7 @@ namespace RPM.Desktop.Services.Cast;
 /// music. RPM's changeover is gapless because the receiver never learns that the track ended.</para>
 ///
 /// <para>Both directions use JSON with a <c>type</c> field. The receiver is the page
-/// <c>rpm.Api/wwwroot/cast/receiver.html</c>. This file and that page are the only two that must agree on
+/// <c>cast/receiver.html</c> in the rpm repo. This file and that page are the only two that must agree on
 /// the message format.</para>
 /// </summary>
 public sealed partial class CastControlChannel : ChromecastChannel
