@@ -16,11 +16,11 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: rpm-desktop
       # Some tests read the shared files (strings.json and others) from the rpm repo next to this one.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: rpmrpmrpm/rpm
           path: rpm
@@ -42,7 +42,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
