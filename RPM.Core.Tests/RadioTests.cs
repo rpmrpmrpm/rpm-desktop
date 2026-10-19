@@ -208,6 +208,13 @@ public class RadioFavoritesTests
     private static string TempFile() =>
         Path.Combine(Path.GetTempPath(), "rpm-radio-tests", Guid.NewGuid().ToString("N"), "radio.json");
 
+    /// <summary>A clock that moves one second on every reading, so each save has its own time.</summary>
+    private sealed class Ticking : TimeProvider
+    {
+        private long _seconds = 1_700_000_000;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.FromUnixTimeSeconds(_seconds++);
+    }
+
     private static RadioStation Station(string uuid, string name = "Station") => new()
     {
         Uuid = uuid,
@@ -264,7 +271,8 @@ public class RadioFavoritesTests
     [Fact]
     public void Presets_Are_In_The_Order_They_Were_Saved()
     {
-        var favorites = new RadioFavorites(TempFile(), TimeProvider.System);
+        // The real clock can give two saves the same millisecond, and then the order falls back to the ids.
+        var favorites = new RadioFavorites(TempFile(), new Ticking());
         foreach (var id in new[] { "c", "a", "b" })
             favorites.Add(Station(id));
 
