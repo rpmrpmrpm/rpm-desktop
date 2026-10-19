@@ -1,0 +1,308 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Import.ImportWorkbenchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:import="using:RPM.Desktop.Presentation.Import"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.Controls"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.LeftPane.Models"
+             xmlns:grids="using:RPM.Desktop.Presentation.Grids"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- The row menu. A resource because the grid that shows it is built in code. -->
+    <MenuFlyout x:Key="QueueRowMenu">
+        <!-- Group rows only: the tick of a record or an artist, reached from the menu rather than from the box. -->
+        <MenuFlyoutItem x:Name="CtxGroupSelectAll" FontSize="12" Text="{loc:Str Key=Queue_SelectAll}" Click="CtxGroupSelectAll_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf14a;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxGroupSelectNone" FontSize="12" Text="{loc:Str Key=Queue_DeselectAll}" Click="CtxGroupSelectNone_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf0c8;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator x:Name="CtxGroupTickSeparator"/>
+        <MenuFlyoutItem x:Name="CtxRecognize" FontSize="12" Text="{loc:Str Key=Review_CtxRecognize}" Click="CtxRecognize_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf577;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <!-- The other half of Recognize. Recognize answers "what is this file?". This one answers "these files are
+             this record, so name them from it". The listing is matched by disc and track number, so each disc
+             is named separately instead of every track being matched from disc one. -->
+        <MenuFlyoutItem x:Name="CtxNameTracks" FontSize="12" Text="{loc:Str Key=Queue_CtxNameTracks}" Click="CtxNameTracks_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf02b;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <!-- The other two fillers, so the row's menu offers every tool the rail does. -->
+        <MenuFlyoutItem x:Name="CtxTagsFromFilename" FontSize="12" Text="{loc:Str Key=Queue_ActionTagsFromFilename}" Click="TagsFromFilename_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf15c;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxTagsFromTags" FontSize="12" Text="{loc:Str Key=Queue_ToolTagsFromTags}" Click="TagsFromTags_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf0ec;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxNumberTracks" FontSize="12" Text="{loc:Str Key=Queue_ActionNumberTracks}" Click="NumberTracks_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf162;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxDownload" FontSize="12" Text="{loc:Str Key=Queue_CtxDownload}" Click="CtxDownload_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf019;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxSplitAlbum" FontSize="12" Text="{loc:Str Key=Review_CtxSplitAlbum}" Click="CtxSplitAlbum_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf51f;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxEdit" FontSize="12" Text="{loc:Str Key=MassEdit_MenuEdit}" Click="CtxEdit_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf044;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <!-- Group rows only. A rip that never wrote DISCNUMBER makes a set look like one album with two track 1s.
+             The folders the files came from are then the only place that shows the discs. -->
+        <MenuFlyoutItem x:Name="CtxNumberDiscs" FontSize="12" Text="{loc:Str Key=Queue_CtxNumberDiscs}" Click="CtxNumberDiscs_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf5e4;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator/>
+        <MenuFlyoutItem x:Name="CtxShowInFinder" FontSize="12" Text="{loc:Str Key=Queue_CtxShowInFolder}" Click="CtxShowInFinder_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf07c;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator/>
+        <MenuFlyoutItem x:Name="CtxQueueAddNowPlaying" FontSize="12" Text="{loc:Str Key=Review_CtxAddNowPlaying}" Click="QueueAddToNowPlaying_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8c9;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxQueuePlayNow" FontSize="12" Text="{loc:Str Key=Review_CtxPlayNow}" Click="QueuePlayNow_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf04b;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator/>
+        <!-- Remove takes the row out of the queue. Trash moves the FILE to the operating system's trash, so it can
+             be recovered. Trash is what a bad split needs: trash the cut tracks, then split the original again
+             from the Originals folder. -->
+        <!-- An X takes the row off the list; the bin takes the file off the disk. The glyphs
+             say which is which before the words do. -->
+        <MenuFlyoutItem x:Name="CtxRemove" FontSize="12" Text="{loc:Str Key=Queue_CtxRemove}" Click="CtxRemove_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf00d;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="CtxTrash" FontSize="12" Text="{loc:Str Key=Queue_CtxTrash}" Click="CtxTrash_Click">
+          <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf2ed;"/></MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+      </MenuFlyout>
+
+  </UserControl.Resources>
+
+  <!-- Two states, one on at a time: the queue with rows in it, and the invitation when there are none. The
+       code behind the pane chooses one of them through ShowQueue. -->
+  <Grid>
+
+    <Grid x:Name="QueueFilled">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- folder caption -->
+        <RowDefinition Height="Auto"/>   <!-- the toolbar: the actions on these files -->
+        <RowDefinition Height="Auto"/>   <!-- the filter strip: what is shown (hidden by default) -->
+        <RowDefinition Height="*"/>      <!-- grid -->
+        <RowDefinition Height="Auto"/>   <!-- status bar -->
+      </Grid.RowDefinitions>
+      <!-- The tag panel is on the left, then the tree. The heading, the toolbar, the filter strip and the status
+           bar all span the full width. They are the fixed parts of the pane, and the split below them only
+           divides the list.
+
+           The panel has one width, not a draggable one. It holds a fixed form: a column of labelled fields
+           and a picture 132 pixels across. A wider panel would show nothing more. A second handle in the
+           middle of the pane would sit close to the pane's own resize grip. -->
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition x:Name="QueueTagColumn" Width="0"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <import:ImportTagPanel x:Name="QueueTagPanel" Grid.Row="3" Grid.Column="0"
+                             Visibility="Collapsed"/>
+
+    <!-- The source folder being imported, with its path below it. This is the same name and path style the
+         library panel uses on the right. The search that filters this grid is on the toolbar, with the other
+         controls that decide what is shown. There are no naming overrides here: files are named by the folder
+         naming template set in Settings. -->
+    <!-- Margin 16,12,16,0, the same heading box as the other panes. The gap under the subtitle comes from the
+         subtitle style (12), so no extra margin is added here. The toolbar then starts at the same offset as
+         the chrome in the playlists and the library. -->
+    <Grid x:Name="QueueHeading" Grid.Row="0" Grid.ColumnSpan="2" Margin="16,12,16,0">
+      <!-- Heading row fixed at 36, subtitle in a row of its own under it. -->
+      <Grid.RowDefinitions>
+        <RowDefinition Height="36"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- Pane heading, the same style as the library, Visualizations, Playlists and Radio headings. It names the
+           PANE, not the folder in it. The folder's name goes in the subtitle, because a ripped disc's folder can
+           be a machine id that would look wrong in large type. -->
+      <Grid Grid.Row="0" Style="{StaticResource RpmPaneHeadingBox}"
+               ToolTipService.ToolTip="{Binding QueueFolderPath}">
+        <TextBlock Text="{loc:Str Key=Queue_PaneTitle}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+
+      <!-- Which folder, and where it is: the whole path, since two "Album" folders on two disks
+           are the same word and the path is what tells them apart. -->
+      <TextBlock Grid.Row="1" Text="{Binding QueueFolderPath}"
+                 Style="{StaticResource RpmPaneSubheading}"
+                 ToolTipService.ToolTip="{Binding QueueFolderPath}"/>
+
+    </Grid>
+
+    <!-- The toolbar. One row across the whole pane: the tools on the left and the view options on the right.
+         Lines above and below it separate it from the list, so the list is read as the work and the row above
+         it as the controls. -->
+    <Border x:Name="QueueToolbarBand" Grid.Row="1" Grid.ColumnSpan="2"
+            Background="{StaticResource BenchSurfaceBrush}"
+            BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,0,1"
+            Visibility="{Binding QueueTreeVisibility}">
+      <import:ImportToolbar x:Name="QueueToolbar"/>
+    </Border>
+
+    <!-- The filter strip, under the toolbar and only while it is wanted. See the control itself for
+         when that is. -->
+    <Border x:Name="QueueFilterBand" Grid.Row="2" Grid.ColumnSpan="2" Visibility="Collapsed"
+            Background="{StaticResource BenchSurfaceBrush}"
+            BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,0,0,1">
+      <import:ImportFilterBar x:Name="QueueFilterBar"/>
+    </Border>
+
+    <!-- The queue's grid. Its columns are declared in code (QueueGrid.Columns), so this markup has no column
+         elements or cell templates. The control is wired up in ImportWorkbenchView.Grid.cs. -->
+    <grids:RpmGrid x:Name="QueueGridView" Grid.Row="3" Grid.Column="1"
+                   Visibility="{Binding QueueTreeVisibility}"
+                   Background="{StaticResource GridSurfaceBrush}"/>
+
+    <!-- Scan in progress: a magnifier animation takes the tree's place. There is no caption. The count line says
+         "scanning for audio files" until there is a total to count against. -->
+      <local:FolderProgressAnimation Grid.Row="3" Grid.ColumnSpan="2" Visibility="{Binding ScanningVisibility}"
+                                     ProgressMax="{Binding ScanProgressMax}"
+                                     ProgressValue="{Binding ScanProgressValue}"
+                                     IsIndeterminate="{Binding ScanIsIndeterminate}"
+                                     CountText="{Binding ScanCountText}"/>
+
+      <!-- Import in progress: the same control in the same place, but with the filing artwork. Nothing is searched
+           for here. The records are being moved into the folder. The caption says where the files are going
+           (the Library setting), and the line under it counts them. The grid, the legend and the bottom bar are
+           all hidden for the duration. -->
+      <local:FolderProgressAnimation Grid.Row="3" Grid.ColumnSpan="2" Visibility="{Binding ImportingVisibility}"
+                                     Art="Filing"
+                                     Caption="{Binding ImportCaption}"
+                                     ProgressMax="{Binding ImportProgressMax}"
+                                     ProgressValue="{Binding ImportProgressValue}"
+                                     IsIndeterminate="{Binding ImportIsIndeterminate}"
+                                     CountText="{Binding ImportCountText}"/>
+
+
+      <!-- The status bar. The foot of the pane states facts about the queue: how many files, how big, and how many
+           still need a person. This is how a file manager shows them. The two buttons that matter most sit at
+           the other end of the bar.
+
+           The ticks open it. Select All and Select None act on the whole queue, not on the rows in hand. That is
+           what the foot of a pane is for. The clean-ups, the legend and the tag panel are on the toolbar, with
+           the other tools. -->
+      <!-- Under the tag panel: the band's background and its top rule run across, and the panel's right-hand hairline
+           runs down. There is no content here. The text of the bottom bar starts where the grid starts, so
+           "Select All / None" and the file count read as facts about the LIST, not about the pane. The line
+           between the panel and the list runs from the toolbar to the bottom. No code is needed. The column is
+           0 wide when the panel is hidden, so this part is also 0 wide. -->
+      <Border x:Name="QueueChinGutter" Grid.Row="4" Grid.Column="0"
+              Background="{StaticResource BenchSurfaceBrush}"
+              BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,1,0"
+              Visibility="{Binding QueueActionsVisibility}"/>
+
+      <Border x:Name="QueueChin" Grid.Row="4" Grid.Column="1"
+              Background="{StaticResource BenchSurfaceBrush}"
+              BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,0,0"
+              Padding="14,7" Visibility="{Binding QueueActionsVisibility}">
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- One control, one verb: "Select" is said once and All / None are the two presses under
+               it. Two full-width buttons repeating the same word read as two unrelated commands. -->
+          <!-- The ContentControl is here only to carry IsEnabled. WinUI declares that property on Control, and Uno
+               declares it on UIElement. The WinUI markup compiler rejects the binding on a StackPanel, so it is
+               set on this control instead. A disabled Control disables the controls under it on both heads. -->
+          <ContentControl x:Name="QueueSelectGroup" Grid.Column="0" VerticalAlignment="Center"
+                          IsTabStop="False" IsEnabled="{Binding CanTickQueue}"
+                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+            <TextBlock Text="{loc:Str Key=Queue_SelectLabel}" FontSize="12"
+                       Foreground="{StaticResource StatusInkBrush}" VerticalAlignment="Center"
+                       Margin="0,0,4,0"/>
+            <Button Height="26" MinHeight="26" MinWidth="0" Padding="6,0" FontSize="12"
+                    Background="Transparent" BorderThickness="0" Foreground="#DCFFFFFF"
+                    Click="QueueSelectAll_Click" Content="{loc:Str Key=Queue_SelectAllWord}"
+                    ToolTipService.ToolTip="{loc:Str Key=Queue_SelectAll}"/>
+            <TextBlock Text="/" FontSize="12" Foreground="#4DFFFFFF" VerticalAlignment="Center"/>
+            <Button Height="26" MinHeight="26" MinWidth="0" Padding="6,0" FontSize="12"
+                    Background="Transparent" BorderThickness="0" Foreground="#DCFFFFFF"
+                    Click="QueueSelectNone_Click" Content="{loc:Str Key=Queue_SelectNoneWord}"
+                    ToolTipService.ToolTip="{loc:Str Key=Queue_DeselectAll}"/>
+          </StackPanel>
+          </ContentControl>
+
+          <!-- Written in code-behind rather than bound: it is three or four facts joined by
+               separators, and the one about files that still need attention is in a different ink
+               from the rest. -->
+          <TextBlock x:Name="QueueStatusText" Grid.Column="1" FontSize="12"
+                     Foreground="{StaticResource StatusInkBrush}"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                     TextWrapping="NoWrap"/>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="ChinAddButton" Click="AddMusic_Click"
+                    Style="{StaticResource GlassButtonStyle}" Height="30" MinHeight="30"
+                    Padding="12,0" FontSize="12.5">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="&#xf067;" FontFamily="{StaticResource Fa}" FontSize="11"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Str Key=AddMusic_Title}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+
+            <!-- Uses Click, not a command. The press may need to ask a question first (unsaved tag edits). The command
+                 runs only after the answer. Enabled still comes from the model. -->
+            <Button x:Name="ChinImportButton" Click="ChinImport_Click"
+                    IsEnabled="{Binding CanImport}"
+                    Style="{StaticResource GlassPrimaryButtonStyle}" Height="30" MinHeight="30"
+                    Padding="14,0" FontSize="12.5">
+              <!-- No count on the button. The number of rows is a fact about the queue, and the status line shows it. On
+                   the button, the label would change width as rows were ticked, and it would read "Import 0" when
+                   nothing happens. The chevron shows the direction instead: out of the queue and into the library.
+                   Both glyphs take the label's colour, so the three parts stay one object in every button state. -->
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="&#xf310;" FontFamily="{StaticResource Fa}" FontSize="11"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Str Key=Queue_ImportAction}" VerticalAlignment="Center"/>
+                <!-- 13 against the label's 12.5: an FA chevron is drawn shorter than a cap, so at
+                     the label's own size it reads a touch small beside it. -->
+                <TextBlock Text="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="13"
+                           VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Nothing queued: the pane is an invitation rather than an empty grid. A bare glyph sits over the one
+         button that does something, the same design the empty library uses. -->
+    <StackPanel x:Name="QueueEmpty" Spacing="14" MaxWidth="280" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Grid HorizontalAlignment="Center" Margin="0,0,0,2">
+        <FontIcon Glyph="&#xf310;" FontFamily="{StaticResource Fa}" FontSize="42"
+                  Foreground="#55ffffff"/>
+        <FontIcon Glyph="&#xf067;" FontFamily="{StaticResource Fa}" FontSize="14"
+                  Foreground="#55ffffff"
+                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-10,-2"/>
+      </Grid>
+
+      <TextBlock Text="{loc:Str Key=Queue_EmptyTitle}" FontSize="13" FontWeight="SemiBold"
+                 Foreground="#CCFFFFFF" TextAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=Queue_EmptyHint}" FontSize="11.5" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+
+      <!-- The button closes the stack: glyph, what is going on, then the one thing to do about it. -->
+      <Button Click="AddMusic_Click" Style="{StaticResource GlassPrimaryButtonStyle}"
+              HorizontalAlignment="Center" Margin="0,4,0,0"
+              Content="{loc:Str Key=AddMusic_Title}"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

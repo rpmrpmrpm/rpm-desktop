@@ -1,0 +1,1731 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Library.AlbumDetailView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:model="using:RPM.Desktop.Presentation.Main.Library.Models"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:lp="using:RPM.Desktop.Presentation.Main.LeftPane.Controls"
+      xmlns:conv="using:RPM.Desktop.Converters"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      SizeChanged="Page_SizeChanged"
+      RequestedTheme="Dark">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <!-- The plate behind the papers' two cards: the app's frosted glass, a white wash a few points
+        thick over whatever colour the record has. The artist page and the track pane use the same
+        plate, so a card about a record looks the same wherever it is opened.
+        -->
+    <SolidColorBrush x:Key="PapersPlate" Color="#18FFFFFF"/>
+
+    <!-- A vote the reader has cast is lit. An arrow the reader has not pressed stays dim. -->
+    <conv:BoolToBrushConverter x:Key="VoteBrush" TrueBrush="#04C8FF" FalseBrush="#66FFFFFF"/>
+
+    <!-- A vote arrow: the app's small key, 24 x 22, with a wash on hover, so it has a visible hit area. -->
+    <Style x:Key="VoteButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="Width" Value="26"/>
+      <Setter Property="Height" Value="22"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- The chrome the groove's tabs stand beside: the frosted slot that the library's search field,
+        view switch and sort picker also use, with the 32 x 26 key inside it. One style for a small
+        control on the glass, used across the app.
+        -->
+    <Style x:Key="GrooveSlotStyle" TargetType="Border">
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="{StaticResource OnGlassBrush}"/>
+      <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="GrooveKeyStyle" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="Width" Value="32"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="#CCFFFFFF"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- The left rail's actions. The text behaves like a link, because a column of six buttons would
+        weigh more than the album they act on. The rail is stretched, not sized to its words, so it
+        narrows with the card. A label that has to give way needs a width to give way inside. Each
+        action is a glyph and a star-sized column, so whatever runs out of room is trimmed, and the
+        tooltip shows the whole text.
+        -->
+    <Style x:Key="RailActionStyle" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0,3"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+
+    <!-- The glyph and the label inside one of these actions. -->
+    <Style x:Key="RailActionLabelStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="#CCFFFFFF"/>
+      <Setter Property="MaxLines" Value="1"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="SectionHeadingStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#AAFFFFFF"/>
+    </Style>
+
+    <!-- The bars a placeholder card is made of. They are lighter than the card they lie on, and much
+        lighter in weight than writing. Nothing here is text. A placeholder that spelled out lorem ipsum
+        would be read, and then doubted.
+        -->
+    <SolidColorBrush x:Key="GhostBrush" Color="#1FFFFFFF"/>
+
+    <!-- An empty tab of the groove. The cards that are not there are drawn as the shape they would have
+        been: a column of ghosts in the review card's own outline, with a line of text over them. A
+        blank column with one italic line in the middle reads as a fault. This shows that reviews go
+        here and there are none yet, which is two facts in one picture.
+
+        Not animated. A shimmer would mean loading, and this is the answer, not a wait.
+
+        The glyph is struck through with Font Awesome's own slash, a glyph made for exactly this. There
+        is no star-with-slash in the set, and a comment-slash beside a hand-struck star would be two
+        different angles of the same idea.
+        -->
+    <DataTemplate x:Key="GrooveGhostTemplate" x:DataType="model:GrooveGhost">
+      <!-- The card the missing card would have been, with the same fill and the gap under it. The
+          ghosts are the same object as the reviews, with the text taken out. Their opacity comes from
+          their place in the column (see GrooveGhost.Fade). The first three stand at full opacity and
+          the rest fade away below them, so the column ends inside the page instead of being cut off at
+          whatever line the tab stops on.
+          -->
+      <Border Style="{StaticResource GrooveCardStyle}" Opacity="{Binding Fade}">
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Ellipse Grid.Column="0" Width="30" Height="30" Fill="{StaticResource GhostBrush}"
+                   VerticalAlignment="Top"/>
+          <StackPanel Grid.Column="1" Spacing="7">
+            <Rectangle Height="9" Width="{Binding Name}" RadiusX="4" RadiusY="4"
+                       HorizontalAlignment="Left" Fill="{StaticResource GhostBrush}"/>
+            <Rectangle Height="8" RadiusX="4" RadiusY="4" Fill="{StaticResource GhostBrush}"/>
+            <!-- The second line of text on the cards that have one. It is the SHORT line. A paragraph's
+                last line never reaches the margin, and a placeholder whose bars all run the full width
+                looks like a table.
+                -->
+            <Rectangle Height="8" RadiusX="4" RadiusY="4" Margin="0,0,44,0"
+                       Fill="{StaticResource GhostBrush}"
+                       Visibility="{Binding Full, Converter={StaticResource BoolToVisible}}"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="GrooveEmptyTemplate" x:DataType="model:GrooveEmptyState">
+      <Grid>
+        <!-- The ghosts fill the tab from top to foot. What does not fit is CUT, not fitted. A scroller
+            with its scrolling switched off is a clip, and XAML can state that on its own. The
+            alternative is to count how many cards a column can hold and rebuild the list on every
+            resize. That is arithmetic done for something nobody can see.
+            -->
+        <ScrollViewer VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Hidden"
+                      IsHitTestVisible="False">
+          <ItemsControl ItemsSource="{Binding Ghosts}" ItemTemplate="{StaticResource GrooveGhostTemplate}"
+                        VerticalAlignment="Top" Opacity="0.5"/>
+        </ScrollViewer>
+
+        <!-- Over the ghosts, in the middle of the tab. They run the whole height of the tab, so the
+            middle is where the reader's eye already goes.
+
+            The panel itself takes the pointer. The two things that are only WRITING do not. The key
+            under them must be pressable, and a parent with hit testing switched off also turns off its
+            children.
+            -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"
+                    Margin="14,0">
+          <Grid HorizontalAlignment="Center" IsHitTestVisible="False">
+            <FontIcon Glyph="{Binding Glyph}" FontFamily="{StaticResource Fa}" FontSize="26"
+                      Foreground="#59FFFFFF"/>
+            <FontIcon Glyph="&#xf715;" FontFamily="{StaticResource Fa}" FontSize="26"
+                      Foreground="#59FFFFFF"/>
+          </Grid>
+          <!-- Wrapped, and capped at a reading width. A centred line that does not wrap is not cut off
+              at the margin like an ordinary line. It is cut off at BOTH ends, because centring puts
+              half of the overflow on each side, and the sentence loses its first words as well as its
+              last. The longest of these lines is the one for an unlinked record. The groove's column is
+              272 wide at its narrowest.
+              -->
+          <StackPanel Spacing="3" IsHitTestVisible="False" MaxWidth="300">
+            <TextBlock Text="{Binding Text}" FontSize="12.5" Foreground="#8CFFFFFF"
+                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+            <!-- The invitation under the fact. It is quieter than the line above it. What is true comes
+                first, and what to do about it follows.
+                -->
+            <TextBlock Text="{Binding Invitation}" FontSize="11.5" Foreground="#66FFFFFF"
+                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                       Visibility="{Binding InvitationShown}"/>
+          </StackPanel>
+          <!-- The way to act on the invitation, on the tab where there is one. "Be the first!" is an
+              invitation with nothing to press. The reviews tab has no writing field of its own: the
+              review editor is a dialog opened from the rail beside the sleeve, so a reader who takes
+              the invitation has to go and find it. The comments tab has its own box under the column
+              and sets no action here, so the key is not shown (see GrooveEmptyState.Action).
+              -->
+          <Button Click="WriteFirstReview_Click" HorizontalAlignment="Center" Height="28"
+                  Padding="12,0" MinHeight="0"
+                  Visibility="{Binding HasAction, Converter={StaticResource BoolToVisible}}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="&#xf005;" FontFamily="{StaticResource Fa}" FontSize="11"
+                        Foreground="#CCFFFFFF"/>
+              <TextBlock Text="{Binding Action}" FontSize="12"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <!-- A card in the groove. A review and a comment are the same thing at two lengths: someone, on a
+        day, about this record. So they share one shape: the same sleeve, the same 30 px avatar with the
+        same letter fallback, the same author line, and the same overflow menu in the same corner. A
+        review adds a verdict (its stars) and what other people made of it (the score and the two
+        arrows). A comment has neither, and the row closes up around them.
+
+        One column, one card.
+        -->
+    <Style x:Key="GrooveCardStyle" TargetType="Border">
+      <!-- The app's own card fill (from Generic.xaml). It is the same fill as the visualizer gallery's
+          tiles, so a review and a visualizer stand on the same glass.
+          -->
+      <Setter Property="Background" Value="{StaticResource RpmCardPlateBrush}"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- The overflow menu on a card: delete what is yours, report what is not. It sits in the same
+        corner, with the same glyph and the same weight, on both kinds of card.
+        -->
+    <Style x:Key="GrooveMenuStyle" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Padding" Value="4,0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Height" Value="22"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+
+    <DataTemplate x:Key="ReviewTemplate" x:DataType="model:ReviewRow">
+      <Border Style="{StaticResource GrooveCardStyle}">
+        <StackPanel Spacing="8">
+
+          <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Width="30" Height="30" VerticalAlignment="Top">
+              <Border CornerRadius="15" Background="#2604C8FF"
+                      Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}">
+                <TextBlock Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#04C8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ctl:AvatarPicture CornerRadius="15" Source="{Binding AvatarUrl}"
+                                 Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisible}}"/>
+            </Grid>
+
+            <StackPanel Grid.Column="1" Spacing="3">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding AuthorName}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="#FF6FD3FF" VerticalAlignment="Center"/>
+                <!-- The verdict sits beside the name, not at the far edge. It is the first thing read
+                    about a review, so it sits where it is read first.
+                    -->
+                <ctl:StarRating Value="{Binding Stars}" GlyphSize="11" VerticalAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding When}" FontSize="11" Foreground="#77FFFFFF"/>
+                <TextBlock Text="{loc:Str Key=Album_Edited}" FontSize="11" Foreground="#55FFFFFF"
+                           Visibility="{Binding WasEdited, Converter={StaticResource BoolToVisible}}"/>
+                <!-- Which record this reviewer owns, when it is not the one on screen. The page reads
+                    every pressing of an album together, so a verdict can be about the remaster while
+                    the reader is looking at the original cut.
+                    -->
+                <Border Background="#1FFFFFFF" CornerRadius="4" Padding="5,1"
+                        Visibility="{Binding HasPressing, Converter={StaticResource BoolToVisible}}">
+                  <TextBlock Text="{Binding Pressing}" FontSize="10" Foreground="#99FFFFFF"/>
+                </Border>
+              </StackPanel>
+            </StackPanel>
+
+            <Button Grid.Column="2" Click="ReviewMenu_Click" Tag="{Binding}"
+                    Style="{StaticResource GrooveMenuStyle}"
+                    AutomationProperties.Name="{loc:Str Key=Common_MoreOptions}">
+              <FontIcon Glyph="&#xf142;" FontFamily="{StaticResource Fa}" FontSize="11" Foreground="#66FFFFFF"/>
+            </Button>
+          </Grid>
+
+          <TextBlock Text="{Binding Body}" FontSize="12" Foreground="#E6FFFFFF" TextWrapping="Wrap"/>
+
+          <!-- What everybody else made of it, at the card's foot: the two arrows and the number they
+              move. A vote is something a reader does after reading, so it sits after the words.
+              -->
+          <StackPanel Orientation="Horizontal" Spacing="4"
+                      Visibility="{Binding CanVote, Converter={StaticResource BoolToVisible}}">
+            <Button Click="VoteUp_Click" Tag="{Binding}" Style="{StaticResource VoteButtonStyle}"
+                    ToolTipService.ToolTip="{loc:Str Key=Album_VoteUp}"
+                    AutomationProperties.Name="{loc:Str Key=Album_VoteUp}">
+              <FontIcon Glyph="&#xf164;" FontFamily="{StaticResource Fa}" FontSize="11"
+                        Foreground="{Binding VotedUp, Converter={StaticResource VoteBrush}}"/>
+            </Button>
+            <TextBlock Text="{Binding Score}" FontSize="12" Foreground="#AAFFFFFF"
+                       VerticalAlignment="Center" MinWidth="20" TextAlignment="Center"/>
+            <Button Click="VoteDown_Click" Tag="{Binding}" Style="{StaticResource VoteButtonStyle}"
+                    ToolTipService.ToolTip="{loc:Str Key=Album_VoteDown}"
+                    AutomationProperties.Name="{loc:Str Key=Album_VoteDown}">
+              <FontIcon Glyph="&#xf165;" FontFamily="{StaticResource Fa}" FontSize="11"
+                        Foreground="{Binding VotedDown, Converter={StaticResource VoteBrush}}"/>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="CommentTemplate" x:DataType="model:CommentRow">
+      <Border Style="{StaticResource GrooveCardStyle}">
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Grid Grid.Column="0" Width="30" Height="30" VerticalAlignment="Top">
+            <Border CornerRadius="15" Background="#2604C8FF"
+                    Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}">
+              <TextBlock Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold"
+                         Foreground="#04C8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ctl:AvatarPicture CornerRadius="15" Source="{Binding AvatarUrl}"
+                               Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisible}}"/>
+          </Grid>
+
+          <StackPanel Grid.Column="1" Spacing="3">
+            <TextBlock Text="{Binding AuthorName}" FontSize="12" FontWeight="SemiBold" Foreground="#FF6FD3FF"/>
+            <TextBlock Text="{Binding When}" FontSize="11" Foreground="#77FFFFFF"/>
+            <TextBlock Text="{Binding Body}" FontSize="12" Foreground="#E6FFFFFF" TextWrapping="Wrap"
+                       Margin="0,3,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2" Click="CommentMenu_Click" Tag="{Binding}"
+                  Style="{StaticResource GrooveMenuStyle}"
+                  AutomationProperties.Name="{loc:Str Key=Common_MoreOptions}">
+            <FontIcon Glyph="&#xf142;" FontFamily="{StaticResource Fa}" FontSize="11" Foreground="#66FFFFFF"/>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+    <!-- One suggestion, drawn as the artwork band in miniature: the sleeve with its record pulled part
+        of the way out to the right. That is the same silhouette the window shows behind everything. The
+        record is the app's own render (Assets/vinyl-record.png), left black here. Tinting it to the
+        display needs the sleeve's colours read from the bitmap. That is a worker pass per card, which
+        costs far more than a suggestion is worth.
+
+        The card is a padded, rounded hit target, not a bare cover. The highlight then has an edge to
+        sit inside, and the sleeve keeps clear of it.
+
+        Both text lines have a fixed height: two lines for the title, one for the artist. So a record
+        with a long name does not push its artist lower than everybody else's. Text that does not fit is
+        trimmed, because a row that lines up reads faster than one that shows every word.
+        -->
+    <DataTemplate x:Key="SimilarTemplate" x:DataType="model:SimilarRow">
+      <!-- The padding is the card's own. The air between one card and the next is NOT: that belongs to
+          the row, and the panel between the cards spends it (see SimilarList's ItemsPanel). A right
+          margin here would be worn by every card, including the last one. The row would then end a gap
+          past its box on the right, while it starts flush with the heading on the left. The arithmetic
+          that divides the row into whole cards would be out by exactly that gap, so the row would
+          overflow and draw a bar whatever was in it. Both numbers are stated once, in
+          SimilarTileMetrics, which measures the sleeve with them taken off.
+          -->
+      <Button Click="Similar_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+              Padding="8" MinHeight="0" CornerRadius="10"
+              VerticalAlignment="Top" HorizontalContentAlignment="Left">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+        </Button.Resources>
+        <StackPanel Width="{Binding Metrics.Edge}" Spacing="6">
+
+          <!-- The sleeve alone, and the card is the sleeve's own width.
+
+              There is no record behind it showing past the sleeve's right edge. That made the card half
+              again as wide as its picture. Elsewhere in the app, the record behind the sleeve is used
+              for the record being PLAYED (the deck, the header, the visualizer), where it means "this
+              is playing". Six of them in a row say nothing. They cost a third of each card's width and
+              leave a ragged right edge down a row that is otherwise a grid.
+
+              Square, and drawn at the size the track info pane draws the playing record's cover. See
+              SimilarTileMetrics, which divides the width of the two panels above into whole cards at
+              that size and gives every card the same answer. What does not fit the row scrolls, as it
+              already does on a narrow page. The writing under the sleeve is not resized, because a name
+              and an artist should not change size when the picture above them grows.
+              -->
+          <Grid Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}">
+            <Grid Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}" HorizontalAlignment="Left">
+              <Border CornerRadius="6" Background="#33000000"/>
+              <!-- Nothing to show: the made picture that a record with no artwork shows everywhere
+                  else. It is seeded from the folder when the suggestion is a record on this shelf. A
+                  Discogs suggestion has no folder, so it is seeded from its name instead (see
+                  SimilarRow.FigureSeed).
+                  -->
+              <Border CornerRadius="6" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              <Border CornerRadius="6">
+                <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+              </Border>
+              <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="20" Foreground="#4DFFFFFF"
+                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            </Grid>
+          </Grid>
+
+          <!-- One line each, and both lines are trimmed. The title is given one line, not two. Nearly
+              every record name fits on one line, and two lines of height would leave empty space under
+              every title, with the artist floating away from the record it belongs to. A name too long
+              for the card is trimmed, and the tooltip shows the full name.
+              -->
+          <StackPanel>
+            <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" LineHeight="14" Height="14"
+                       Foreground="#EEFFFFFF" MaxLines="1" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{Binding Title, Converter={StaticResource Censor}}"/>
+            <TextBlock Text="{Binding Artist}" FontSize="11" LineHeight="14" Height="14"
+                       Foreground="#88FFFFFF" MaxLines="1" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{Binding Artist}"/>
+          </StackPanel>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
+  </UserControl.Resources>
+
+<!-- Two panels and the groove.
+
+    The ALBUM, left: the sleeve with its record halfway out of it, what the thing is called, what you
+    make of it, and the list of what is on it. The PAPERS, right: what the catalogues and the
+    encyclopedias have written about the record and about the act that made it, and the links out to
+    where they wrote it. These two are the page. The suggestions run along the foot of the pair, and the
+    record's own colour is washed under both, stopping before the third column.
+
+    The GROOVE is the third column. It is deliberately not one of the pair. It is the app's own wall for
+    this record, it belongs to no navigation, and it keeps its full height below the foot where the
+    suggestions sit.
+
+    The tracklist is the only thing in the album panel that scrolls. The sleeve, the record's name and
+    the play button are what the page IS. Scrolling them away to reach track eleven would leave a list
+    with nothing above it saying whose it is. So the head is pinned, the tracks take whatever height is
+    left, and the row of suggestions is pinned to the foot, where it reads as "and afterwards".
+
+    What the three columns are WORTH is fixed. How much room they get is not. Every number below is the
+    widest rung of AlbumPageDensity. That ladder re-sets them all as the card narrows. At the bottom,
+    the groove folds first, and then the papers fold in behind a tab beside the tracks.
+    -->
+  <!-- 12 above the header. This is the panes' own figure (16, 12, 16 around a 36-high heading box). The
+      groove's name now stands on this page's first line, so it must land on the line where the track
+      info, the library and the playlists put theirs. Otherwise the two headers on screen would disagree
+      by six points. The sides and the foot come from the rung.
+      -->
+  <!-- The card, and one control standing on top of it: the key that brings a folded groove back. It is
+      outside the scroller rather than inside the page, for two reasons. It must be reachable whatever
+      the page is doing. And it stands against the CARD's right edge, not against the page's content.
+      -->
+  <Grid x:Name="CardRoot">
+
+  <!-- The page scrolls only once something has come out of the columns and stands underneath them. Both
+      halves of that are one setting, not two. With the bar DISABLED, the scroller gives its content
+      exactly the height it has. That lets the columns' star rows divide it, and lets the tracklist
+      scroll inside its own pane. When enabled, it measures the content with no limit, so the star rows
+      become as tall as what is in them, and the page carries the scrolling for everything. See
+      ApplyStacking, the only place either is set.
+      -->
+  <ScrollViewer x:Name="PageScroller"
+                VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+  <Grid x:Name="PageGrid" Padding="28,28,28,18" ColumnSpacing="22" RowSpacing="14">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition x:Name="AlbumCol" Width="1.1*" MinWidth="380"/>
+      <ColumnDefinition x:Name="PapersCol" Width="*" MinWidth="330"/>
+      <ColumnDefinition x:Name="GrooveCol" Width="*" MinWidth="320"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <!-- Star while the page does not scroll: the columns take the card's whole height and divide it.
+          Auto once the page scrolls. Otherwise the columns would claim a full screen before anything
+          under them began, and the stack would open a hole one screen high above itself. Set in
+          ApplyStacking, with TracksRow. A scrolling page has no star rows, because there is no fixed
+          height left for a star to be a share of.
+          -->
+      <RowDefinition x:Name="ColumnsRow" Height="*"/>
+      <RowDefinition Height="Auto"/>   <!-- The panels that have no column, one under the other. -->
+      <RowDefinition Height="Auto"/>   <!-- More like this, along the foot. -->
+    </Grid.RowDefinitions>
+
+    <!-- ══ The page's own ground: this record's sleeve, as a room lit by it ══
+
+        The same three layers the track info pane stands on (see PaintPanelTint there): a flat colour
+        taken from the picture, the picture itself blurred into a soft wash over it, and a black veil
+        over that which lowers the exposure. What shows through is the album's colour, with the SHAPE of
+        its sleeve moving in it, and none of its detail.
+
+        Two things here belong to this page rather than the pane. The colour is CoverColor.Ground of the
+        sleeve's mean, not its dimmed dominant colour. The picture here is a COVER, and that is the
+        recipe the app already uses for covers (see ArtDisplay's backdrop). A dominant colour is the
+        colour of the biggest thing in a photograph. That is the right question for a press shot, and
+        the wrong one for a record sleeve. And the wash goes up for every sleeve, including bright ones.
+        The pane keeps pale pictures off, because it flips its ink black on a light ground. This page's
+        writing is white throughout, so the veil is what keeps the text readable here. It is measured
+        from the same mean (CoverColor.Veil).
+
+        The ground runs the whole width of the card, groove included. Stopping it at the join would draw
+        one card in two colours, with the record's light ending in mid-air a third of the way across the
+        window. The colour covers the whole room. What marks where the record's page ends is the divider
+        standing in it, which is how the app separates two panes side by side everywhere else.
+
+        It is behind everything and does not react to the pointer. It is rounded to the card on the left
+        and cut square on the right, where the rail stands. The negative margins are this grid's own
+        padding given back: the ground is the CARD's surface, so it reaches the card's edges, not the
+        page's first column.
+        -->
+
+    <!-- The colour, as an ELEMENT rather than the grid's own Background, so that it can fade. The
+        colour is set while this element is at zero opacity, and the whole layer eases in with the
+        sleeve it was taken from. A Background is a brush. Writing a brush's colour lands on the next
+        frame, whether or not the page is ready for it.
+        -->
+    <Border x:Name="PageGround" Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="3"
+            Margin="-28,-28,-28,-18" CornerRadius="8,0,0,8" Opacity="0" IsHitTestVisible="False"/>
+
+    <!-- A Border with the blurred sleeve as its BACKGROUND, not an Image. A background is painted into
+        the element's own bounds, so a square picture filling a wide card is cropped by the card and
+        cannot paint outside it. (Uno's Skia renderer honours an ImageBrush as a background, and draws
+        nothing for one on a Shape's Fill. The pane's wash is built the same way.)
+        -->
+    <Border x:Name="PageWash" Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="3"
+            Margin="-28,-28,-28,-18" CornerRadius="8,0,0,8" Opacity="0" IsHitTestVisible="False">
+      <Border.Background>
+        <ImageBrush x:Name="PageWashArt" Stretch="UniformToFill"/>
+      </Border.Background>
+
+      <!-- Inside the wash, not over it. It follows the wash's own fade, so there is never a frame where
+          one is up and the other is not. How much of it there is depends on the picture: see
+          ShowSleeveGroundAsync, which sets it from CoverColor.Veil.
+          -->
+      <Border x:Name="PageVeil" CornerRadius="8,0,0,8" Background="#FF000000" Opacity="0"/>
+    </Border>
+
+    <!-- The corner it shares with the pane on the left.
+
+        The record's ground carries the LEFT PANE's colour into its bottom left corner while that pane
+        is on screen. The two cards then meet in one tone at the corners that face each other, and read
+        as one lit room rather than as two lit boxes. The colour is the pane's own (see PaneCorner, the
+        only place that says whether there is one). It clears diagonally, so it is a corner and not a
+        band across the page.
+
+        It is a layer of its own, not another stop on the ground's brush. It comes and goes with the
+        PANE, and the ground comes and goes with the RECORD. One fades in when a listener opens track
+        info beside an album that is already on screen. The other fades when the album itself changes.
+        Two lives, two layers.
+        -->
+    <Border x:Name="PageCorner" Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="3"
+            Margin="-28,-28,-28,-18" CornerRadius="8,0,0,8" Opacity="0" IsHitTestVisible="False">
+      <Border.Background>
+        <!-- Bottom left to top right. Both stops are the SAME colour, and the far one has zero alpha. A
+            ramp that cleared to transparent black would drag every album's ground towards grey on the
+            way out. This one simply stops being there.
+            -->
+        <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+          <GradientStop x:Name="CornerNear" Offset="0.0" Color="#00000000"/>
+          <GradientStop x:Name="CornerFar" Offset="0.62" Color="#00000000"/>
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+
+    <!-- The join itself, drawn in the card's own edge: the same hairline and the same top-to-bottom
+        gradient as the library card (DmCardBorderBrush). So the groove reads as standing beside the
+        record in the same way the card stands beside the rail. One style is used for "this ends here".
+
+        Where the record's page ends is not where its colour ends. The ground runs on under the groove,
+        and this line is the only thing that shows the two halves are two halves. It hangs off the right
+        of the first two columns, in the middle of the join's air, so neither side has more room than
+        the other. It runs from the top of the card to the bottom, and it goes with the groove on a card
+        too narrow for the groove to have a column of its own.
+        -->
+    <!-- Two copies of the line, both the full height of the card so the gradient runs unbroken from top
+        to foot. One is cut off above the fold key, and one below it. That leaves a gap in the line
+        behind the key, so the chevron is not drawn across a hairline. The cut is written by CutJoinGap.
+        With the key down, the upper copy is uncut and the lower one is collapsed.
+        -->
+    <Grid x:Name="GrooveEdge" Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
+          Width="1" HorizontalAlignment="Right" Margin="0,-28,-6,-18" IsHitTestVisible="False"
+          SizeChanged="GrooveEdge_SizeChanged">
+      <Rectangle x:Name="GrooveEdgeAbove" Fill="{StaticResource DmCardBorderBrush}"/>
+      <Rectangle x:Name="GrooveEdgeBelow" Fill="{StaticResource DmCardBorderBrush}" Visibility="Collapsed"/>
+    </Grid>
+
+    <!-- Folds the groove away. It stands ON the join, halfway down it. It is the same key as the one
+        that brings the groove back, at the same height, on the seam where the column it acts on begins.
+        The pair reads as one control that moves with the column, not as two keys in two places.
+
+        It is in the groove's CELL, not in the groove itself, so it stays behind when the column is
+        taken out of this grid and placed under the record (see PlaceGroove). Down there, the heading's
+        own key is the one that is up.
+
+        Its left margin is written in Frame, because where the seam is depends on the rung. The grid
+        spends the rung's Gap between the two cells, and the divider stands _joinEdge past the last of
+        the papers. So the key is half its own width to the left of that line.
+
+        It sits above the columns, because it hangs into the air beside two of them, and the groove's
+        cell is added back to this grid after it (see PlaceGroove). A key drawn under the panel it
+        stands beside takes no press. Its Canvas.ZIndex is 2, so it clears the back key, which is 1.
+
+        It uses the shared glow key with no slot, the same key as GrooveReopen, so the two look the same
+        whichever state the groove is in. 36 x 44. AlbumDetailView.JoinKeyHalf is half of the 36.
+        -->
+    <Button x:Name="GrooveFoldJoin" Grid.Row="0" Grid.RowSpan="3" Grid.Column="2"
+            Canvas.ZIndex="2" Click="GrooveFold_Click" Style="{StaticResource GlowKeyStyle}"
+            Width="36" Height="44" Visibility="Collapsed"
+            HorizontalAlignment="Left" VerticalAlignment="Center"
+            ToolTipService.ToolTip="{loc:Str Key=Album_GrooveHide}"
+            AutomationProperties.Name="{loc:Str Key=Album_GrooveHide}">
+      <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#FFFFFFFF"/>
+    </Button>
+
+    <!-- The album: its sleeve, its name, and its songs.
+
+        The left of the two panels the page is drawn as. Everything in it is the RECORD ITSELF: the
+        picture on the front, what it is called, who made it, what you think of it, and the list of what
+        is on it. Nothing that came from a catalogue is here. That is the panel beside it.
+
+        The head is pinned, and the tracklist takes whatever height is left. This is the one thing about
+        the page that does not change. A reader who scrolls to track eleven must not lose the sleeve and
+        the play button on the way. On a card with no height to pin the head in, the head scrolls inside
+        its own pane and the songs are not pushed off the bottom (see AlbumPageDensity.FactsCap).
+        -->
+    <Grid x:Name="AlbumColumn" Grid.Row="0" Grid.Column="0" RowSpacing="14"
+          SizeChanged="AlbumColumn_SizeChanged">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- What the record is, and what can be done with it. -->
+        <!-- Star while the page does not scroll, so the tracklist takes what is left of the card and
+            scrolls inside it. Auto once the page scrolls, so it draws its whole length and the page
+            carries it. Set in ApplyStacking.
+            -->
+        <RowDefinition x:Name="TracksRow" Height="*"/>
+      </Grid.RowDefinitions>
+
+      <ScrollViewer x:Name="FactsScroller" Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled">
+      <StackPanel x:Name="AlbumHead" Spacing="14" Margin="0,0,16,0"
+                  SizeChanged="AlbumHead_SizeChanged">
+
+        <!-- ── the sleeve, with its record halfway out of it ──
+
+            The silhouette the app shows everywhere it says "this is a record": the deck, the header and
+            the visualizer. It is a picture rather than the live RecordDisc control. That control is
+            sized, positioned, tinted and turned by ArtDisplay through many attached parts, and a page
+            that borrowed it would also borrow the turntable. This disc does not spin, because nothing
+            here is playing yet.
+
+            Three numbers, all set in AlbumHead_SizeChanged and none of them here. The sleeve is square,
+            at whatever the column can give it up to the rung's cap. The record is the sleeve's own
+            height. The stage is a third wider again, so the disc shows past the sleeve's right edge by
+            about a third of itself. The pair is centred, so the sleeve sits a little left of the
+            panel's middle. That is what the record coming out of it is for.
+            -->
+        <Grid x:Name="CoverStage" HorizontalAlignment="Center">
+          <!-- No Source here. The album's own disc scan is used where the folder has one, and otherwise
+              the app's pressing in the sleeve's colour. Both are set in LoadDiscAsync, because both are
+              read from the disk.
+              -->
+          <!-- Round, and the BORDER is what makes it round.
+
+              A folder's disc art is a transparent PNG of the record where whoever made it cut one out.
+              Where they did not, it is a photograph of a CD on a white ground. disc.jpg and disc.jpeg
+              are names this app accepts (see FolderArtWriter.FindDiscImage), and a JPEG has no
+              transparency to carry a cut-out in. Drawn straight, that second kind stands out from
+              behind the sleeve as a white square with a disc printed on it.
+
+              The deck clips its own disc in the same way (see RecordDisc's rotating layer), and the
+              cover search relies on it when it hands back a picture it could find no disc in. So a scan
+              that cannot cut itself out is cut out where it is drawn. The radius is half the edge. It
+              is written in FitCover with the size.
+              -->
+          <Border x:Name="CoverDiscClip" HorizontalAlignment="Right" VerticalAlignment="Center"
+                  IsHitTestVisible="False">
+            <!-- Two layers, because a folder's disc art is two different things. A photographed CD is
+                the whole face of the record and covers the pressing, which is then taken down, so
+                nothing shows through the spindle hole. A vinyl LABEL (what the Cover Art Archive has
+                for most LPs) is the middle third and transparent everywhere else. The pressing under it
+                IS the record, and without it the label stands on its own over the disc's shadow. Which
+                of the two arrived is read off the picture in DiscStamp.Covers and carried here.
+                -->
+            <Grid>
+              <Image x:Name="CoverDisc" Stretch="Fill"/>
+              <Image x:Name="CoverDiscScan" Stretch="Fill" Opacity="0"/>
+              <!-- Over a whole CD only: the even rim, the rpm hub and the player's spindle. Written in
+                  LoadDiscAsync in the same turn as CoverDiscScan.
+                  -->
+              <ctl:CdOverlay x:Name="CoverCdDress" Opacity="0"/>
+            </Grid>
+          </Border>
+
+          <!-- Right-clickable. The menu is the WALL's: the record's own menu, the one a listener has
+              already learned on the grid. The rail under the sleeve holds what this page adds (the
+              review, the comment, the pressing). Everything a record can do, wherever it is met, is on
+              the sleeve, where a listener who has just come from the grid will look for it.
+              -->
+          <Grid x:Name="CoverBox" HorizontalAlignment="Left" VerticalAlignment="Center"
+                ContextRequested="Cover_ContextRequested">
+            <Border CornerRadius="8" Background="#33000000"/>
+            <!-- No cover: the made picture, filled and shown by LoadCover alongside the disc. It is
+                under the sleeve, not over it, so a cover that arrives late (offloaded, or borrowed from
+                another computer) simply paints across it.
+                -->
+            <Border x:Name="CoverFigure" CornerRadius="8" IsHitTestVisible="False" Visibility="Collapsed"/>
+            <Border CornerRadius="8">
+              <Image x:Name="Cover" Stretch="UniformToFill"/>
+            </Border>
+            <FontIcon x:Name="CoverPlaceholder" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
+                      FontSize="40" Foreground="#4DFFFFFF"/>
+          </Grid>
+        </Grid>
+
+        <!-- ── what it is called ──
+
+            Centred under the sleeve. This is the one place on this page where centred type is right: it
+            is a caption on a picture. Everything else on the page, the tracklist below and the papers
+            beside it, runs off one left edge.
+
+            It is short of the close key by its own width on the right, and by the same on the left, so
+            the centring is true. The key stands in the top right corner of the two panels. A title
+            measured against the full width would centre itself a little left of where it looks centred.
+
+            The name's own width is written in FitName, not here. A horizontal stack gives what is in it
+            an infinite width, so a name in one is never cut. It would run off both edges of the panel
+            instead.
+            -->
+        <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="26,0,26,0">
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+            <TextBlock x:Name="TitleText" FontSize="20" FontWeight="Bold" Foreground="#FFFFFFFF"
+                       TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                       TextAlignment="Center" VerticalAlignment="Center"/>
+            <!-- Set from the tracks the page has just read, in Show. The heading here is set by code
+                behind, not by a binding.
+                -->
+            <ctl:ExplicitBadge x:Name="ExplicitMark" Width="16" Height="16" Visibility="Collapsed"
+                               VerticalAlignment="Center"
+                               ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+          </StackPanel>
+
+          <!-- The edition, taken from the end of the record's own title. "Short N' Sweet (Deluxe)" is a
+              record called Short N' Sweet, and this line is where the Deluxe goes. Brackets are how a
+              tagger fits two facts on one line. A page has room for two lines. It is held at seventy
+              percent, so it reads as a note about the name rather than as a second name. It is left out
+              of the layout entirely for most records, which state no edition.
+              -->
+          <TextBlock x:Name="EditionText" FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                     Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center"
+                     HorizontalAlignment="Center" Visibility="Collapsed"/>
+          <TextBlock x:Name="SubtitleText" FontSize="12" Foreground="#B8FFFFFF" TextWrapping="Wrap"
+                     TextAlignment="Center" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- ── the stars ──
+
+            ONE row of them, and they are the reader's own. A rating to give and an average to read
+            would be two rows. The second would be a row of stars that could not be pressed, sitting
+            directly under a row that could. That is a control that does nothing next to a control that
+            does, in the same shape. The average is still on the page, in the line under this one, said
+            in words. A number with a count beside it is a clearer average than five glyphs that a
+            reader has to measure by eye.
+
+            When signed out, the stars go quiet rather than away. See the sign-in banner in the groove,
+            which says why.
+            -->
+        <StackPanel Spacing="4" HorizontalAlignment="Center">
+          <ctl:StarRating x:Name="MyStars" GlyphSize="15" IsInteractive="True"
+                          HorizontalAlignment="Center" RatingPicked="MyRating_Picked"/>
+          <TextBlock x:Name="AverageCountText" FontSize="11" Foreground="#77FFFFFF"
+                     TextAlignment="Center" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- ── what can be done with it ──
+
+            Play, shuffle, favourite, and everything else behind one key. The favourite is the heart
+            here. The other three actions (write a review, comment and report) are in the menu, where
+            an action that nobody takes twice a year belongs.
+
+            Show in Discogs joins them. It is the only item that comes and goes. A record with no linked
+            pressing has no Discogs page to show.
+            -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+          <ctl:RpmPrimaryButton x:Name="PlayButton" Click="Play_Click" Height="34" Padding="16,0">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="11" VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=AlbumMenu_Play}" FontWeight="Bold" VerticalAlignment="Center"/>
+            </StackPanel>
+          </ctl:RpmPrimaryButton>
+          <Button x:Name="ShuffleButton" Click="Shuffle_Click" Height="34" Padding="12,0"
+                  ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Shuffle}"
+                  AutomationProperties.Name="{loc:Str Key=AlbumMenu_Shuffle}">
+            <FontIcon Glyph="&#xf074;" FontFamily="{StaticResource Fa}" FontSize="12"/>
+          </Button>
+          <Button x:Name="FavoriteButton" Click="Favorite_Click" Height="34" Padding="12,0"
+                  ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Favorite}"
+                  AutomationProperties.Name="{loc:Str Key=AlbumMenu_Favorite}">
+            <FontIcon x:Name="FavoriteButtonIcon" Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}"
+                      FontSize="12"/>
+          </Button>
+          <Button x:Name="MoreButton" Height="34" Padding="12,0"
+                  ToolTipService.ToolTip="{loc:Str Key=Album_MoreActions}"
+                  AutomationProperties.Name="{loc:Str Key=Album_MoreActions}">
+            <FontIcon Glyph="&#xf141;" FontFamily="{StaticResource Fa}" FontSize="12"/>
+            <Button.Flyout>
+              <MenuFlyout Placement="Bottom">
+                <!-- The two doors into the groove. They come and go with it. A record whose groove is
+                    not on the page has nowhere for a review or a comment to appear, and the comment
+                    item focuses a box inside a panel that is not shown. See ShowGroove.
+                    -->
+                <MenuFlyoutItem x:Name="WriteReviewItem" Click="WriteReview_Click"
+                                Text="{loc:Str Key=AlbumMenu_WriteReview}">
+                  <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xf044;" FontFamily="{StaticResource Fa}" FontSize="12"/>
+                  </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem x:Name="WriteCommentItem" Click="FocusComment_Click"
+                                Text="{loc:Str Key=Album_WriteComment}">
+                  <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xf075;" FontFamily="{StaticResource Fa}" FontSize="12"/>
+                  </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem x:Name="DiscogsMenuItem" Click="Discogs_Click"
+                                Text="{loc:Str Key=AlbumMenu_ShowInDiscogs}" Visibility="Collapsed"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Click="ReportAlbum_Click" Text="{loc:Str Key=Album_ReportIssue}">
+                  <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xf071;" FontFamily="{StaticResource Fa}" FontSize="12"/>
+                  </MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
+
+      </StackPanel>
+      </ScrollViewer>
+
+      <!-- What the record holds. One thing at a time on a card wide enough for three columns, because
+          the groove is a column of its own there. Two things behind a strip when it is not.
+          -->
+      <Grid Grid.Row="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="1">
+
+      <!-- The tracklist: the one thing in this column that scrolls. It scrolls under its own heading
+          rather than taking it along.
+          -->
+      <Grid x:Name="TracksPane" RowSpacing="6">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{loc:Str Key=Album_Tracks}"
+                   Style="{StaticResource SectionHeadingStyle}"/>
+
+        <!-- The songs, with a hem at each end saying how much of the list is off the top and off the
+            foot. There are three elements, and the shape is what ScrollHem needs. The cut is the one
+            thing the inset clip goes on, and it must hold nothing but the scroller. The two bands are
+            drawn over it. The album list's blocks hem their tracklists the same way.
+            -->
+        <Grid Grid.Row="1">
+        <Grid x:Name="TrackCut">
+        <ScrollViewer x:Name="TrackScroller" VerticalScrollBarVisibility="Auto" Padding="0,0,16,0">
+          <ItemsControl x:Name="TrackList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="model:AlbumTrackItem">
+                <Grid>
+                  <StackPanel Spacing="5" Margin="0,10,0,4"
+                              Visibility="{Binding IsDiscHeader, Converter={StaticResource BoolToVisible}}">
+                    <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" FontWeight="SemiBold" Foreground="#99FFFFFF"
+                               TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                    <Rectangle Height="1" Fill="#26FFFFFF"/>
+                  </StackPanel>
+
+                  <!-- The line that opens a work. A classical record is published as a list of works,
+                      with their movements under them. This is that list: the piece is named once, with
+                      who wrote it and how long the whole thing runs, and its movements are indented
+                      below. No rule goes under it, unlike a disc divider. A work is a group inside the
+                      record, not a break in it.
+                      -->
+                  <!-- It starts on the track lines' own left edge, so the top level of the listing
+                      (headings and pieces alike) reads as one column. Only a movement is indented past
+                      it.
+                      -->
+                  <Grid Margin="8,10,8,3" ColumnSpacing="10"
+                        Visibility="{Binding IsWorkHeader, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="1">
+                      <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="12.5" FontWeight="SemiBold"
+                                 Foreground="#EEFFFFFF" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                      <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#88FFFFFF"
+                                 TextTrimming="CharacterEllipsis" MaxLines="1"
+                                 Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12"
+                               Foreground="#88FFFFFF" VerticalAlignment="Center"/>
+                  </Grid>
+
+                  <Button HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
+                          Background="Transparent" BorderThickness="0" Padding="8,4" MinHeight="0"
+                          Click="Track_Click" ContextRequested="Track_ContextRequested" Tag="{Binding}"
+                          PointerEntered="Track_PointerEntered" PointerExited="Track_PointerExited"
+                          Visibility="{Binding IsTrack, Converter={StaticResource BoolToVisible}}">
+                    <Button.Resources>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+                    </Button.Resources>
+                    <Grid ColumnSpacing="10" Margin="{Binding Indent}">
+                      <Grid.ColumnDefinitions>
+                        <!-- The number's column and the star's column. The two share a column: the
+                            digits sit right in it and the star sits left, so the numbers keep lining up
+                            whether or not the line above carries a star. Thirty is used, not the wall's
+                            twenty-four. It is the star's own ten, and enough air that a two-digit
+                            number does not stand on it.
+
+                            The star has no column of its own at the head of the row. A column held on
+                            every line would leave twenty-three points of empty gutter down the left of
+                            the list, against eight on the right, and the list would read as pushed off
+                            its own column.
+                            -->
+                        <ColumnDefinition Width="30"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- The heart's column, always held. See the wall's tracklist. -->
+                        <ColumnDefinition Width="18"/>
+                      </Grid.ColumnDefinitions>
+                      <!-- The song the world plays most. Gold, the colour the app gives a star
+                          everywhere else (see StarRating). There is no button, because nothing about it
+                          is the reader's to change. On a piece, the star sits in front of the name
+                          instead, where that line's number already is (see
+                          AlbumTrackItem.StarInColumn).
+                          -->
+                      <FontIcon Grid.Column="0" Glyph="&#xf005;" FontFamily="{StaticResource Fa}"
+                                FontSize="10" Foreground="#FFF2C14E"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Visibility="{Binding StarInColumn}"
+                                ToolTipService.ToolTip="{loc:Str Key=Track_MostPopular}"/>
+                      <TextBlock Grid.Column="0" Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                                 Visibility="{Binding NumberInColumn}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                      <!-- Behind the name, in the same row. A column of its own would park it against
+                          the duration at the far side of the row. This is a TrimRow, not a horizontal
+                          StackPanel, so a long title ends in an ellipsis.
+                          -->
+                      <StackPanel Grid.Column="{Binding TitleColumn}" Grid.ColumnSpan="{Binding TitleSpan}"
+                                  Spacing="1" VerticalAlignment="Center">
+                        <ctl:TrimRow Spacing="6">
+                          <!-- The star, where the line is a piece. A piece's name starts in the
+                              number's own cell, so a star left in that cell would stand under the first
+                              letters of the name.
+                              -->
+                          <FontIcon Glyph="&#xf005;" FontFamily="{StaticResource Fa}"
+                                    FontSize="10" Foreground="#FFF2C14E" VerticalAlignment="Center"
+                                    Visibility="{Binding StarInline}"
+                                    ToolTipService.ToolTip="{loc:Str Key=Track_MostPopular}"/>
+                          <!-- A piece's number sits in front of its name, not in the number column.
+                              The digit then starts on the work's own left edge, with the same gap after
+                              it that a movement's number has.
+                              -->
+                          <TextBlock Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                                     Visibility="{Binding NumberInline}" Margin="0,0,4,0"
+                                     VerticalAlignment="Center"/>
+                          <!-- The song the player is on, marked the way it is marked everywhere else in
+                              the app: the wall's tracklist, the album list and the import workbench. It
+                              shares the slot in front of the name with the cloud mark below. The cloud
+                              mark steps aside while this one is shown (see
+                              AlbumTrackItem.ShowCloudBadge).
+                              -->
+                          <ctl:PlayingBars Active="{Binding IsPlaying}" Foreground="#EEFFFFFF"
+                                           VerticalAlignment="Center"/>
+                          <!-- The track's own cloud mark, shown only where the record disagrees with
+                              itself. See the wall's tracklist, which this page follows.
+                              -->
+                          <ctl:CloudBadge Badge="{Binding CloudBadge}" Pulse="{Binding CloudPulse}"
+                                          Visibility="{Binding ShowCloudBadge, Converter={StaticResource BoolToVisible}}"/>
+                          <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="{Binding TitleSize}" Foreground="#EEFFFFFF"
+                                     FontWeight="{Binding TitleWeight}" ctl:TrimRow.Shrinks="True"
+                                     TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                          <!-- 13 on a track line, 16 on the record's heading above. -->
+                          <ctl:ExplicitBadge Width="13" Height="13"
+                                             Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                             ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+                        </ctl:TrimRow>
+                        <!-- Who wrote it, on a piece that is a work in its own right. -->
+                        <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#88FFFFFF"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                                   Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                                 VerticalAlignment="Center"/>
+                      <Button Grid.Column="3" Click="TrackFavorite_Click" Tag="{Binding}"
+                              Background="Transparent" BorderThickness="0" CornerRadius="4"
+                              Width="18" Height="18" MinWidth="0" MinHeight="0" Padding="0"
+                              VerticalAlignment="Center"
+                              Visibility="{Binding ShowHeart, Converter={StaticResource BoolToVisible}}"
+                              ToolTipService.ToolTip="{loc:Str Key=Track_Favorite}"
+                              AutomationProperties.Name="{loc:Str Key=Track_Favorite}">
+                        <Button.Resources>
+                          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                        </Button.Resources>
+                        <Grid>
+                          <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="11"
+                                    Foreground="{StaticResource FavoriteMarkBrush}"
+                                    Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                          <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="11"
+                                    Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                                    Visibility="{Binding IsNotFavorite, Converter={StaticResource BoolToVisible}}"/>
+                        </Grid>
+                      </Button>
+                    </Grid>
+                  </Button>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        </Grid>
+
+        <!-- Height is zero until there is something to say. A record whose songs all fit shows neither
+            band, which is what gives the bands their meaning.
+            -->
+        <Border x:Name="TrackHemHead" VerticalAlignment="Top" Height="0" IsHitTestVisible="False"/>
+        <Border x:Name="TrackHemFoot" VerticalAlignment="Bottom" Height="0" IsHitTestVisible="False"/>
+        </Grid>
+      </Grid>
+
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <!-- ── the papers: what is written down about this record, and about the act that made it ──
+
+        The right of the two panels. Everything in it came from somewhere else. MusicBrainz gives the
+        facts, Wikipedia gives the prose, and both give the links out along the foot. That is why it is
+        a panel of its own, not more lines under the sleeve. A reader can tell at a glance which half of
+        this page is the library's answer and which half is the world's.
+
+        It arrives on the network's own clock, seconds after the panel beside it is already full. Every
+        block in it stays hidden until it has something to say. A heading over an empty card is a
+        heading over a gap in the data. See PapersAsync, which reads the cache first and only then asks.
+        A record whose page has been opened before, or whose artist's page has, opens with these cards
+        already written.
+
+        It is a Grid rather than a bare ScrollViewer because it MOVES. On a card too narrow for three
+        columns, it is taken out of the row of columns and placed underneath the record instead, at full
+        width. The groove already works this way. The thing that moves has to be one object with
+        everything loaded into it. See PlacePapers.
+        -->
+    <Grid x:Name="PapersColumn" Grid.Row="0" Grid.Column="1">
+      <ScrollViewer x:Name="PapersScroller"
+                    VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+        <!-- The right inset is the scrollbar's lane. The top one is the heading's own leading. Both are
+            written from code. See ApplyStacking, which takes the lane back when this panel stops
+            scrolling. It also hangs the scroller past its column, so the bar stands in the middle of
+            the join rather than against the cards.
+            -->
+        <StackPanel x:Name="PapersStack" Spacing="14" Margin="0,0,10,0">
+
+          <!-- The wait, while the catalogues are being read. It is the same turning record that the
+              artist page and the track pane show over the same wait. It is the app's mark for "a
+              catalogue is being read", and a third answer to that question would be one too many.
+
+              It stands where the cards will be, at the head of the column. It is the only thing in the
+              column while the wait lasts. The pressing well under it is taken away with the rest (see
+              ShowPapers), so the column is either turning or written, and never half of each.
+
+              It is never shown for a record whose papers are already in hand. Those are painted on the
+              frame the page opens (see PapersAsync, which checks the cache before it asks anybody). A
+              spinner that flashes on for a single frame over a card that is already written would be
+              the pop this is meant to avoid.
+
+              It has the same air above it as below, and only the top of it is written here. The stack's
+              own 14 points already stand between it and the card under it. A bottom margin as well
+              would put the record nearer its top than its foot.
+              -->
+          <StackPanel x:Name="PapersBusyBlock" Spacing="8" Margin="0,14,0,0"
+                      HorizontalAlignment="Center" Visibility="Collapsed">
+            <ctl:RecordSpinner x:Name="PapersBusy" Width="52" Height="52"
+                               HorizontalAlignment="Center"/>
+            <!-- What is being waited for, said once. The record alone says "wait" and not what for.
+                This column can wait several seconds on MusicBrainz's limit of one request a second.
+                -->
+            <TextBlock x:Name="PapersBusyText" Text="{loc:Str Key=Album_LoadingInfo}"
+                       FontSize="12" Foreground="#88FFFFFF" HorizontalAlignment="Center"/>
+          </StackPanel>
+
+          <!-- ── about the album ── -->
+          <StackPanel x:Name="AlbumPapersBlock" Spacing="6" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=TrackInfo_AboutAlbum}" Style="{StaticResource SectionHeadingStyle}"/>
+            <Border Background="{StaticResource PapersPlate}" CornerRadius="8" Padding="14">
+              <StackPanel Spacing="8">
+                <!-- The catalogue's name for the record, rather than the collection's. The two often
+                    differ enough to be worth printing both. The name under the sleeve says what the
+                    tags spell. This says which release group MusicBrainz matched.
+                    -->
+                <TextBlock x:Name="AlbumPapersName" FontSize="14" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" TextWrapping="Wrap"/>
+                <TextBlock x:Name="AlbumPapersFacts" FontSize="11" Foreground="#88FFFFFF"
+                           TextWrapping="Wrap"/>
+                <lp:WrapRow x:Name="AlbumPapersGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
+                <TextBlock x:Name="AlbumPapersProse" FontSize="12" Foreground="#DDFFFFFF"
+                           LineHeight="18" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <ctl:RpmLink x:Name="AlbumPapersMore"
+                               Click="AlbumPapersMore_Click" FontSize="11"/>
+                  <!-- Wikipedia asks to be named, and a reader deserves to know what they are reading. -->
+                  <ctl:RpmLink x:Name="AlbumPapersSource"
+                               Click="AlbumPapersSource_Click" FontSize="11"/>
+                </StackPanel>
+                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link
+                    is.
+                    -->
+                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumPapersSource}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ── about the artist ──
+
+              Folded to its lead paragraph, exactly as the card above is, and for a reason the artist
+              page does not share. That page is one column about one act, with nothing queued below it,
+              so it prints the whole biography. This column has four blocks. An eight-paragraph life
+              story at the top would push the links below the point a reader scrolls to.
+              "Show more" is under both, and it only appears where there is more.
+              -->
+          <StackPanel x:Name="ArtistPapersBlock" Spacing="6" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=TrackInfo_AboutArtist}" Style="{StaticResource SectionHeadingStyle}"/>
+            <Border Background="{StaticResource PapersPlate}" CornerRadius="8" Padding="14">
+              <StackPanel Spacing="8">
+                <TextBlock x:Name="ArtistPapersName" FontSize="14" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ArtistPapersFacts" FontSize="11" Foreground="#88FFFFFF"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="ArtistPapersProse" FontSize="12" Foreground="#DDFFFFFF"
+                           LineHeight="18" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <ctl:RpmLink x:Name="ArtistPapersMore"
+                               Click="ArtistPapersMore_Click" FontSize="11"/>
+                  <ctl:RpmLink x:Name="ArtistPapersSource"
+                               Click="ArtistPapersSource_Click" FontSize="11"/>
+                </StackPanel>
+                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link
+                    is.
+                    -->
+                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=ArtistPapersSource}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ── elsewhere ──
+
+              Where else this record is written about. One link per line, rather than a wrapped row of
+              pills. Down a column they are labelled links with one left edge. The
+              order means something: the record's own pages come before the artist's, because a Discogs
+              page for THIS release is a better answer than one for everything the artist made. It is
+              filled in code, because the list is as long as the catalogues happen to make it.
+              -->
+          <StackPanel x:Name="LinksBlock" Spacing="6" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=TrackInfo_Elsewhere}" Style="{StaticResource SectionHeadingStyle}"/>
+            <StackPanel x:Name="LinksRow" Spacing="4"/>
+          </StackPanel>
+
+          <!-- The one review that earned a place outside the groove. It is here, not under the sleeve,
+              for the same reason as the pressing well: it is something written about the record. It is
+              the first thing this page gives up on a short card. It is on the page twice, and the copy
+              in the groove is the real one. See AlbumPageDensity.ShowsTopReview.
+              -->
+          <StackPanel x:Name="TopReviewBlock" Spacing="6" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=Album_TopReview}" Style="{StaticResource SectionHeadingStyle}"
+                       FontStyle="Italic"/>
+            <!-- On the same plate as the two cards above it, for the same reason they share one: this
+                column is a stack of things somebody else wrote. A block of prose standing on the
+                record's own colour would read as the page talking, not as a card in a column.
+                -->
+            <Border Background="{StaticResource PapersPlate}" CornerRadius="8" Padding="14">
+              <StackPanel Spacing="8">
+                <!-- The opening paragraph, and no more than five lines of it. The whole review is in
+                    the groove, which is where somebody who wants it goes. This is a taste of the review
+                    that was voted up. A card that grew with whatever the reviewer wrote would push
+                    everything under it off the column. See TopReviewLead.
+                    -->
+                <TextBlock x:Name="TopReviewBody" FontSize="12" Foreground="#DDFFFFFF" LineHeight="18"
+                           TextWrapping="Wrap" MaxLines="5" TextTrimming="CharacterEllipsis"/>
+                <!-- Who wrote it and what they gave it, on the card's foot: the verdict beside the
+                    name, the way the cards in the groove show it.
+                    -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock x:Name="TopReviewAuthor" FontSize="11" FontWeight="SemiBold"
+                             Foreground="#FF6FD3FF" VerticalAlignment="Center"/>
+                  <ctl:StarRating x:Name="TopReviewStars" GlyphSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ── the pressing well ──
+
+              Which record this is, as against which album. An album imported from files, or ripped off
+              a turntable, has no catalogue entry behind it. This is the only route it has to one.
+              Without a pressing, the reviews here are the reviews of whoever happened to tag their copy
+              the same way.
+
+              It sits in this panel, and that is where it belongs. Everything around it is a fact about
+              the RELEASE, and this is the one that says which release the shelf actually holds. It is
+              LAST in the panel, under everything the catalogues had to say. The cards above are the
+              record as the world files it. This is the one question the page puts back to the reader. A
+              call to act reads as an afterthought above a biography, and as a conclusion below one.
+
+              It is a well rather than four loose lines. The release date, the catalogue number and the
+              ids the record answers to are one fact said three ways: which pressing is on the shelf.
+              Shown as three separate grey lines, they would not read as one fact. It is keylined in the
+              app's own slot: the frosted fill and the hairline that the search field, the view switch
+              and the groove's chrome all use.
+
+              The button stays in the card at all times. It is not shown only on hover. A hover-only
+              button asks the reader to find a link by moving the pointer over the card, and it hides
+              the one action a record page offers from anybody who does not go looking for it.
+              -->
+          <Border x:Name="PressingWell"
+                  CornerRadius="6" Padding="11,9"
+                  Background="{StaticResource OnGlassBrush}"
+                  BorderBrush="#22FFFFFF" BorderThickness="1"
+                  SizeChanged="PressingWell_SizeChanged">
+            <!-- Two shapes. Which one is drawn is measured, not chosen. See FitPressingWell. The key
+                sits beside the facts while the column can hold both. The key goes under them, centred,
+                once it cannot. A key that keeps its place on a narrow column takes width out of the
+                writing beside it, and then the catalogue number is one that nobody can read in full.
+                -->
+            <!-- No RowSpacing here, and that is deliberate. A Grid spends it between the rows it has
+                DECLARED. If the air for a key standing under the facts were set here, it would be spent
+                on an empty second row wherever the key stands beside them. The result would be a card
+                with twice the padding along its foot as along its top. The air belongs to one of the
+                two shapes, so it is set where the shape is chosen (see FitPressingWell).
+                -->
+            <Grid x:Name="PressingGrid" ColumnSpacing="10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <StackPanel x:Name="PressingFacts" Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                <!-- Upright, all of them. These are the record's own numbers, read off its sleeve. A
+                    number set in italic reads as an aside about the record, not as what is printed on
+                    it.
+                    -->
+                <TextBlock x:Name="ReleasedText" FontSize="12" Foreground="#99FFFFFF"/>
+                <TextBlock x:Name="CatalogText" FontSize="12" Foreground="#99FFFFFF"/>
+                <TextBlock x:Name="DiscogsIdText" FontSize="12" Foreground="#99FFFFFF"
+                           Visibility="Collapsed"/>
+                <TextBlock x:Name="BarcodeText" FontSize="12" Foreground="#99FFFFFF"
+                           Visibility="Collapsed"/>
+                <!-- What the pressing IS: "Vinyl, LP, Limited Edition, Red Translucent". It wraps,
+                    because a well-described record can run to a dozen words where the numbers above it
+                    run to one.
+                    -->
+                <TextBlock x:Name="PressingFormatText" FontSize="12" Foreground="#99FFFFFF"
+                           TextWrapping="Wrap" Visibility="Collapsed"/>
+                <TextBlock x:Name="AliasesText" FontSize="12" Foreground="#99FFFFFF"
+                           TextWrapping="Wrap" Visibility="Collapsed"/>
+                <!-- The fact, and nothing about what to do with it. This card is the record's own
+                    numbers. "Why you would want to" belongs where the want is felt, which is the empty
+                    groove. See ShowGrooveEmpty.
+                    -->
+                <TextBlock x:Name="NotLinkedText" FontSize="12"
+                           Foreground="#99FFFFFF" TextWrapping="Wrap" Visibility="Collapsed"/>
+              </StackPanel>
+
+              <!-- A key, not a link. The record glyph shows what is being changed before the words are
+                  read. It is the same glyph that a sleeve with no cover shows.
+                  -->
+              <Button x:Name="LinkPressingButton" Grid.Column="1" Click="LinkPressing_Click"
+                      VerticalAlignment="Center" Height="26" MinHeight="0" MinWidth="0"
+                      Padding="10,0" CornerRadius="5"
+                      Background="#18FFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                      Foreground="#E6FFFFFF">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#28FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#38FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                </Button.Resources>
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="11"
+                            VerticalAlignment="Center"/>
+                  <TextBlock x:Name="LinkPressingText" FontSize="11.5" FontWeight="SemiBold"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+
+          <!-- ── the copyright well ──
+
+              Who owns the recording, taken from the file's own tags. It has its own card rather than
+              another line in the pressing well above. Everything in that well says which record this
+              is. This is the one line about the record's owner rather than its identity. It is shown
+              only when the tags carry a copyright. Most rips do not.
+              -->
+          <Border x:Name="CopyrightWell" Visibility="Collapsed"
+                  CornerRadius="6" Padding="11,9"
+                  Background="{StaticResource OnGlassBrush}"
+                  BorderBrush="#22FFFFFF" BorderThickness="1">
+            <TextBlock x:Name="CopyrightText" FontSize="12" Foreground="#99FFFFFF"
+                       TextWrapping="Wrap"/>
+          </Border>
+
+          <!-- Nothing came back, or nothing has come back YET. One line, in the place the cards would
+              stand, so the panel is never an unexplained empty column.
+              -->
+          <TextBlock x:Name="PapersEmpty" FontSize="12" Foreground="#77FFFFFF" TextWrapping="Wrap"
+                     Visibility="Collapsed"/>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Where a panel goes when the card is too narrow to stand it beside the record: underneath, at
+        full width, in the order it left the row of columns. It is empty on a card wide enough for
+        three. An empty StackPanel takes no room, so the row it is in costs nothing there. See
+        PlacePapers and PlaceGroove. They move the SAME objects the columns held, rather than building
+        second copies. A reader three pages into the reviews must not be put back on the first page for
+        having dragged the window.
+
+        DECLARED HERE, under the ground and not over it. That is the whole reason it is this far down
+        the file, not up beside the rows it belongs to. The record's colour, its wash and its corner all
+        span every row of this grid, and in XAML a later sibling paints over an earlier one. So a stack
+        declared before them is a stack behind them. It measures right, sizes right and scrolls right,
+        but it shows a screenful of blurred sleeve. The two columns in the row above do not have the
+        problem, because they are written below the ground. This is the same rule, stated here where it
+        could be broken again.
+        -->
+    <StackPanel x:Name="StackedPanels" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="22"/>
+
+    <!-- ── more like this. Discogs leads, and the collection fills whatever is left. So the row is
+        there on a machine that has never connected an account.
+
+        It runs across the foot of the rail and the tracklist both, not inside the tracks' column. It is
+        a suggestion about what to play next, which belongs to the page rather than to the list of
+        songs. Pinned here, it is on screen from the moment the record opens. ──
+        -->
+    <!-- The album and the papers, and not the groove. The suggestions are what to play after THIS
+        record, which is what those two panels are about. The groove is RPM's wall for the album and
+        runs full height beside them. A rule drawn under that column too would cut the wall off at a
+        line that means nothing to it. On a card too narrow for the groove to have a column, the two
+        spanned columns are the whole page anyway.
+        -->
+    <!-- Across the RECORD's half of the page and no further: the two panels, never the groove. The
+        groove keeps its full height past this foot. That is what shows the two halves of the page are
+        different things, rather than one page with a row across the bottom of it. On a card too narrow
+        for the groove to have a column, the third column is zero wide, and these two are the whole
+        width anyway. So the span is right in both states without being switched.
+        -->
+    <StackPanel x:Name="SimilarBlock" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                Spacing="8" Visibility="Collapsed">
+      <!-- The app's seam (see Generic.xaml). It is the same rule that runs under the pressing well
+          above, and between two records in the album list: a dark hairline with a lit one under it,
+          both fading out at their ends. A flat grey line would be the one rule on this page that is not
+          the seam.
+          -->
+      <Grid Height="2">
+        <Rectangle Height="1" VerticalAlignment="Top" Fill="{StaticResource RpmSeamShade}"/>
+        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource RpmSeamLight}"/>
+      </Grid>
+      <!-- The heading IS the way to fold the row away. A heading with a chevron beside it means that
+          everywhere else. It is worth folding because of what the row costs. The sleeves take 230
+          points of the card's height. On a window that cannot hold them AND a full-size record cover,
+          this is the reader's say in which of the two they would rather look at (see
+          SettingsService.AlbumSimilarOpen; until they press it, the page decides for itself).
+
+          A flat button, not a chip. It stands in the page's own foot, and a bordered key over a heading
+          would look heavier than the heading.
+          -->
+      <Button x:Name="SimilarToggle" Click="SimilarToggle_Click"
+              Background="Transparent" BorderThickness="0" Padding="0,2" MinHeight="0" MinWidth="0"
+              HorizontalAlignment="Left" HorizontalContentAlignment="Left">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+        </Button.Resources>
+        <StackPanel Orientation="Horizontal" Spacing="7">
+          <TextBlock Text="{loc:Str Key=Album_SimilarAlbums}" Style="{StaticResource SectionHeadingStyle}"
+                     VerticalAlignment="Center"/>
+          <FontIcon x:Name="SimilarChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
+                    FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+      <!-- Both the margin and the bottom padding are written from code. The values here are only what
+          the row has until the first size pass.
+
+          The margin lines the row up with the columns standing over it. The card's own padding is given
+          back on the left, so the first SLEEVE starts on the line where the heading and the tracks
+          start. The same padding is taken off the scroll lane on the right, so the last sleeve ends on
+          the line where the cards above end (see ApplyStacking, where the lane is known). With the
+          padding cancelled at both ends, the row would line up with its own column, not with the
+          writing in it, and the sleeves would stand a lane past the cards.
+
+          The bottom padding is the scrollbar's lane. Without it, an overflowing row draws its bar
+          across the artist names. It is the same number the columns keep down their right (see Frame).
+          -->
+      <ScrollViewer x:Name="SimilarScroller"
+                    HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled"
+                    HorizontalScrollMode="Auto" Padding="0,0,0,12" Margin="-8,0,2,0"
+                    SizeChanged="SimilarRow_SizeChanged">
+        <ItemsControl x:Name="SimilarList" ItemTemplate="{StaticResource SimilarTemplate}"
+                      VerticalAlignment="Top">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <!-- The air between two cards. It is spent between them, not after the last one. It is
+                  six. With the eight points of padding that each card keeps around its picture, the gap
+                  between one sleeve and the next is twenty-two. That is a column's gap, which is what
+                  the rest of the page puts between two things standing side by side.
+                  -->
+              <StackPanel Orientation="Horizontal" Spacing="6"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </ScrollViewer>
+    </StackPanel>
+
+    <!-- ── the groove: RPM's social half of this record, full height past the foot the suggestions sit
+        on.
+
+        A place with a name rather than two stacked boxes. Everything RPM's listeners do around a record
+        belongs here. Today that is two things: what they wrote about it, and what they said in passing.
+        There will be more than two, such as who a listener follows, or the records and artists they are
+        watching. That is why the column is a NAMED place with tabs under the name. A pair of panels
+        would have to be redesigned the first time a third thing arrived.
+
+        The name uses the header face that the app's panes use (Thiamine, RpmPaneHeading, in its 36-high
+        box). So the groove reads as a room of the app, not as a widget on a page. The tabs use the
+        strip the metadata editors use, so picking one of these is the same gesture, with the same wash,
+        as picking a tab in the track details window. ──
+        -->
+    <Grid x:Name="GrooveColumn" Grid.Column="2" Grid.Row="0" Grid.RowSpan="3" RowSpacing="12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- the name of the place, and what is in it -->
+        <RowDefinition Height="Auto"/>   <!-- the tabs, and what narrows the tab that is up -->
+        <RowDefinition Height="*"/>      <!-- whichever tab is up -->
+      </Grid.RowDefinitions>
+
+      <StackPanel Grid.Row="0">
+        <!-- The name is hidden when the groove is behind a tab that already says it. Two headings
+            saying "Groove", one over the other, take room that a narrow card does not have.
+            -->
+        <Grid x:Name="GrooveHeadingBox" Style="{StaticResource RpmPaneHeadingBox}">
+          <TextBlock Text="{loc:Str Key=Groove_Title}" Style="{StaticResource RpmPaneHeading}"/>
+
+          <!-- No fold key here, and there cannot be one. A card that stands the groove UNDER the record
+              has no column to give up, and giving up the column is the only thing folding it saves. So
+              down here it is always open. See AlbumDetailView.GrooveShutWanted. The key lives on the
+              join instead, where there IS a column: GrooveFoldJoin, on the seam. The key that brings a
+              folded groove back is neither. It cannot stand inside the column that goes away, so it is
+              GrooveReopen, over the page at the card's right edge.
+              -->
+        </Grid>
+        <!-- What the groove holds for this record, counted. This is the pane subheading used everywhere
+            else in the app, less its bottom margin. This column sets its own row spacing.
+            -->
+        <TextBlock x:Name="GrooveSubheading" Style="{StaticResource RpmPaneSubheading}"
+                   Margin="0,-4,0,0"/>
+      </StackPanel>
+
+      <!-- Tabs on the left, and what narrows them on the right. The sort key is the library's own: a 32
+          x 26 glyph in a frosted slot that opens a menu, not a row of words. Five sorts written out
+          would take a line to themselves and still read as a sentence rather than as a control.
+          -->
+      <Grid Grid.Row="1" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The strip is built in code (RailTabStrip owns its buttons and panels), so the column holds
+            a slot for it.
+            -->
+        <Border x:Name="GrooveTabHost" Grid.Column="0" HorizontalAlignment="Left"/>
+
+        <!-- Top aligned, not centred on the style. The strip beside it is taller than a key, and a key
+            centred on it would look as if it had moved down the page. Its top edge is the tabs' top
+            edge.
+            -->
+        <Border x:Name="SortSlot" Grid.Column="1" Style="{StaticResource GrooveSlotStyle}"
+                VerticalAlignment="Top">
+          <Button x:Name="SortButton" Click="Sort_Click" Style="{StaticResource GrooveKeyStyle}"
+                  Content="&#xf160;" ToolTipService.ToolTip="{loc:Str Key=Album_SortLabel}" AutomationProperties.Name="{loc:Str Key=Album_SortLabel}">
+            <Button.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </Button.Resources>
+          </Button>
+        </Border>
+      </Grid>
+
+      <Grid Grid.Row="2">
+
+        <!-- ── reviews ──
+
+            The pager is the LAST THING IN THE LIST, not a bar under it. A pinned pager would stand
+            across the foot of the column whether or not the record had a second page of reviews to
+            reach. It would also take that strip of height from the scroller for good, so the reviews
+            would run shorter than the tracklist beside them by the height of a control that is usually
+            not needed. Scrolled with the reviews, it is where a reader arrives at it: after the last
+            one.
+            -->
+        <Grid x:Name="ReviewsPanel">
+          <ScrollViewer x:Name="ReviewScroller" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <ItemsControl x:Name="ReviewList" ItemTemplate="{StaticResource ReviewTemplate}"/>
+
+              <!-- Back, where you are, and forward. A row of numbers grows with the record, and a
+                  well-reviewed record would have twenty of them. This is three keys whatever the count,
+                  in the same frosted slot as everything else on the glass. The top margin is the gap
+                  that the last card's own bottom margin does not cover.
+                  -->
+              <Border x:Name="PagerSlot" Style="{StaticResource GrooveSlotStyle}"
+                      HorizontalAlignment="Center" Margin="0,4,0,4" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                  <StackPanel.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                  </StackPanel.Resources>
+                  <Button x:Name="PagePrev" Click="PagePrev_Click" Style="{StaticResource GrooveKeyStyle}"
+                          CornerRadius="5,0,0,5" Content="&#xf053;"
+                          ToolTipService.ToolTip="{loc:Str Key=Groove_PagePrevious}"
+                          AutomationProperties.Name="{loc:Str Key=Groove_PagePrevious}"/>
+                  <TextBlock x:Name="PageText" FontSize="11" Foreground="#AAFFFFFF" MinWidth="52"
+                             TextAlignment="Center" VerticalAlignment="Center"/>
+                  <Button x:Name="PageNext" Click="PageNext_Click" Style="{StaticResource GrooveKeyStyle}"
+                          CornerRadius="0,5,5,0" Content="&#xf054;"
+                          ToolTipService.ToolTip="{loc:Str Key=Groove_PageNext}"
+                          AutomationProperties.Name="{loc:Str Key=Groove_PageNext}"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Stretched both ways. The placeholder is the whole tab, and the word over it is centred
+              against the tab's own height, not against a box the ghosts happened to fill.
+              -->
+          <ContentControl x:Name="ReviewsEmpty" ContentTemplate="{StaticResource GrooveEmptyTemplate}"
+                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                          IsTabStop="False"/>
+        </Grid>
+
+        <!-- ── comments ── -->
+        <Grid x:Name="CommentsPanel" RowSpacing="10" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0">
+            <ScrollViewer x:Name="CommentScroller" VerticalScrollBarVisibility="Auto">
+              <ItemsControl x:Name="CommentList" ItemTemplate="{StaticResource CommentTemplate}"/>
+            </ScrollViewer>
+            <ContentControl x:Name="CommentsEmpty" ContentTemplate="{StaticResource GrooveEmptyTemplate}"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                            IsTabStop="False"/>
+          </Grid>
+
+          <!-- Writing one is at the foot of the tab it appears on, not in a box floating above a list
+              of somebody else's comments. The field is the library's search field: frosted, hairlined,
+              with every default TextBox style stripped so that it reads as text on the glass.
+              -->
+          <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource GrooveSlotStyle}" Padding="10,0"
+                    MinHeight="32">
+              <!-- Published prose, like the review editor: spell checked, with the app-wide setting
+                  turned off.
+                  -->
+              <TextBox x:Name="CommentBox" PlaceholderText="{loc:Str Key=Album_CommentPlaceholder}"
+                       IsSpellCheckEnabled="True" AcceptsReturn="False"
+                       FontSize="12" MaxLength="2000" TextChanged="CommentBox_TextChanged"
+                       Background="Transparent" BorderThickness="0" Padding="0"
+                       MinHeight="0" VerticalAlignment="Center" VerticalContentAlignment="Center">
+                <TextBox.Resources>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                  <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                  <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </TextBox.Resources>
+              </TextBox>
+            </Border>
+            <ctl:RpmPrimaryButton x:Name="SendComment" Grid.Column="1" Click="SendComment_Click"
+                                  IsEnabled="False" Height="32" Padding="14,0">
+              <TextBlock Text="{loc:Str Key=Album_Send}" FontSize="12" FontWeight="SemiBold"/>
+            </ctl:RpmPrimaryButton>
+          </Grid>
+        </Grid>
+
+        <!-- Signed out, or the API did not answer: the groove still reads, and the banner says why the
+            buttons on it do nothing. It is over both tabs, because that is true of both.
+            -->
+        <Border x:Name="SignInBanner" VerticalAlignment="Bottom" Background="#22000000"
+                CornerRadius="6" Padding="12,8" Visibility="Collapsed">
+          <!-- Two columns, not a horizontal stack. A stack gives the sentence all the width it asks
+              for, so it never wraps, and the key beside it is pushed off the card's edge. The key keeps
+              its own width, and the sentence takes what is left and wraps into it.
+              -->
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SignInText" Grid.Column="0" Text="{loc:Str Key=Album_SignInToWrite}"
+                       FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"
+                       VerticalAlignment="Center"/>
+            <Button x:Name="SignInButton" Grid.Column="1" Click="SignIn_Click" Height="28"
+                    Padding="12,0" VerticalAlignment="Center">
+              <TextBlock Text="{loc:Str Key=Album_SignIn}" FontSize="12"/>
+            </Button>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+
+    <!-- The way out. It is in the page's top right corner, on the page's own margins: the same corner
+        and the same gesture that closes a dialog, not a key in the foot. It returns to wherever the
+        record was opened from (see MainPage.ShowAlbumDetail), so its label says GO BACK.
+
+        It sits over the rail and the record, which is the ALBUM's half of the page. The groove beside
+        it is RPM's wall for this record and belongs to no one's navigation, so a key in its corner
+        would read as something that closes the wall. On a card too narrow for the groove to have a
+        column, the two spanned columns are the whole page anyway. It is the last child of the grid,
+        with a Z order of its own, because the groove column is removed from this grid and added back as
+        the card widens (see PlaceGroove).
+
+        Its two edges are already edges on the page:
+          top: zero. Its top edge is the sleeve's top edge, and the line where the
+               papers' first heading starts. All three start on the page's own top
+               margin (see AlbumPageDensity.PageAir). The papers heading's own
+               leading is taken off in FitPapersColumn, so its capitals ink on that
+               line rather than its box.
+          left: the card's own corner, written in Frame. It is the same distance
+               in from the left as the page starts from the top.
+
+        It is the artist page's own back chip, not a dialog's X: the same 32 x 28 outline, the same
+        arrow, and the same corner (see ArtistDetailView's HeroChip). A record is somewhere the reader
+        went, from the wall or from an artist. So the key uses the words the page they came from uses.
+        -->
+    <Button x:Name="CloseButton" Click="Back_Click"
+            Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+            Canvas.ZIndex="1" Width="32" Height="28" Padding="0" MinWidth="0" MinHeight="0"
+            CornerRadius="6" Background="Transparent"
+            BorderBrush="#8CFFFFFF" BorderThickness="1"
+            HorizontalAlignment="Left" VerticalAlignment="Top"
+            ToolTipService.ToolTip="{loc:Str Key=Album_Back}"
+            AutomationProperties.Name="{loc:Str Key=Album_Back}">
+      <Button.Resources>
+        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
+        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
+      </Button.Resources>
+      <TextBlock Text="&#xf060;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
+    </Button>
+
+  </Grid>
+  </ScrollViewer>
+
+  <!-- The one way back to a folded groove: a key at the card's own right edge, where the column it
+      opens will appear.
+
+      It is OVER the page, not inside the grid, so nothing in the grid's columns can take the pointer
+      from it. The papers column and its scroller hang into the air where the groove was, and they would
+      otherwise take presses meant for the key. It is centred on the CARD, not across the grid's three
+      rows. On a page that scrolls, those rows include everything stacked under the columns, so a key
+      centred on them would sit low and scroll away with the page. It is the last child of the card's
+      grid, so nothing is drawn over it.
+
+      Ten points in from the card's edge. That is the page's own right padding, less the eighteen points
+      the ground reaches back out through.
+
+      It has no slot and no outline. It is the shared glow key, which shows it can be pressed by a halo
+      behind the chevron under the pointer. 36 x 44, the home screen's row key.
+
+      It is only up while the groove is folded AND this record has a groove to unfold. A record on a
+      borrowed shelf that its owner has not linked has no groove at all. A key that offers to open
+      nothing is worse than no key. See AlbumDetailView.ShowGrooveKeys.
+      -->
+  <Button x:Name="GrooveReopen" Click="GrooveReopen_Click" Style="{StaticResource GlowKeyStyle}"
+          Width="36" Height="44" Visibility="Collapsed"
+          HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"
+          ToolTipService.ToolTip="{loc:Str Key=Album_GrooveShow}"
+          AutomationProperties.Name="{loc:Str Key=Album_GrooveShow}">
+    <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#FFFFFFFF"/>
+  </Button>
+
+  </Grid>
+</UserControl>

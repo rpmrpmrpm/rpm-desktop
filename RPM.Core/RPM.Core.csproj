@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+
+    <!-- The Scope ring writes fixed records straight into a mapped page: no marshalling, no bounds
+         check, no allocation. Nothing else in this assembly is unsafe. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Scope.StartForTest and StopForTest, which exist for the tests and for nothing else. -->
+    <InternalsVisibleTo Include="RPM.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TagLibSharp" />
+    <!-- Library mirror (.rpm/library.db) — indexed search/sort over the central music folder -->
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RPM.Fingerprint\RPM.Fingerprint.csproj" />
+  </ItemGroup>
+
+
+  <!-- The repo's own rules, as compile errors. Not referenced by RPM.Lambda.Api or RPM.Fingerprint:
+       the API is the one process allowed to reach a catalogue, so RPM002 would be wrong there. -->
+  <ItemGroup>
+    <ProjectReference Include="..\\RPM.Analyzers\\RPM.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Asked<T> lives in RPM.Fingerprint so the API can use it too. -->
+    <Using Include="RPM.Fingerprint.Net" />
+  </ItemGroup>
+
+</Project>

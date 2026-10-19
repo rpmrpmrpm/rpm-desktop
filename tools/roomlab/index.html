@@ -1,0 +1,1279 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>rpm room lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0a0d12; --panel: #12161d; --line: #222833;
+    --ink: #e8edf4; --dim: #8a94a4; --key: #04c8ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 12px/1.45 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    display: grid; grid-template-columns: 1fr 330px; height: 100vh;
+  }
+  #stage {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 18px; min-width: 0; overflow: auto;
+  }
+  #wrap { background: #000; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: auto; }
+  #err {
+    display: none; white-space: pre-wrap; font: 11px/1.4 ui-monospace, Menlo, monospace;
+    color: #ff8f8f; background: #1a0f12; border: 1px solid #40201f;
+    border-radius: 6px; padding: 10px; max-height: 240px; overflow: auto;
+  }
+  #err.on { display: block; }
+  #bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #panel {
+    background: var(--panel); border-left: 1px solid var(--line);
+    overflow-y: auto; padding: 14px 14px 40px;
+  }
+  h1 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 0 0 12px; }
+  details { border-top: 1px solid var(--line); padding: 8px 0; }
+  details[open] { padding-bottom: 12px; }
+  summary {
+    cursor: pointer; list-style: none; font-weight: 600; padding: 4px 0;
+    letter-spacing: .04em; text-transform: uppercase; font-size: 10.5px; color: var(--dim);
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; color: var(--key); }
+  details[open] > summary::before { content: "▾ "; }
+  .row { display: grid; grid-template-columns: 96px 1fr 48px; gap: 8px; align-items: center; margin: 5px 0; }
+  .row label { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row output { text-align: right; font: 11px ui-monospace, Menlo, monospace; color: var(--ink); }
+  input[type=range] { width: 100%; accent-color: var(--key); }
+  input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--line); background: none; border-radius: 4px; }
+  button {
+    background: #1b212b; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 5px; padding: 6px 11px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--key); }
+  .num { width: 62px; background: #1b212b; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .note { color: var(--dim); }
+  /* The header's own chrome, over the canvas: where the back arrow, the cover tile,
+     the writing and the transport buttons sit. A guide, never rendered into a shot. */
+  #chromeCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #chromeCanvas.off { display: none; }
+  #guides { position: absolute; inset: 0; pointer-events: none; display: none; }
+  #guides.on { display: block; }
+  #guides div {
+    position: absolute; border: 1px dashed #04c8ff; background: #04c8ff14;
+    font: 9px ui-monospace, Menlo, monospace; color: #04c8ff; padding: 1px 3px;
+  }
+</style>
+
+<div id="stage">
+  <div id="wrap" style="position:relative"><canvas id="c"></canvas><canvas id="chromeCanvas"></canvas><div id="guides"></div></div>
+  <div id="err"></div>
+  <div id="bar">
+    <button id="play">Play</button>
+    <button id="reroll">Reroll</button>
+    <button id="guidesOn">Guides</button>
+    <button id="chromeOn">Chrome</button>
+    <label class="note">playlist <select id="playlist" class="num" style="width:auto"></select></label>
+    <label class="note">time <input class="num" id="tnum" type="number" step="0.1" value="0"></label>
+    <label class="note">speed <input class="num" id="speed" type="number" step="0.05" value="1"></label>
+    <span style="flex:1"></span>
+    <label class="note">out <input class="num" id="ow" type="number" value="2136"> ×
+      <input class="num" id="oh" type="number" value="488"></label>
+    <button id="png">Save PNG</button>
+    <button id="copy">Copy settings</button>
+    <button id="paste">Paste settings</button>
+    <button id="reset">Reset</button>
+  </div>
+  <div class="note" id="status">…</div>
+  <div class="note" id="perf"></div>
+</div>
+
+<div id="panel"><h1>room lab</h1><div id="groups"></div></div>
+
+<!--INLINE-->
+<script>
+// The controls, as data. Each entry becomes a slider or a colour well and feeds one
+// uniform; the face groups are generated, because five faces of four controls hand
+// written is five chances to mistype an index.
+const FACES = ["back", "floor", "ceiling", "left", "right"];
+
+function faceGroup(i, a, b, dir, pw) {
+  return {
+    title: FACES[i] + " wall",
+    open: i === 0,
+    items: [
+      { k: "uFaceA" + i, type: "color", label: "from", val: a },
+      { k: "uFaceB" + i, type: "color", label: "to", val: b },
+      { k: "uFaceDir" + i, label: "runs", min: 0, max: 1, step: 0.01, val: dir },
+      { k: "uFacePow" + i, label: "bend", min: 0.2, max: 4, step: 0.01, val: pw }
+    ]
+  };
+}
+
+const SPEC = [
+  { title: "box", open: true, items: [
+    { k: "uWidth",  label: "width",  min: 0.5, max: 8, step: 0.01, val: 4.0 },
+    { k: "uHeight", label: "height", min: 0.3, max: 6, step: 0.01, val: 1.0 },
+    { k: "uDepth",  label: "depth",  min: 0.2, max: 12, step: 0.01, val: 2.4 },
+    { k: "uWindow", label: "window", min: 0.15, max: 1, step: 0.01, val: 0.60 }
+  ]},
+  { title: "camera", open: true, items: [
+    { k: "uCamX", label: "across", min: -4, max: 4, step: 0.01, val: 0 },
+    { k: "uCamY", label: "up",     min: -3, max: 3, step: 0.01, val: 0.12 },
+    { k: "uCamZ", label: "back",   min: 0.2, max: 12, step: 0.01, val: 1.05 }
+  ]},
+  // A room lit from inside: the walls start dark at the mouth and pick up toward the
+  // back, so the metaballs have something to stand against near the camera.
+  faceGroup(0, "#141b27", "#314666", 1.00, 1.30),
+  faceGroup(1, "#080b11", "#1c2739", 1.00, 1.60),
+  faceGroup(2, "#0b0f17", "#222f46", 1.00, 1.60),
+  faceGroup(3, "#0c1119", "#2b3d5c", 0.00, 1.50),
+  faceGroup(4, "#0c1119", "#2b3d5c", 0.00, 1.50),
+  { title: "metaballs", open: true, items: [
+    { k: "uSteps",      label: "steps",    min: 8, max: 160, step: 1, val: 112 },
+    { k: "uDensity",    label: "density",  min: 0, max: 6, step: 0.01, val: 0.81 },
+    { k: "uAbsorb",     label: "absorb",   min: 0, max: 4, step: 0.01, val: 0.70 },
+    { k: "uReach",      label: "reach",    min: 0.3, max: 3, step: 0.01, val: 1.15 },
+    { k: "uFieldGain",  label: "field",    min: 0.2, max: 5, step: 0.01, val: 1.40 },
+    { k: "uAniso",      label: "stretch",  min: 0, max: 1, step: 0.01, val: 0.10 },
+    { k: "uFieldScale", label: "scale",    min: 0.1, max: 3, step: 0.01, val: 0.90 },
+    { k: "uHollow",     label: "hug walls", min: 0, max: 1, step: 0.01, val: 0.90 },
+    { k: "uHollowEdge", label: "clear to", min: 0, max: 1, step: 0.01, val: 0.10 },
+    { k: "uBackFrom",   label: "starts at", min: 0, max: 1, step: 0.01, val: 0.52 },
+    { k: "uCentreDim",  label: "middle",   min: 0, max: 1, step: 0.01, val: 0.22 },
+    { k: "uLobes",      label: "per family", min: 2, max: 16, step: 1, val: 16 },
+    { k: "uSpread",     label: "spread",   min: 0, max: 1.6, step: 0.01, val: 1.05 },
+    { k: "uWobble",     label: "wobble",   min: 0, max: 0.8, step: 0.01, val: 0.22 },
+    { k: "uSize",       label: "size",     min: 0.2, max: 4, step: 0.01, val: 1.60 }
+  ]},
+  { title: "frames", open: true, items: [
+    { k: "uFrames",      label: "how many", min: 0, max: 10, step: 1, val: 7 },
+    { k: "uFrameSize",   label: "size",     min: 0.03, max: 0.9, step: 0.005, val: 0.180 },
+    { k: "uFrameVary",   label: "vary",     min: 0, max: 1, step: 0.01, val: 0.60 },
+    { k: "uFrameSpread", label: "across",   min: 0, max: 2, step: 0.01, val: 1.05 },
+    { k: "uFrameLift",   label: "up",       min: 0, max: 1.5, step: 0.01, val: 0.55 },
+    { k: "uFrameDepth",  label: "into",     min: 0, max: 1, step: 0.01, val: 0.90 },
+    { k: "uFrameTurn",   label: "turn",     min: 0, max: 1, step: 0.01, val: 0.80 },
+    { k: "uFrameYaw",    label: "turn by",  min: 0, max: 80, step: 1, val: 52 },
+    { k: "uFrameOverlap", label: "overlap", min: 0, max: 1, step: 0.01, val: 0.20 },
+    { k: "uFrameShow",   label: "in frame", min: 0, max: 1, step: 0.01, val: 0.50 },
+    { k: "uFrameClear",  label: "off chrome", min: 0, max: 1, step: 0.01, val: 0.18 },
+    { k: "uFrameSeed",   label: "layout",   min: 0, max: 40, step: 1, val: 19 },
+    { k: "uFrameBorder", label: "border",   min: 0, max: 0.08, step: 0.001, val: 0.017 },
+    { k: "uFrameLight",  label: "light",    min: 0, max: 3, step: 0.01, val: 1.00 },
+    { k: "uFrameThick",  label: "thickness", min: 0, max: 0.12, step: 0.001, val: 0.040 },
+    // The same material the playlist tile's edge is drawn in, so the frames in the
+    // room and the tile over them read as one set of things. TILE_EDGE below paints
+    // the tile with it.
+    { k: "uFrameInk", type: "color", label: "frame", val: "#c9d0dd" }
+  ]},
+  { title: "metaball colours", open: false, items: [
+    { k: "uGround", type: "color", label: "ground", val: "#070b14" },
+    { k: "uTint",   type: "color", label: "tint",   val: "#0371d0" },
+    { k: "uGlow",   type: "color", label: "glow",   val: "#04c8ff" },
+    { k: "uShade",  type: "color", label: "shade",  val: "#7a3fd0" }
+  ]},
+  { title: "drive", open: false, items: [
+    { k: "uBass", label: "bass", min: 0, max: 1, step: 0.01, val: 0.20 },
+    { k: "uMid",  label: "mid",  min: 0, max: 1, step: 0.01, val: 0.13 },
+    { k: "uAir",  label: "air",  min: 0, max: 1, step: 0.01, val: 0.10 }
+  ]},
+  { title: "composite", open: true, items: [
+    { k: "uWallAlpha", label: "walls",      min: 0, max: 2, step: 0.01, val: 0.00 },
+    { k: "uSpill",    label: "wall spill", min: 0, max: 4, step: 0.01, val: 1.00 },
+    { k: "uExposure", label: "exposure",   min: 0.1, max: 4, step: 0.01, val: 1.25 },
+    { k: "uTone",     label: "tone",       min: 0, max: 1, step: 0.01, val: 0.85 },
+    { k: "uDither",   label: "dither",     min: 0, max: 4, step: 0.1, val: 1.6 }
+  ]}
+];
+
+const STORE = "rpm.roomlab.v39";
+const state = {};
+const inputs = {};
+
+function defaults() {
+  const d = {};
+  for (const g of SPEC) for (const it of g.items) d[it.k] = it.val;
+  return d;
+}
+
+function buildPanel() {
+  const host = document.getElementById("groups");
+  host.innerHTML = "";
+  for (const g of SPEC) {
+    const det = document.createElement("details");
+    det.open = !!g.open;
+    const sum = document.createElement("summary");
+    sum.textContent = g.title;
+    det.appendChild(sum);
+    for (const it of g.items) det.appendChild(rowFor(it));
+    host.appendChild(det);
+  }
+}
+
+function rowFor(it) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const lab = document.createElement("label");
+  lab.textContent = it.label;
+  row.appendChild(lab);
+
+  const el = document.createElement("input");
+  if (it.type === "color") {
+    el.type = "color";
+    el.value = state[it.k];
+    row.style.gridTemplateColumns = "96px 1fr";
+  } else {
+    el.type = "range";
+    el.min = it.min; el.max = it.max; el.step = it.step;
+    el.value = state[it.k];
+  }
+  row.appendChild(el);
+
+  let out = null;
+  if (it.type !== "color") {
+    out = document.createElement("output");
+    out.textContent = (+state[it.k]).toFixed(it.step >= 1 ? 0 : 2);
+    row.appendChild(out);
+  }
+
+  el.addEventListener("input", () => {
+    state[it.k] = it.type === "color" ? el.value : +el.value;
+    if (out) out.textContent = (+state[it.k]).toFixed(it.step >= 1 ? 0 : 2);
+    save();
+    requestDraw();
+  });
+  inputs[it.k] = { el, out, it };
+  return row;
+}
+
+function pushToInputs() {
+  for (const k in inputs) {
+    const { el, out, it } = inputs[k];
+    el.value = state[k];
+    if (out) out.textContent = (+state[k]).toFixed(it.step >= 1 ? 0 : 2);
+  }
+}
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+}
+
+Object.assign(state, defaults());
+try {
+  const kept = JSON.parse(localStorage.getItem(STORE) || "{}");
+  for (const k in kept) if (k in state) state[k] = kept[k];
+} catch (e) {}
+buildPanel();
+
+// ── the canvas ──
+
+const canvas = document.getElementById("c");
+const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, depth: false,
+                                         preserveDrawingBuffer: true });
+const errBox = document.getElementById("err");
+const status = document.getElementById("status");
+const perf = document.getElementById("perf");
+
+function fail(msg) { errBox.textContent = msg; errBox.className = "on"; }
+function clearFail() { errBox.textContent = ""; errBox.className = ""; }
+
+const VERT = `#version 300 es
+in vec2 aPos;
+void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+let prog = null, loc = {};
+
+function compile(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+function build(fragText) {
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, fragText);
+  const p = gl.createProgram();
+  gl.attachShader(p, vs); gl.attachShader(p, fs);
+  gl.bindAttribLocation(p, 0, "aPos");
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  if (prog) gl.deleteProgram(prog);
+  prog = p;
+  gl.useProgram(prog);
+  loc = {};
+  const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) {
+    const name = gl.getActiveUniform(prog, i).name.replace(/\[0\]$/, "");
+    loc[name] = gl.getUniformLocation(prog, name);
+  }
+}
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]), gl.STATIC_DRAW);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+gl.enableVertexAttribArray(0);
+
+// ── the pictures ──
+//
+// Ten covers in a texture array rather than an atlas: a frame sampling near the edge
+// of an atlas tile picks up its neighbour at any mip level past the first, and the
+// frames here are small enough on screen to be well into the mips.
+const ART_LAYERS = 12, ART_SIZE = 512;
+let artTex = null;
+// The proportions of each picture, so a frame can be the shape of what is in it. The
+// picture is STRETCHED into its square slot and the frame un-stretches it: a texture
+// array wants one size for every layer, and letterboxing would put bars in the frames.
+let artAspects = [];
+// The same pictures kept as bitmaps, because the cover tile quilts four of them.
+let artBitmaps = [];
+// How many of the layers are DIFFERENT pictures. A playlist with fewer pictures than
+// there are layers fills the rest by repeating, and no frame may be sent to one of
+// those while a picture nobody is showing is still available.
+let artDistinct = ART_LAYERS;
+// What is in the frames: the covers the lab ships with, or one playlist's artists.
+let artSource = null;
+
+// A tile for a cover that is not there. site/covers is not committed, and a lab that
+// will not start because of it is worse than one holding its own placeholders.
+async function standInCover(i) {
+  const c = document.createElement("canvas");
+  c.width = c.height = ART_SIZE;
+  const g = c.getContext("2d");
+  const hue = i * 36;
+  const grad = g.createLinearGradient(0, 0, ART_SIZE, ART_SIZE);
+  grad.addColorStop(0, `hsl(${hue} 55% 42%)`);
+  grad.addColorStop(1, `hsl(${hue + 40} 45% 14%)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, ART_SIZE, ART_SIZE);
+  g.fillStyle = "rgba(255,255,255,0.22)";
+  g.beginPath();
+  g.arc(ART_SIZE * 0.5, ART_SIZE * 0.5, ART_SIZE * 0.26, 0, Math.PI * 2);
+  g.fill();
+  return createImageBitmap(c);
+}
+
+// Drawn onto a canvas of the slot's size rather than resized by createImageBitmap:
+// the resize options are not supported everywhere, and a picture that fails to resize
+// would come back as a stand-in even though it downloaded perfectly well.
+async function tileFrom(url, i) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    const bmp = await createImageBitmap(await r.blob());
+    const c = document.createElement("canvas");
+    c.width = c.height = ART_SIZE;
+    c.getContext("2d").drawImage(bmp, 0, 0, ART_SIZE, ART_SIZE);
+    const aspect = Math.min(2.4, Math.max(0.5, bmp.width / bmp.height));
+    bmp.close();
+    return { bitmap: await createImageBitmap(c), aspect };
+  } catch (e) {
+    return { bitmap: await standInCover(i), aspect: 1 };
+  }
+}
+
+// What each of the twelve slots holds. A playlist's artists when one is chosen, and
+// the covers the lab ships with otherwise.
+//
+// The slots past the end of the list repeat, because a texture array has a fixed
+// number of layers and they all have to hold something. Which layer a FRAME reads is
+// a separate question, and artDistinct below is what answers it: no frame is given a
+// repeated layer while an unused one is left.
+function artUrls() {
+  const chosen = artSource && artSource.pictures;
+  if (chosen && chosen.length) {
+    artDistinct = Math.min(ART_LAYERS, chosen.length);
+    return Array.from({ length: ART_LAYERS }, (_, i) =>
+      "artists/" + chosen[i % chosen.length].file);
+  }
+  artDistinct = Math.min(ART_LAYERS, 10);
+  return Array.from({ length: ART_LAYERS }, (_, i) => "covers/" + (i % 10 + 1) + ".jpg");
+}
+
+async function ensureArt(force) {
+  if (artTex && !force) return;
+  if (artTex) { gl.deleteTexture(artTex); artTex = null; }
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
+  gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, ART_SIZE, ART_SIZE, ART_LAYERS,
+                0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  const urls = artUrls();
+  const tiles = await Promise.all(urls.map((u, i) => tileFrom(u, i)));
+  artAspects = tiles.map(t => t.aspect);
+  artBitmaps = tiles.map(t => t.bitmap);
+  layoutCache.key = null;   // the frames are the shape of their pictures
+  for (let i = 0; i < ART_LAYERS; i++) {
+    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, ART_SIZE, ART_SIZE, 1,
+                     gl.RGBA, gl.UNSIGNED_BYTE, tiles[i].bitmap);
+  }
+  gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  artTex = tex;
+}
+
+// ── where the frames hang ──
+//
+// Worked out here rather than in the shader, because this is the part the app needs.
+// The room is prerendered; the pictures in it are not, so what has to come out of the
+// lab is the rectangle each cover is mapped into. Copy settings carries it.
+//
+// Placed by rejection rather than by a sequence alone. A low-discrepancy sequence
+// spreads points evenly in the ROOM, which says nothing about whether they overlap on
+// SCREEN: two frames at different depths can be far apart in the room and sit one on
+// top of the other in the picture, and with more than a handful of them that is what
+// happens. So every candidate is projected and measured against the ones already
+// placed, and one that buries a neighbour is thrown away and asked again.
+
+// Where a world point lands in the picture, as a fraction of the window from its
+// middle: the same projection the shader does, which is a ray from the camera through
+// the point, read where it crosses the opening.
+function project(x, y, z, cam, ww, wh) {
+  const k = cam[2] / (cam[2] - z);
+  return [(cam[0] + k * (x - cam[0])) / ww, (cam[1] + k * (y - cam[1])) / wh];
+}
+
+// The box a frame covers in the picture. Its corners, not its centre and size: a
+// turned rectangle is not axis-aligned once it is projected.
+function screenBox(cx, cy, cz, right, up, cam, ww, wh) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const q = project(cx + sx * right[0] + sy * up[0],
+                      cy + sx * right[1] + sy * up[1],
+                      cz + sx * right[2] + sy * up[2], cam, ww, wh);
+    x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]);
+    y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
+  }
+  return [x0, y0, x1, y1];
+}
+
+// How much of the smaller of two boxes the other one covers. The smaller, because
+// that is the picture being buried: a thumbnail behind a cover that fills the header
+// is entirely lost while covering very little of it.
+function overlapFraction(a, b) {
+  const w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]);
+  const h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+  if (w <= 0 || h <= 0) return 0;
+  const areaA = (a[2] - a[0]) * (a[3] - a[1]);
+  const areaB = (b[2] - b[0]) * (b[3] - b[1]);
+  return (w * h) / Math.max(Math.min(areaA, areaB), 1e-9);
+}
+
+// How much of a frame is actually in the picture. Wanted because the overlap rule can
+// be satisfied by putting a frame outside the window altogether: asked for nine, the
+// layout was placing four of them off the edges and calling the rest well spaced.
+function visibleFraction(b) {
+  const w = Math.min(b[2], 1) - Math.max(b[0], -1);
+  const h = Math.min(b[3], 1) - Math.max(b[1], -1);
+  if (w <= 0 || h <= 0) return 0;
+  return (w * h) / Math.max((b[2] - b[0]) * (b[3] - b[1]), 1e-9);
+}
+
+// ── what the header already has in it ──
+//
+// The room is not the whole header: a back arrow, the playlist's own cover tile, the
+// name and its two lines, and the three transport buttons are drawn on top of it. A
+// frame behind the cover tile is simply not seen, and one behind the writing competes
+// with it, so the layout is told where they are.
+//
+// Fractions of the header from its TOP-left, measured off the screenshot of the
+// running app (2136 x 488). They move when the chrome moves; there is no way for this
+// file to learn that on its own, so it is written down here rather than guessed at
+// per shot.
+// `hard` means no part of a picture may fall under it at all. The cover tile and the
+// back arrow are hard: the tile is a translucent panel and anything behind it shows
+// through as a smear rather than as a picture, and its whole panel counts, not just
+// the quilt inside it. The writing and the buttons are soft, and how much they will
+// take is the `off chrome` control.
+const CHROME = [
+  { name: "back",    x0: 0.040, y0: 0.160, x1: 0.076, y1: 0.272, hard: true },
+  { name: "cover",   x0: 0.096, y0: 0.165, x1: 0.281, y1: 0.950, hard: true },
+  { name: "writing", x0: 0.285, y0: 0.690, x1: 0.634, y1: 0.958, hard: false },
+  { name: "buttons", x0: 0.872, y0: 0.820, x1: 0.982, y1: 0.935, hard: false },
+];
+
+// A margin around the hard ones, in fractions of the header, so a picture does not
+// come to rest exactly against the tile's edge and read as tucked behind it.
+const CHROME_MARGIN = 0.008;
+
+// The same rectangles in the picture's own coordinates, which run -1..1 with y upward,
+// with the hard ones grown by their margin.
+function chromeBoxes() {
+  return CHROME.map(c => {
+    const m = c.hard ? CHROME_MARGIN * 2 : 0;
+    return { hard: c.hard,
+             box: [c.x0 * 2 - 1 - m, 1 - c.y1 * 2 - m, c.x1 * 2 - 1 + m, 1 - c.y0 * 2 + m] };
+  });
+}
+
+// How much of a frame lands under the chrome, counted separately for the two kinds.
+// The frame's own area is the divisor, not the chrome's: the question is whether THIS
+// picture is being wasted, and a small frame wholly behind the cover tile is wasted
+// however little of the tile it covers.
+function chromeUnder(b, boxes) {
+  const area = Math.max((b[2] - b[0]) * (b[3] - b[1]), 1e-9);
+  let hard = 0, soft = 0;
+  for (const c of boxes) {
+    const w = Math.min(b[2], c.box[2]) - Math.max(b[0], c.box[0]);
+    const h = Math.min(b[3], c.box[3]) - Math.max(b[1], c.box[1]);
+    if (w <= 0 || h <= 0) continue;
+    if (c.hard) hard += w * h; else soft += w * h;
+  }
+  return { hard: Math.min(1, hard / area), soft: Math.min(1, soft / area) };
+}
+
+// Where there is room to hang something, column by column across the picture.
+//
+// The frames are stratified one to a column, which spreads them evenly across the
+// WIDTH — and evenly across the width is wrong once part of the width is spoken for.
+// The cover tile takes the left quarter from top to bottom and the writing takes a
+// band under the middle, so an even split gave the blocked columns as many frames as
+// the clear ones, and the right side, which has the most room of anywhere in the
+// header, got a single frame and looked bare.
+//
+// So a column is worth what is left of it, and the lanes are cut off equal shares of
+// THAT rather than of the width. A column under the tile is worth almost nothing and
+// the ones beside it absorb its share.
+function laneScale(chrome) {
+  const N = 96, weight = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const x0 = -1 + 2 * i / N, x1 = -1 + 2 * (i + 1) / N;
+    let taken = 0;
+    for (const c of chrome) {
+      const ow = Math.min(x1, c.box[2]) - Math.max(x0, c.box[0]);
+      const oh = Math.min(1, c.box[3]) - Math.max(-1, c.box[1]);
+      if (ow <= 0 || oh <= 0) continue;
+      // A hard rectangle takes the column outright; a soft one takes half of what it
+      // covers, because a frame may still stand partly over the writing.
+      taken += (oh / 2) * (ow / (x1 - x0)) * (c.hard ? 1 : 0.5);
+    }
+    // Never quite nought: a column wholly under the tile should be unlikely, not
+    // impossible, or a frame with nowhere else to go has nowhere to go at all.
+    weight[i] = Math.max(0.06, 1 - taken);
+  }
+  const cum = [0];
+  for (let i = 0; i < N; i++) cum.push(cum[i] + weight[i]);
+  const total = cum[N];
+  // A position in 0..1 of the free area, as a position in -1..1 of the picture.
+  return f => {
+    const want = Math.min(Math.max(f, 0), 1) * total;
+    let i = 0;
+    while (i < N && cum[i + 1] < want) i++;
+    const within = weight[i] > 0 ? (want - cum[i]) / weight[i] : 0;
+    return -1 + 2 * (i + within) / N;
+  };
+}
+
+let layoutCache = { key: null, value: null };
+
+function frameLayout() {
+  // Recomputed only when something it depends on moves. It is rejection sampling in
+  // a draw call, which at sixty frames a second is not free.
+  const key = [state.uFrames, state.uFrameSize, state.uFrameVary, state.uFrameSpread,
+               state.uFrameLift, state.uFrameDepth, state.uFrameSeed, state.uFrameTurn,
+               state.uFrameYaw, state.uFrameOverlap, state.uWidth, state.uHeight,
+               state.uDepth, state.uWindow, state.uCamX, state.uCamY, state.uCamZ,
+               state.uFrameShow, state.uFrameClear,
+               // The window's width depends on the picture's shape, so the layout has
+               // to be worked out again when that changes.
+               (canvas.width / Math.max(canvas.height, 1)).toFixed(4)].join(",");
+  if (layoutCache.key === key) return layoutCache.value;
+
+  const R3 = [0.8191725133961645, 0.6710436067037893, 0.5497004779019703];
+  const R1 = 0.7548776662466927;
+  const n = Math.min(state.uFrames | 0, 10);
+  const hw = state.uWidth / 2, hh = state.uHeight / 2, hd = state.uDepth / 2;
+  const cam = [state.uCamX, state.uCamY, state.uCamZ];
+  // The same window the shader works out, and for the same reason: its height comes
+  // from the room and its width from the picture's shape.
+  const wh = hh * state.uWindow;
+  const ww = wh * (canvas.width / Math.max(canvas.height, 1));
+  const maxYaw = state.uFrameYaw * Math.PI / 180;
+  const limit = state.uFrameOverlap;
+  const chrome = chromeBoxes();
+  const lanes = laneScale(chrome);
+  const TRIES = 90;
+
+  const pos = [], right = [], up = [], layer = [], each = [], boxes = [];
+  for (let i = 0; i < n; i++) {
+    let best = null, bestWorst = Infinity;
+    for (let a = 0; a < TRIES; a++) {
+      const seq = i + (state.uFrameSeed | 0) + 0.5 + a * 7.13;
+      const u = R3.map(c => ((c * seq + 0.5) % 1) * 2 - 1);
+      const v = (R1 * seq + 0.5) % 1;
+      // The size runs from (1 - vary) of the base to (1 + vary) of it, and shrinks as
+      // the attempts run out: a frame that will not fit anywhere at its own size is
+      // better small than dropped or piled on top of its neighbour.
+      const shrink = 1 - 0.4 * (a / TRIES);
+      const sz = state.uFrameSize * (1 - state.uFrameVary + 2 * state.uFrameVary * v) * shrink;
+      // Placed in the PICTURE and then solved back into the room, not the other way
+      // round. Stratifying across the room says nothing about where a frame lands on
+      // screen: a lane out at the side of a room seen through a window at 0.6 is off
+      // the edge whatever depth it is given, so the outer lanes were being wasted and
+      // the inner ones left to fight each other. A lane is a column of the picture.
+      //
+      // Across is stratified, one frame to a column; up and into the room are taken
+      // from the sequence, which can clump without it mattering.
+      const cz = -hd + u[2] * hd * state.uFrameDepth;
+      // The jitter widens as the attempts run out, so a frame whose column is blocked
+      // can walk into a neighbouring one. Fixed, a frame stratified into the cover
+      // tile's column could only move up and down, and the tile is most of that
+      // column's height: it had nowhere to go and the fallback put it behind the tile.
+      const wander = 0.9 + 2.2 * (a / TRIES);
+      // The lane's share of the FREE width, not of the width.
+      const share = (i + 0.5 + (u[0] * 0.5) * wander) / n;
+      const su = lanes(share) * state.uFrameSpread;
+      const sv = u[1] * state.uFrameLift;
+      // Where a point has to BE in the room to land at (su, sv) in the picture: the
+      // projection above, run backwards.
+      const kz = cam[2] / (cam[2] - cz);
+      const cx = cam[0] + (su * ww - cam[0]) / kz;
+      const cy = cam[1] + (sv * wh - cam[1]) / kz;
+      // Turned into the room rather than facing the camera. A frame out at one side
+      // swings round toward the middle, by more the further out it is, so it
+      // foreshortens the way the room does.
+      const yaw = -state.uFrameTurn * Math.max(-1, Math.min(1, cx / hw)) * maxYaw
+                + (v - 0.5) * maxYaw * 0.35 * state.uFrameTurn;
+      const ca = Math.cos(yaw), sa = Math.sin(yaw);
+      // As wide as its picture is. An artist's photograph is a landscape and a sleeve
+      // is a square, and a frame that was always square would crop the one to fit the
+      // other. Height is what `size` means, so a wide picture gets a wide frame rather
+      // than a shorter one.
+      const asp = artAspects.length ? artAspects[i % artAspects.length] : 1;
+      const rt = [ca * sz * asp, 0, -sa * sz * asp], upv = [0, sz, 0];
+      const box = screenBox(cx, cy, cz, rt, upv, cam, ww, wh);
+
+      let worst = 0;
+      for (const other of boxes) worst = Math.max(worst, overlapFraction(box, other));
+      const seen = visibleFraction(box);
+      const under = chromeUnder(box, chrome);
+      // One number to rank the attempts by, so the fallback after the last try is the
+      // least bad candidate rather than merely the least overlapping one. Being off
+      // the edge, burying a neighbour and reaching under the chrome all count, and
+      // touching a hard one counts several times over: when nothing fits, the thing
+      // to give up is a little of the margin at the edge of the picture, never a
+      // corner of the cover tile.
+      const score = Math.max(0, worst - limit)
+                  + Math.max(0, state.uFrameShow - seen)
+                  + Math.max(0, under.soft - state.uFrameClear)
+                  + under.hard * 6;
+      const cand = { cx, cy, cz, sz, rt, upv, yaw, box, worst, seen,
+                     under: under.soft, hard: under.hard };
+      if (score < bestWorst) { bestWorst = score; best = cand; }
+      if (worst <= limit && seen >= state.uFrameShow
+          && under.soft <= state.uFrameClear && under.hard <= 0) break;
+    }
+
+    boxes.push(best.box);
+    pos.push(best.cx, best.cy, best.cz);
+    // Square, because a sleeve is. The axes carry the size, so the shader needs no
+    // separate half-extent: its normal is right cross up.
+    right.push(best.rt[0], best.rt[1], best.rt[2]);
+    up.push(best.upv[0], best.upv[1], best.upv[2]);
+    layer.push(i % Math.max(artDistinct, 1));
+    each.push({ x: +best.cx.toFixed(4), y: +best.cy.toFixed(4), z: +best.cz.toFixed(4),
+                halfW: +(best.sz * (artAspects[i % Math.max(artAspects.length, 1)] || 1)).toFixed(4),
+                halfH: +best.sz.toFixed(4),
+                yawDeg: +(best.yaw * 180 / Math.PI).toFixed(2),
+                overlap: +best.worst.toFixed(3), onScreen: +best.seen.toFixed(3),
+                underChrome: +best.under.toFixed(3), underTile: +best.hard.toFixed(3),
+                // Where it landed in the picture, -1..1 with y upward. Carried so a
+                // frame can be cut out of a shot and held against the photograph it
+                // was made from, which is the only way to settle an argument about
+                // whether it came out the right shape.
+                screen: best.box.map(v => +v.toFixed(4)),
+                cover: i % Math.max(artDistinct, 1) });
+  }
+
+  const value = { n, pos, right, up, layer, each,
+                  worst: each.reduce((m, f) => Math.max(m, f.overlap), 0),
+                  shown: each.filter(f => f.onScreen > 0.02).length,
+                  hidden: each.filter(f => f.underChrome > 0.5).length,
+                  onTile: each.filter(f => f.underTile > 0).length };
+  layoutCache = { key, value };
+  return value;
+}
+
+function rgb(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+}
+
+function set1(name, v) { if (loc[name]) gl.uniform1f(loc[name], v); }
+
+function draw(t) {
+  if (!prog) return;
+  gl.useProgram(prog);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  if (loc.uResolution) gl.uniform2f(loc.uResolution, canvas.width, canvas.height);
+  set1("uTime", t);
+
+  for (const k of ["uBass","uMid","uAir","uWidth","uHeight","uDepth","uWindow",
+                   "uDensity","uAbsorb","uReach","uFieldGain","uHollow","uHollowEdge","uBackFrom","uCentreDim","uAniso","uFieldScale","uWallAlpha",
+                   "uSpread","uWobble","uSize",
+                   "uSpill","uExposure","uTone","uDither"]) set1(k, state[k]);
+  if (loc.uSteps) gl.uniform1i(loc.uSteps, state.uSteps | 0);
+  if (loc.uLobes) gl.uniform1i(loc.uLobes, state.uLobes | 0);
+  if (loc.uCam) gl.uniform3f(loc.uCam, state.uCamX, state.uCamY, state.uCamZ);
+  for (const k of ["uGround","uTint","uGlow","uShade"])
+    if (loc[k]) gl.uniform3fv(loc[k], rgb(state[k]));
+
+  const a = [], b = [], d = [], pw = [];
+  for (let i = 0; i < 5; i++) {
+    a.push(...rgb(state["uFaceA" + i]));
+    b.push(...rgb(state["uFaceB" + i]));
+    d.push(state["uFaceDir" + i]);
+    pw.push(state["uFacePow" + i]);
+  }
+  if (loc.uFaceA) gl.uniform3fv(loc.uFaceA, a);
+  if (loc.uFaceB) gl.uniform3fv(loc.uFaceB, b);
+  if (loc.uFaceDir) gl.uniform1fv(loc.uFaceDir, d);
+  if (loc.uFacePow) gl.uniform1fv(loc.uFacePow, pw);
+
+  const f = frameLayout();
+  if (loc.uFrames) gl.uniform1i(loc.uFrames, f.n);
+  if (f.n > 0) {
+    if (loc.uFramePos) gl.uniform3fv(loc.uFramePos, f.pos);
+    if (loc.uFrameRight) gl.uniform3fv(loc.uFrameRight, f.right);
+    if (loc.uFrameUp) gl.uniform3fv(loc.uFrameUp, f.up);
+    if (loc.uFrameLayer) gl.uniform1fv(loc.uFrameLayer, f.layer);
+  }
+  set1("uFrameBorder", state.uFrameBorder);
+  set1("uFrameLight", state.uFrameLight);
+  set1("uFrameThick", state.uFrameThick);
+  if (loc.uFrameInk) gl.uniform3fv(loc.uFrameInk, rgb(state.uFrameInk));
+  if (loc.uArt && artTex) {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, artTex);
+    gl.uniform1i(loc.uArt, 0);
+  }
+
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+// ── sizing ──
+
+function fit() {
+  const ow = +document.getElementById("ow").value || 2400;
+  const oh = +document.getElementById("oh").value || 600;
+  canvas.style.aspectRatio = ow + " / " + oh;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(64, Math.round(canvas.clientWidth * dpr));
+  const h = Math.max(32, Math.round(w * oh / ow));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+}
+window.addEventListener("resize", requestDraw);
+document.getElementById("ow").addEventListener("input", requestDraw);
+document.getElementById("oh").addEventListener("input", requestDraw);
+// The canvas carries its own 300x150 until told otherwise, so the banner shape is
+// set before anything is drawn rather than on the first frame.
+fit();
+
+// ── the clock, and when a frame is drawn ──
+//
+// One frame, on demand. The march is thousands of lobe evaluations a pixel and a page
+// holding sixty of those a second heats the machine for no reason: nothing moves
+// unless a control moves it. Play is still here for finding a moment worth keeping,
+// and it is off until asked for.
+
+let t = 0, playing = false, last = performance.now(), pending = false;
+const tnum = document.getElementById("tnum");
+const speed = document.getElementById("speed");
+
+// A rolling mean of how long a frame takes to draw, and the pixels it covered. The
+// question of whether this can run live in the app is a question about these two.
+let cost = 0;
+
+function renderOnce() {
+  fit();
+  const t0 = performance.now();
+  draw(t);
+  // A draw call returns before the GPU has run it, so finish() is what makes the
+  // reading a measurement of the shader rather than of the queue.
+  gl.finish();
+  const ms = performance.now() - t0;
+  cost = cost ? cost * 0.8 + ms * 0.2 : ms;
+  if (chromeOn) {
+    chromeCanvas.width = canvas.width;      // resizing clears it
+    chromeCanvas.height = canvas.height;
+    paintChrome(chromeCanvas.getContext("2d"), canvas.width, canvas.height);
+  }
+  const mp = canvas.width * canvas.height / 1e6;
+  const f = frameLayout();
+  perf.textContent = cost.toFixed(1) + " ms/frame at " + canvas.width + "x" + canvas.height
+    + " (" + mp.toFixed(2) + " Mpx, " + (cost / mp).toFixed(1) + " ms/Mpx)"
+    + " | " + f.shown + " of " + (state.uFrames | 0) + " frames in view"
+    + ", worst overlap " + Math.round(f.worst * 100) + "%"
+    + (f.hidden ? ", " + f.hidden + " behind the chrome" : "")
+    + (f.onTile ? ", " + f.onTile + " TOUCHING THE TILE" : "")
+    + ((state.uFrames | 0) > artDistinct
+        ? " | only " + artDistinct + " pictures, so " +
+          ((state.uFrames | 0) - artDistinct) + " repeat" : "");
+}
+
+// Coalesced, so dragging a slider asks for one frame a refresh rather than one an
+// event: a range input fires far faster than this shader can answer.
+function requestDraw() {
+  if (pending || playing) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; renderOnce(); });
+}
+
+function loop(now) {
+  if (!playing) return;
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+  t += dt * (+speed.value || 0);
+  tnum.value = t.toFixed(1);
+  renderOnce();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById("play").addEventListener("click", e => {
+  playing = !playing;
+  e.target.textContent = playing ? "Pause" : "Play";
+  if (playing) { last = performance.now(); requestAnimationFrame(loop); }
+});
+tnum.addEventListener("input", () => { t = +tnum.value || 0; requestDraw(); });
+
+// A room nobody chose. The moment the light is caught at and where the pictures hang
+// are the two things that make one room different from another, so both are rolled
+// rather than left at whatever they were last set to: every load is a new room, and
+// Reroll is another one. The shot harness names them explicitly when it wants the
+// same room twice.
+function reroll() {
+  t = Math.random() * 1000;
+  tnum.value = t.toFixed(1);
+  state.uFrameSeed = Math.floor(Math.random() * 41);
+  pushToInputs();
+  save();
+}
+
+document.getElementById("reroll").addEventListener("click", () => {
+  reroll();
+  requestDraw();
+});
+
+// ── loading, and reloading when a file changes ──
+
+// /inline serves this page with the two shader files already in it. Nothing is
+// fetched then, so the first frame is drawn before the load event and a headless
+// screenshot catches a picture rather than a blank canvas. Every later load goes
+// back to fetching, which is what live editing needs.
+function inlined(id) {
+  const el = document.getElementById(id);
+  // Leading whitespace would put `#version` on the second line, which no GLSL
+  // compiler accepts.
+  return el ? el.textContent.replace(/^\s+/, "") : null;
+}
+
+async function load(first) {
+  try {
+    let frag = first ? inlined("fragSrc") : null;
+    if (frag === null) frag = await fetch("room.frag?v=" + Date.now()).then(r => r.text());
+    // Before the first draw, not alongside it: a frame drawn against a texture that
+    // has not arrived is a black rectangle, and in shot mode there is no second frame
+    // to put it right.
+    await ensureArt();
+    build(frag);
+    clearFail();
+    status.textContent = "shader loaded " + new Date().toLocaleTimeString();
+    // Straight away rather than through requestDraw: there is no loop to fall back
+    // on, and a headless browser gets no animation callback at all.
+    renderOnce();
+  } catch (e) {
+    fail(String(e.message || e));
+    status.textContent = "shader failed, the last one that worked is still on screen";
+    if (prog) requestDraw();
+  }
+}
+
+let stamp = null;
+async function poll() {
+  try {
+    const r = await fetch("/mtime", { cache: "no-store" });
+    const j = await r.json();
+    if (stamp === null) { stamp = j; return; }
+    if (j.html !== stamp.html) { location.reload(); return; }
+    if (j.frag !== stamp.frag) { stamp = j; load(false); }
+    else stamp = j;
+  } catch (e) { /* the server is not running; the page still works */ }
+}
+setInterval(poll, 600);
+
+// ── out ──
+
+// Render once at the output size and hand the pixels to `then`. The drawing buffer
+// is resized around the call and put back, so the page on screen is unchanged.
+function renderOut(then) {
+  const ow = +document.getElementById("ow").value || 2400;
+  const oh = +document.getElementById("oh").value || 600;
+  const kw = canvas.width, kh = canvas.height;
+  canvas.width = ow; canvas.height = oh;
+  draw(t);
+  // Before the pixels are read into another canvas, not after.
+  gl.finish();
+  then(composite(ow, oh), ow, oh);
+  canvas.width = kw; canvas.height = kh;
+  draw(t);
+}
+
+document.getElementById("png").addEventListener("click", () => {
+  renderOut((out, ow, oh) => out.toBlob(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "room-" + ow + "x" + oh + "-t" + t.toFixed(1) + ".png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, "image/png"));
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+  const text = JSON.stringify(
+    { time: +t.toFixed(2), ...state, frames: frameLayout().each }, null, 2);
+  try { await navigator.clipboard.writeText(text); status.textContent = "settings copied"; }
+  catch (e) { prompt("settings", text); }
+});
+
+document.getElementById("paste").addEventListener("click", () => {
+  const text = prompt("paste settings");
+  if (!text) return;
+  try {
+    const j = JSON.parse(text);
+    for (const k in j) if (k in state) state[k] = j[k];
+    if (typeof j.time === "number") { t = j.time; tnum.value = t.toFixed(1); }
+    pushToInputs(); save(); requestDraw();
+    status.textContent = "settings applied";
+  } catch (e) { status.textContent = "that is not settings JSON"; }
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  Object.assign(state, defaults());
+  pushToInputs(); save(); requestDraw();
+  status.textContent = "back to the defaults";
+});
+
+// ── capturing it from outside ──
+//
+// `firefox --headless --screenshot` composites a WebGL canvas as black however well
+// the shader ran, so a shot taken that way is not evidence about the picture. The
+// page posts its own pixels to the server instead, which is: the drawing buffer is
+// what toDataURL reads.
+//
+//   /inline?shot=room.png&t=12.5&w=2400&h=600
+//
+// Settings come from localStorage as usual, so what lands on disk is what is on
+// screen. The query may also carry any control by name, which is what lets a whole
+// sweep of one knob be taken without touching the page.
+async function shotMode(q) {
+  for (const [k, v] of q) if (k in state) state[k] = isNaN(+v) ? v : +v;
+  if (q.has("t")) t = +q.get("t");
+  // `chrome=0` posts the room alone, which is what measuring anything in it needs:
+  // the chrome is the brightest thing in the picture and swamps every reading.
+  if (q.has("chrome")) {
+    chromeOn = q.get("chrome") !== "0";
+    chromeCanvas.classList.toggle("off", !chromeOn);
+  }
+  if (q.has("w")) document.getElementById("ow").value = q.get("w");
+  if (q.has("h")) document.getElementById("oh").value = q.get("h");
+  playing = false;
+  pushToInputs();
+  // Once at the state the query asked for, so the note that goes with the picture
+  // describes the picture rather than whatever was on screen before the query was
+  // read. It cost a sweep of three frame counts that all reported the same numbers.
+  renderOnce();
+  let url = null;
+  renderOut(out => { url = out.toDataURL("image/png"); });
+  const name = q.get("shot");
+  // The note first and the picture second, because the picture landing is what the
+  // harness waits for: posted the other way round it closes the browser before the
+  // note arrives, which is exactly when the note is wanted.
+  await fetch("/shot?name=" + encodeURIComponent(name.replace(/\.png$/, "") + ".txt"),
+              { method: "POST", body: "text," + btoa(status.textContent + "\n"
+                + perf.textContent + "\n\n"
+                + (errBox.textContent || "no shader error") + "\n\n"
+                + JSON.stringify(frameLayout().each)) });
+  await fetch("/shot?name=" + encodeURIComponent(name), { method: "POST", body: url });
+  status.textContent = "posted " + name;
+}
+
+// ── the real playlists ──
+//
+// library.json is built by import_library.py out of the mirrored peer library and
+// this machine's own artist pictures. Choosing one puts its artists in the frames and
+// paints the room in the colour the app would calculate for it: the palette is
+// RoomPalette.From's own answer, worked out by the importer and carried here as four
+// hex strings, not re-derived by a second rule that would drift from the first.
+const picker = document.getElementById("playlist");
+let library = null;
+
+async function loadLibrary() {
+  try {
+    const r = await fetch("library.json");
+    if (!r.ok) throw new Error(r.status);
+    library = await r.json();
+  } catch (e) {
+    picker.innerHTML = '<option value="-1">covers (no library.json)</option>';
+    return;
+  }
+  picker.innerHTML = '<option value="-1">the lab\u2019s covers</option>'
+    + library.playlists.map((p, i) =>
+        `<option value="${i}">${p.name} (${p.pictures.length})</option>`).join("");
+}
+
+async function choosePlaylist(index) {
+  const chosen = index >= 0 && library ? library.playlists[index] : null;
+  artSource = chosen;
+  if (chosen) {
+    for (const k of ["ground", "tint", "glow", "shade"])
+      state["u" + k[0].toUpperCase() + k.slice(1)] = chosen.palette[k];
+    pushToInputs();
+    save();
+  }
+  status.textContent = chosen
+    ? chosen.name + ": " + chosen.pictures.length + " artists, "
+      + chosen.palette.tint + " / " + chosen.palette.glow + " / " + chosen.palette.shade
+    : "the lab\u2019s own covers";
+  await ensureArt(true);
+  renderOnce();
+}
+
+picker.addEventListener("change", () => choosePlaylist(+picker.value));
+
+// ── the header's own chrome ──
+//
+// Drawn rather than outlined, because a room is only judged against what actually
+// covers it: a dashed rectangle says where the cover tile is, and a cover tile says
+// whether the picture behind it was worth placing there.
+//
+// On a 2D canvas over the GL one, and composited into anything saved, so a shot is
+// the header rather than the half of it the shader draws. Everything is measured in
+// fractions of the header's HEIGHT, so it holds at any output size.
+//
+// The type is the system's, not the app's: the app sets its own faces and this is a
+// stand-in for their size and weight, not a copy of them.
+const chromeCanvas = document.getElementById("chromeCanvas");
+let chromeOn = true;
+// The tile's edge and the frames' moulding are one material. Written once here and
+// used in both places, so they cannot drift apart.
+const TILE_EDGE = "rgba(201,208,221,0.42)";
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+// Draws, and does NOT clear. The overlay canvas is cleared by its caller; clearing
+// here wiped the room out of the composite, which is the one place the two pictures
+// are supposed to end up on top of each other.
+function paintChrome(g, W, H) {
+  const pl = artSource;
+  const box = n => CHROME.find(c => c.name === n);
+
+  // A wash under the writing. The room is a picture and white text on a picture is
+  // not readable without one; the app lays its own, and this stands in for it.
+  //
+  // Diagonal and across the WHOLE header, not a rectangle over the writing: a
+  // rectangle that stops has an edge, and the edge was plainly visible down the
+  // middle of the room. It runs from the bottom-left corner, where the words are, to
+  // well past the opposite one.
+  const wash = g.createLinearGradient(0, H, W * 0.78, H * 0.10);
+  wash.addColorStop(0, "rgba(6,8,13,0.78)");
+  wash.addColorStop(0.55, "rgba(6,8,13,0.28)");
+  wash.addColorStop(1, "rgba(6,8,13,0)");
+  g.fillStyle = wash;
+  g.fillRect(0, 0, W, H);
+
+  // ── the back arrow ──
+  const b = box("back");
+  g.strokeStyle = "rgba(255,255,255,0.55)";
+  g.lineWidth = Math.max(1, H * 0.003);
+  roundRect(g, b.x0 * W, b.y0 * H, (b.x1 - b.x0) * W, (b.y1 - b.y0) * H, H * 0.014);
+  g.stroke();
+  const ax = (b.x0 + b.x1) / 2 * W, ay = (b.y0 + b.y1) / 2 * H, a = H * 0.022;
+  g.beginPath();
+  g.moveTo(ax + a * 0.7, ay);
+  g.lineTo(ax - a * 0.5, ay);
+  g.moveTo(ax - a * 0.5, ay);
+  g.lineTo(ax + a * 0.05, ay - a * 0.55);
+  g.moveTo(ax - a * 0.5, ay);
+  g.lineTo(ax + a * 0.05, ay + a * 0.55);
+  g.strokeStyle = "rgba(255,255,255,0.93)";
+  g.stroke();
+
+  // ── the playlist's own cover tile ──
+  //
+  // The app quilts the first four RECORDS on the list. The lab has the artists'
+  // pictures and not those covers, so it quilts four of them instead: the tile is
+  // here for its size and its weight over the room, not as a claim about the picture.
+  const c = box("cover");
+  const cx = c.x0 * W, cy = c.y0 * H, cw = (c.x1 - c.x0) * W, ch = (c.y1 - c.y0) * H;
+  g.fillStyle = "rgba(255,255,255,0.10)";
+  roundRect(g, cx, cy, cw, ch, H * 0.035);
+  g.fill();
+  // The tile's edge, in the material the frames' moulding is made of.
+  g.strokeStyle = TILE_EDGE;
+  g.lineWidth = Math.max(1, H * 0.0035);
+  g.stroke();
+
+  const pad = cw * 0.14, q = Math.min(cw - pad * 2, ch - pad * 2), qx = cx + (cw - q) / 2;
+  const qy = cy + (ch - q) / 2;
+  g.save();
+  roundRect(g, qx, qy, q, q, H * 0.018);
+  g.clip();
+  // The four the FRAMES are not using. The frames take the layers from nought up, so
+  // the quilt starts past them: drawn from nought as well, the tile and the room were
+  // showing the same four photographs, which is the one thing a header should not do
+  // while eight other pictures of those artists sit unused.
+  const quiltFrom = Math.min(state.uFrames | 0, Math.max(artDistinct - 4, 0));
+  for (let i = 0; i < 4; i++) {
+    const at = (quiltFrom + i) % Math.max(artDistinct, 1);
+    const bmp = artBitmaps[at];
+    const dx = qx + (i % 2) * q / 2, dy = qy + ((i / 2) | 0) * q / 2;
+    if (!bmp) { g.fillStyle = "#222b3a"; g.fillRect(dx, dy, q / 2, q / 2); continue; }
+
+    // Cropped to the middle, not squashed into the cell. The stored bitmap is the
+    // whole picture STRETCHED into a square, because that is what a texture array
+    // wants and what the frames un-stretch; drawn straight into a square cell that
+    // stretch is simply visible, and every landscape photograph in the quilt came out
+    // squeezed. So the source rectangle takes the middle square of the original, read
+    // back out of the aspect the stretch was applied with.
+    const asp = artAspects[at] || 1;
+    const S = bmp.width;
+    const sw = asp > 1 ? S / asp : S;
+    const sh = asp > 1 ? S : S * asp;
+    g.drawImage(bmp, (S - sw) / 2, (S - sh) / 2, sw, sh, dx, dy, q / 2, q / 2);
+  }
+  g.restore();
+
+  // ── the name, and the two lines under it ──
+  const w = box("writing");
+  const tx = w.x0 * W;
+  const face = '-apple-system, "Segoe UI", system-ui, sans-serif';
+
+  g.textBaseline = "alphabetic";
+  g.fillStyle = "#ffffff";
+  g.font = `700 ${H * 0.072}px ${face}`;
+  g.fillText(pl ? pl.name : "the lab\u2019s covers", tx, H * 0.787);
+
+  g.fillStyle = "rgba(255,255,255,0.68)";
+  g.font = `${H * 0.048}px ${face}`;
+  const acts = pl && pl.featuring && pl.featuring.length
+    ? "Featuring " + pl.featuring.join(", ")
+      + (pl.moreActs ? " and " + pl.moreActs + " more" : "")
+    : "";
+  if (acts) g.fillText(acts, tx, H * 0.862);
+
+  g.fillStyle = "rgba(255,255,255,0.58)";
+  g.font = `${H * 0.044}px ${face}`;
+  if (pl) {
+    const mins = Math.round(pl.seconds / 60);
+    const h = (mins / 60) | 0, m = mins % 60;
+    const length = h ? `${h} hour${h > 1 ? "s" : ""}, ${m} minute${m === 1 ? "" : "s"}`
+                     : `${m} minute${m === 1 ? "" : "s"}`;
+    g.fillText(`${pl.songs} songs  \u00b7  ${length}`, tx, H * 0.936);
+  }
+
+  // ── the three ways to play ──
+  const btn = box("buttons");
+  const by = (btn.y0 + btn.y1) / 2 * H, r = H * 0.036;
+  const at = [0.887, 0.9275, 0.965].map(f => f * W);
+  g.fillStyle = "rgba(255,255,255,0.90)";
+  g.strokeStyle = "rgba(255,255,255,0.90)";
+  g.lineWidth = Math.max(1.2, H * 0.005);
+
+  g.beginPath();                                  // play
+  g.moveTo(at[0] - r * 0.4, by - r * 0.55);
+  g.lineTo(at[0] + r * 0.6, by);
+  g.lineTo(at[0] - r * 0.4, by + r * 0.55);
+  g.closePath();
+  g.fill();
+
+  g.beginPath();                                  // shuffle
+  g.moveTo(at[1] - r * 0.6, by - r * 0.4);
+  g.lineTo(at[1] + r * 0.6, by + r * 0.4);
+  g.moveTo(at[1] - r * 0.6, by + r * 0.4);
+  g.lineTo(at[1] + r * 0.6, by - r * 0.4);
+  g.stroke();
+
+  g.beginPath();                                  // headphones
+  g.arc(at[2], by + r * 0.1, r * 0.55, Math.PI, 0);
+  g.stroke();
+  g.beginPath();
+  g.rect(at[2] - r * 0.68, by + r * 0.05, r * 0.26, r * 0.5);
+  g.rect(at[2] + r * 0.42, by + r * 0.05, r * 0.26, r * 0.5);
+  g.fill();
+}
+
+// The GL canvas and the chrome as one picture, which is what gets saved or posted.
+function composite(w, h) {
+  const out = document.createElement("canvas");
+  out.width = w; out.height = h;
+  const g = out.getContext("2d");
+  g.drawImage(canvas, 0, 0, w, h);
+  if (chromeOn) paintChrome(g, w, h);
+  return out;
+}
+
+document.getElementById("chromeOn").addEventListener("click", () => {
+  chromeOn = !chromeOn;
+  chromeCanvas.classList.toggle("off", !chromeOn);
+  requestDraw();
+});
+
+// The chrome, outlined as a guide as well. Over the canvas rather than into it.
+const guides = document.getElementById("guides");
+guides.innerHTML = CHROME.map(c =>
+  `<div style="left:${c.x0 * 100}%;top:${c.y0 * 100}%;` +
+  `width:${(c.x1 - c.x0) * 100}%;height:${(c.y1 - c.y0) * 100}%">${c.name}</div>`).join("");
+document.getElementById("guidesOn").addEventListener("click",
+  () => guides.classList.toggle("on"));
+
+if (!gl) fail("No WebGL2 in this browser.");
+else {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("t")) { t = Math.random() * 1000; tnum.value = t.toFixed(1); }
+  if (!q.has("uFrameSeed")) state.uFrameSeed = Math.floor(Math.random() * 41);
+  pushToInputs();
+  loadLibrary()
+    .then(() => {
+      // A playlist named in the query, or one at random, so a shot of "a header" is a
+      // header for a real list rather than always the same one.
+      if (q.has("playlist") && library) {
+        const want = q.get("playlist").toLowerCase();
+        const at = library.playlists.findIndex(p => p.name.toLowerCase() === want);
+        if (at >= 0) { picker.value = String(at); artSource = library.playlists[at]; }
+      } else if (library && library.playlists.length && !q.has("covers")) {
+        const at = Math.floor(Math.random() * library.playlists.length);
+        picker.value = String(at);
+        artSource = library.playlists[at];
+      }
+      if (artSource) {
+        for (const k of ["ground", "tint", "glow", "shade"])
+          state["u" + k[0].toUpperCase() + k.slice(1)] = artSource.palette[k];
+        pushToInputs();
+      }
+    })
+    .then(() => load(true))
+    .then(() => {
+      if (artSource) status.textContent += " | " + artSource.name;
+      if (q.get("shot")) shotMode(q);
+    });
+}
+</script>

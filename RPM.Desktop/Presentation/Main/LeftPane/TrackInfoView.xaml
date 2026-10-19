@@ -1,0 +1,711 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.LeftPane.TrackInfoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pane="using:RPM.Desktop.Presentation.Main.LeftPane"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.LeftPane.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark">
+
+  <!-- Everything known about the record that is playing, in one column narrow enough for the left pane. It shows
+       what the file says, what the library holds, and what the free encyclopedias add to both. The sections are
+       built in code, not bound to a view model. Which facts are worth a line is a rule (see RPM.Core's TrackFacts),
+       and a template cannot hold that rule without a converter for each field. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <!-- The same icon font, drawn as an outline. Only the heart uses it here. Filled means the record is marked as
+         a favourite. An outline means the mark can be set. See PaintFavorite. -->
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+
+    <!-- The ink: four brushes. Everything in the pane that carries text uses one of them.
+
+         They are resources, not hex values written into each style. The pane takes its colour from the artist's
+         photograph, and a light photograph needs dark ink on it (see PaintPanelTint). A brush shared by all its users
+         can have its colour written once, and every line in the pane follows. Writing the same change to each TextBlock
+         would mean keeping a list of every TextBlock in the pane, including those built in code and those inside a
+         DataTemplate. That list goes stale as soon as a row is added.
+
+         The alphas differ between the four, and they stay the same when the ink flips. A heading is two thirds of a
+         value whichever way round the pane is. -->
+    <SolidColorBrush x:Key="InkStrong" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="InkBody" Color="#DDFFFFFF"/>
+    <SolidColorBrush x:Key="InkQuiet" Color="#AAFFFFFF"/>
+    <SolidColorBrush x:Key="InkFaint" Color="#88FFFFFF"/>
+
+    <!-- The pane's own ground: the record's colour. When there is no photograph to take a colour from, the ground
+         is nothing at all, and the shell's own glass shows through. See PaintPanelTint. -->
+    <SolidColorBrush x:Key="InkGround" Color="#FF101014"/>
+
+    <!-- The frost: one plate. Everything on this pane that holds writing stands on it: the lyric well, the two
+         encyclopedia cards, a genre chip, and a row in the Elsewhere box. It is the app's frosted glass, a white wash
+         that is very thin, with no gradient, no hairline and no lift.
+
+         There is one plate, not a card material and a chip material. Two thicknesses of glass on one pane look
+         uneven. The photograph does not move behind the sheet (see WashesWell), so a near-solid card is not needed to
+         keep the text readable.
+
+         The lit state is the same plate under the pointer. -->
+    <SolidColorBrush x:Key="InkPlate" Color="#18FFFFFF"/>
+    <SolidColorBrush x:Key="InkPlateLit" Color="#2EFFFFFF"/>
+
+    <!-- The label column of the fact sheet. Its width is fixed, so the values line up down the whole pane. The eye
+         can run down the column instead of searching for the second half of each line. -->
+    <Style x:Key="FactLabel" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="{StaticResource InkFaint}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+
+    <Style x:Key="FactValue" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource InkBody}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+
+    <!-- The heading over a block: the sheet's four groups, and the artist / album cards. -->
+    <Style x:Key="BlockHeading" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{StaticResource InkQuiet}"/>
+    </Style>
+
+    <Style x:Key="Prose" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource InkBody}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="LineHeight" Value="18"/>
+      <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+
+  </UserControl.Resources>
+
+  <!-- The whole pane has the artist's colour. It is set on the root, not on each card, so the ground under the
+       scroller, the gaps between the cards and the strip behind the heading are all one surface. A photograph's
+       colour on the cards alone would look like three coloured boxes on a grey pane. See PaintPanelTint, which also
+       decides whether the ink is black or white. -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>   <!-- pane heading -->
+      <RowDefinition Height="*"/>      <!-- the sheet -->
+    </Grid.RowDefinitions>
+
+    <!-- The pane's colour, as an ELEMENT rather than as the grid's own Background.
+
+         It is an element so that it can fade. PaintPanelTint writes the colour while this is at zero opacity, and the
+         whole layer then eases in with the photograph it was taken from. A Background is a brush, and changing a
+         brush's Colour takes effect on the next frame, whether or not the rest of the pane is ready for it. The pane
+         peels and rebuilds as one (see TrackInfoView.Build). A ground that changed while the layers above it were
+         still fading could not be sequenced, so it has to be an element too. -->
+    <Border x:Name="PaneGround" Grid.Row="0" Grid.RowSpan="2" Opacity="0" IsHitTestVisible="False"
+            Background="{StaticResource InkGround}"/>
+
+    <!-- The artist's photograph over the ground, blurred until it is no longer a picture. What shows through is the
+         pane's colour, with the shape of the photograph in it: the light and dark areas, but none of the detail.
+
+         For a DARK photograph only. A pale one is left off entirely, and the sheet is read off the flat colour instead
+         (see WashesWell). A white studio backdrop behind a paragraph is not a tint. It is a page printed on a lamp, and
+         no ink survives both halves of it.
+
+         This is a Border with the picture as its BACKGROUND, not an Image. A background is painted within the element's
+         own bounds. A wide photograph in a tall, narrow pane is therefore cropped by the pane, and it cannot paint
+         outside it. An Image would depend on the control to clip its overflow. (Uno's Skia renderer draws an ImageBrush
+         as a background, but draws nothing for one on a Shape's Fill. The drawer's own wash is built the same way. See
+         AlbumBackdrop.)
+
+         It is behind everything and does not take pointer input. It is the ground, not a layer of the sheet. -->
+    <Border x:Name="PaneWash" Grid.Row="0" Grid.RowSpan="2" Opacity="0" IsHitTestVisible="False">
+      <Border.Background>
+        <ImageBrush x:Name="PaneWashArt" Stretch="UniformToFill"/>
+      </Border.Background>
+
+      <!-- The wash's exposure is turned down. A blurred photograph keeps the brightest patches of the picture. A bright
+           patch behind a paragraph makes the paragraph unreadable. On a picture with a lamp or a sky in it, the pane
+           would go pale grey under the title.
+
+           The veil is black. It sits inside the wash, not over it, so it fades in and out with the wash, and there is
+           never a frame where one is up and the other is not. How much of it there is depends on the picture. See
+           PaintPanelTint, which sets it from CoverColor.Veil. -->
+      <Border x:Name="PaneVeil" Background="#FF000000" Opacity="0"/>
+    </Border>
+
+    <!-- The pane heading uses the same geometry as every other view (16, 12, 16 around a 36 high box). The sheet
+         below therefore starts on the same line as the library, the playlists and the radio.
+
+         The heading sits OVER the sheet, not above it. That lets the photograph reach the top of the pane. The
+         scroller spans both rows, and the heading floats on the first 60-odd points of it. When there is a photograph,
+         those points are the photograph, under a ramp put there for this purpose (see BandPhotoCrown). When there is
+         none, they are the sheet's own top padding, which ArrangeHero sets to the height measured here. -->
+    <!-- Top, explicitly. A StackPanel stretches by default. In a row that something else has made taller, this one
+         would report that row's height as its own. Its height is what the whole sheet below is placed against, so it
+         must measure its content and nothing else. -->
+    <StackPanel x:Name="HeadingBlock" Grid.Row="0" Margin="16,12,16,0" Canvas.ZIndex="2"
+                VerticalAlignment="Top" SizeChanged="HeadingBlock_SizeChanged">
+      <Grid Style="{StaticResource RpmPaneHeadingBox}">
+        <TextBlock Text="{loc:Str Key=TrackInfo_PaneTitle}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+      <!-- Kept empty on purpose. A small dim line over a photograph is the first thing to become unreadable. Both
+           facts it could carry are printed in full further down this screen.
+
+           The strip stays. It is the 23 points that every other pane's subtitle takes up. Without it, this pane would
+           start its content higher than the library, the radio, the playlists and the visualizer gallery. They all
+           reserve this strip whether or not they have a line to put in it. Over a photograph it is invisible. On a
+           record with no photograph it keeps this tab's header level with every other tab. See RpmPaneSubheading, and
+           VizGalleryView, which reserves it for the same reason. -->
+      <TextBlock Style="{StaticResource RpmPaneSubheading}"/>
+    </StackPanel>
+
+    <!-- The wait: a record turning in the pane's own top corner while the pictures are being fetched. It sits
+         opposite the heading and clear of it.
+
+         It is the same control the library's track lists use, and there is only ever one of them. It is 52 points
+         across. Two of those on a pane 320 wide would look like a pane made of spinners. Which one is showing is decided
+         in one place (see ShowWait), so a second cannot be written. It hands over to the one in the middle of the text
+         region as soon as the pictures are up. -->
+    <ctl:RecordSpinner x:Name="PictureBusy" Grid.Row="0" Grid.RowSpan="2" Width="34" Height="34"
+                       Margin="0,13,16,0" Canvas.ZIndex="2"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       IsHitTestVisible="False"/>
+
+    <!-- No side padding. This is what makes the layout full width. A negative margin on the photograph would not
+         work, because a ScrollViewer clips its content to the padding box. The picture would be made wider and then cut
+         back to where it started. So the inset belongs to the blocks instead. Each block carries its own 16, and the one
+         block that should not have it does not ask for it. -->
+    <!-- No bar. It is hidden, not disabled, so the wheel, the touchpad and ChangeView all still work. What goes is
+         the grey rail down the edge of a pane 320 points wide. The sheet already shows that it continues past both
+         edges, because it dissolves into them (see the two bands at the foot of this file). -->
+    <!-- The wrapper that the two cuts are applied to. PhotoCut uses the same approach for the same reason. The copy
+         taken of the scroller is that visual's own rendering, clip included. A cut applied to the scroller would also
+         cut the copy, and the band would be missing from both. -->
+    <!-- The sheet and the two bands that dissolve its ends, in one box.
+
+         They share one box, and that is required. If the bands were siblings of the wrapper on the pane's own grid,
+         each would be placed against the pane, while the pixels it paints are measured from the scroller. Anything that
+         made the two differ by a point (a padding, or a row that did not end where the sheet did) would put a band
+         where the copy was not. The result was a hard edge through the middle of a chip, with nothing painted back over
+         it. Sharing one box means a band cannot be anywhere the sheet is not. The drawer's record screen is built the
+         same way. -->
+    <Grid x:Name="SheetArea" Grid.Row="0" Grid.RowSpan="2">
+    <Grid x:Name="SheetCut">
+    <ScrollViewer x:Name="ContentScroller"
+                  VerticalScrollBarVisibility="Hidden"
+                  Padding="0,0,0,24" ViewChanged="ContentScroller_ViewChanged"
+                  SizeChanged="ContentScroller_SizeChanged">
+      <!-- Named so the code can watch it. The sheet grows as the file's tags, and then the encyclopedias, land under
+           it. A scroller whose content changes height does not raise ViewChanged, so without this the foot's band would
+           keep using the height the sheet had a moment earlier. -->
+      <StackPanel x:Name="SheetStack" Spacing="18" SizeChanged="SheetStack_SizeChanged">
+
+        <!-- The header: who made it, what it came out on, and what is playing. It is one header, not a picture with a
+             caption under it. The band photo goes across the top. The sleeve hangs off the bottom RIGHT corner of the
+             photo, and the track's name takes the width that is free beside it. There are two pictures because they
+             answer different questions. The sleeve says which record this is. The photo says who these people are. The
+             name sits beside them, not below, because it is the one thing the pane is about. A title 200 pixels down the
+             page is a title the reader scrolls past on the way to the facts.
+
+             The band photo belongs to the artist, not the record, so it stays while the tracks change under it. The
+             sleeve belongs to the album folder, which is the copy that is actually owned. An artist nobody has
+             photographed loses the top strip (see ArrangeHero). -->
+        <Grid x:Name="HeroBox">
+          <Grid.RowDefinitions>
+            <!-- The photo's strip. Its height is zero when there is no photo. That takes the whole top of the header
+                 away and leaves the foot row where it was.
+
+                 It starts CLOSED. That is not the same as starting at its full height with an empty box in it. The strip
+                 keeps the last artist's photograph until the next one is ready to fade in (see LoadBandPhotoAsync).
+                 Nothing collapses it on the way in. A row left at 150 in the markup would open the pane on a 150-point
+                 hole above the first record's title. -->
+            <!-- Auto. The box inside the row carries the number. The row is not written to directly, because that would
+                 snap between 0 and the strip's full height in one frame. A GridLength cannot be animated, so the slide
+                 animates the BOX's height, and the row follows it. See SlideStrip. -->
+            <RowDefinition x:Name="PhotoRow" Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <!-- Full width, and flush with all three edges it touches. There is no side margin, because the scroller no
+               longer insets anything. There are no corners either. It meets the top of the pane, and its foot is not an
+               edge but a dissolve.
+
+               There is no Background. The foot of this picture is not painted over. It is TAKEN AWAY (see PhotoFootFade
+               below), and a fill on this Border would show through that hole instead of the pane. -->
+          <Border x:Name="BandPhotoBox" Grid.Row="0" Visibility="Collapsed">
+            <Grid>
+              <!-- The wrapper the cut goes on. It cannot go on PhotoLayers. The copy taken of that visual is that visual's
+                   own rendering, clip included. A cut there would also cut the copy, and the band would be missing from
+                   both. -->
+              <Grid x:Name="PhotoCut">
+                <!-- The copy source. It holds everything the dissolve should carry, the crown included. So the band fades
+                     the finished picture, not the photograph with a scrim floating over it. -->
+                <!-- The size is watched HERE, on the visual that is actually copied, not on the Border two levels up. A
+                     parent's SizeChanged runs before its children are arranged. Measuring from up there gave the height
+                     from a frame earlier. That pointed the copy at the wrong band of the picture and left a slice of the
+                     photograph showing under the dissolve. It is most visible while the strip slides, because the height
+                     changes every frame. -->
+                <Grid x:Name="PhotoLayers" SizeChanged="PhotoLayers_SizeChanged">
+                  <!-- Two layers, crossed between rather than one swapped. A photograph cannot dissolve into the next one
+                       from a single Image. The moment its Source changes, the old picture is already gone, so a fade on one
+                       layer can only blink through whatever is behind it. The header's own cover uses two layers for the
+                       same reason (see ArtDisplay.ShowCover). -->
+                  <!-- Borders with the picture as a background, not Images. The placement is stated: the picture covers the
+                       strip from its top-left corner. That is what an Image with UniformToFill does on Uno's Skia renderer,
+                       so a square photo is drawn as it is. A wide photo also needs this. A RunOff canvas (the photo with its
+                       reflection under it) is scaled to the strip's width and drawn from the top, with the mirror running off
+                       the bottom. An Image has no way to say "from the top". -->
+                  <Border x:Name="BandPhotoA" Opacity="0">
+                    <Border.Background>
+                      <ImageBrush x:Name="BandPhotoArtA" Stretch="UniformToFill"
+                                  AlignmentX="Left" AlignmentY="Top"/>
+                    </Border.Background>
+                  </Border>
+                  <Border x:Name="BandPhotoB" Opacity="0">
+                    <Border.Background>
+                      <ImageBrush x:Name="BandPhotoArtB" Stretch="UniformToFill"
+                                  AlignmentX="Left" AlignmentY="Top"/>
+                    </Border.Background>
+                  </Border>
+
+                  <!-- A ramp under the heading, which floats on the photograph's first sixty points. It runs down the TOP,
+                       where the foot's dissolve cannot reach. A pane title over an unshaded photograph is legible on a dark
+                       one and unreadable on a bright one. Which of those a listener gets would depend on what they were
+                       playing. -->
+                  <Border x:Name="BandPhotoCrown" VerticalAlignment="Top" Height="96">
+                    <Border.Background>
+                      <!-- The same ramp that the now playing header puts its title on (ArtDisplay's ScrimStop0..3), turned to
+                           run downwards. It has four stops rather than two, and uses the photograph's own colour rather than
+                           black.
+
+                           Two stops of flat black made a bar. A ramp that clears in one straight run reads as an edge wherever
+                           the eye happens to land. At #B3, the top of every photograph was a black band with a title sitting on
+                           it. Stepped, and in the colour of the picture it lies on, it reads as a shadow. -->
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop x:Name="CrownStop0" Offset="0.0"  Color="#80000000"/>
+                        <GradientStop x:Name="CrownStop1" Offset="0.35" Color="#5C000000"/>
+                        <GradientStop x:Name="CrownStop2" Offset="0.72" Color="#2E000000"/>
+                        <GradientStop x:Name="CrownStop3" Offset="1.0"  Color="#00000000"/>
+                      </LinearGradientBrush>
+                    </Border.Background>
+                  </Border>
+                </Grid>
+              </Grid>
+
+              <!-- Where the last band of the picture is painted back, with its alpha ramped away. It is empty in the
+                   markup. What goes in it is a composition sprite holding a live copy of the photograph's own pixels,
+                   multiplied by a transparent ramp. See PhotoFootFade in the code-behind, and PegasusChrome.TopFade, which
+                   does the same thing to the head of the drawer and explains why XAML cannot. -->
+              <Grid x:Name="PhotoFootFade" VerticalAlignment="Bottom" Height="0"
+                    IsHitTestVisible="False"/>
+
+            </Grid>
+          </Border>
+
+          <!-- The foot of the header, pulled up over the photo by HeroOverlap so the sleeve sits on its corner. The name
+               is in the same row, but pushed down clear of the overlap, so it starts below the photo however many lines
+               it runs to. -->
+          <Grid x:Name="HeroFoot" Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel x:Name="TitleBlock" Grid.Column="0" Spacing="3" VerticalAlignment="Top" Opacity="0">
+              <TextBlock x:Name="TitleText" FontSize="18" FontWeight="Bold" Foreground="{StaticResource InkStrong}"
+                         TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
+                         IsTextSelectionEnabled="True"/>
+              <TextBlock x:Name="SubtitleText" FontSize="12" Foreground="{StaticResource InkQuiet}"
+                         TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- Inset from the right edge by the same margin the sleeve has on the left, so the photo runs past it on that
+                 side instead of the two ending flush.
+
+                 The way into the whole record sits under the sleeve, at the sleeve's own width. It is a 26-high key with
+                 the record glyph and one word. At 92 points wide there is no room for "Album page", and no need for it,
+                 because the album is what the thing above it shows. -->
+            <!-- Faded separately from the words beside it, because the two change on different clocks. The title belongs
+                 to this TRACK, and the sleeve belongs to the RECORD. On the next song of the same album, the words are
+                 replaced and the picture is not touched at all. Fading a sleeve out and back to the same sleeve would be
+                 a blink for nothing. -->
+            <StackPanel x:Name="HeroArt" Grid.Column="1" VerticalAlignment="Top" Margin="0,0,14,0"
+                        Spacing="8" Opacity="0">
+              <Grid x:Name="CoverBox" Width="128" Height="128">
+                <Border x:Name="CoverEdge" CornerRadius="12" Background="#33000000"/>
+                <Border CornerRadius="12">
+                  <Image x:Name="Cover" Stretch="UniformToFill"/>
+                </Border>
+                <FontIcon x:Name="CoverPlaceholder" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
+                          FontSize="36" Foreground="#40FFFFFF"/>
+              </Grid>
+
+              <!-- Two keys on one line, still at the sleeve's own width. This is the rule this row follows, so the width
+                   and the column below use the sleeve's number, not a number of their own. The heart is square and holds
+                   that width. The way into the record takes whatever is left, so the pair stays flush with the picture
+                   above, and does not take points from the title beside it.
+
+                   The row is grown with the sleeve, not left at 26. Under a 128-point picture, a 26-point row reads as a
+                   strip that was never finished, and the word in it has barely more height than the chevron after it.
+
+                   It is a Grid, not a StackPanel, because the album key is the one that disappears (a borrowed record has no
+                   page here). Under a fixed column the heart keeps its place at the sleeve's left corner either way. A stack
+                   would slide it across. -->
+              <Grid Width="128" ColumnSpacing="5">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="32"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- The heart, on the same glass as the key beside it. It is the same mark the album views put at the end of
+                     a track line, and the same one the generated favourites playlist is made of. It is written through the
+                     library service, so a song loved here is loved on the shelf and in the full-screen player by the time the
+                     listener looks at either.
+
+                     It is filled and red once it is set. It is hollow and in the pane's own ink before that. Red is what a
+                     favourite is everywhere else in this app (FavoriteMarkBrush). The hollow one has to follow the pane's ink,
+                     because that ink flips to black over a pale artist photograph. Both states are set from code. See
+                     PaintFavorite. -->
+                <ctl:RpmPrimaryButton x:Name="FavoriteButton" Grid.Column="0" Click="Favorite_Click"
+                                      Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
+                                      FontSize="14" Content="&#xf004;"
+                                      FontFamily="{StaticResource FaRegular}"
+                                      Foreground="{StaticResource InkStrong}"
+                                      HorizontalContentAlignment="Center"
+                                      ToolTipService.ToolTip="{loc:Str Key=Track_SetFavorite}"
+                                      AutomationProperties.Name="{loc:Str Key=Track_SetFavorite}"/>
+
+                <!-- The ink is the pane's own, overriding the button style's white. The key's face is a frosted surface,
+                     which takes its brightness from whatever is behind it. Over a pale artist photograph it becomes a light
+                     pill, and the style's white text would disappear on it. The glyph, the word and the chevron all inherit
+                     this one Foreground. -->
+                <ctl:RpmPrimaryButton x:Name="OpenAlbumButton" Grid.Column="1" Click="OpenAlbum_Click"
+                                      Height="32" MinWidth="0" MinHeight="0" Padding="0"
+                                      Foreground="{StaticResource InkStrong}"
+                                      HorizontalContentAlignment="Center"
+                                      ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_AlbumPage}">
+                  <!-- Spacing is 5, not 6. The row gives 37 points to the heart, and the three pieces must fit in what is
+                       left without the word being trimmed. -->
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="12"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Str Key=TrackInfo_OpenAlbum}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <!-- The key leaves the pane for a page of its own. The chevron says so before it is pressed. It is half
+                         lit, so it reads as a direction, and not as a third item competing with the glyph and the word. -->
+                    <TextBlock Text="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="9"
+                               Opacity="0.7" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </ctl:RpmPrimaryButton>
+              </Grid>
+            </StackPanel>
+          </Grid>
+        </Grid>
+
+        <!-- The words. They come first under the header, because this is the one part that moves with the music. The
+             facts, the encyclopedia and the file's own numbers stay true for a minute or longer. The line being sung
+             does not. The lyrics read with the record, rather than being scrolled to once.
+
+             The well is a block of its own, not six lines with a "show more" under them. A lyric is read, not skimmed.
+             A block that grew to the length of a rap verse would push everything else in the pane off the bottom of the
+             scroll. So the well has a maximum height, and what is under it keeps its place however many verses the song has.
+
+             It follows the singer where there is a timed sheet to follow. The visualizer's lyric view does the same, and
+             does nothing else of what it does. There is no room, no glow pulsing on the bass, no type sized to the window,
+             and no hush over the intro. This pane is 320 pixels wide beside a grid of songs. A lyric here is something to
+             glance at while working, not the thing being looked at. The sung line is lit and the rest are dim. That is all.
+
+             Scrolling it by hand turns the following off, because someone reading back to the second verse means to stay
+             there. The key in the well's top corner turns it on again. -->
+        <StackPanel x:Name="LyricsBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <!-- The heading, and beside it the one thing a reader can do about a sheet that is wrong.
+
+               A sheet whose words run a beat ahead of the singer all the way down is not broken. It has the right words,
+               timed against a different cut, and nothing in the timings tells the app which cut it has. Only someone watching
+               the screen knows. So the action lives here, not in a setting. It is a judgement made in the moment, about the
+               thing on screen.
+
+               It is hidden until there is a timed sheet up. Over plain words it would be a button offering to fix an
+               alignment that does not exist. -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{loc:Str Key=Details_Lyrics}" Style="{StaticResource BlockHeading}"/>
+            <!-- Icon-only buttons, not labelled ones. The heading beside them is short, and the pane is 320 wide, so two
+                 labels on that line would read as a second heading. The words are in the tooltip, where a control whose
+                 picture is not self-evident keeps them.
+
+                 DenseButtonStyle is the house form button (24 px, glass ghost face). The padding is squared off because
+                 the content is one glyph and not a word. -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+              <!-- The reader's own sheet, to the LEFT of the reload button. It is for a record whose words nobody has
+                   published. The likely answer is a bootleg, a live cut or a private recording. It sits left of the reload
+                   button because it is the wider answer. The reload button steps through what the catalogue has. This one
+                   is for when the catalogue has nothing worth stepping through.
+
+                   It stands whenever there is a song, with or without a sheet. A record with NO words is exactly the one a
+                   listener has a file for. -->
+              <Button x:Name="LyricOwnButton"
+                      Style="{StaticResource DenseButtonStyle}" Padding="9,0"
+                      VerticalAlignment="Center" Visibility="Collapsed" Click="LyricOwn_Click"
+                      ToolTipService.ToolTip="{loc:Str Key=TrackInfo_LyricsUseOwn}"
+                      AutomationProperties.Name="{loc:Str Key=TrackInfo_LyricsUseOwn}">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07c;" FontSize="12"/>
+              </Button>
+              <Button x:Name="LyricAnotherButton"
+                      Style="{StaticResource DenseButtonStyle}" Padding="9,0"
+                      VerticalAlignment="Center" Visibility="Collapsed" Click="LyricAnother_Click"
+                      ToolTipService.ToolTip="{loc:Str Key=TrackInfo_LyricsTryAnother}"
+                      AutomationProperties.Name="{loc:Str Key=TrackInfo_LyricsTryAnother}">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf021;" FontSize="12"/>
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <!-- The well's own window. It is clipped and moved exactly as the two cards below it are. It arrives with the
+               record, and it grows when a timed sheet lands on a song that opened with the file's plain words, or with
+               none. See MoveCard. -->
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8">
+            <Grid x:Name="LyricClip" SizeChanged="CardClip_SizeChanged">
+              <Grid x:Name="LyricPage">
+                <Grid.RenderTransform>
+                  <TranslateTransform x:Name="LyricPageShift"/>
+                </Grid.RenderTransform>
+                <!-- The well scrolls inside the pane, rather than growing with the song. So the facts below it keep their
+                     place however many verses this one has.
+
+                     There is no bar, and on a timed sheet no hand on it either. The words move with the singer and with
+                     nothing else. That is what the full-screen player does. See BuildLyricWell for the switch. A wheel turn
+                     over the well scrolls the sheet, so the block in the middle of the pane no longer takes the wheel.
+
+                     A record nobody has stamped keeps its hand. Plain words have no playhead to follow. A 150-point window
+                     onto three verses that cannot be moved would only ever show the first verse. -->
+                <ScrollViewer x:Name="LyricScroller" MaxHeight="150" VerticalScrollBarVisibility="Hidden"
+                              Padding="14,10">
+                  <StackPanel x:Name="LyricStack" Spacing="4"/>
+                </ScrollViewer>
+              </Grid>
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <!-- The artist, as the catalogues have them.
+
+             There is one card per NAME in the artist field, not one card per field. A track credited to two or three
+             people (a feature, a split, a collaboration) would get one card about the whole string. That is a card about
+             nobody, because no catalogue has an artist called "Artist A feat. Artist B". So the card pages through the
+             artists, one at a time. A row of dots at its foot shows how many there are and which one is up. See SplitArtists. -->
+        <StackPanel x:Name="ArtistBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_AboutArtist}" Style="{StaticResource BlockHeading}"/>
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+            <StackPanel Spacing="8">
+              <!-- The window the page moves inside. It is CLIPPED to itself. Everything below travels: a page slides in from
+                   beyond the card's edge, and while the card grows into a longer article, the words are already at their
+                   full length inside a box that has not finished opening. Without a clip, the reader would see both happen:
+                   a name crossing the gap to the pane's edge, and a paragraph hanging out of the bottom of its own card. The
+                   clip is set in code, since a geometry cannot be bound to the size of the thing it cuts. -->
+              <Grid x:Name="ArtistClip" SizeChanged="CardClip_SizeChanged">
+                <!-- One artist's page, and the part that moves. The dots below stay still. They are the control, not the
+                     content. A pager whose own buttons slide away under the finger is a pager nobody can press twice. -->
+                <StackPanel x:Name="ArtistPage" Spacing="8">
+                  <StackPanel.RenderTransform>
+                    <TranslateTransform x:Name="ArtistPageShift"/>
+                  </StackPanel.RenderTransform>
+                  <TextBlock x:Name="ArtistName" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkStrong}"
+                             TextWrapping="Wrap"/>
+                  <TextBlock x:Name="ArtistFacts" FontSize="11" Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                  <!-- No genre chips on the ARTIST. The record below carries its own. An artist's genres are the union of
+                       their records' genres. On the one screen where both are shown, the top card would list the same words as
+                       the card under it, plus the genres of records that are not playing. The album's chips stay, because
+                       they describe the record on the deck. -->
+
+                  <TextBlock x:Name="ArtistProse" Style="{StaticResource Prose}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="14">
+                    <ctl:RpmLink x:Name="ArtistMoreButton"
+                                 Click="ArtistMore_Click" FontSize="11"/>
+                    <ctl:RpmLink x:Name="ArtistSourceButton"
+                                 Click="ArtistSource_Click" FontSize="11"/>
+
+                    <!-- Which of the acts sharing this name the card is about, for when the catalogue picked the wrong one.
+                         It is last on the row, after the two controls that are about the article. Those say how much of this
+                         act to read, and this one asks whether it is the right act at all.
+
+                         It uses two arrows rather than words. The reload mark of the lyric sheet is a mark for the same reason
+                         (see LyricAnotherButton). The pane is 320 wide, and a third phrase of cyan on a line that already holds
+                         two does not fit. The words are in the tooltip, where a control whose picture is not self-evident keeps
+                         them. -->
+                    <ctl:RpmLink x:Name="ArtistChooseButton"
+                                 Click="ArtistChoose_Click" Visibility="Collapsed"
+                                 ToolTipService.ToolTip="{loc:Str Key=TrackInfo_ChooseArtist}"
+                                 AutomationProperties.Name="{loc:Str Key=TrackInfo_ChooseArtist}">
+                      <FontIcon Glyph="&#xf362;" FontFamily="{StaticResource Fa}" FontSize="11"/>
+                    </ctl:RpmLink>
+                  </StackPanel>
+                  <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+                  <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=ArtistSourceButton}"/>
+                </StackPanel>
+              </Grid>
+
+              <!-- The dots show which of the credited artists is showing, and how many there are. They sit at the FOOT of
+                   the card, centred, where a pager belongs. The card is read top to bottom, and the way to the next one is
+                   the last thing on it. The dots are filled in code, because their number is the number of names in the
+                   tag. They are hidden for an ordinary record by one artist, since a pager with nowhere to go is not shown. -->
+              <StackPanel x:Name="ArtistDots" Orientation="Horizontal" Spacing="2"
+                          HorizontalAlignment="Center" Margin="0,2,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- The members of the band, under the card about the band. This is only for a group, and only where the
+             catalogue has been filled in. A card headed with a band's members that holds nobody is a card about a gap
+             in a database.
+
+             The name is on the left. The dates are on the right, and held back, because the name is what is read and the
+             years are what is glanced at. The content is filled in code, one line per member. How many there are is the
+             catalogue's business. -->
+        <StackPanel x:Name="MembersBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_Members}" Style="{StaticResource BlockHeading}"/>
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14,10,14,10">
+            <StackPanel x:Name="MembersList" Spacing="6"/>
+          </Border>
+        </StackPanel>
+
+        <!-- The record itself, as the catalogues have it. -->
+        <StackPanel x:Name="AlbumBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_AboutAlbum}" Style="{StaticResource BlockHeading}"/>
+          <!-- The same window and the same page, for the same reasons. This card grows into its article when the lookup
+               lands, and again whenever "Show more" is pressed. It arrives fresh on every change of record. See
+               CardClip_SizeChanged and MoveCard. -->
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+            <Grid x:Name="AlbumClip" SizeChanged="CardClip_SizeChanged">
+              <StackPanel x:Name="AlbumPage" Spacing="8">
+                <StackPanel.RenderTransform>
+                  <TranslateTransform x:Name="AlbumPageShift"/>
+                </StackPanel.RenderTransform>
+                <TextBlock x:Name="AlbumName" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkStrong}"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="AlbumFacts" FontSize="11" Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                <local:WrapRow x:Name="AlbumGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
+                <TextBlock x:Name="AlbumProse" Style="{StaticResource Prose}"/>
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <ctl:RpmLink x:Name="AlbumMoreButton"
+                               Click="AlbumMore_Click" FontSize="11"/>
+                  <ctl:RpmLink x:Name="AlbumSourceButton"
+                               Click="AlbumSource_Click" FontSize="11"/>
+                </StackPanel>
+                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumSourceButton}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <!-- Where else this record is written about. These links sit under the two cards it belongs to, because they are
+             where the reader goes NEXT. The pane's own account of the artist and the album comes first, and this is the
+             door out of it. The content is filled in code. The row is as long as the catalogues make it, and it wraps
+             rather than clipping. -->
+        <StackPanel x:Name="LinksBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_Elsewhere}" Style="{StaticResource BlockHeading}"/>
+          <!-- One per line, not a wrapped row of pills. A row that wraps puts a site's name wherever the one before it
+               happened to end. So the list has no left edge to run the eye down, and a reader looking for Bandcamp has to
+               read every name to find it. Down a column they are eight labelled links in a fixed order, and the order
+               means something.
+
+               It rises in with the two cards above it. The links are part of the same answer and land on the same frame.
+               One block appearing at full strength beside two that faded would look worse than none of them moving. There
+               is no clip and no window. This one only ever arrives. -->
+          <StackPanel x:Name="LinksRow" Spacing="4">
+            <StackPanel.RenderTransform>
+              <TranslateTransform x:Name="LinksShift"/>
+            </StackPanel.RenderTransform>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Still asking. MusicBrainz answers one request a second, and a cold lookup makes several of them. So the
+             wait is real, and the pane should not look finished while it runs.
+
+             The room below is EMPTY while this shows. That is the point of it standing here. The credits are the block
+             directly under this row, and a spinner over a block that someone has already started reading is worse than
+             a spinner over nothing. The whole text region goes up together, once every question about it has an answer
+             (see Advance). -->
+        <Grid x:Name="BusyRow" Margin="16,0,16,24" Visibility="Collapsed">
+          <ctl:RecordSpinner x:Name="WordsBusy" Width="52" Height="52"
+                             HorizontalAlignment="Center" IsHitTestVisible="False"/>
+        </Grid>
+
+        <!-- The sheet: the four groups of facts, each a heading over a label/value list. -->
+        <ItemsControl x:Name="Sections" Margin="16,0,16,0" Opacity="0">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="pane:TrackInfoSection">
+              <StackPanel Spacing="8" Margin="0,0,0,18">
+                <TextBlock Text="{Binding Heading}" Style="{StaticResource BlockHeading}"/>
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pane:TrackInfoRow">
+                      <Grid Margin="0,0,0,6" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="104"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding Label}" Style="{StaticResource FactLabel}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource FactValue}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+      </StackPanel>
+    </ScrollViewer>
+    </Grid>
+
+      <!-- The two edges. The sheet dissolves where it runs off the pane, instead of being cut off square. So
+           scrolling content reads as continuing past the edge, not as ending at it.
+
+           The pixels are taken away, not painted over. A gradient rectangle laid over the sheet would only work if the
+           pane had one flat colour, and it does not. A blurred photograph of the artist sits behind the pane (see
+           PaneWash), so there is no single colour to ramp to. A ramp to the wash's average showed as a dark bar across
+           the foot of the sheet on any record whose photograph was not that average. The same argument is written out
+           above PhotoFootFade, for the same failure at the foot of the photograph.
+
+           So the pixels are removed where they are. A CompositionVisualSurface holds a live copy of the scroller's own
+           rendering. A CompositionMaskBrush multiplies that copy by a white-to-transparent ramp, and a sprite paints the
+           result in the band. Whatever is behind (the wash, the tint, the glass) shows through, because nothing has been
+           painted over it.
+
+           The head is a hole, put back at one corner. The head is not a dissolve. What belongs behind the pane's title
+           is the pane's own background (the ground and the blurred photograph). So the band is taken away there, and the
+           background shows through. A band painted over the top would be an opaque slab across the picture, because the
+           ground on its own is not what this pane looks like.
+
+           What the head's own copy does is put the sheet back where the title never reaches. See SheetHeadFade below.
+
+           Empty in the markup, and does not take pointer input. What goes in either one is a composition sprite, and its
+           depth is set in code. Depth rather than opacity, because a mask at half strength is not half a dissolve. It is
+           a veil over the whole band. See ApplySheetFades. -->
+
+
+      <!-- Where the head's band is painted BACK, downwards. The band is cut out of the live sheet, as it always is, so
+           what shows behind the pane's title is the pane's own background. This puts the sheet back over the lower part
+           of that band, below the title. The hole's bottom edge stays a hard line, because it is still the cut's edge
+           and not a dissolve. It is absent where the band has cleared. -->
+      <Grid x:Name="SheetHeadFade" Height="0" VerticalAlignment="Top"
+            IsHitTestVisible="False"/>
+
+      <Grid x:Name="SheetBottomFade" Height="0" VerticalAlignment="Bottom"
+            IsHitTestVisible="False"/>
+    </Grid>
+
+    <!-- Nothing playing: the pane follows the music, and there is none. -->
+    <StackPanel x:Name="EmptyState" Grid.Row="1" Spacing="14"
+                HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+      <FontIcon Glyph="&#xf05a;" FontFamily="{StaticResource Fa}" FontSize="40" Foreground="#33FFFFFF"
+                HorizontalAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=NowPlaying_Empty}" FontSize="13" Foreground="#77FFFFFF"
+                 HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="240"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

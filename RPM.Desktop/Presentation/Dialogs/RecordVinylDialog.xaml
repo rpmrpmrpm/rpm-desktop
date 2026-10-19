@@ -1,0 +1,369 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.RecordVinylDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:dlgc="using:RPM.Desktop.Presentation.Dialogs.Controls"
+               xmlns:local="using:RPM.Desktop.Presentation.Dialogs"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        <!-- This comes after the accent styles, so it takes priority. The ticks use the azure style of
+             the metadata editors, not the flat cyan block that accent-filled controls get. -->
+        <ResourceDictionary Source="ms-appx:///Themes/AzureCheckBox.xaml"/>
+        <!-- Sizes for data entry: 24 px inputs, 12 pt text. A recording session is a form: an input, a
+             level, and a list of sides to put in order. So it uses the same look as the disc ripper and
+             the metadata editors, not the roomy controls of a settings page. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+      <!-- Labels are left-aligned. The metadata editors right-align theirs, which works there because
+           their columns are long. This window has two short groups. Right-aligned labels here would
+           look ragged under each group's heading. -->
+      <Style x:Key="VinylFieldLabelStyle" TargetType="TextBlock"
+             BasedOn="{StaticResource DenseFieldLabelStyle}">
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+      </Style>
+
+      <!-- A hint for a whole group, not for one row: the sentence under a heading, and the warning
+           under the monitor tick. -->
+      <Style x:Key="VinylHintStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="#88FFFFFF"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+      </Style>
+
+      <!-- The row style for the list of sides. It uses the same row pitch as the disc ripper's track
+           list, so a side row and a field row are the same height. -->
+      <Style x:Key="VinylSideRowStyle" TargetType="ListViewItem"
+             BasedOn="{StaticResource RipTrackContainerStyle}">
+        <Setter Property="Padding" Value="8,3"/>
+      </Style>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <!-- ScrollBody is off because the sides list fills the card on step 2. A scrolling body measures its
+       content against infinite height, which collapses the list. Step 1 has its own scroller instead. -->
+  <ctl:ResizableDialogShell x:Name="Shell" Title="{loc:Str Key=Vinyl_Title}" TitleGlyph="&#xf8d9;"
+                            ScrollBody="False">
+
+    <ctl:ResizableDialogShell.FooterLeading>
+      <ctl:RpmPrimaryButton x:Name="BackButton" Click="Back_Click" IsEnabled="False" Padding="16,0"
+                    Background="{StaticResource GlassGhostFaceBrush}" Foreground="#F0FFFFFF" BorderBrush="#22FFFFFF">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="&#x276E;" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Str Key=Vinyl_Back}" VerticalAlignment="Center"/>
+        </StackPanel>
+      </ctl:RpmPrimaryButton>
+    </ctl:ResizableDialogShell.FooterLeading>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button x:Name="CancelButton" Click="Cancel_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <ctl:RpmPrimaryButton x:Name="NextButton" Click="Next_Click" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock x:Name="NextButtonText" Text="{loc:Str Key=Vinyl_StartRecording}" VerticalAlignment="Center"/>
+            <TextBlock x:Name="NextButtonChevron" Text="&#x276F;" FontSize="12" FontWeight="Bold"
+                       Foreground="#F5FFFFFF" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+
+    <!-- The two steps share the same space instead of being in a StackPanel. Only one is visible at a
+         time. Each needs the card's full height, and step 2's list needs it most. -->
+    <Grid>
+
+      <!-- ══ Step 1: the input and its level ══ One column, full width. The user watches the meter
+           while setting the gain, and a wider meter is easier to read. -->
+      <ScrollViewer x:Name="DeviceStep" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                    Padding="0,0,14,0">
+        <StackPanel Spacing="{StaticResource DenseGroupSpacing}" VerticalAlignment="Top">
+
+          <!-- ── INPUT ── -->
+          <StackPanel>
+            <TextBlock Text="{loc:Str Key=Vinyl_InputKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+            <StackPanel Spacing="{StaticResource DenseRowSpacing}">
+              <TextBlock Text="{loc:Str Key=Vinyl_DeviceIntro}" Style="{StaticResource VinylHintStyle}"
+                         Margin="0,0,0,2"/>
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <!-- The label column. Every input in the window starts on the same vertical line. It
+                       is only as wide as the longest label here ("Device"). The metadata editors use a
+                       wider column for "Album artist", which would leave these labels too far from
+                       their boxes. -->
+                  <ColumnDefinition Width="52"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{loc:Str Key=Vinyl_InputDevice}"
+                           Style="{StaticResource VinylFieldLabelStyle}"/>
+                <ComboBox x:Name="DeviceCombo" Grid.Column="1" HorizontalAlignment="Stretch"
+                          SelectionChanged="Device_SelectionChanged"/>
+                <!-- A turntable is often plugged in after the window opens. This is the same rescan
+                     button the disc ripper has for its drive list. -->
+                <Button x:Name="RescanButton" Grid.Column="2" Click="Rescan_Click"
+                        Style="{StaticResource DenseButtonStyle}"
+                        Content="{loc:Str Key=AddMusic_Rescan}"/>
+              </Grid>
+              <TextBlock x:Name="DeviceStatusText" FontSize="11" Foreground="#FF6B6B"
+                         TextWrapping="Wrap" Visibility="Collapsed"/>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- ── CALIBRATE ── -->
+          <StackPanel>
+            <TextBlock Text="{loc:Str Key=Vinyl_CalibrateKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+            <StackPanel Spacing="{StaticResource DenseRowSpacing}">
+              <TextBlock Text="{loc:Str Key=Vinyl_CalibrateHint}" Style="{StaticResource VinylHintStyle}"/>
+
+              <dlgc:PeakMeterControl x:Name="DeviceMeter" Margin="0,4,0,6"/>
+
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="52"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{loc:Str Key=Vinyl_Gain}"
+                           Style="{StaticResource VinylFieldLabelStyle}"/>
+                <Slider Grid.Column="1" x:Name="GainSlider" Minimum="0" Maximum="250" Value="100"
+                        Style="{StaticResource SlimSliderStyle}"
+                        StepFrequency="5" ValueChanged="Gain_ValueChanged" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="GainText" Text="100%" FontSize="11.5"
+                           Foreground="{StaticResource DenseValueInkBrush}" TextAlignment="Right"
+                           MinWidth="34" VerticalAlignment="Center"/>
+              </Grid>
+
+              <!-- A tick with its own label, placed in the input column beside the slider. It is the
+                   same kind of tick as the disc ripper's "Verify while ripping". -->
+              <StackPanel Margin="60,2,0,0">
+                <CheckBox x:Name="MonitorCheck" Content="{loc:Str Key=Vinyl_Monitor}" Click="Monitor_Click"
+                          IsChecked="True"
+                          FontSize="11.5" Foreground="#CCFFFFFF" MinWidth="0" MinHeight="0"/>
+                <TextBlock x:Name="MonitorHint" FontSize="11" Foreground="#FFD466" TextWrapping="Wrap"
+                           Visibility="Collapsed"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- ── TONE ── The equaliser is in the calibrate step. It is set by ear against a record that
+               is playing, and that is the step where a record plays. The equaliser is heard on the
+               monitor only. The recorded side stays unprocessed, and the curve is applied when the
+               album is split into tracks. -->
+          <StackPanel>
+            <TextBlock Text="{loc:Str Key=Vinyl_ToneKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+            <StackPanel Spacing="{StaticResource DenseRowSpacing}">
+              <TextBlock Text="{loc:Str Key=Vinyl_ToneHint}" Style="{StaticResource VinylHintStyle}"/>
+              <Grid ColumnSpacing="8" Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox x:Name="ToneCheck" Grid.Column="0" Content="{loc:Str Key=Vinyl_ToneOn}"
+                          Click="Tone_Click" FontSize="11.5" Foreground="#CCFFFFFF"
+                          MinWidth="0" MinHeight="0" VerticalAlignment="Center"/>
+                <ComboBox x:Name="TonePresetCombo" Grid.Column="1" HorizontalAlignment="Stretch"
+                          PlaceholderText="{loc:Str Key=Settings_EqPreset}"
+                          SelectionChanged="TonePreset_SelectionChanged"/>
+                <Button x:Name="ToneResetButton" Grid.Column="2" Click="ToneReset_Click"
+                        Style="{StaticResource DenseButtonStyle}"
+                        Content="{loc:Str Key=Vinyl_ToneReset}"/>
+              </Grid>
+              <Grid x:Name="ToneBandGrid" Margin="0,2,0,0"/>
+            </StackPanel>
+          </StackPanel>
+
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- ══ Step 2: recording sides ══ The transport is on the left and the list of recorded sides on
+           the right. The disc ripper uses the same split. The controls are a short column, and the list
+           is what the user checks, so the list gets the card's full height. -->
+      <Grid x:Name="RecordStep" ColumnSpacing="{StaticResource DenseColumnSpacing}" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <!-- Wide enough for the transport and a readable meter. Nothing else goes in this column. -->
+          <ColumnDefinition Width="310"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ── RECORD ── -->
+        <!-- The scrollbar lane is used as padding, so a short window's scrollbar does not overlap the
+             tick and the clock on the right. -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                      Padding="0,0,10,0">
+          <StackPanel VerticalAlignment="Top">
+            <TextBlock Text="{loc:Str Key=Vinyl_RecordKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+            <StackPanel Spacing="{StaticResource DenseRowSpacing}">
+              <TextBlock Text="{loc:Str Key=Vinyl_RecordIntro}" Style="{StaticResource VinylHintStyle}"/>
+
+              <!-- The record button and the clock are on one line. While a side is running, these are
+                   the only two things in this part of the window that matter, so they sit next to each
+                   other. -->
+              <Grid Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ctl:RpmPrimaryButton x:Name="RecordButton" Grid.Column="0" Click="Record_Click"
+                                      Height="32" Padding="16,0">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="&#xf111;" FontSize="13" Foreground="#EE0709"
+                               FontFamily="{StaticResource Fa}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="RecordButtonText" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </ctl:RpmPrimaryButton>
+                <ctl:RpmDangerButton x:Name="StopButton" Grid.Column="0" Click="Stop_Click"
+                                     Height="32" Padding="16,0" Visibility="Collapsed">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="&#xf04d;" FontSize="12" FontFamily="{StaticResource Fa}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Str Key=Vinyl_StopSide}" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                  </StackPanel>
+                </ctl:RpmDangerButton>
+                <TextBlock x:Name="RecordElapsedText" Grid.Column="1" Text="0:00" FontSize="20"
+                           FontWeight="SemiBold" Foreground="#F2FFFFFF" TextAlignment="Right"
+                           VerticalAlignment="Center"/>
+              </Grid>
+
+              <dlgc:PeakMeterControl x:Name="RecordMeter" Margin="0,6,0,4"/>
+
+              <TextBlock x:Name="RecordStatusText" FontSize="11.5"
+                         Foreground="{StaticResource DenseLabelInkBrush}" TextWrapping="Wrap"/>
+
+              <!-- The same monitor tick as the calibrate step. It can be changed during a side.
+                   Monitoring is separate from recording, so changing it never disturbs the recording. -->
+              <StackPanel Margin="0,4,0,0">
+                <CheckBox x:Name="RecordMonitorCheck" Content="{loc:Str Key=Vinyl_Monitor}"
+                          Click="RecordMonitor_Click" IsChecked="True" FontSize="11.5" Foreground="#CCFFFFFF"
+                          MinWidth="0" MinHeight="0"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ── SIDES ── -->
+        <Grid Grid.Column="1">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Text="{loc:Str Key=Vinyl_SidesKicker}"
+                     Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <Border Grid.Row="1" Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+
+          <!-- The list is in place from the start of the step, not added with the first side. Its empty
+               message tells the user what to do in this step. A pane that appears later would move the
+               controls beside it. -->
+          <Grid Grid.Row="2">
+            <TextBlock x:Name="SidesEmptyText" Text="{loc:Str Key=Vinyl_SidesEmpty}"
+                       Style="{StaticResource VinylHintStyle}" VerticalAlignment="Top"/>
+            <ListView x:Name="SidesList" SelectionMode="None" Background="Transparent"
+                      Margin="0,-3,0,0" Visibility="Collapsed"
+                      ItemContainerStyle="{StaticResource VinylSideRowStyle}">
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:VinylSideRow">
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <!-- The length column. Its width is fixed, so every side's time lines up in one
+                           column. -->
+                      <ColumnDefinition Width="56"/>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{x:Bind Name}" FontSize="12" Foreground="#F2FFFFFF"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Duration}" FontSize="11.5"
+                               Foreground="#88FFFFFF" TextAlignment="Right" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                                Margin="4,0,0,0">
+                      <Button Click="MoveSideUp_Click" Tag="{x:Bind Id}" Background="Transparent"
+                              BorderThickness="0" Padding="5,2" MinWidth="0" MinHeight="0"
+                              AutomationProperties.Name="{loc:Str Key=Vinyl_MoveSideUp}">
+                        <ToolTipService.ToolTip>
+                          <ToolTip Content="{loc:Str Key=Vinyl_MoveSideUp}"/>
+                        </ToolTipService.ToolTip>
+                        <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf077;" FontSize="10" Foreground="#99FFFFFF"/>
+                      </Button>
+                      <Button Click="MoveSideDown_Click" Tag="{x:Bind Id}" Background="Transparent"
+                              BorderThickness="0" Padding="5,2" MinWidth="0" MinHeight="0"
+                              AutomationProperties.Name="{loc:Str Key=Vinyl_MoveSideDown}">
+                        <ToolTipService.ToolTip>
+                          <ToolTip Content="{loc:Str Key=Vinyl_MoveSideDown}"/>
+                        </ToolTipService.ToolTip>
+                        <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf078;" FontSize="10" Foreground="#99FFFFFF"/>
+                      </Button>
+                    </StackPanel>
+                    <Button Grid.Column="3" Click="DiscardSide_Click" Tag="{x:Bind Id}"
+                            Background="Transparent" BorderThickness="0" Padding="6,2" MinWidth="0"
+                            MinHeight="0" VerticalAlignment="Center"
+                            AutomationProperties.Name="{loc:Str Key=Vinyl_DiscardSide}">
+                      <ToolTipService.ToolTip>
+                        <ToolTip Content="{loc:Str Key=Vinyl_DiscardSide}"/>
+                      </ToolTipService.ToolTip>
+                      <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf2ed;" FontSize="11" Foreground="#99FFFFFF"/>
+                    </Button>
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+          </Grid>
+        </Grid>
+      </Grid>
+
+    </Grid>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

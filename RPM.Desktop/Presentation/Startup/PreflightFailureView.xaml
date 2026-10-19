@@ -1,0 +1,88 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Startup.PreflightFailureView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:startup="using:RPM.Desktop.Presentation.Startup"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             Background="#FF14161A">
+
+  <!-- This screen is plain and has no dependencies on purpose. The user sees it when the app is NOT
+       complete, so it uses nothing the install might be missing: no bundled font, no model, no
+       service, no view model from the host. It needs only WinUI itself. -->
+
+  <UserControl.Resources>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- One failed item: its name, where the app looked for it, and one line saying what the app
+         needs it FOR. "u2netp.onnx is missing" means nothing to the person reading it, but "crops
+         artwork to its subject" does. -->
+    <DataTemplate x:Key="ItemTemplate" x:DataType="startup:PreflightRow">
+      <Grid Margin="0,0,0,14" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Width="7" Height="7" CornerRadius="4" Margin="0,7,0,0"
+                VerticalAlignment="Top" Background="{Binding Mark}"/>
+
+        <StackPanel Grid.Column="1" Spacing="3">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                       Foreground="#FFFFFFFF" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Fault}" FontSize="12" Foreground="{Binding Mark}"
+                       VerticalAlignment="Center"/>
+          </StackPanel>
+          <TextBlock Text="{Binding Purpose}" FontSize="12.5" Foreground="#B8FFFFFF"
+                     TextWrapping="Wrap"/>
+          <!-- The path is the part the user can act on: it is where to put the file back. -->
+          <TextBlock Text="{Binding Where}" FontSize="11.5" Foreground="#7AFFFFFF"
+                     TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid Padding="40,34,40,28" MaxWidth="760" HorizontalAlignment="Center">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Spacing="9" Margin="0,0,0,22">
+      <TextBlock Text="{loc:Str Key=Preflight_Title}" FontSize="26" FontWeight="Bold"
+                 Foreground="#FFFFFFFF"/>
+      <TextBlock Text="{loc:Str Key=Preflight_Intro}" FontSize="14" Foreground="#D0FFFFFF"
+                 TextWrapping="Wrap"/>
+      <TextBlock Text="{loc:Str Key=Preflight_Fix}" FontSize="12.5" Foreground="#99FFFFFF"
+                 TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+      <StackPanel Spacing="22">
+        <StackPanel Spacing="12"
+                    Visibility="{Binding HasBlocking, Converter={StaticResource BoolToVisible}}">
+          <TextBlock Text="{loc:Str Key=Preflight_MissingHeading}" FontSize="12"
+                     FontWeight="SemiBold" Foreground="#99FFFFFF"/>
+          <ItemsControl ItemsSource="{Binding Blocking}" ItemTemplate="{StaticResource ItemTemplate}"/>
+        </StackPanel>
+
+        <StackPanel Spacing="12"
+                    Visibility="{Binding HasDegraded, Converter={StaticResource BoolToVisible}}">
+          <TextBlock Text="{loc:Str Key=Preflight_DegradedHeading}" FontSize="12"
+                     FontWeight="SemiBold" Foreground="#99FFFFFF"/>
+          <ItemsControl ItemsSource="{Binding Degraded}" ItemTemplate="{StaticResource ItemTemplate}"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,24,0,0"
+                HorizontalAlignment="Right">
+      <TextBlock x:Name="CopiedNote" Text="{loc:Str Key=Preflight_Copied}" FontSize="12.5"
+                 Foreground="#99FFFFFF" VerticalAlignment="Center" Visibility="Collapsed"/>
+      <Button Content="{loc:Str Key=Preflight_Copy}" Click="Copy_Click" Padding="14,6"/>
+      <Button Content="{loc:Str Key=Preflight_Quit}" Click="Quit_Click" Padding="14,6"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

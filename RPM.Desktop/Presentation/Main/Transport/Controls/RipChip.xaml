@@ -1,0 +1,179 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.Controls.RipChip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:dlg="using:RPM.Desktop.Presentation.Dialogs"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark"
+             Visibility="Collapsed">
+
+  <!-- The rip, minimised. Closing the Add-music popup during a rip leaves the drive spinning, so the
+       deck shows a disc with a ring around it. The ring is the disc's progress. The flyout is a small
+       version of the popup's rip step: the same status line, bar and list of tracks as they land. Each
+       track can still be played. The chip is shown only while there is a rip. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+  </UserControl.Resources>
+
+  <Button x:Name="ChipButton" VerticalAlignment="Stretch"
+          Background="{StaticResource OnGlassBrush}"
+          BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="6"
+          Padding="12,0" MinHeight="0" MinWidth="0">
+    <Button.Resources>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#33FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#33FFFFFF"/>
+    </Button.Resources>
+
+    <!-- Ring around the disc. It is a Polyline in a Canvas, not an arc Path, because code-built geometry
+         draws nothing under Uno-Skia. The points here are plain coordinates. -->
+    <Grid Width="24" Height="24">
+      <Canvas Width="24" Height="24">
+        <Polyline x:Name="RingTrack" Stroke="#2EFFFFFF" StrokeThickness="2"/>
+        <Polyline x:Name="RingArc" Stroke="#04C8FF" StrokeThickness="2"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+      </Canvas>
+      <TextBlock x:Name="DiscGlyph" Text="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="10"
+                 Foreground="#F0FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Grid>
+
+    <Button.Flyout>
+      <Flyout x:Name="StatusFlyout" Placement="Top">
+        <Flyout.FlyoutPresenterStyle>
+          <Style TargetType="FlyoutPresenter">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+          </Style>
+        </Flyout.FlyoutPresenterStyle>
+
+        <StackPanel Width="320" RequestedTheme="Dark">
+          <!-- The flyout is in a popup outside MainPage's tree. The accent styles are merged here, so its
+               ProgressBars and links use the rpm accent colour. -->
+          <StackPanel.Resources>
+            <ResourceDictionary>
+              <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+              </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+          </StackPanel.Resources>
+
+          <!-- Header band: 32 px high, title-bar fill, and a thin line underneath. -->
+          <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
+                  Height="32" Padding="14,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+              <!-- White, the same weight as the title beside it. The header names the disc. The ring on the chip
+                   is where colour carries the meaning. -->
+              <TextBlock Text="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="11"
+                         Foreground="#CCFFFFFF" VerticalAlignment="Center"/>
+              <TextBlock x:Name="TitleText" FontSize="12" FontWeight="SemiBold" Foreground="#CCFFFFFF"
+                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <!-- The question asked when a disc is put in by itself. It uses the same chip and flyout as a rip. A
+               disc in the drive and a disc being ripped are two stages of one thing, so they share one
+               face on the deck. -->
+          <StackPanel x:Name="OfferPanel" Padding="14,12,14,12" Spacing="12" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=Rip_OfferQuestion}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button x:Name="OfferLaterButton" Click="OfferLater_Click"
+                      Style="{StaticResource GlassButtonStyle}" Padding="12,0">
+                <TextBlock Text="{loc:Str Key=Rip_OfferLater}" VerticalAlignment="Center"/>
+              </Button>
+              <ctl:RpmPrimaryButton x:Name="OfferRipButton" Click="OfferRip_Click" Padding="12,0">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf51f;" FontSize="10"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Rip_OfferRip}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </ctl:RpmPrimaryButton>
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel x:Name="JobPanel" Padding="14,12,14,12" Spacing="10">
+            <TextBlock x:Name="StatusText" FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+            <ProgressBar x:Name="RipBar" Minimum="0" Maximum="1" Height="4"/>
+            <TextBlock x:Name="DetailText" FontSize="11" Foreground="{StaticResource RpmRedBrush}" TextWrapping="Wrap"
+                       Visibility="Collapsed"/>
+
+            <!-- The tracks that have landed. They are still in staging and can still be played. -->
+            <ListView x:Name="TrackList" SelectionMode="None" Background="Transparent"
+                      MaxHeight="180" Visibility="Collapsed"
+                      ItemContainerStyle="{StaticResource RipTrackContainerStyle}">
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="dlg:RippedTrackRow">
+                  <!-- Same rows as the popup's list, including the ones the disc cost. A skipped track stays in the
+                       list, greyed and unplayable, with a warning icon that says why. -->
+                  <Grid ColumnSpacing="8" Opacity="{x:Bind RowOpacity}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="26"/>
+                      <ColumnDefinition Width="20"/>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Background="Transparent" BorderThickness="0" Padding="3"
+                            Click="Play_Click" VerticalAlignment="Center"
+                            Visibility="{x:Bind PlayVisibility}"
+                            ToolTipService.ToolTip="{x:Bind PlayTooltip, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind PlayTooltip, Mode=OneWay}">
+                      <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind PlayGlyph, Mode=OneWay}"
+                                FontSize="11" Foreground="#E6FFFFFF"/>
+                    </Button>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Number}" FontSize="11" Foreground="#CCFFFFFF"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Title}" FontSize="11" Foreground="#F2FFFFFF"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="{x:Bind Duration}" FontSize="11" Foreground="#88FFFFFF"
+                               VerticalAlignment="Center"/>
+                    <!-- RPM gold (Assets/RpmPalette), as in the popup's list. -->
+                    <FontIcon Grid.Column="4" Style="{StaticResource FaIcon}" FontSize="10"
+                              Glyph="{x:Bind DamageGlyph, Mode=OneWay}" Foreground="#EFAF12"
+                              VerticalAlignment="Center"
+                              Visibility="{x:Bind DamageVisibility, Mode=OneWay}"
+                              ToolTipService.ToolTip="{x:Bind DamageTooltip, Mode=OneWay}"/>
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+
+            <!-- The three ending buttons, at chip width, with short labels. The meaning is in the tooltips. Skip
+                 and stop are shown while the drive turns. The last button cancels a rip in progress, and
+                 dismisses the message once only a message is left. -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button x:Name="SkipButton" Click="Skip_Click"
+                      Style="{StaticResource GlassButtonStyle}" Padding="12,0"
+                      ToolTipService.ToolTip="{loc:Str Key=Rip_SkipTrackTooltip}">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf051;" FontSize="10"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Rip_Skip}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="StopButton" Click="Stop_Click"
+                      Style="{StaticResource GlassButtonStyle}" Padding="12,0"
+                      ToolTipService.ToolTip="{loc:Str Key=Rip_StopKeepTooltip}">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf04d;" FontSize="10"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Rip_Stop}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="ActionButton" Click="Action_Click"
+                      Style="{StaticResource GlassButtonStyle}" Padding="12,0">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon x:Name="ActionIcon" Style="{StaticResource FaIcon}" Glyph="&#xf1f8;"
+                            FontSize="10" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="ActionText" Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </Flyout>
+    </Button.Flyout>
+  </Button>
+</UserControl>

@@ -1,0 +1,529 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.RipDiscDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:dlg="using:RPM.Desktop.Presentation.Dialogs"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <!-- The ContentDialog is only a transparent full-screen scrim. The visible card is the Border in the
+       shell, which sets its own size and chrome. These theme caps must be set again for each dialog,
+       because on Uno they do not pass through merged dictionaries. -->
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        <!-- This comes after the accent styles, so it takes priority. The ticks use the azure style of
+             the metadata editors, not the flat cyan block that accent-filled controls get. -->
+        <ResourceDictionary Source="ms-appx:///Themes/AzureCheckBox.xaml"/>
+        <!-- Sizes for data entry: 24 px inputs, 12 pt text. A disc is a form: a drive, an album, and a
+             track list to correct before it is written to files. So it uses the same look as the
+             metadata editors, not the roomy controls of a settings page. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Labels are left-aligned. The metadata editors right-align theirs, which works there because
+           their columns are long and read as one block. This window has three short groups beside a
+           track list. Right-aligned labels here would look ragged under each group's heading. -->
+      <Style x:Key="DiscFieldLabelStyle" TargetType="TextBlock"
+             BasedOn="{StaticResource DenseFieldLabelStyle}">
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+      </Style>
+
+      <!-- The row style for the track list. It has 3 px top and bottom padding, not 4, so a track row
+           is 30 px high, the same as a field row in the column beside it. The two columns then read as
+           one. -->
+      <Style x:Key="DiscTrackRowStyle" TargetType="ListViewItem"
+             BasedOn="{StaticResource RipTrackContainerStyle}">
+        <Setter Property="Padding" Value="8,3"/>
+      </Style>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <!-- Title and glyph are set in code. This one window serves both "import from CD" and "import from
+       DVD". The header shows that name and nothing else. The drive is a field in the form, where it can
+       be changed. ScrollBody is off because the track list fills the card. A scrolling body would
+       measure the list against infinite height and collapse it. -->
+  <ctl:ResizableDialogShell x:Name="Shell" ScrollBody="False">
+
+    <ctl:ResizableDialogShell.FooterLeading>
+      <ctl:RpmPrimaryButton x:Name="BackButton" Click="Back_Click" Padding="16,0" Visibility="Collapsed"
+                    Background="{StaticResource GlassGhostFaceBrush}" Foreground="#F0FFFFFF" BorderBrush="#22FFFFFF">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="&#x276E;" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Str Key=AddMusic_Back}" VerticalAlignment="Center"/>
+        </StackPanel>
+      </ctl:RpmPrimaryButton>
+    </ctl:ResizableDialogShell.FooterLeading>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <!-- Both footer buttons show a glyph that changes with the window's state. During a rip this
+             pair means "throw it away" and "leave it running", which a plain Cancel and Rip do not say. -->
+        <Button x:Name="CancelButton" Click="Cancel_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon x:Name="CancelButtonIcon" Style="{StaticResource FaIcon}" Glyph="&#xf00d;"
+                      FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock x:Name="CancelButtonText" Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <ctl:RpmPrimaryButton x:Name="RipButton" Click="Rip_Click" IsEnabled="False" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon x:Name="RipButtonIcon" Style="{StaticResource FaIcon}" Glyph="&#xf51f;"
+                      FontSize="11" Foreground="#F5FFFFFF" VerticalAlignment="Center"/>
+            <TextBlock x:Name="RipButtonText" Text="{loc:Str Key=AddMusic_Rip}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+
+    <Grid>
+
+      <!-- ══ The disc ══ What is in the drive is on the left, and what will come off it is on the
+           right. There are two columns, not a stack of cards. The track list is what the user checks,
+           so it gets the height. The drive, album and format fields are a column of 24 px rows that fit
+           beside it. -->
+      <Grid x:Name="DiscFace" ColumnSpacing="{StaticResource DenseColumnSpacing}">
+        <Grid.ColumnDefinitions>
+          <!-- Wide enough for the label column plus a readable value, and no wider. Everything past it
+               belongs to the tracks. -->
+          <ColumnDefinition Width="330"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The fields scroll on their own, so a short window still reaches the format group. The
+             scrollbar lane is used as padding, so the scrollbar cannot cover the inputs on the far
+             right. -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                      Padding="0,0,14,0">
+          <StackPanel Spacing="{StaticResource DenseGroupSpacing}" VerticalAlignment="Top">
+
+            <!-- ── DRIVE ── -->
+            <StackPanel>
+              <TextBlock Text="{loc:Str Key=AddMusic_DiscKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+              <StackPanel Spacing="{StaticResource DenseRowSpacing}">
+                <Grid ColumnSpacing="6">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <ComboBox x:Name="DriveCombo" Grid.Column="0" HorizontalAlignment="Stretch"
+                            SelectionChanged="Drive_SelectionChanged"/>
+                  <Button x:Name="RescanButton" Grid.Column="1" Click="Rescan_Click"
+                          Style="{StaticResource DenseButtonStyle}"
+                          Content="{loc:Str Key=AddMusic_Rescan}"/>
+                </Grid>
+
+                <TextBlock x:Name="DiscStatusText" FontSize="11.5" Foreground="{StaticResource DenseLabelInkBrush}"
+                           TextWrapping="Wrap"/>
+                <ProgressBar x:Name="DiscBusyBar" IsIndeterminate="False" Visibility="Collapsed" Height="2"/>
+
+                <!-- Shown only on a CSS-encrypted disc with no libdvdcss installed. Asking the user to
+                     put the DLL next to the exe means asking them to find an install folder they have
+                     no reason to know. On Windows that folder usually needs elevation to write to. This
+                     button takes the file the user downloaded and files it in the app's own data folder
+                     instead. -->
+                <Button x:Name="ChooseLibDvdCssButton" Visibility="Collapsed" Click="ChooseLibDvdCss_Click"
+                        HorizontalAlignment="Left" Style="{StaticResource DenseButtonStyle}"
+                        Content="{loc:Str Key=AddMusic_ChooseLibDvdCss}"/>
+              </StackPanel>
+            </StackPanel>
+
+            <!-- ── ALBUM ── Every field the user may change: album, artist, year, the pressing's
+                 country, and which disc of the set this is. A CD fills these from its disc-ID lookup. A
+                 DVD fills only the album, from its volume label. Either way, Look up opens the same
+                 release picker as the split dialog. Choosing a pressing fills these boxes, renames the
+                 tracks and fetches the sleeve. -->
+            <StackPanel x:Name="MetaGroup" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=AddMusic_AlbumKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+              <Grid ColumnSpacing="8" RowSpacing="{StaticResource DenseRowSpacing}">
+                <Grid.ColumnDefinitions>
+                  <!-- The label column. Every input in the column starts on the same vertical line, so
+                       an empty field shows as a gap in that line. The column is only as wide as the
+                       longest label here ("Format"). The metadata editors use a wider column for "Album
+                       artist", which would leave a short label like "Year" too far from its box. -->
+                  <ColumnDefinition Width="52"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Str Key=AddMusic_AlbumLabel}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <Grid Grid.Row="0" Grid.Column="1" ColumnSpacing="6">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBox x:Name="AlbumBox" Grid.Column="0" TextChanged="OnAlbumIdentityChanged"/>
+                  <!-- A glyph only. The row is 24 px high, and the words "Look up" would squeeze the
+                       box it acts on to nothing. The tooltip says what the button does. -->
+                  <Button x:Name="LookupButton" Grid.Column="1" Click="Lookup_Click"
+                          Style="{StaticResource DenseButtonStyle}" Padding="8,0"
+                          ToolTipService.ToolTip="">
+                    <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf002;" FontSize="11"/>
+                  </Button>
+                </Grid>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Str Key=AddMusic_ArtistLabel}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <TextBox x:Name="ArtistBox" Grid.Row="1" Grid.Column="1" TextChanged="OnAlbumIdentityChanged"/>
+
+                <!-- Year and country share a row. Both are short values, and a year in a full-width box
+                     looks like a mistake waiting to happen. -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:Str Key=AddMusic_YearLabel}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <TextBox x:Name="YearBox" MaxLength="4" Width="{StaticResource DenseNarrowWidth}"/>
+                  <TextBlock Text="{loc:Str Key=AddMusic_CountryLabel}" Margin="6,0,0,0"
+                             Style="{StaticResource DiscFieldLabelStyle}"/>
+                  <TextBox x:Name="CountryBox" MaxLength="2" Width="{StaticResource DenseTinyWidth}"/>
+                </StackPanel>
+
+                <!-- Which disc this is. It is always shown, not only when a matched release says it is
+                     part of a set. The user can state which disc is in their hand. If the field
+                     depended on the catalogue being right, a missed lookup would write no disc number.
+                     The naming template would then file the second CD into the first CD's folder, and
+                     nothing would record which was which. The field is filled from the release when
+                     there is one, and from the library when there is not (see ProposeDiscFromLibrary). -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:Str Key=AddMusic_DiscLabel}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                            VerticalAlignment="Center">
+                  <ComboBox x:Name="DiscCombo" MinWidth="64" SelectionChanged="OnDiscSelected"/>
+                  <TextBlock Text="{loc:Str Key=AddMusic_DiscOfLabel}" FontSize="11.5"
+                             Foreground="{StaticResource DenseLabelInkBrush}" VerticalAlignment="Center"/>
+                  <ComboBox x:Name="DiscCountCombo" MinWidth="64" SelectionChanged="OnDiscSelected"/>
+                </StackPanel>
+
+              </Grid>
+
+              <!-- This sits under the field grid, not as two more rows of it. A Grid reserves its
+                   RowSpacing for a row whose only child is collapsed, and both hints are usually
+                   collapsed. That left an empty band under the last field. As siblings, they carry
+                   their own top margin and take no space when they have nothing to say. -->
+              <!-- Why that number is in the box. A proposal whose reason the user cannot see is a
+                   number they must check by hand every time. -->
+              <TextBlock x:Name="DiscHintText" FontSize="11" Margin="0,6,0,0"
+                         Foreground="#88FFFFFF" TextWrapping="Wrap" Visibility="Collapsed"/>
+              <TextBlock x:Name="MetaStatusText" FontSize="11" Margin="0,6,0,0"
+                         Foreground="#88FFFFFF" TextWrapping="Wrap" Visibility="Collapsed"/>
+            </StackPanel>
+
+            <!-- ── TITLE ── DVD only: which title (the main feature comes first), and which of its
+                 audio mixes. -->
+            <StackPanel x:Name="DvdTitleGroup" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=AddMusic_TitleKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+              <Grid ColumnSpacing="8" RowSpacing="{StaticResource DenseRowSpacing}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="52"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Str Key=AddMusic_Title_Label}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <ComboBox x:Name="TitleCombo" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                          SelectionChanged="Title_SelectionChanged"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Str Key=AddMusic_AudioTrack}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <ComboBox x:Name="AudioCombo" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"/>
+              </Grid>
+            </StackPanel>
+
+            <!-- ── FORMAT ── -->
+            <StackPanel x:Name="FormatGroup" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=AddMusic_FormatKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+              <Grid ColumnSpacing="8" RowSpacing="{StaticResource DenseRowSpacing}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="52"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{loc:Str Key=AddMusic_FormatLabel}"
+                           Style="{StaticResource DiscFieldLabelStyle}"/>
+                <ComboBox x:Name="FormatCombo" Grid.Column="1" SelectedIndex="0"
+                          HorizontalAlignment="Stretch">
+                  <ComboBoxItem Content="{loc:Str Key=AddMusic_FormatFlac}"/>
+                  <ComboBoxItem Content="{loc:Str Key=AddMusic_FormatAlac}"/>
+                  <ComboBoxItem Content="{loc:Str Key=AddMusic_FormatMp3}"/>
+                </ComboBox>
+              </Grid>
+
+              <!-- CD only. It sits outside the grid, for the same reason as the album hints: on a DVD
+                   this is collapsed, and a Grid still reserves row spacing for an empty row. -->
+              <CheckBox x:Name="VerifyCheck" Content="{loc:Str Key=AddMusic_Verify}" Margin="0,6,0,0"
+                        FontSize="11.5" Foreground="#CCFFFFFF" MinHeight="0"/>
+              <TextBlock x:Name="VerifyHint" Text="{loc:Str Key=AddMusic_VerifyHint}" FontSize="11"
+                         Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ── TRACKS ── The part the user checks before the disc is written to files, so it gets the
+             card's full height. -->
+        <Grid x:Name="TracksPane" Grid.Column="1" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <!-- The Select all box sits on the group's own header line, at the far end of it. The
+               negative vertical margins keep it there. A checkbox is 20 px tall and the kicker is 14
+               px. Left alone, the checkbox set the row's height and pushed this column's rule below the
+               DRIVE group's rule. Trimmed to the kicker's height, it overhangs the line instead, and
+               the two rules stay level. Most of the trim is taken off the top, so the tick sits high on
+               the line and has clear space above the rule. -->
+          <Grid Grid.Row="0">
+            <TextBlock x:Name="TracksKicker" Text="{loc:Str Key=AddMusic_TracksKicker}"
+                       Style="{StaticResource DenseGroupHeaderStyle}" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" Spacing="14"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+              <!-- "This is a classical record", which here means "let me say what the works are". A
+                   pressing the catalogues know arrives grouped, and it ticks this by itself. This tick
+                   is for the other case: a disc nothing has identified, whose structure is only in the
+                   booklet. -->
+              <CheckBox x:Name="ClassicalCheck" Click="ClassicalCheck_Click"
+                        Content="{loc:Str Key=Rip_Classical}" FontSize="11.5" Foreground="#CCFFFFFF"
+                        ToolTipService.ToolTip="{loc:Str Key=Rip_ClassicalTip}"
+                        MinWidth="0" MinHeight="0" Margin="0,-11,0,-1"/>
+              <CheckBox x:Name="AllTracksCheck" IsChecked="True" Click="AllTracks_Click"
+                        Content="{loc:Str Key=AddMusic_SelectAll}" FontSize="11.5" Foreground="#CCFFFFFF"
+                        MinWidth="0" MinHeight="0" Margin="0,-11,0,-1"/>
+            </StackPanel>
+          </Grid>
+          <Border Grid.Row="1" Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+
+          <!-- The list is pulled up by the first row's own top padding, so it starts the same distance
+               under its rule as the fields do under theirs. -->
+          <ListView x:Name="TrackList" Grid.Row="2" SelectionMode="None" Background="Transparent"
+                    Margin="0,-3,0,0" ItemContainerStyle="{StaticResource DiscTrackRowStyle}">
+            <!-- Two levels, two templates. A classical release is published as a list of WORKS, each
+                 with its movements under it, and the picker draws it that way. The work sits at the
+                 left margin with its own tick. Its movements are indented beside it, with their own
+                 ticks. A record with no works never produces a work line, so a pop album's list stays
+                 one flat level. -->
+            <ListView.ItemTemplateSelector>
+              <dlg:RipRowTemplateSelector>
+                <dlg:RipRowTemplateSelector.Work>
+                  <DataTemplate x:DataType="dlg:RipWorkRow">
+                    <Grid ColumnSpacing="8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                        <!-- The length column is the same width on both levels, so a work's total and a
+                             movement's time read down one column. Every box above them ends where the
+                             next one does. An Auto column would size itself per row, and the boxes
+                             would end in as many places as there are lengths. -->
+                        <ColumnDefinition Width="52"/>
+                      </Grid.ColumnDefinitions>
+                      <!-- The whole work is taken or left in one click. The box is three-state so that
+                           it can SHOW a half-ticked work. That state is reported by the list, and the
+                           user never asks for it. So the click is handled in code rather than bound. -->
+                      <CheckBox Grid.Column="0" IsThreeState="True" MinWidth="0" MinHeight="0"
+                                IsChecked="{x:Bind IsChecked, Mode=OneWay}" Click="WorkCheck_Click"
+                                VerticalAlignment="Center"/>
+                      <!-- A text box, not a caption. A catalogue's spelling of a work is often wrong,
+                           so it must be correctable. This name is the work tag of every movement under
+                           it. Emptying it removes the work from those movements. That is how a listing
+                           that grouped tracks which are not movements is undone. -->
+                      <TextBox Grid.Column="1" FontWeight="SemiBold" VerticalAlignment="Center"
+                               Text="{x:Bind Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Grid.Column="2" Text="{x:Bind Duration}" FontSize="11.5"
+                                 Foreground="#88FFFFFF" VerticalAlignment="Center"
+                                 TextAlignment="Right"/>
+                    </Grid>
+                  </DataTemplate>
+                </dlg:RipRowTemplateSelector.Work>
+                <dlg:RipRowTemplateSelector.Track>
+                  <DataTemplate x:DataType="dlg:RipTrackRow">
+                    <!-- Indented when it is a movement of the work above it. Flush left when it is a
+                         track in its own right. The indent shows which level of the listing this line
+                         is on. So a Fantasy that stands alone after a sonata does not look like a
+                         fourth movement of it. -->
+                    <Grid ColumnSpacing="8" Margin="{x:Bind Indent, Mode=OneWay}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="22"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="52"/>
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Grid.Column="0" IsChecked="{x:Bind IsChecked, Mode=TwoWay}" MinWidth="0"
+                                MinHeight="0" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{x:Bind Number}" FontSize="11.5"
+                                 Foreground="{StaticResource DenseLabelInkBrush}" VerticalAlignment="Center"/>
+                      <!-- The name, and in front of it the grouping handle. The handle is in the name's
+                           own cell, not in a column of its own, so the lengths stay in one column on
+                           both levels. With the switch off, the list is one flat level. Only one
+                           button is shown: a line is either in a work or it is not, and offering a move
+                           it cannot make is noise on every row. -->
+                      <Grid Grid.Column="2" ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Click="JoinWork_Click" Padding="5,0" MinWidth="0"
+                                MinHeight="0" VerticalAlignment="Center"
+                                Style="{StaticResource DenseButtonStyle}"
+                                Visibility="{x:Bind JoinVisibility, Mode=OneWay}"
+                                ToolTipService.ToolTip="{loc:Str Key=Rip_MakeMovement}"
+                                AutomationProperties.Name="{loc:Str Key=Rip_MakeMovement}">
+                          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf03c;" FontSize="10"/>
+                        </Button>
+                        <Button Grid.Column="0" Click="LeaveWork_Click" Padding="5,0" MinWidth="0"
+                                MinHeight="0" VerticalAlignment="Center"
+                                Style="{StaticResource DenseButtonStyle}"
+                                Visibility="{x:Bind LeaveVisibility, Mode=OneWay}"
+                                ToolTipService.ToolTip="{loc:Str Key=Rip_MakePiece}"
+                                AutomationProperties.Name="{loc:Str Key=Rip_MakePiece}">
+                          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf03b;" FontSize="10"/>
+                        </Button>
+                        <TextBox Grid.Column="1" VerticalAlignment="Center"
+                                 Text="{x:Bind Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      </Grid>
+                      <TextBlock Grid.Column="3" Text="{x:Bind Duration}" FontSize="11.5" Foreground="#88FFFFFF"
+                                 VerticalAlignment="Center" TextAlignment="Right"/>
+                    </Grid>
+                  </DataTemplate>
+                </dlg:RipRowTemplateSelector.Track>
+              </dlg:RipRowTemplateSelector>
+            </ListView.ItemTemplateSelector>
+          </ListView>
+        </Grid>
+      </Grid>
+
+      <!-- ══ The rip ══ One face, because from here on the disc is out of the user's hands. It shows
+           what the disc is doing, what has landed, and the two endings that keep what has been ripped. -->
+      <Grid x:Name="RipFace" Visibility="Collapsed">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="6">
+          <TextBlock Text="{loc:Str Key=AddMusic_RipKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,0,0,4"/>
+          <TextBlock x:Name="RipStatusText" FontSize="12" Foreground="#E6FFFFFF" TextWrapping="Wrap"/>
+          <ProgressBar x:Name="RipProgressBar" Minimum="0" Maximum="1" Height="4"/>
+          <TextBlock x:Name="RipDetailText" FontSize="11" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- The two endings that keep what has been ripped, next to the progress they act on. The
+             footer's Cancel is the third ending, and it is destructive. The green button leaves the rip
+             running. Skip is the way past a track that a scratched disc will never finish. -->
+        <StackPanel x:Name="RipActions" Grid.Row="1" Orientation="Horizontal" Spacing="8"
+                    Margin="0,10,0,0" Visibility="Collapsed">
+          <Button Click="SkipTrack_Click" Style="{StaticResource DenseButtonStyle}" Padding="12,0"
+                  ToolTipService.ToolTip="{loc:Str Key=Rip_SkipTrackTooltip}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <!-- forward-step: this track is skipped, and the next one starts -->
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf051;" FontSize="11"
+                        VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Rip_SkipTrack}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button Click="StopRip_Click" Style="{StaticResource DenseButtonStyle}" Padding="12,0"
+                  ToolTipService.ToolTip="{loc:Str Key=Rip_StopKeepTooltip}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <!-- stop: the rip ends here, and what it has is kept -->
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf04d;" FontSize="11"
+                        VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Rip_StopKeep}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <!-- Each track is added here as soon as it finishes ripping, and it can be played straight
+             away. The file is still in staging. The play button previews it in place, without touching
+             the RPaMp playlist and without moving or deleting the temp file. -->
+        <ListView x:Name="RippedList" Grid.Row="2" SelectionMode="None" Background="Transparent"
+                  Margin="0,12,0,0" Visibility="Collapsed"
+                  ItemContainerStyle="{StaticResource DiscTrackRowStyle}">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="dlg:RippedTrackRow">
+              <!-- A skipped track keeps its row: greyed, with no play button and "skipped" where its
+                   length would be. The warning glyph shows why. A track that was ripped through damage
+                   gets the same glyph over a playable row. -->
+              <Grid ColumnSpacing="8" Opacity="{x:Bind RowOpacity}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="26"/>
+                  <ColumnDefinition Width="22"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Background="Transparent" BorderThickness="0" Padding="4"
+                        MinWidth="0" MinHeight="0" Click="RippedPlay_Click" VerticalAlignment="Center"
+                        Visibility="{x:Bind PlayVisibility}"
+                        ToolTipService.ToolTip="{x:Bind PlayTooltip, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind PlayTooltip, Mode=OneWay}">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind PlayGlyph, Mode=OneWay}"
+                            FontSize="11" Foreground="#E6FFFFFF"/>
+                </Button>
+                <TextBlock Grid.Column="1" Text="{x:Bind Number}" FontSize="11.5"
+                           Foreground="{StaticResource DenseLabelInkBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Title}" FontSize="12" Foreground="#F2FFFFFF"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind Duration}" FontSize="11.5" Foreground="#88FFFFFF"
+                           VerticalAlignment="Center"/>
+                <!-- RPM gold (Assets/RpmPalette), the same hue as the review grid's dots and the
+                     waveform's silence marks. It draws attention, but it does not mean that something
+                     failed. -->
+                <FontIcon Grid.Column="4" Style="{StaticResource FaIcon}" FontSize="11"
+                          Glyph="{x:Bind DamageGlyph, Mode=OneWay}" Foreground="#EFAF12"
+                          VerticalAlignment="Center"
+                          Visibility="{x:Bind DamageVisibility, Mode=OneWay}"
+                          ToolTipService.ToolTip="{x:Bind DamageTooltip, Mode=OneWay}"/>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+      </Grid>
+    </Grid>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

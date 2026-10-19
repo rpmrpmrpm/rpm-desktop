@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- The app's message band, in three styles: failure, warning and fact. One band with one set of
+       colours is shown wherever the app has to say something over what the user is looking at: the
+       foot of the left pane (see LeftPaneBand in MainPage.xaml) and the head of the mass-edit window.
+
+       A FAILURE uses the palette's Red ramp (DAMN). A WARNING uses its Gold (Now 04). A FACT uses
+       its Azure (Melodrama). These are the same three stops that the drawers use, at the band's E6
+       alpha. The text and the mark use the ramp's own hue, lightened to near-white, so the text is
+       readable at 12 pt over any fill.
+
+       The band is app-wide, not page-level, so a warning looks the same in every window where it
+       can appear. A dialog must not use a different yellow. -->
+
+  <SolidColorBrush x:Key="BandErrorEdge" Color="#55EE0709"/>
+  <SolidColorBrush x:Key="BandErrorMark" Color="#FFFFD9D9"/>
+  <SolidColorBrush x:Key="BandErrorInk" Color="#FFFFECEC"/>
+  <LinearGradientBrush x:Key="BandErrorFill" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#E6930405"/>
+    <GradientStop Offset="1" Color="#E65F0203"/>
+  </LinearGradientBrush>
+
+  <!-- Neither a failure nor a warning. A fact is information the user needs in order to read the
+       screen. For example, a computer that is not on the network is not a fault. It is a state. -->
+  <SolidColorBrush x:Key="BandInfoEdge" Color="#550371D0"/>
+  <SolidColorBrush x:Key="BandInfoMark" Color="#FFD9EEFF"/>
+  <SolidColorBrush x:Key="BandInfoInk" Color="#FFECF6FF"/>
+  <LinearGradientBrush x:Key="BandInfoFill" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#E6014680"/>
+    <GradientStop Offset="1" Color="#E6012D53"/>
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="BandWarningEdge" Color="#55EFAF12"/>
+  <SolidColorBrush x:Key="BandWarningMark" Color="#FFFFE9C0"/>
+  <SolidColorBrush x:Key="BandWarningInk" Color="#FFFFF4DF"/>
+  <LinearGradientBrush x:Key="BandWarningFill" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#E6946C0B"/>
+    <GradientStop Offset="1" Color="#E65F4607"/>
+  </LinearGradientBrush>
+
+</ResourceDictionary>

@@ -1,0 +1,134 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.ResizableDialogShell"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dlgc="using:RPM.Desktop.Presentation.Dialogs.Controls"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+>
+
+  <!-- The dialog card is frosted glass, as in the RPM design. GlassBrush frosts the artwork behind the
+       dialog. A white glass tint and a soft glow lift it. A hairline edge frames it. The title sits in its
+       own darkened band across the top, like the library grid headers. Card is the element that is resized.
+       -->
+  <Grid x:Name="Card">
+    <!-- The album-grid frost: the same live GlassBrush and 20% black veil (GridSurfaceBrush) that the grids
+         and the deck use. The dialog then reads as one surface with them, not as a lighter white frost. -->
+    <Border CornerRadius="18">
+      <Border.Background>
+        <ui:GlassBrush BlurAmount="30"/>
+      </Border.Background>
+    </Border>
+    <Border CornerRadius="18" Background="#1AFFFFFF"/>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- header band -->
+        <RowDefinition Height="Auto"/>    <!-- banner -->
+        <RowDefinition Height="*"/>       <!-- content -->
+      </Grid.RowDefinitions>
+
+      <!-- ═══ HEADER BAND ═══ Its own darker glass strip (CardTitleBarBrush, like the grid headers). It is
+           short, with rounded top corners. It clips an oversized, nearly transparent watermark glyph. The
+           glyph is centred on the band, behind the title. -->
+      <Border Grid.Row="0" x:Name="HeaderBand" Height="112" CornerRadius="18,18,0,0">
+        <Grid>
+          <!-- The vinyl close-up, used as the plain header background. -->
+          <Border CornerRadius="18,18,0,0">
+            <Image Source="ms-appx:///Assets/header-vinyl.jpg" Stretch="UniformToFill"/>
+          </Border>
+          <!-- Watermark: very large and filled. It sits behind the text, in the vinyl's shadow tone, so it
+               reads as a tone-on-tone emboss. It is centred on the band, whatever its height. -->
+          <FontIcon x:Name="TitleIcon" Style="{StaticResource FaIcon}" FontSize="80" Foreground="#0E141E"
+                    HorizontalAlignment="Left" VerticalAlignment="Center" Margin="18,0,0,0"
+                    IsHitTestVisible="False" Visibility="Collapsed"/>
+          <!-- The title uses Thiamine, a tall display face. The Viewbox scales it to the full header
+               height, minus a little space, so the tall capitals fill the band and never clip, at any
+               HeaderHeight. The letter spacing is made by hair spaces inserted in the code-behind. -->
+          <Grid HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="26,17,120,3">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Viewbox Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform">
+              <!-- Same shade as the rpm logo: white at 0.5 opacity on the shell splash. -->
+              <TextBlock x:Name="TitleText" FontSize="40"
+                         FontFamily="{StaticResource RpmHeaderFont}" Foreground="#80FFFFFF"/>
+            </Viewbox>
+            <TextBlock x:Name="SubtitleText" Grid.Row="1" FontSize="11.5" Margin="0,2,0,0"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                       Foreground="#88FFFFFF" Visibility="Collapsed"/>
+          </Grid>
+          <ContentPresenter x:Name="TitleTrailingPresenter" HorizontalAlignment="Right"
+                            VerticalAlignment="Center" Margin="0,0,20,0"/>
+        </Grid>
+      </Border>
+
+      <!-- ═══ BANNER ═══ A message for the whole window, not for one field in it. An example is a caution
+           about how far a bulk edit reaches. It runs edge to edge and sits flush under the header. That
+           makes it read as part of the card's frame, not as the first row of the form. It is outside the
+           content region below, so it has neither that region's 24 px side inset nor its scroller. A
+           caution that scrolls out of view can be missed.
+
+           When empty it costs nothing. The ContentPresenter measures to nothing, and the row is Auto. So a
+           dialog that never sets a Banner is laid out exactly as before. -->
+      <ContentPresenter x:Name="BannerPresenter" Grid.Row="1" HorizontalContentAlignment="Stretch"/>
+
+      <!-- ═══ CONTENT ═══ One inset (24) on the sides and at the foot. The gap above the footer equals the
+           gap below it. The body's sides line up with the buttons.
+
+           The side inset is not on this region. It is on each row, because the body row is a scroller and
+           the two need different edges. A ScrollViewer draws its scroll bar at its own right edge, outside
+           its padding. If the inset were a margin, the bar would land inside the content, on top of
+           whatever sits furthest right. So the scroller spans the whole card and carries the inset as
+           PADDING. The bar then sits in the card's edge gutter, the content sits between two equal margins,
+           and the sides still line up with the steps and the buttons. -->
+      <Grid Grid.Row="2" Margin="0,20,0,24">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>   <!-- steps -->
+          <RowDefinition Height="*"/>       <!-- body -->
+          <RowDefinition Height="Auto"/>    <!-- footnote -->
+          <RowDefinition Height="Auto"/>    <!-- footer -->
+        </Grid.RowDefinitions>
+
+        <!-- Wizard step ribbon. It is collapsed until SetSteps is called. -->
+        <dlgc:StepChevrons x:Name="StepsHost" Grid.Row="0" Margin="24,0,24,0"
+                           HorizontalAlignment="Left" Visibility="Collapsed"/>
+
+        <!-- Body. It sits straight on the card glass, aligned to the footer's edges. -->
+        <Border x:Name="Well" Grid.Row="1" Background="Transparent">
+          <ScrollViewer x:Name="BodyScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                        Padding="24,0,24,0">
+            <ContentPresenter x:Name="BodyPresenter" HorizontalContentAlignment="Stretch"/>
+          </ScrollViewer>
+        </Border>
+
+        <!-- ═══ FOOTNOTE ═══ The opposite of the banner: a line for the whole window. It is NOT in the
+             scroller, so it stays on screen wherever the reader has scrolled the body. Put here is the text
+             the window would be misread without. For example, the recognize window's one sentence about a
+             layer this account does not have. Inside the scroller, that sentence scrolled away whenever the
+             list got long.
+
+             Its top gap is the content's own. When empty, the presenter measures to nothing and the row is
+             Auto. So a dialog that never sets a Footnote is laid out exactly as before. -->
+        <ContentPresenter x:Name="FootnotePresenter" Grid.Row="2" Margin="24,0,24,0"
+                          HorizontalContentAlignment="Stretch"/>
+
+        <!-- Footer. Its top gap and its bottom gap (the region's 24 at the foot) match. -->
+        <Grid Grid.Row="3" Margin="24,24,24,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <ContentPresenter x:Name="FooterLeadingPresenter" Grid.Column="0" VerticalAlignment="Center"/>
+          <ContentPresenter x:Name="FooterPresenter" Grid.Column="2" VerticalAlignment="Center"/>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <!-- A hairline sheen edge, on top so it frames the whole card, including the band. -->
+    <Border CornerRadius="18" BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"
+            IsHitTestVisible="False"/>
+
+    <dlgc:DialogResizeGrip x:Name="Grip" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8"/>
+  </Grid>
+</UserControl>

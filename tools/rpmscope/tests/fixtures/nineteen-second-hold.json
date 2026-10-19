@@ -1,0 +1,17 @@
+{
+  "_": "A stall where 'read' held 19371ms in GetAlbumCloudRollup, called via CloudBadgeOf and RefreshBadges, with 4ms of processor over 19.4 seconds. It is stored as JSON, not as a binary ring, so a person can read the expected chain.",
+  "names": ["OnSharedShelfChanged", "RefreshBadges", "CloudBadgeOf", "GetAlbumCloudRollup",
+            "read", "ImportScan", "ui", "IOException"],
+  "records": [
+    {"kind": 3,  "nanos": 1000000000,  "job": 1, "parent": 0, "name": "OnSharedShelfChanged"},
+    {"kind": 3,  "nanos": 1001000000,  "job": 2, "parent": 1, "name": "RefreshBadges"},
+    {"kind": 3,  "nanos": 1002000000,  "job": 3, "parent": 2, "name": "CloudBadgeOf"},
+    {"kind": 11, "nanos": 20373000000, "job": 3, "parent": 2, "name": "GetAlbumCloudRollup",
+     "detail": "read", "a": 19371000000, "b": 4000000},
+    {"kind": 3,  "nanos": 1500000000,  "job": 9, "parent": 0, "name": "ImportScan"},
+    {"kind": 40, "nanos": 12000000000, "name": "IOException"},
+    {"kind": 40, "nanos": 13000000000, "name": "IOException"},
+    {"kind": 22, "nanos": 20374000000, "job": 0, "parent": 0, "name": "ui",
+     "a": 19380000000, "b": 6000000}
+  ]
+}

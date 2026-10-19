@@ -1,0 +1,241 @@
+using Microsoft.UI.Xaml.Input;
+
+namespace RPM.Desktop.Presentation.Pegasus;
+
+/// <summary>
+/// The mini player going away over the collection, and coming back.
+///
+/// <para>The card hides itself after five seconds when nothing is playing, and comes back with a fade
+/// and a slide from the top. The pointer at the very top of the screen brings it back until the
+/// next scroll. Scrolling down sends it away, even while something is playing.</para>
+///
+/// <para><b>Where.</b> On every screen the collection shows, home, the wall and radio: all three run the
+/// whole height of the layer under the card, so taking the card away uncovers the screen. Radio keeps
+/// home's rules exactly. Not over a record's own screen or the tuner, which take the collection
+/// layer down with the card in it.</para>
+///
+/// <para><b>It goes</b> after five seconds of nothing playing (on home; see below for the other screens),
+/// and at once when the screen is scrolled down, whatever is playing. <b>It comes back</b> when
+/// something comes on, when the collection changes screen (home to the wall or back) or comes up again,
+/// when the screen is scrolled back to its top, and from the top edge of the screen until the screen is
+/// next scrolled. Scrolling up short of the top does not bring it back. Back at the top counts as
+/// arriving again: with nothing playing the card goes five seconds later, as when the screen first
+/// comes up.</para>
+///
+/// <para><b>Nothing playing</b> is the card holding the app's mark: no record on the deck and no station
+/// tuned (<see cref="LibraryPlayerOn"/>). A paused record or a paused station does not start the five
+/// seconds; it goes only on a scroll down.</para>
+///
+/// <para><b>The mark is shown on home only</b> (<see cref="MarkKeptOff"/>). On the wall, radio, the
+/// artists and genres lists and their pages, a card with nothing on it stays down, and comes in only when
+/// something starts playing.</para>
+///
+/// <para><b>Who writes what.</b> The top edge of the screen sets <see cref="_peek"/>; a screen's scroll
+/// clears it and, going down, sets <see cref="_scrolledAway"/>; neither touches the card. The tick is the
+/// only place that reads the facts and moves the card, so the order those arrive in does not matter:
+/// every frame asks again whether the card should be up. Write the card's opacity, shift or hit test from
+/// a handler and that stops being true.</para>
+/// </summary>
+public sealed partial class PegasusChrome
+{
+    /// <summary>How long the card shows the app's mark before it goes, in seconds.</summary>
+    private const double PlayerAwayAfter = 5.0;
+
+    /// <summary>How long the card takes to slide in or out.</summary>
+    private const double PlayerSlideMs = 300;
+
+    /// <summary>Seconds the card has held the app's mark on this screen this time. Counts only while it
+    /// may go, and stops at <see cref="PlayerAwayAfter"/>.</summary>
+    private double _markSeen;
+
+    /// <summary>The pointer has reached the top edge since the screen was last scrolled. Set by the edge,
+    /// cleared by a scroll, and cleared by the tick when the screen changes and when something comes
+    /// on.</summary>
+    private bool _peek;
+
+    /// <summary>The screen has been scrolled down since the card last came back for something coming on
+    /// or for the screen changing. Set by a scroll, cleared by the tick.</summary>
+    private bool _scrolledAway;
+
+    /// <summary>Whether something was playing on the last tick, so the frame something comes on can be
+    /// told from the frames after it.</summary>
+    private bool _wasOn;
+
+    /// <summary>Whether the screen in front was at its top on the last tick, so the frame it gets back
+    /// there can be told from the frames it stays there.</summary>
+    private bool _wasAtTop = true;
+
+    /// <summary>Whether the screen in front is scrolled to its top, read off its scroller: home's, the
+    /// wall's or radio's. A home not built yet is at its top.</summary>
+    private bool CollectionAtTop => _collection switch
+    {
+        CollectionScreen.Home => _home?.IsAtTop ?? true,
+        CollectionScreen.Radio => RadioScroll.VerticalOffset < 0.5,
+        CollectionScreen.Artists or CollectionScreen.Genres or CollectionScreen.Artist or CollectionScreen.Genre
+            => ArtistsGenresScroll.VerticalOffset < 0.5,
+        _ => LibraryScroll.VerticalOffset < 0.5,
+    };
+
+    /// <summary>The screen the three figures above were gathered on. A different screen in front starts
+    /// them again, the way a fresh visit does.</summary>
+    private CollectionScreen _awayOn;
+
+    /// <summary>Where the card is between gone (0) and up (1), before the ease. Linear in time, so a
+    /// reversal halfway carries on from where it is.</summary>
+    private double _playerShown = 1;
+
+    /// <summary>The card holds the app's mark and the screen is not home: the card stays down. True under
+    /// a record's screen as well, so coming back from one to the wall or a page does not show the card
+    /// for the length of a slide.</summary>
+    private bool MarkKeptOff => !LibraryPlayerOn && _collection != CollectionScreen.Home;
+
+    /// <summary>Whether the collection is the screen in front, on any of its screens: up, and no record's
+    /// own screen or the tuner over it.</summary>
+    private bool CollectionInFront => LibraryUp && !RecordUp && !TunerUp;
+
+    /// <summary>
+    /// One frame: whether the card should be up, and one step of it getting there.
+    /// </summary>
+    private void TickPlayerAway(double dt)
+    {
+        if (!LibraryUp)
+            return;
+
+        var on = LibraryPlayerOn;
+        var inFront = CollectionInFront;
+        var atTop = CollectionAtTop;
+
+        if (!inFront || _awayOn != _collection)
+        {
+            // Under a record's screen the card is up, and a screen arrived at (or come back to) starts
+            // from the beginning.
+            _awayOn = _collection;
+            _markSeen = 0;
+            _peek = false;
+            _scrolledAway = false;
+        }
+        else if (on)
+        {
+            _markSeen = 0;
+
+            // Something coming on brings the card back, however it went away.
+            if (!_wasOn)
+            {
+                _scrolledAway = false;
+                _peek = false;
+            }
+        }
+        else if (!_peek && CollectionIsReady)
+        {
+            // Counted only once the screen is ready: home with its pictures in, the wall read. Until then
+            // Pegasus's opening cover can be over it (see PegasusPlayer.Show), for as long as four
+            // seconds. If the count started when the collection came up, most of the five seconds would
+            // pass behind the cover.
+            _markSeen = Math.Min(_markSeen + dt, PlayerAwayAfter);
+        }
+
+        // Back at the top of the screen: the same fresh start as arriving on it. Read off the scroller
+        // each frame rather than told by a scroll event, so a screen that gets to its top any way at all
+        // (the wheel, the bar, a search putting the wall back) brings the card back.
+        if (inFront && atTop && !_wasAtTop)
+        {
+            _scrolledAway = false;
+            _peek = false;
+            _markSeen = 0;
+        }
+
+        _wasOn = on;
+        _wasAtTop = atTop;
+
+        // The remote's focus on the card's own keys or its cover is somebody reaching for it, the way the
+        // pointer at the top edge is: the card comes back while the focus is there.
+        var focused = KeyboardDriven && FocusWithin(LibraryPlayer);
+
+        var up = !MarkKeptOff
+                 && (!inFront || _peek || focused || (!_scrolledAway && (on || _markSeen < PlayerAwayAfter)));
+
+        // Out of reach as soon as it starts going, in reach as soon as it starts coming: a card on its
+        // way out must not take a press meant for the row it is uncovering. Said on the ring at the same
+        // moment, with the facts it was decided on, so a card that went or came when it should not have
+        // can be read back afterwards.
+        if (LibraryPlayer.IsHitTestVisible != up)
+        {
+            LibraryPlayer.IsHitTestVisible = up;
+            SayPlayerAway(up ? "coming" : "going");
+        }
+
+        var to = up ? 1.0 : 0.0;
+        if (_playerShown == to)
+            return;
+
+        var step = dt / (PlayerSlideMs / 1000);
+        _playerShown = up ? Math.Min(1, _playerShown + step) : Math.Max(0, _playerShown - step);
+        PlacePlayer();
+    }
+
+    /// <summary>
+    /// Writes the card's opacity and shift from <see cref="_playerShown"/>, on the app's move curve
+    /// (<see cref="PaneGlide.EaseAt"/>): ease-out coming down, the same curve backwards going up. Gone
+    /// means faded out and lifted clear of the top of the screen, which is its margin and its own height;
+    /// read here rather than kept, because a resize changes both.
+    /// </summary>
+    private void PlacePlayer()
+    {
+        var eased = PaneGlide.EaseAt(_playerShown);
+        var lift = LibraryPlayer.Margin.Top + LibraryPlayer.ActualHeight;
+
+        LibraryPlayer.Opacity = eased;
+        LibraryPlayerSlide.Y = -(1 - eased) * lift;
+    }
+
+    /// <summary>The collection coming up: the card is up (down where it would hold the mark off home) and
+    /// the count starts again. Called from <see cref="ShowLibrary"/>, so every visit starts with the card
+    /// in place.</summary>
+    private void ResetPlayerAway()
+    {
+        _awayOn = _collection;
+        _markSeen = 0;
+        _peek = false;
+        _scrolledAway = false;
+        _wasAtTop = CollectionAtTop;
+        var up = !MarkKeptOff;
+        _playerShown = up ? 1 : 0;
+        LibraryPlayer.IsHitTestVisible = up;
+        PlacePlayer();
+        SayPlayerAway("up, count reset");
+    }
+
+    /// <summary>The pointer at the top edge of the screen. Said once per reveal, not on every
+    /// move.</summary>
+    private void PlayerPeekEdge_Pointer(object sender, PointerRoutedEventArgs e)
+    {
+        if (_peek)
+            return;
+        _peek = true;
+        SayPlayerAway("top edge reached");
+    }
+
+    /// <summary>The screen in front moved, by <paramref name="moved"/> points, positive down: home's
+    /// scroller (HomeView.Scrolled) or the wall's (LibraryScroll_ViewChanged). Any move ends a reveal
+    /// from the top edge; a move down sends the card away whatever is playing.</summary>
+    private void Collection_Scrolled(double moved)
+    {
+        var down = moved > 0;
+        if (!_peek && (!down || _scrolledAway))
+            return;
+
+        _peek = false;
+        if (down)
+            _scrolledAway = true;
+        SayPlayerAway(down ? "scrolled down" : "scrolled up, reveal ended");
+    }
+
+    /// <summary>One line on the home channel: what happened, and the facts the card is decided
+    /// on.</summary>
+    private void SayPlayerAway(string what) =>
+        RPM.Core.Diagnostics.Scope.Said(
+            "home",
+            $"mini player {what}: on {_collection}, mark seen {_markSeen:0.0}s, mark kept off {MarkKeptOff}, peek {_peek}, "
+            + $"scrolled away {_scrolledAway}, in front {CollectionInFront}, "
+            + $"playing {LibraryPlayerOn}, shown {_playerShown:0.00}");
+}

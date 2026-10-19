@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- The colour of a selected row in a TableView: the app's cyan (#04C8FF), at the same alphas
+       that other selected items use. See the ListView brushes in AddMusicDialog and
+       ReleaseLookupDialog, which are #2404C8FF, #3004C8FF and #1404C8FF. There is one selected
+       colour across the app.
+
+       These styles must be merged into each grid's own Resources, not declared app-wide in
+       App.xaml. On the WinUI head a row is drawn by a ListViewItemPresenter whose SelectedBackground
+       is {ThemeResource TableViewRowBackgroundSelected} (WinUI.TableView/Themes/TableViewRow.xaml).
+       That template's dictionary merges the library's own Themes/Resources.xaml, which declares this
+       key. The lookup is answered there and never reaches the app's resources. The library's value
+       is SubtleFillColorSecondaryBrush, which in the dark theme is #0FFFFFFF (white at 6%). Plain
+       keys and ThemeDictionaries in App.xaml do not change it.
+
+       A dictionary on the grid is reached. The row is the grid's own item container, so the lookup
+       walks up through it before it leaves the tree. AddMusicDialog's ListViewItemBackgroundSelected
+       is in the same place, and so are the queue grid's checkbox brushes. Both work.
+
+       One file rather than a copy per grid, so the library's data table and the import queue look
+       the same. -->
+
+  <SolidColorBrush x:Key="TableViewRowBackgroundSelected" Color="#2404C8FF"/>
+  <SolidColorBrush x:Key="TableViewRowBackgroundSelectedPointerOver" Color="#3004C8FF"/>
+  <SolidColorBrush x:Key="TableViewRowBackgroundSelectedPressed" Color="#3004C8FF"/>
+  <SolidColorBrush x:Key="TableViewRowBackgroundSelectedDisabled" Color="#1404C8FF"/>
+
+  <!-- The left selection indicator bar: the same cyan at full strength, so it matches the wash. -->
+  <SolidColorBrush x:Key="TableViewRowSelectionIndicatorBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="TableViewRowSelectionIndicatorPointerOverBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="TableViewRowSelectionIndicatorPressedBrush" Color="#04C8FF"/>
+</ResourceDictionary>

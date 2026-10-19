@@ -1,0 +1,556 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Genres.GenreDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.Genres.Models"
+             xmlns:common="using:RPM.Desktop.Presentation.Common"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <!-- ═══ the ink ═══
+         The four text weights match the artist page, and use the same four colours. The two pages show
+         different things, but they should look like one app, so they share the same greys. -->
+    <SolidColorBrush x:Key="InkStrong" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="InkBody" Color="#DDFFFFFF"/>
+    <SolidColorBrush x:Key="InkQuiet" Color="#AAFFFFFF"/>
+    <SolidColorBrush x:Key="InkFaint" Color="#88FFFFFF"/>
+
+    <!-- One plate. Everything on this page that holds writing sits on it. It is the artist page's own
+         frosted glass. -->
+    <SolidColorBrush x:Key="InkPlate" Color="#18FFFFFF"/>
+
+    <Style x:Key="ShelfHeading" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="19"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{StaticResource InkStrong}"/>
+    </Style>
+
+    <Style x:Key="BlockHeading" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{StaticResource InkQuiet}"/>
+    </Style>
+
+    <Style x:Key="Prose" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource InkBody}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="LineHeight" Value="18"/>
+      <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+
+    <!-- One record on one of this page's shelves. It has the same layout as the artist page's
+         SleeveTemplate, down to the six points of padding, so a record is shown the same way on both
+         pages. -->
+    <DataTemplate x:Key="SleeveTemplate">
+      <Button Click="Record_Click" Tag="{Binding}"
+              Width="{Binding Metrics.Stride}"
+              Background="Transparent" BorderThickness="0" CornerRadius="8" Padding="6,6,6,8"
+              HorizontalContentAlignment="Stretch" MinWidth="0" MinHeight="0"
+              ToolTipService.ToolTip="{Binding Title, Converter={StaticResource Censor}}">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+        </Button.Resources>
+        <StackPanel Spacing="8">
+          <Grid Width="{Binding Metrics.Art}" Height="{Binding Metrics.Art}">
+            <Border CornerRadius="6" Background="#26FFFFFF"/>
+            <Border CornerRadius="6">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                     Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+            </Border>
+            <!-- No cover: a made picture, in colours that the palette takes from the record's own
+                 folder. A disc on top shows that the sleeve is drawn, not photographed.
+
+                 It is bound to FigureSeed, not to the folder. The seed stays null until the lookup has
+                 come back empty, so a figure is drawn only for records that need one. The Visibility
+                 hides the figure when a cover arrives. The Visibility does not decide whether a figure
+                 is drawn. See ArtistRecord.FigureSeed. -->
+            <Border CornerRadius="6" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="32" Foreground="#4DFFFFFF"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+          </Grid>
+          <StackPanel Spacing="2">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="12.5"
+                         Foreground="{StaticResource InkBody}"
+                         TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Center"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource InkFaint}"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          </StackPanel>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
+    <!-- One act on the genre, in a box of 16 by 9. It is the artists wall's own card, because it is the
+         same artist, and pressing it opens the same page. -->
+    <DataTemplate x:Key="ActTemplate">
+      <Button Click="Act_Click" Tag="{Binding}"
+              Width="{Binding Metrics.Width}" Height="{Binding Metrics.Height}"
+              Padding="0" MinWidth="0" MinHeight="0"
+              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+              Background="Transparent" BorderThickness="1" CornerRadius="10"
+              BorderBrush="#33FFFFFF">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AAFFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FFFFFFFF"/>
+        </Button.Resources>
+        <Border CornerRadius="9" Background="{StaticResource InkPlate}">
+          <Grid>
+            <Rectangle Fill="{Binding Ground}"/>
+            <Image Source="{Binding Picture}" Stretch="UniformToFill"
+                   Visibility="{Binding HasPicture, Converter={StaticResource BoolToVisible}}"/>
+            <Rectangle Fill="{Binding Wash}"/>
+            <Rectangle Fill="{Binding Ink}"/>
+            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                       MaxWidth="{Binding Metrics.NameRoom}"
+                       TextWrapping="Wrap" TextAlignment="Center" MaxLines="2"
+                       TextTrimming="CharacterEllipsis"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+
+    <!-- One generated list. It has the record card's measurements, with a playlist mark in the corner.
+         The mark shows that a square with a picture in it is a list, not an album. It is the same glyph
+         that the Playlists tab shows in the rail. -->
+    <DataTemplate x:Key="ListTemplate" x:DataType="model:GenreList">
+      <Button Click="List_Click" Tag="{Binding}"
+              Width="{Binding Metrics.Stride}"
+              Background="Transparent" BorderThickness="0" CornerRadius="8" Padding="6,6,6,8"
+              HorizontalContentAlignment="Stretch" MinWidth="0" MinHeight="0"
+              ToolTipService.ToolTip="{Binding Name}">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+        </Button.Resources>
+        <StackPanel Spacing="8">
+          <Grid Width="{Binding Metrics.Art}" Height="{Binding Metrics.Art}">
+            <Border CornerRadius="6" Background="#26FFFFFF"/>
+            <Border CornerRadius="6">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                     Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+            </Border>
+            <Border CornerRadius="6" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <!-- The mark that shows this square is a list, not a record. It is hidden once a framed
+                 cover has loaded, because the frame has the app's own name in this same corner. -->
+            <Border CornerRadius="5" Background="#99000000" Margin="0,0,6,6" Padding="6,3"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
+                    Visibility="{Binding BadgeShown}">
+              <TextBlock Text="&#xf8c9;" FontFamily="{StaticResource Fa}" FontSize="10"
+                         Foreground="#EEFFFFFF"/>
+            </Border>
+          </Grid>
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{StaticResource InkBody}"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource InkFaint}"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          </StackPanel>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid x:Name="Page" Background="{StaticResource GridSurfaceBrush}" SizeChanged="Page_SizeChanged">
+
+    <!-- ═══ the page's colour ═══
+         The colour of the head's own photograph, spread across the whole panel. This is the artist
+         page's own arrangement, layer for layer (see its PageGround). It is worked out the same way:
+         the picture's dominant tone is snapped to the palette, paired with its neighbour on the hue
+         ring, and spread from one corner. It sits UNDER the blurred picture. That keeps a page whose
+         photograph is mostly sky or mostly stage from becoming a grey rectangle with a band of colour
+         at the top.
+
+         Hidden until the picture has been read, and hidden for good if it cannot be read. -->
+    <Rectangle x:Name="PageGround" Visibility="Collapsed" IsHitTestVisible="False"/>
+
+    <!-- The same photograph, blurred until it is a texture rather than a picture, and laid over the
+         ground. This is the artist page's own arrangement (see its PageWash), for the same reason: a
+         page of paragraphs and shelves has to be read on a texture, not a picture. Hidden until there
+         is an image. -->
+    <Border x:Name="PageWash" Opacity="0.55" Visibility="Collapsed" IsHitTestVisible="False">
+      <Border.Background>
+        <ImageBrush x:Name="PageWashArt" Stretch="UniformToFill"/>
+      </Border.Background>
+    </Border>
+
+    <!-- The weight over that. A ground at full strength is a photograph at the exposure it was shot at.
+         Six shelves and an article laid on top of that would be unreadable. -->
+    <Rectangle x:Name="PageWeight" Fill="#6B000000" Visibility="Collapsed" IsHitTestVisible="False"/>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- the band, across the whole page -->
+        <RowDefinition Height="*"/>      <!-- the column and the shelves -->
+      </Grid.RowDefinitions>
+
+      <!-- ═══ the head of the page: the genre's card, at page size ═══
+
+           The same layers as the card that was pressed to get here (see GenreWallView). From the bottom
+           up: the shelf's colour, flat; its photograph across the band; the same colour running in to
+           back the lettering; the artists wall's veil falling down it; the shelf's finish over that;
+           and the name, set in the face that genre uses.
+
+           The head is shallower and quieter than a card, on purpose. It is a heading, not a tile. It is
+           a fifth as deep as it would be at the card's own shape, and its colour is laid on at about
+           half strength.
+
+           It ends on a line. The head does not fade its own pixels away towards the foot, so the page
+           does not run up under it. That is what the artist page's band does. A heading that stops on
+           an edge shows where the page begins instead. The edge is the card's own: the same white that
+           the wall's tiles are drawn with (GenreWordmarks.Rim). -->
+      <Grid x:Name="BannerBox" Grid.Row="0" Height="142" SizeChanged="BannerBox_SizeChanged"
+            Background="Transparent">
+        <!-- Everything the head is painted out of. The name and the back key stand outside it. -->
+        <Grid x:Name="HeadLayers">
+          <!-- The shelf's colour as a ROOM. The whole head is this room wherever no photograph arrives.
+               It also shows through the scrim over the name where a photograph does arrive. See
+               GenreWordmarks.Room, and NamePeak, which sets how much of it the scrim lets through. Like
+               the wall's cards, the head is one element that is not scrolled past. Nothing here moves,
+               so the room does not drift. -->
+          <common:CardRoom x:Name="BannerGround" Drift="False" Shown="True"/>
+
+          <!-- The shelf's own photograph, across the WHOLE band. See GenrePhotos. The head is the
+               picture. The three layers over it are what make it a genre's head, and not a stock
+               photograph with a word on it.
+
+               It is cropped to fill. The image is already six times as wide as it is high. On a wide
+               monitor the head takes a little off its top and bottom. On a narrow pane it takes a
+               little off its sides. Neither cut removes the subject, which is why the image has that
+               shape. -->
+          <Border x:Name="Banner" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False">
+            <Border.Background>
+              <ImageBrush x:Name="BannerArt" Stretch="UniformToFill"
+                          AlignmentX="Center" AlignmentY="Center"/>
+            </Border.Background>
+          </Border>
+
+          <!-- The genre's colour over the left of the picture. It is solid where the name stands, and
+               it fades out before the picture ends. GenreWordmarks.OverTheBand sets its size from the
+               band's HEIGHT, in BannerBox_SizeChanged. It must cover the name, and the name is sized
+               from the height too. This layer keeps the head looking like a shelf's head, not a
+               photographer's.
+
+               The DOWN and the FINISH come from the card. Both are softened by the head's own opacity.
+               Both run the full width. A heading carries its colour more lightly than a tile does, and
+               running them across everything stops the picture looking pasted in. -->
+          <common:CardRoom x:Name="BannerScrim" HorizontalAlignment="Left"
+                           Drift="False" Shown="True"/>
+          <Rectangle x:Name="BannerDrop" Opacity="0.55"/>
+        </Grid>
+
+        <!-- The line the head stops on. It is the same hairline that every list in the app is edged
+             with (ListEdgeBrush), so a header ends on the same line a table does. The stop is hard, so
+             the head reads as a header, and the page below it reads as the page. -->
+        <Border VerticalAlignment="Bottom" Height="1" IsHitTestVisible="False"
+                Background="{StaticResource ListEdgeBrush}"/>
+
+        <!-- The way out, and the page's subject, on one line and against the same left edge. The key
+             matches the artist page's: the same 32 by 28 outline, the same arrow and the same 28 points
+             in. A reader moves from genre to artist to record and back out again. A way out that
+             changes between those pages would have to be found again each time. The key sits BESIDE the
+             name, not in the corner above it. This band is a third of the height of the artist page's
+             band, so a key in the corner would land on the letters.
+
+             Three rules for the layout. Each one is needed for a reason. The key is on the NAME's row,
+             not centred on the whole block. The count below the name is part of the block, and centring
+             on the block would hang the key below the word it belongs to. The key is aligned to the TOP
+             of that row, not centred in it. A wordmark's height depends on the letters in that name, so
+             a centred key would move up and down the band from genre to genre. The space between the
+             key and the name is the same as the space between the key and the edge. It is one number
+             used twice, so the three things on this line are evenly spaced.
+
+             The key hangs from the TOP, at the same 28 points it keeps from the left. So the head's
+             corner is set by one measurement, not three. Centred, the key would also move with the
+             name. A two-line wordmark is twice the height of a one-line one, so a centred block would
+             move the key up and down. The foot of the head fades into the page anyway. Text placed on
+             the part that is fading would sit on something that goes away. -->
+        <Grid HorizontalAlignment="Left" VerticalAlignment="Top" Margin="28,28,28,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <Button x:Name="Back" Click="Back_Click"
+                  Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Margin="0,0,28,0"
+                  Width="32" Height="28" Padding="0" MinWidth="0" MinHeight="0"
+                  CornerRadius="6" Background="Transparent"
+                  BorderBrush="#8CFFFFFF" BorderThickness="1"
+                  ToolTipService.ToolTip="{loc:Str Key=Album_Back}"
+                  AutomationProperties.Name="{loc:Str Key=Album_Back}">
+            <Button.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
+            </Button.Resources>
+            <TextBlock Text="&#xf060;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
+          </Button>
+
+          <!-- The name, set in the genre's OWN face. It is the same drawing the card wears. See
+               GenreWordmarks. The page sizes it (see ShowWordmark), because the band has a fixed
+               height. A name such as "Neo-Classical" takes two lines, where "Pop" takes one.
+
+               The plain heading under it is not a fallback for a slow load. The drawing is compiled in,
+               so it cannot be slow. It is used only for a genre with no wordmark drawing. The generator
+               does not allow that case, so it only happens while the code is being edited. -->
+          <Image x:Name="TitleMark" Grid.Row="0" Grid.Column="1" Stretch="Fill"
+                 Visibility="Collapsed" HorizontalAlignment="Left" IsHitTestVisible="False"/>
+          <TextBlock x:Name="Title" Grid.Row="0" Grid.Column="1"
+                     FontSize="22" FontWeight="Bold" Foreground="#FFFFFFFF"
+                     TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                     IsHitTestVisible="False"/>
+          <TextBlock x:Name="Subtitle" Grid.Row="1" Grid.Column="1" Margin="0,5,0,0"
+                     FontSize="11.5" TextTrimming="CharacterEllipsis" IsHitTestVisible="False"/>
+        </Grid>
+      </Grid>
+
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <!-- The genre itself, as an article, with the shelves beside it. The width is set again on
+               every resize by ArtistPageLayout.Columns. That is the artist page's own arithmetic, so
+               the two pages fold at the same width. The number here is only the width at the start. -->
+          <ColumnDefinition x:Name="AboutColumn" Width="440"/>
+          <!-- The shelves, which take whatever width is left. -->
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The genre column scrolls on its own, as the artist page's does. One scroller for both
+             columns would mean reading down six shelves beside an article that had left the screen
+             after its first paragraph. -->
+        <ScrollViewer x:Name="AboutScroll" Grid.Column="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                      Padding="0,18,0,20">
+          <StackPanel x:Name="AboutPanel" Spacing="16">
+
+            <!-- The article is fetched over the network, seconds after the shelves beside it are full.
+                 Until it arrives, the turning record shows where it will be. -->
+            <ctl:RecordSpinner x:Name="ArticleBusy" Width="52" Height="52" Margin="18,4,18,4"
+                               HorizontalAlignment="Center"/>
+
+            <!-- What the encyclopedia says about this kind of music. This block stays hidden until
+                 there is text. A heading over an empty card would look like a gap in the data. -->
+            <StackPanel x:Name="AboutBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=Genres_About}" Style="{StaticResource BlockHeading}"/>
+              <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+                <StackPanel Spacing="8">
+                  <!-- The encyclopedia's name for the genre, which is not always the app's. The two
+                       often differ, so both are shown. For example, the band list says "Metal" while
+                       this says the article is about heavy metal music. -->
+                  <TextBlock x:Name="AboutName" FontSize="14" FontWeight="SemiBold"
+                             Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
+                  <!-- The whole article. It is shown in full, as on the artist page, because this is a
+                       page about the genre. It sits in a column of its own that scrolls separately, so
+                       the text is not cut short. -->
+                  <TextBlock x:Name="AboutProse" Style="{StaticResource Prose}"/>
+                  <!-- Wikipedia asks to be named, so the source is always credited. -->
+                  <ctl:RpmLink x:Name="AboutSourceButton" Click="AboutSource_Click" FontSize="11"/>
+                  <!-- The licence for the Wikipedia text above (CC BY-SA 4.0). It is shown when the
+                       source link is. -->
+                  <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AboutSourceButton}"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <!-- Shown instead of the article when it did not arrive. The column is drawn for every
+                 genre that the encyclopedia describes (see AboutExists). That decision is made before
+                 anything is fetched. So a failed fetch would leave an empty column that looks like a
+                 page still loading. This text says what happened, and what fixes it: opening the genre
+                 again asks again. -->
+            <TextBlock x:Name="AboutMissing" Style="{StaticResource Prose}" Margin="18,0,18,0"
+                       Visibility="Collapsed" Text="{loc:Str Key=Genres_AboutUnavailable}"/>
+
+            <!-- The genres next to this one, and how much of each the collection holds. The list is
+                 built in code. How many there are depends on the family table and the shelf, see
+                 Genres.Related. The card is hidden for a genre with no relations, which is most of
+                 them. A card that says a kind of music is related to nothing would be worse than no
+                 card. -->
+            <StackPanel x:Name="SubgenresBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=Genres_Subgenres}" Style="{StaticResource BlockHeading}"/>
+              <!-- Eight points of padding, not fourteen. The rows inside are pressable and have their
+                   own six points, so eight plus six makes the fourteen that every other card on this
+                   page uses for its text. This keeps one left edge down the whole column. -->
+              <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="8">
+                <StackPanel x:Name="SubgenresList" Spacing="2"/>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ what is in it ═══
+             Six shelves. The scroller itself has no side padding. Each shelf has its own left margin
+             and runs off the RIGHT edge of the panel. That shows the shelf continues past the edge of
+             the screen.
+
+             Every horizontal shelf keeps 14 points free at the foot of its scroller. This is not
+             spacing. The scroll bar is drawn OVER the bottom of the viewport, not beside the content.
+             The last line under a record is its year, so without that space the scroll bar would lie
+             across the text. -->
+        <ScrollViewer x:Name="BodyScroll" Grid.Column="1" SizeChanged="BodyScroll_SizeChanged"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                      Padding="0,0,0,24">
+          <StackPanel x:Name="Body" Spacing="22" Margin="0,18,0,0">
+
+            <!-- The shelves are read from the mirror on a worker. On a shared library, that read first
+                 builds the mood cut for the whole collection, which takes time. So the turning record
+                 shows where the first shelf will be until the read finishes. -->
+            <ctl:RecordSpinner x:Name="ShelvesBusy" Width="52" Height="52" Margin="0,24,0,0"
+                               HorizontalAlignment="Center"/>
+            <!-- ═══ the songs ═══
+                 First on the page, because it is the one shelf that does not depend on listening
+                 history. The ranking is what the WORLD plays, so a genre nobody in this collection has
+                 opened yet still has something to show.
+
+                 It is a list, not a shelf of sleeves, and the shape says why. These are SONGS. A song
+                 has no square of its own. It uses its record's cover. A row of sleeves here would look
+                 like a row of albums that have a popular track, which is the records shelf further down
+                 with a different heading. As a list, each line is one song.
+
+                 Three columns of eight, not one column of eight. The card sits in the wide half of the
+                 page, and one column would leave two thirds of its width empty. Twenty-four songs fill
+                 that width at the same height. The columns are built in code (see FillPopular). -->
+            <StackPanel x:Name="PopularSection" Spacing="10" Visibility="Collapsed">
+              <StackPanel Spacing="2" Margin="18,0,18,0">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Text="{loc:Str Key=Genres_PopularTracks}" Style="{StaticResource ShelfHeading}"
+                             VerticalAlignment="Center"/>
+                  <!-- Adds every song on the card to the queue. It sits beside the heading, not on the
+                       card, because it acts on the whole card. A row inside the card would look like a
+                       song. -->
+                  <Button x:Name="PopularPlayAll" Click="PopularPlayAll_Click"
+                          VerticalAlignment="Center" Height="26" Padding="10,0,12,0"
+                          MinWidth="0" MinHeight="0" CornerRadius="13"
+                          Background="Transparent" BorderBrush="#8CFFFFFF" BorderThickness="1"
+                          ToolTipService.ToolTip="{loc:Str Key=Genres_PopularPlayAll}">
+                    <Button.Resources>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <TextBlock Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="9"
+                                 Foreground="{StaticResource InkBody}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{loc:Str Key=Genres_PopularPlayAll}" FontSize="11.5"
+                                 Foreground="{StaticResource InkBody}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+                <!-- Where the order comes from. A ranking with no source is one the reader has to take
+                     on trust. This ranking has a specific meaning that is not the obvious one: it is
+                     what the WORLD plays, not what this listener does. -->
+                <TextBlock Text="{loc:Str Key=Genres_PopularSource}" FontSize="10.5"
+                           Foreground="{StaticResource InkFaint}"/>
+              </StackPanel>
+              <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="8"
+                      Margin="18,0,18,0">
+                <!-- The columns and their rows are added by FillPopular. The number of songs depends on
+                     how many the collection returned. -->
+                <Grid x:Name="PopularPanels" ColumnSpacing="10"/>
+              </Border>
+            </StackPanel>
+
+            <!-- Who this genre is, in the collection's own terms: the acts with the most of it, in the
+                 order the artists wall ranks them. -->
+            <StackPanel x:Name="ActsSection" Spacing="10" Visibility="Collapsed">
+              <TextBlock x:Name="ActsHeading" Style="{StaticResource ShelfHeading}" Margin="18,0,18,0"/>
+              <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                            Padding="18,0,18,14" BringIntoViewOnFocusChange="False">
+                <ItemsRepeater x:Name="Acts" ItemTemplate="{StaticResource ActTemplate}">
+                  <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="12"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </ScrollViewer>
+            </StackPanel>
+
+            <!-- The lists made from how the music SOUNDS, narrowed to this genre. They have their own
+                 row, apart from the lists below. The two kinds answer different questions: what the
+                 music IS, and what the listener has done with it. -->
+            <StackPanel x:Name="MoodSection" Spacing="10" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=Genres_MoodPlaylists}" Style="{StaticResource ShelfHeading}"
+                         Margin="18,0,18,0"/>
+              <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                            Padding="12,0,12,14" BringIntoViewOnFocusChange="False">
+                <ItemsRepeater x:Name="Moods" ItemTemplate="{StaticResource ListTemplate}">
+                  <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="2"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </ScrollViewer>
+            </StackPanel>
+
+            <!-- The other kind: lists the library builds from what you have DONE with this genre. These
+                 include what you play most, what you have marked, what arrived last, and what you have
+                 never heard. -->
+            <StackPanel x:Name="EssentialSection" Spacing="10" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=Genres_Essential}" Style="{StaticResource ShelfHeading}"
+                         Margin="18,0,18,0"/>
+              <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                            Padding="12,0,12,14" BringIntoViewOnFocusChange="False">
+                <ItemsRepeater x:Name="Essential" ItemTemplate="{StaticResource ListTemplate}">
+                  <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="2"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </ScrollViewer>
+            </StackPanel>
+
+            <!-- What arrived last: the records of this genre in the order they joined the collection,
+                 newest first. This is the shelf most likely to hold something the reader has not opened
+                 yet. So it sits above the decades, not inside them. -->
+            <StackPanel x:Name="AddedSection" Spacing="10" Visibility="Collapsed">
+              <TextBlock x:Name="AddedHeading" Style="{StaticResource ShelfHeading}" Margin="18,0,18,0"/>
+              <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                            Padding="12,0,12,14" BringIntoViewOnFocusChange="False">
+                <ItemsRepeater x:Name="Added" ItemTemplate="{StaticResource SleeveTemplate}">
+                  <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="2"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </ScrollViewer>
+            </StackPanel>
+
+            <!-- When the genre happened, in the collection: one shelf per decade, oldest first. It is
+                 built in code, because the number of decades depends on what the shelf holds. See
+                 GenreEra for why this shelf shows records, not playlists. -->
+            <StackPanel x:Name="ErasSection" Spacing="10" Visibility="Collapsed">
+              <TextBlock x:Name="ErasHeading" Style="{StaticResource ShelfHeading}" Margin="18,0,18,0"/>
+              <StackPanel x:Name="Eras" Spacing="14"/>
+            </StackPanel>
+
+            <!-- The turning record is at the TOP of this column, not the foot. This page gets all of
+                 its shelves in one answer, so no column is ever half filled with a spinner under it.
+                 Either the shelves are there, or the record shows where the first of them will be. -->
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

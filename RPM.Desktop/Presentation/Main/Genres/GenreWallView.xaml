@@ -1,0 +1,222 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Genres.GenreWallView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:common="using:RPM.Desktop.Presentation.Common"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- ── one row of the wall: two genres, drawn as a spread ──
+
+         The two cards are mirror images of each other. Each has its name against the OUTER edge of the
+         wall and its photograph towards the middle. So a row reads as one picture, with the faces
+         meeting in the middle and the two names at the ends. A row is a PAIR, not two cells of a grid,
+         because the side a card is on changes its drawing. The name is a different setting of the same
+         letters: flush left on one side and flush right on the other. A card that worked out its side
+         from its own index could disagree with the layout. Here that cannot happen, because the side is
+         the slot.
+
+         The two cards are written out twice below, not made from one template. The alignments are the
+         only difference between them. There are three words of difference each time. A converter that
+         turned a boolean into a HorizontalAlignment would hide the one thing this template is about. -->
+    <DataTemplate x:Key="GenrePairTemplate">
+      <Grid ColumnSpacing="14">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ── the left card: name at the left, face to the right ── -->
+        <Button Grid.Column="0" Click="Card_Click" Tag="{Binding Left}"
+                AutomationProperties.Name="{Binding Left.Name}"
+                Width="{Binding Left.Metrics.CardWidth}" Height="{Binding Left.Metrics.CardHeight}"
+                Padding="0" MinWidth="0" MinHeight="0"
+                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                Background="Transparent" BorderThickness="1" CornerRadius="10"
+                BorderBrush="{Binding Left.Rim}">
+          <Button.Resources>
+            <!-- The card lights its own edge under the pointer instead of washing itself. The wash is
+                 already the genre's colour, and a second one would look like a different genre. -->
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AAFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FFFFFFFF"/>
+          </Button.Resources>
+
+          <Border CornerRadius="9" Background="{StaticResource RpmCardPlateBrush}">
+            <Grid>
+              <!-- Everything that depends on the answer for this shelf: its colour, its photograph, and
+                   the three layers that dress the two together. It stays hidden until the answer
+                   arrives (see GenreTile.Answered). It then fades in ONE step, so a card is never seen
+                   changing colour. The artists wall uses the same rule: a box waits for its own plate
+                   instead of guessing a colour it may have to correct.
+
+                   The name is outside this and is shown from the first frame. A wall of plates with no
+                   words on it would not read as a wall of cards. -->
+              <Grid x:Name="LeftDress" Opacity="0">
+
+                <!-- The shelf's colour, as a ROOM. It is used for a card with no photograph, which is a
+                     finished card. It is what a shelf shows until its picture arrives, or when no
+                     picture ever arrives.
+
+                     NOT DRAWN UNTIL THE CARD HAS AN ANSWER. The room is shown only when the card's
+                     Answered is True. The shelf's colour comes with its photograph. A room drawn before
+                     that is drawn in the default accent colour, which is black, and then drawn again in
+                     the real colour as soon as the picture arrives. That is two shader passes and two
+                     buffers per card, for a first pass that nobody sees. LeftDress stays at an opacity
+                     of zero until the answer comes. It is worse on a shared library, where a genre the
+                     wordmark table does not know never gets an answer. There the first pass is the only
+                     one, and it is wasted from start to end.
+
+                     DOWN THE MOMENT A PICTURE ARRIVES. After that nothing of the room can be seen. The
+                     photograph covers the card from 0.15 across, and the faded copy over it is still
+                     solid until 0.167. So no strip of card is left where this room shows. Drawing it
+                     anyway costs a second shader pass and a second buffer per card, on a wall that
+                     realizes a dozen cards at once. The room uses the photograph's own colour, snapped
+                     to the palette (see GenreAccent). It uses the genre's own colour where the picture
+                     had no colour to give, or where no picture ever arrives.
+
+                     STILL, and this is the difference between this wall and the home screen's strip.
+                     Drift is False because a dozen of these are on screen at once, and they scroll. The
+                     three cards on the home banner do not scroll. A still room costs one shader pass
+                     when the card is realized, and nothing per frame. See CardRoom for what a drifting
+                     room costs on the Skia head. -->
+                <common:CardRoom CornerRadius="9" Drift="False" Shown="{Binding Left.Answered}"
+                                 Palette="{Binding Left.Room}" Apart="{Binding Left.Apart}"
+                                 Zoom="1.8" Shift="{Binding Left.Shift}"
+                                 Visibility="{Binding Left.HasPicture,
+                                     Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+
+                <!-- One artist, in their own colours. Unlike the artists wall's boxes, it is not
+                     drained. This card has one photograph, while the artists wall has many on a wall,
+                     and the fall beside it already does what draining does on that wall. -->
+                <Image x:Name="LeftFace" Source="{Binding Left.Picture}" Stretch="UniformToFill"
+                       Width="{Binding Left.Metrics.PictureWidth}" HorizontalAlignment="Right"
+                       Visibility="{Binding Left.HasPicture, Converter={StaticResource BoolToVisible}}"/>
+
+                <!-- Two layers over the picture. ACROSS is THE SAME ROOM AGAIN. It is solid where the
+                     name stands, and gone before the middle of the picture. There is one room under the
+                     photograph and a copy of it over, so there is no edge where the picture starts. The
+                     colour the name stands on keeps the room's own light and dark. A flat brush here
+                     would make the left of every card look like a block. Both layers must use the same
+                     palette, seed and size, or the copy stops sitting on the original. See
+                     CardRoom.Fade.
+
+                     DOWN is the artists wall's own veil, at the weight this shelf's finish asks for:
+                     the box's weight under frost, and a third of that under glass.
+
+                     The FINISH is not used. It put white along the top edge, which looked like a glow
+                     on the top of every card. -->
+                <common:CardRoom CornerRadius="9" Drift="False" Shown="{Binding Left.Answered}"
+                                 Fade="0.167,0.833"
+                                 Palette="{Binding Left.Room}" Apart="{Binding Left.Apart}"
+                                 Zoom="1.8" Shift="{Binding Left.Shift}"/>
+                <Rectangle Fill="{Binding Left.Drop}"/>
+              </Grid>
+
+              <!-- The name, set in this genre's own face. See GenreWordmarks, which explains why this
+                   is an Image and not a Path. A Path is charged for its own outline once for every
+                   frame it moves. A wall of these would hold the UI thread for a second on each flick
+                   of the wheel. It is drawn at the box's own pixel size, so Fill stretches nothing. -->
+              <Image Source="{Binding Left.Lettering}" Stretch="Fill"
+                     Width="{Binding Left.NameBoxWidth}" Height="{Binding Left.NameBoxHeight}"
+                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                     Margin="{Binding Left.NameMargin}"/>
+            </Grid>
+          </Border>
+        </Button>
+
+        <!-- ── the second card: drawn exactly like the first ──
+             This card is not a mirror of the first one. It is drawn the same way, and the two are
+             written out separately, not made from one template. Making one template from both is a
+             separate change, and it should not be made in the same edit that changes the rule (see
+             Pair()). The card is Collapsed on the last row of an odd wall, and on every row of a pane
+             too narrow for two. -->
+        <Button Grid.Column="1" Click="Card_Click" Tag="{Binding Right}"
+                AutomationProperties.Name="{Binding Right.Name}"
+                Visibility="{Binding HasRight, Converter={StaticResource BoolToVisible}}"
+                Width="{Binding Right.Metrics.CardWidth}" Height="{Binding Right.Metrics.CardHeight}"
+                Padding="0" MinWidth="0" MinHeight="0"
+                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                Background="Transparent" BorderThickness="1" CornerRadius="10"
+                BorderBrush="{Binding Right.Rim}">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AAFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FFFFFFFF"/>
+          </Button.Resources>
+
+          <Border CornerRadius="9" Background="{StaticResource RpmCardPlateBrush}">
+            <Grid>
+              <!-- Everything that depends on the answer for this shelf: its colour, its photograph, and
+                   the three layers that dress the two together. It stays hidden until the answer
+                   arrives (see GenreTile.Answered). It then fades in ONE step, so a card is never seen
+                   changing colour. The artists wall uses the same rule: a box waits for its own plate
+                   instead of guessing a colour it may have to correct.
+
+                   The name is outside this and is shown from the first frame. A wall of plates with no
+                   words on it would not read as a wall of cards. -->
+              <Grid x:Name="RightDress" Opacity="0">
+                <common:CardRoom CornerRadius="9" Drift="False" Shown="{Binding Right.Answered}"
+                                 Palette="{Binding Right.Room}" Apart="{Binding Right.Apart}"
+                                 Zoom="1.8" Shift="{Binding Right.Shift}"
+                                 Visibility="{Binding Right.HasPicture,
+                                     Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+                <Image x:Name="RightFace" Source="{Binding Right.Picture}" Stretch="UniformToFill"
+                       Width="{Binding Right.Metrics.PictureWidth}" HorizontalAlignment="Right"
+                       Visibility="{Binding Right.HasPicture, Converter={StaticResource BoolToVisible}}"/>
+                <common:CardRoom CornerRadius="9" Drift="False" Shown="{Binding Right.Answered}"
+                                 Fade="0.167,0.833"
+                                 Palette="{Binding Right.Room}" Apart="{Binding Right.Apart}"
+                                 Zoom="1.8" Shift="{Binding Right.Shift}"/>
+                <Rectangle Fill="{Binding Right.Drop}"/>
+              </Grid>
+              <Image Source="{Binding Right.Lettering}" Stretch="Fill"
+                     Width="{Binding Right.NameBoxWidth}" Height="{Binding Right.NameBoxHeight}"
+                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                     Margin="{Binding Right.NameMargin}"/>
+            </Grid>
+          </Border>
+        </Button>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid>
+    <!-- There is no index rail down the edge. So the right padding is the same as the left, not the
+         artists wall's 26. A rail indexes about two thousand names. This wall holds few enough cards to
+         fit on one screen, so it needs no rail. -->
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                  BringIntoViewOnFocusChange="False"
+                  Padding="14,0,14,20" SizeChanged="Scroller_SizeChanged">
+      <!-- The wall lays out PAIRS, not cards. That keeps a pair from being split across two lines: the
+           layout only sees one item per pair, so it cannot break one up.
+
+           MinWidth is load-bearing, and it must be a whole PAIR. UniformGridLayout counts how many
+           items fit across the width it is given, then divides BY that count. A pass narrower than one
+           item gives zero per line, which causes a DivideByZeroException in the measure. This is the
+           floor for the first pass only. From then on Fit sets this and MinItemWidth together, and both
+           must hold the same number, or neither is a floor. The artists wall has the same guard for the
+           same reason. -->
+      <ItemsRepeater x:Name="Rows" MinWidth="380" ItemTemplate="{StaticResource GenrePairTemplate}">
+        <ItemsRepeater.Layout>
+          <UniformGridLayout x:Name="PairLayout" MinItemWidth="380" MinItemHeight="150"
+                             MinColumnSpacing="14" MinRowSpacing="14"/>
+        </ItemsRepeater.Layout>
+      </ItemsRepeater>
+    </ScrollViewer>
+
+    <!-- Shown when the library has no music, so there is nothing to file. -->
+    <StackPanel x:Name="EmptyHint" Spacing="14" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+      <FontIcon Glyph="&#xf001;" FontFamily="{StaticResource Fa}" FontSize="42" Foreground="#55FFFFFF"/>
+      <TextBlock Text="{loc:Str Key=Genres_Empty}" FontSize="13" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

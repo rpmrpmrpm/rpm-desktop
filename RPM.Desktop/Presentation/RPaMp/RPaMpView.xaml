@@ -1,0 +1,1083 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.RPaMp.RPaMpView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RPM.Desktop.Presentation.RPaMp"
+             xmlns:model="using:RPM.Desktop.Presentation.RPaMp.Models"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:grids="using:RPM.Desktop.Presentation.Grids"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:trans="using:RPM.Desktop.Presentation.Main.Transport.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             Background="Transparent"
+             RequestedTheme="Dark">
+
+  <UserControl.Resources>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <!-- A song's name is masked the same way as on the lyric sheet. See TitleCensor. -->
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:DivideConverter x:Key="DivBy"/>
+    <!-- Playlist text: white. It is bright when the track is current, and muted otherwise. It matches the
+         library grid. -->
+    <conv:BoolToBrushConverter x:Key="CurrentBrush"
+                               TrueBrush="#FFFFFF" FalseBrush="#B8C6D0"/>
+    <!-- The transport glyph is bright white while playing, and a little softer at rest. The glyph shape
+         shows the state. -->
+    <conv:BoolToBrushConverter x:Key="PlayPauseBrush"
+                               TrueBrush="#FFFFFF" FalseBrush="#E6FFFFFF"/>
+    <!-- The cast button is bright white while the audio is sent to another device, and neutral grey at
+         rest. -->
+    <conv:BoolToBrushConverter x:Key="CastBrush"
+                               TrueBrush="#FFFFFF" FalseBrush="#9AA4AC"/>
+    <!-- The volume slider turns cyan when the level is held by the speaker, not by the app. That is the
+         case for a Bluetooth speaker's own knob, or a room's knob. It is fed by IsVolumeLocal, so true
+         gives the plain colour. -->
+    <conv:BoolToBrushConverter x:Key="VolumeBrush"
+                               TrueBrush="#B0FFFFFF" FalseBrush="#04C8FF"/>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Mono">Consolas</FontFamily>
+    <!-- The dot-matrix font for the scrolling ticker. It is a static instance that is built ahead of time.
+         See the note in the project file. -->
+    <FontFamily x:Key="Doto">ms-appx:///Assets/Fonts/Doto.ttf#Doto</FontFamily>
+
+    <!-- The title bar of a sub-window: a frosted glass header. It is translucent, so the dark panel shows
+         through down to its foot. There is no lit edge along the top. Over the panel's picture, a lit edge
+         made the panel look lighter above the header than the header itself. -->
+    <LinearGradientBrush x:Key="TitleBarBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Offset="0.0" Color="#33000000"/>
+      <GradientStop Offset="1.0" Color="#4D000000"/>
+    </LinearGradientBrush>
+
+    <!-- The frosted glass face of the transport buttons: a translucent white pane, brighter at the top. -->
+    <LinearGradientBrush x:Key="AmpFace" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Offset="0" Color="#28FFFFFF"/>
+      <GradientStop Offset="0.5" Color="#12FFFFFF"/>
+      <GradientStop Offset="1" Color="#0AFFFFFF"/>
+    </LinearGradientBrush>
+
+    <!-- Frosted glass transport button -->
+    <Style x:Key="AmpButton" TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource AmpFace}"/>
+      <Setter Property="Foreground" Value="#EAF0F3"/>
+      <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Width" Value="36"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- ══ Winamp-style sliders: thin track + rectangular (square) thumb ══ -->
+
+    <!-- Horizontal (position / volume): a tall-narrow square handle -->
+    <Style x:Key="AmpHSlider" TargetType="Slider">
+      <Setter Property="Background" Value="#33000000"/>
+      <Setter Property="Foreground" Value="#B0FFFFFF"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid x:Name="SliderContainer" Background="Transparent">
+              <Grid x:Name="HorizontalTemplate" MinHeight="22">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="HorizontalTrackRect" Grid.Row="1" Grid.ColumnSpan="3"
+                           Fill="{TemplateBinding Background}" Height="4" RadiusX="2" RadiusY="2"/>
+                <Rectangle x:Name="HorizontalDecreaseRect" Grid.Row="1"
+                           Fill="{TemplateBinding Foreground}" Height="4" RadiusX="2" RadiusY="2"/>
+                <Thumb x:Name="HorizontalThumb" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                       Width="11" Height="20" Background="Transparent" AutomationProperties.AccessibilityView="Raw">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="#EAF0F3" CornerRadius="1" BorderBrush="#40000000" BorderThickness="1"/>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Grid>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Vertical (EQ bands / pre-amp): a wide-short square fader cap -->
+    <Style x:Key="AmpVSlider" TargetType="Slider">
+      <Setter Property="Background" Value="#33000000"/>
+      <Setter Property="Foreground" Value="#B0FFFFFF"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid x:Name="SliderContainer" Background="Transparent">
+              <Grid x:Name="VerticalTemplate" MinWidth="22">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="VerticalTrackRect" Grid.Column="1" Grid.RowSpan="3"
+                           Fill="{TemplateBinding Background}" Width="4" RadiusX="2" RadiusY="2"/>
+                <Rectangle x:Name="VerticalDecreaseRect" Grid.Column="1" Grid.Row="2"
+                           Fill="{TemplateBinding Foreground}" Width="4" RadiusX="2" RadiusY="2"/>
+                <Thumb x:Name="VerticalThumb" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                       Width="20" Height="11" Background="Transparent" AutomationProperties.AccessibilityView="Raw">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="#EAF0F3" CornerRadius="1" BorderBrush="#40000000" BorderThickness="1"/>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Grid>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- A small square toggle, used for shuffle, repeat and EQ on. It is a frosted glass chip. -->
+    <Style x:Key="AmpChip" TargetType="Button">
+      <Setter Property="Background" Value="#18FFFFFF"/>
+      <Setter Property="Foreground" Value="#8C97A0"/>
+      <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="3"/>
+      <Setter Property="Padding" Value="8,3"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <!-- The picture that every panel stands on. It is declared once and used by all four panels.
+
+         There is one brush, so the file is decoded once, however many panels are open. Each panel draws it at
+         the size of the whole casing, and slides it by its own offset (SyncGrounds). So what a panel shows
+         is its own part of one picture, and the picture continues across the gaps. The other option would
+         be four panels that each show the middle of the same photograph. -->
+    <ImageBrush x:Key="AmpGroundBrush" Stretch="UniformToFill"
+                ImageSource="ms-appx:///Assets/background-rpamp.jpg"/>
+
+    <!-- The window buttons. They are copied from the shell's own caption buttons (ShellPage's
+         WinCaptionButton), so
+         the player and the library window have the same pair. All chrome is removed. The disc and the glyph
+         inside it are the whole button. Otherwise the framework's own hover fill would show as a square
+         behind the round one. -->
+    <Style x:Key="AmpCaptionButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Width" Value="15"/>
+      <Setter Property="Height" Value="15"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- The panel's name, in the app's own header face (Thiamine RPM).
+
+         This is a plain TextBlock with a fixed size, and not a Viewbox. A Viewbox asks for the whole width
+         it is offered, and it draws its child in the middle of that width. So the word would sit in the
+         centre of the bar, whatever its alignment said. A TextBlock is as wide as its word, so Left means
+         left.
+
+         The size is worked out from the font. The line box is 0.485 em and the capitals are 0.143 em. So a
+         size of 64 gives a line 31 high, with capitals 9 high. The middle of the ink is within half a
+         percent of the middle of the line box. So plain vertical centring is enough, and no margin is
+         needed.
+
+         All four panels use one size, not one size per word. A word with a descender and a word without one
+         must share a baseline and a cap height. Sizing each word to its own ink would make "EQ" smaller
+         than "Playlist". -->
+    <Style x:Key="AmpWordmark" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource RpmHeaderFont}"/>
+      <Setter Property="FontSize" Value="64"/>
+      <Setter Property="Foreground" Value="#C4FFFFFF"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="TextWrapping" Value="NoWrap"/>
+      <Setter Property="IsHitTestVisible" Value="False"/>
+    </Style>
+
+    <!-- The ground under the library pane's four tables: the app's own table surface, a 20% black veil,
+         laid over the panel's picture. A translucent fill is allowed here, and only here. The panel under
+         it is opaque (its base fill, then the picture), so this veil has something of its own to darken. A
+         translucent fill in one of the gaps between the panels is what builds up. -->
+    <SolidColorBrush x:Key="AmpGridSurface" Color="#33000000"/>
+  </UserControl.Resources>
+
+  <!-- An invisible container for the width. The panels' own borders are the single edge of the window.
+       A Grid, not a StackPanel, so that every row is Auto. The window is sized to exactly that
+       (see RPaMpView.ApplySkinShape). -->
+  <!-- The width is not set here. The casing is as wide as what is open: the stack alone, or the stack and
+       the library beside it. The stack carries the fixed width of 440 (ApplySkinShape). -->
+  <Border x:Name="RootCasing" Background="Transparent" CornerRadius="0" Padding="0"
+          HorizontalAlignment="Left" VerticalAlignment="Top"
+          BorderThickness="0">
+    <!-- The rpm accent for the framework's accent-filled controls: the volume slider, the device picker and
+         the playlist. This window has its own resources, so it merges the dictionary itself. -->
+    <Border.Resources>
+      <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+          <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
+      </ResourceDictionary>
+    </Border.Resources>
+    <Grid x:Name="CasingLayout" ColumnSpacing="8">
+      <Grid.ColumnDefinitions>
+        <!-- The stack and the library beside it. Both columns are Auto, so the casing is exactly as wide as
+             what is shown. The window is measured from the casing (SkinWindow.Fit), so opening the library
+             widens the window instead of cropping it. -->
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+    <Grid x:Name="PanelStack" Grid.Column="0" RowSpacing="8">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition x:Name="PlaylistRow" Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- ══════════ MAIN PLAYER ══════════ -->
+      <Border x:Name="MainPanel" Grid.Row="0" Background="{StaticResource RpmInkBrush}" CornerRadius="5" BorderThickness="0">
+        <Grid>
+          <!-- The ground this panel stands on: this panel's part of the skin's one picture. Over it is the
+               pair that a dialog card uses: the 20% black veil of the grids, then the white glass sheen.
+               The gaps between the panels hold none of this, which keeps them showing the desktop.
+
+               A Canvas holds the picture. The picture is the size of the whole casing, and it slides by
+               this panel's offset within the casing (SyncGrounds). A Canvas is used because it reports no
+               size of its own. A rectangle that big anywhere else in the tree would make the panel that
+               big. The Border around it cuts the picture back to the panel, corners included.
+
+               The picture is background-rpamp.jpg: flowing bands of cyan light in deep blue, drawn by
+               scripts/make_rpamp_ground.py. It is not the shell's Pegasus backdrop, which is red. That
+               backdrop made this window look like a piece of the main app that had come loose. -->
+          <Canvas x:Name="MainGroundHost" IsHitTestVisible="False">
+            <Rectangle x:Name="MainGround" Fill="{StaticResource AmpGroundBrush}"/>
+          </Canvas>
+          <Border Background="#33000000" IsHitTestVisible="False"/>
+          <Border Background="#1AFFFFFF" IsHitTestVisible="False"/>
+        <StackPanel>
+          <!-- title bar -->
+          <Grid Background="{StaticResource TitleBarBrush}" Height="34" Padding="10,0"
+                x:Name="MainTitleBar">
+            <TextBlock Text="RPaMp" Style="{StaticResource AmpWordmark}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <!-- Sends the audio to a Google speaker. The post-EQ samples go out over the network, so the
+                   equaliser and the visualiser keep working while it plays in another room. -->
+              <!-- Google's cast icon, from Material Icons (Apache 2.0). It is the same pair that the deck
+                   uses. The outline shows while nothing is listening, and the filled screen shows while a
+                   speaker is in use.
+                   -->
+              <!-- Shows and hides the library beside the stack. -->
+              <Button x:Name="LibraryButton" Content="&#xf03a;" FontFamily="{StaticResource Fa}"
+                      FontSize="12" MinWidth="0" Width="24" Height="24" Padding="0" CornerRadius="3"
+                      Foreground="#9AA4AC" Background="Transparent" BorderThickness="0"
+                      ToolTipService.ToolTip="{loc:Str Key=Amp_Collection}"
+                      AutomationProperties.Name="{loc:Str Key=Amp_Collection}" Click="LibraryToggle_Click"/>
+              <Button x:Name="CastButton"
+                      MinWidth="0" Height="24" Padding="8,0" CornerRadius="3"
+                      Background="Transparent" BorderThickness="0"
+                      ToolTipService.ToolTip="{Binding CastTooltip}"
+                      AutomationProperties.Name="{Binding CastTooltip}">
+                <Grid Width="14" Height="14">
+                  <Path Data="M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"
+                        Fill="{Binding IsCasting, Converter={StaticResource CastBrush}}"
+                        Stretch="Uniform" Width="14" Height="14"
+                        Visibility="{Binding IsCasting, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+                  <Path Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                        Fill="{Binding IsCasting, Converter={StaticResource CastBrush}}"
+                        Stretch="Uniform" Width="14" Height="14"
+                        Visibility="{Binding IsCasting, Converter={StaticResource BoolToVisible}}"/>
+                </Grid>
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                </Button.Resources>
+                <Button.Flyout>
+                  <Flyout x:Name="CastFlyout" Opening="CastFlyout_Opening" Placement="Bottom">
+                    <Flyout.FlyoutPresenterStyle>
+                      <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                      </Style>
+                    </Flyout.FlyoutPresenterStyle>
+                    <local:CastFlyoutContent x:Name="CastContent"/>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+              <!-- There is no dock and no collapse. RPaMp is a view now, not a panel that lives in a rail.
+                   It is chosen from the deck's view menu. The close button leaves it and returns the app to
+                   the library. Keep on top: the skin is the only thing on screen in this view. The pin
+                   keeps it above whatever the user opens next to it. -->
+              <ToggleButton x:Name="PinButton" Content="&#xf08d;" FontFamily="{StaticResource Fa}" FontSize="11"
+                            MinWidth="0" Height="24" Padding="8,0" CornerRadius="3"
+                            Foreground="#9AA4AC" Background="Transparent" BorderThickness="0"
+                            Checked="Pin_Toggle" Unchecked="Pin_Toggle" ToolTipService.ToolTip="{loc:Str Key=Amp_KeepOnTop}"
+                            AutomationProperties.Name="{loc:Str Key=Amp_KeepOnTop}">
+                <ToggleButton.Resources>
+                  <SolidColorBrush x:Key="ToggleButtonBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#E6FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#CCFFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#E6FFFFFF"/>
+                </ToggleButton.Resources>
+              </ToggleButton>
+              <!-- The minimise and close buttons are the app's own window buttons (ShellPage's
+                   WinCaptionButton). Each is a
+                   frosted glass disc with a hairline ring. The glyph is invisible at rest and fades in
+                   under the pointer, the way the macOS window buttons show their symbols on hover. The
+                   library window uses the same pair, so the app has one kind of window button.
+
+                   The glyph is faded through the button's Tag, not through its Content. The Content is the
+                   disc and the glyph together. Fading the Content would fade the glass with it. -->
+              <Button x:Name="MinimizeButton" Style="{StaticResource AmpCaptionButton}"
+                      Click="Minimize_Click" Tag="{Binding ElementName=AmpMinGlyph}"
+                      PointerEntered="ChromeBtn_Enter" PointerExited="ChromeBtn_Exit"
+                      ToolTipService.ToolTip="{loc:Str Key=Window_Minimize}"
+                      AutomationProperties.Name="{loc:Str Key=Window_Minimize}">
+                <Grid Width="15" Height="15">
+                  <Ellipse Width="15" Height="15">
+                    <Ellipse.Fill>
+                      <ui:GlassBrush BlurAmount="14"/>
+                    </Ellipse.Fill>
+                  </Ellipse>
+                  <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+                  <Rectangle x:Name="AmpMinGlyph" Opacity="0" Width="7" Height="1.4" Fill="#EAF0F3"
+                             RadiusX="0.7" RadiusY="0.7"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+              <Button x:Name="CloseButton" Style="{StaticResource AmpCaptionButton}"
+                      Click="Close_Click" Tag="{Binding ElementName=AmpCloseGlyph}"
+                      PointerEntered="ChromeBtn_Enter" PointerExited="ChromeBtn_Exit"
+                      ToolTipService.ToolTip="{loc:Str Key=Window_Close}"
+                      AutomationProperties.Name="{loc:Str Key=Window_Close}">
+                <Grid Width="15" Height="15">
+                  <Ellipse Width="15" Height="15">
+                    <Ellipse.Fill>
+                      <ui:GlassBrush BlurAmount="14"/>
+                    </Ellipse.Fill>
+                  </Ellipse>
+                  <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+                  <Path x:Name="AmpCloseGlyph" Opacity="0" Data="M0,0 L7,7 M7,0 L0,7"
+                        Stroke="#EAF0F3" StrokeThickness="1.3"
+                        StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <!-- LCD -->
+          <Grid Margin="8,8,8,4" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- time + tech indicators -->
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <TextBlock Text="{Binding StateGlyph}" FontFamily="{StaticResource Fa}" FontSize="{Binding StateGlyphSize}"
+                           Foreground="#EAF0F3" VerticalAlignment="Center">
+                  <TextBlock.RenderTransform><TranslateTransform Y="-2"/></TextBlock.RenderTransform>
+                </TextBlock>
+                <TextBlock Text="{Binding TimeText}" FontFamily="{StaticResource Mono}" FontSize="22" FontWeight="SemiBold"
+                           Foreground="#EAF0F3" VerticalAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,2,0,0">
+                <TextBlock FontFamily="{StaticResource Mono}" FontSize="9" Foreground="#8C97A0">
+                  <Run Text="{Binding KbpsText}"/><Run Text=" kbps"/>
+                </TextBlock>
+                <TextBlock FontFamily="{StaticResource Mono}" FontSize="9" Foreground="#8C97A0">
+                  <Run Text="{Binding KhzText}"/><Run Text=" kHz"/>
+                </TextBlock>
+                <TextBlock Text="{Binding ChannelsText}" FontFamily="{StaticResource Mono}" FontSize="9" Foreground="#8C97A0"/>
+              </StackPanel>
+            </StackPanel>
+
+            <!-- visualiser -->
+            <!-- Click to change the mode: bars, oscilloscope, mirrored, or off. -->
+            <Border Grid.Column="1" Background="#40000000" CornerRadius="3" BorderBrush="#26FFFFFF"
+                    BorderThickness="1" Height="46" Tapped="Visualizer_Tapped"
+                    ToolTipService.ToolTip="{loc:Str Key=Amp_VisualizerTooltip}">
+              <Canvas x:Name="VisualizerCanvas" Background="Transparent"/>
+            </Border>
+          </Grid>
+
+          <!-- The scrolling ticker: a full-width dot-matrix LCD strip. It is a dark glass well, like the
+               visualiser inset, so the live blur shows through. The tag line is in icy Doto. It is inset 8
+               px, to line up with the LCD above and the scrubber below. The corner radius is 3 px, to match
+               the visualiser. The text is uppercased in code, because the font reads best in capitals. -->
+          <Border Background="#33000000" CornerRadius="3" Margin="8,4,8,2">
+            <Canvas x:Name="TickerCanvas" Height="17" SizeChanged="Ticker_SizeChanged">
+              <TextBlock x:Name="Ticker1" FontFamily="{StaticResource Doto}" FontSize="12" Foreground="#EAF0F3"/>
+              <TextBlock x:Name="Ticker2" FontFamily="{StaticResource Doto}" FontSize="12" Foreground="#EAF0F3"/>
+            </Canvas>
+          </Border>
+
+          <!-- position -->
+          <!-- Value is set from code (FollowPlayhead), not bound: the slider writes its own value when it is
+               pressed or clamped, and a one-way binding does not survive that. -->
+          <Slider x:Name="PositionSlider" Style="{StaticResource AmpHSlider}" Margin="8,0" Minimum="0" Maximum="{Binding Duration}"
+                  IsEnabled="{Binding ScrubberEnabled}" StepFrequency="1"/>
+
+          <!-- transport + volume -->
+          <Grid Margin="8,2,8,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <Button Style="{StaticResource AmpButton}" Content="&#xf048;" Command="{Binding PrevCommand}"
+                      IsEnabled="{Binding IsPreviousLive}" ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+              <Button Style="{StaticResource AmpButton}" Content="{Binding PlayPauseGlyph}"
+                      Foreground="{Binding IsPlaying, Converter={StaticResource PlayPauseBrush}}"
+                      Command="{Binding PlayPauseCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
+              <Button Style="{StaticResource AmpButton}" Content="&#xf04d;" Command="{Binding StopCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_Stop}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_Stop}"/>
+              <Button x:Name="NextButton" Style="{StaticResource AmpButton}" Content="&#xf051;"
+                      Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                      ToolTipService.ToolTip="{Binding NextToolTip}"
+                      AutomationProperties.Name="{Binding NextToolTip}"/>
+            </StackPanel>
+
+            <!-- volume -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="6,0">
+              <!-- The same three marks that the deck uses, for the same reason. This slider is the app's
+                   own gain on wired speakers. On a Bluetooth speaker it is that speaker's own volume, which
+                   is the computer's output volume. While casting, it is the room's knob. -->
+              <Grid Width="14" Height="14" VerticalAlignment="Center">
+                <TextBlock Text="&#xf027;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#8C97A0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding IsVolumeLocal, Converter={StaticResource BoolToVisible}}"/>
+                <TextBlock Text="&#xf294;" FontFamily="{StaticResource FaBrandFont}" FontSize="12" Foreground="#04C8FF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding IsVolumeOnBluetooth, Converter={StaticResource BoolToVisible}}"/>
+                <Path Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                      Fill="#04C8FF" Stretch="Uniform" Width="13" Height="13"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Visibility="{Binding IsVolumeOnCast, Converter={StaticResource BoolToVisible}}"/>
+              </Grid>
+              <Slider Style="{StaticResource AmpHSlider}" Width="76" Minimum="0" Maximum="100" Value="{Binding Volume, Mode=TwoWay}"
+                      StepFrequency="1" VerticalAlignment="Center"
+                      Foreground="{Binding IsVolumeLocal, Converter={StaticResource VolumeBrush}}"/>
+              <TextBlock Text="{Binding VolumeText}" FontFamily="{StaticResource Mono}" FontSize="10"
+                         Foreground="#8C97A0" VerticalAlignment="Center" Width="34"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <StackPanel.Resources>
+                <!-- Unchecked, at rest, on hover and when pressed. Frosted glass, the same as the REMOVE
+                     and CLEAR buttons. No blue. -->
+                <SolidColorBrush x:Key="ToggleButtonBackground" Color="#18FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#28FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#33FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonForeground" Color="#8C97A0"/>
+                <SolidColorBrush x:Key="ToggleButtonForegroundPointerOver" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonForegroundPressed" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="#33FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="#4DFFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="#4DFFFFFF"/>
+                <!-- Checked: a white fill with dark text. -->
+                <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#E6FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#CCFFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#12171C"/>
+                <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#12171C"/>
+                <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#12171C"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#E6FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#CCFFFFFF"/>
+              </StackPanel.Resources>
+              <ToggleButton Content="&#xf074;" FontFamily="{StaticResource Fa}" FontSize="12" Width="32" Height="30"
+                            Padding="0" CornerRadius="3" BorderThickness="1"
+                            IsChecked="{Binding Shuffle, Mode=TwoWay}" ToolTipService.ToolTip="{loc:Str Key=Transport_Shuffle}"
+                            AutomationProperties.Name="{loc:Str Key=Transport_Shuffle}"/>
+              <ToggleButton Content="&#xf01e;" FontFamily="{StaticResource Fa}" FontSize="12" Width="32" Height="30"
+                            Padding="0" CornerRadius="3" BorderThickness="1"
+                            IsChecked="{Binding Repeat, Mode=TwoWay}" ToolTipService.ToolTip="{loc:Str Key=Transport_Repeat}"
+                            AutomationProperties.Name="{loc:Str Key=Transport_Repeat}"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- ══════════ EQUALIZER ══════════ -->
+      <Border x:Name="EqPanel" Grid.Row="1" Background="{StaticResource RpmInkBrush}" CornerRadius="5" BorderThickness="0">
+        <Grid>
+          <!-- The ground this panel stands on: this panel's part of the skin's one picture. Over it is the
+               pair that a dialog card uses: the 20% black veil of the grids, then the white glass sheen.
+               The gaps between the panels hold none of this, which keeps them showing the desktop.
+
+               A Canvas holds the picture. The picture is the size of the whole casing, and it slides by
+               this panel's offset within the casing (SyncGrounds). A Canvas is used because it reports no
+               size of its own. A rectangle that big anywhere else in the tree would make the panel that
+               big. The Border around it cuts the picture back to the panel, corners included.
+
+               The picture is background-rpamp.jpg: flowing bands of cyan light in deep blue, drawn by
+               scripts/make_rpamp_ground.py. It is not the shell's Pegasus backdrop, which is red. That
+               backdrop made this window look like a piece of the main app that had come loose. -->
+          <Canvas x:Name="EqGroundHost" IsHitTestVisible="False">
+            <Rectangle x:Name="EqGround" Fill="{StaticResource AmpGroundBrush}"/>
+          </Canvas>
+          <Border Background="#33000000" IsHitTestVisible="False"/>
+          <Border Background="#1AFFFFFF" IsHitTestVisible="False"/>
+        <StackPanel>
+          <Grid x:Name="EqTitleBar" Background="{StaticResource TitleBarBrush}" Height="34" Padding="8,0">
+            <TextBlock Text="{loc:Str Key=Amp_Eq}" Style="{StaticResource AmpWordmark}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <ToggleButton Content="{loc:Str Key=Amp_EqOn}" FontSize="10" FontWeight="Bold" MinWidth="0"
+                            Height="22" MinHeight="0" Padding="10,0"
+                            CornerRadius="3" Foreground="#9AA4AC" Background="Transparent" BorderThickness="0"
+                            IsChecked="{Binding EqOn, Mode=TwoWay}">
+                <ToggleButton.Resources>
+                  <SolidColorBrush x:Key="ToggleButtonBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#E6FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#CCFFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#12171C"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#E6FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#FFFFFF"/>
+                  <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#CCFFFFFF"/>
+                </ToggleButton.Resources>
+              </ToggleButton>
+              <!-- MinHeight must be set to zero as well as Height. The stock ComboBox template has a 32 px
+                   minimum, which would otherwise win. -->
+              <ComboBox x:Name="PresetBox" Height="22" MinHeight="0" MinWidth="128" FontSize="11"
+                        PlaceholderText="{loc:Str Key=Amp_EqPresets}" Padding="8,0,0,0"
+                        VerticalContentAlignment="Center" Background="Transparent" Foreground="#EAF0F3" BorderBrush="#33FFFFFF"
+                        SelectionChanged="Preset_SelectionChanged">
+                <ComboBox.Resources>
+                  <SolidColorBrush x:Key="ComboBoxBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#18FFFFFF"/>
+                  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ComboBoxBackgroundUnfocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="Transparent"/>
+                </ComboBox.Resources>
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+
+          <Border Background="{StaticResource GridSurfaceBrush}" Margin="8" CornerRadius="3" BorderThickness="0" Padding="6,6">
+            <!-- 11 equal columns (pre-amp + 10 bands) spread evenly across the full width -->
+            <Grid>
+              <Grid.Resources>
+                <Style x:Key="EqCell" TargetType="StackPanel">
+                  <Setter Property="HorizontalAlignment" Value="Center"/>
+                </Style>
+                <Style x:Key="EqSlider" TargetType="Slider" BasedOn="{StaticResource AmpVSlider}">
+                  <Setter Property="Orientation" Value="Vertical"/>
+                  <Setter Property="Height" Value="96"/>
+                  <Setter Property="Minimum" Value="-12"/>
+                  <Setter Property="Maximum" Value="12"/>
+                  <Setter Property="StepFrequency" Value="1"/>
+                  <Setter Property="HorizontalAlignment" Value="Center"/>
+                </Style>
+                <Style x:Key="EqLabel" TargetType="TextBlock">
+                  <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
+                  <Setter Property="FontSize" Value="8"/>
+                  <Setter Property="Foreground" Value="#8C97A0"/>
+                  <Setter Property="HorizontalAlignment" Value="Center"/>
+                  <Setter Property="Margin" Value="0,2,0,0"/>
+                </Style>
+              </Grid.Resources>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Grid.Column="0" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Preamp, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{loc:Str Key=Settings_EqPre}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[0].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[0].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[1].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[1].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="3" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[2].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[2].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="4" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[3].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[3].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="5" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[4].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[4].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="6" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[5].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[5].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="7" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[6].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[6].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="8" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[7].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[7].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="9" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[8].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[8].Label}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="10" Style="{StaticResource EqCell}">
+                <Slider Style="{StaticResource EqSlider}" Value="{Binding Bands[9].Gain, Mode=TwoWay}"/>
+                <TextBlock Style="{StaticResource EqLabel}" Text="{Binding Bands[9].Label}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- ══════════ PLAYLIST ══════════ -->
+      <Border x:Name="PlaylistPanel" Grid.Row="2" Background="{StaticResource RpmInkBrush}" CornerRadius="5" BorderThickness="0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- title bar -->
+            <RowDefinition Height="*"/>      <!-- the list: takes whatever height the panel has -->
+            <RowDefinition Height="Auto"/>   <!-- toolbar -->
+          </Grid.RowDefinitions>
+          <!-- The ground this panel stands on: this panel's part of the skin's one picture. Over it is the
+               pair that a dialog card uses: the 20% black veil of the grids, then the white glass sheen.
+               The gaps between the panels hold none of this, which keeps them showing the desktop.
+
+               A Canvas holds the picture. The picture is the size of the whole casing, and it slides by
+               this panel's offset within the casing (SyncGrounds). A Canvas is used because it reports no
+               size of its own. A rectangle that big anywhere else in the tree would make the panel that
+               big. The Border around it cuts the picture back to the panel, corners included.
+
+               The picture is background-rpamp.jpg: flowing bands of cyan light in deep blue, drawn by
+               scripts/make_rpamp_ground.py. It is not the shell's Pegasus backdrop, which is red. That
+               backdrop made this window look like a piece of the main app that had come loose. -->
+          <Canvas x:Name="PlaylistGroundHost" Grid.RowSpan="3" IsHitTestVisible="False">
+            <Rectangle x:Name="PlaylistGround" Fill="{StaticResource AmpGroundBrush}"/>
+          </Canvas>
+          <Border Grid.RowSpan="3" Background="#33000000" IsHitTestVisible="False"/>
+          <Border Grid.RowSpan="3" Background="#1AFFFFFF" IsHitTestVisible="False"/>
+
+          <Grid Grid.Row="0" x:Name="PlaylistTitleBar" Background="{StaticResource TitleBarBrush}" Height="34" Padding="8,0">
+            <TextBlock Text="{loc:Str Key=Amp_Playlist}" Style="{StaticResource AmpWordmark}"/>
+            <TextBlock Text="{Binding TotalTimeText}" FontFamily="{StaticResource Mono}" FontSize="10"
+                       Foreground="#EAF0F3" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          </Grid>
+
+          <Border Grid.Row="1" Background="{StaticResource GridSurfaceBrush}" Margin="8,8,8,0" CornerRadius="3" BorderThickness="0">
+            <!-- The height is set from code: a fixed 188, because the window is sized to the skin.
+
+                 There is no ReorderMode, because Uno does not implement it. Reordering is driven by the
+                 pointer instead. CarriedReorder works over the rows. That is also why the hint above says
+                 drag to reorder, and not drop from library. There is no drag and drop here at all. Songs
+                 get in through the library pane's Add button. -->
+            <!-- ItemsSource and the selection are set in code (BuildDeckRows). The rows belong to the
+                 panel, one per place in the queue. A drag hands faces along them. The queue itself is not
+                 moved. See DeckRow. -->
+            <ListView x:Name="PlaylistList" Height="188" MinHeight="120" Background="Transparent" Padding="0,2"
+                      SelectionMode="Single"
+                      SelectionChanged="Playlist_SelectionChanged"
+                      DoubleTapped="Playlist_DoubleTapped">
+              <ListView.ItemContainerStyle>
+                <!-- The template is scoped to this list, so the playlist selection matches the library
+                     grid's cyan wash. Framework brush overrides do not take effect on Uno. The style is
+                     local to this ListView, so nothing leaks into the rest of the app. -->
+                <Style TargetType="ListViewItem">
+                  <Setter Property="MinHeight" Value="0"/>
+                  <Setter Property="Height" Value="24"/>
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="Margin" Value="0"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                  <Setter Property="Template">
+                    <Setter.Value>
+                      <ControlTemplate TargetType="ListViewItem">
+                        <!-- The grid template root fills the whole item. The fill behind the row is bound
+                             to the model (RowBackground), so it is full height at any window size.
+
+                             The row is drawn the way the data grid draws a row, and not as a pill. It is
+                             flush to the row above and below, square, and the full width. The selected row
+                             has a 3 px cyan bar down its left side. RpmGridPainter draws the same thing on
+                             a selected row, and this list is the same list with one column. -->
+                        <!-- The transform is set on the template root. So a carried row takes its selection
+                             pill and its accent bar with it. Those are drawn here, and not in the item
+                             template. The transform is bound to the row, not written onto the container. A
+                             list recycles its containers, and an offset left on one container would land on
+                             another track.
+
+                             Every path in this template goes through the container's Content, which is the
+                             row. A plain binding reads the container's own DataContext. On WinUI that is
+                             the list's model. The row is given to the container as Content, and a
+                             DataContext is set only on the presenter inside it. Uno sets one on the
+                             container as well. A path that does not resolve
+                             leaves the target at its default. Then
+                             the rows lose their fill, and every row shows the selected row's accent bar. -->
+                        <Grid RenderTransform="{Binding Content.Drop, RelativeSource={RelativeSource TemplatedParent}}">
+                          <Border Background="{Binding Content.RowBackground, RelativeSource={RelativeSource TemplatedParent}}"/>
+                          <Border x:Name="Hover" Background="Transparent"/>
+                          <Border Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                  Background="#04C8FF"
+                                  Visibility="{Binding Content.IsSelected, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVisible}}"/>
+                          <ContentPresenter HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"/>
+                          <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                              <VisualState x:Name="Normal"/>
+                              <VisualState x:Name="PointerOver">
+                                <VisualState.Setters><Setter Target="Hover.Background" Value="#0AFFFFFF"/></VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="Pressed">
+                                <VisualState.Setters><Setter Target="Hover.Background" Value="#14FFFFFF"/></VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="Selected"/>
+                              <VisualState x:Name="PointerOverSelected">
+                                <VisualState.Setters><Setter Target="Hover.Background" Value="#0C04C8FF"/></VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="PressedSelected">
+                                <VisualState.Setters><Setter Target="Hover.Background" Value="#1804C8FF"/></VisualState.Setters>
+                              </VisualState>
+                            </VisualStateGroup>
+                          </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                      </ControlTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </Style>
+              </ListView.ItemContainerStyle>
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="model:DeckRow">
+                  <Border Background="Transparent" Padding="11,0,8,0">
+                    <Grid ColumnSpacing="10">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="22"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding Index}" FontFamily="{StaticResource Mono}" FontSize="11"
+                                 Foreground="{Binding IsCurrent, Converter={StaticResource CurrentBrush}}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0.7"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Label, Converter={StaticResource Censor}}" FontFamily="{StaticResource Mono}" FontSize="11.5"
+                                 Foreground="{Binding IsCurrent, Converter={StaticResource CurrentBrush}}"
+                                 TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontFamily="{StaticResource Mono}" FontSize="11"
+                                 Foreground="{Binding IsCurrent, Converter={StaticResource CurrentBrush}}"
+                                 VerticalAlignment="Center" Opacity="0.85"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+          </Border>
+
+          <!-- playlist toolbar -->
+          <Grid Grid.Row="2" Margin="8,6,8,8" ColumnSpacing="6">
+            <Grid.Resources>
+              <!-- hover matches the shuffle/repeat toggles exactly (same bg / border / white text) -->
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#28FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#4DFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#4DFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF"/>
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Style="{StaticResource AmpChip}" Content="{loc:Str Key=Amp_Remove}"
+                    Command="{Binding RemoveSelectedCommand}" IsEnabled="{Binding HasSelection}"/>
+            <Button Grid.Column="1" Style="{StaticResource AmpChip}" Content="{loc:Str Key=Amp_Clear}"
+                    Command="{Binding ClearCommand}" IsEnabled="{Binding HasTracks}"/>
+            <!-- This sits in the star column and is trimmed. A translation that is longer than the English
+                 text would otherwise run past the window edge. Nothing narrows an Auto column. -->
+            <TextBlock Grid.Column="2" Grid.ColumnSpan="2" Margin="10,0,0,0" FontFamily="{StaticResource Mono}"
+                       FontSize="10" Foreground="#8C97A0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                       TextTrimming="CharacterEllipsis" Text="{loc:Str Key=Amp_PlaylistHint}"/>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+
+      <!-- ══════════ LIBRARY ══════════ The whole height of the casing, and twice its width. It is shown or
+           hidden from the button in the player's title bar. It has its own card, with the same glass as the
+           rest: an opaque ground, the picture, the veil and the sheen.
+
+           This is Winamp's media library, laid out the same way. The tree of lists is down the left. The
+           search box is across the top, with the artist and album panes under it. The songs they leave are
+           below. The totals are along the foot. The four tables use the app's own grid (RpmGrid). It is the
+           same grid that the library table and the import queue use. -->
+      <Border x:Name="LibraryPanel" Grid.Column="1" Width="880" Visibility="Collapsed"
+              Background="{StaticResource RpmInkBrush}" CornerRadius="5" BorderThickness="0">
+        <Grid>
+          <!-- The ground this panel stands on: this panel's part of the skin's one picture. Over it is the
+               pair that a dialog card uses: the 20% black veil of the grids, then the white glass sheen.
+               The gaps between the panels hold none of this, which keeps them showing the desktop.
+
+               A Canvas holds the picture. The picture is the size of the whole casing, and it slides by
+               this panel's offset within the casing (SyncGrounds). A Canvas is used because it reports no
+               size of its own. A rectangle that big anywhere else in the tree would make the panel that
+               big. The Border around it cuts the picture back to the panel, corners included.
+
+               The picture is background-rpamp.jpg: flowing bands of cyan light in deep blue, drawn by
+               scripts/make_rpamp_ground.py. It is not the shell's Pegasus backdrop, which is red. That
+               backdrop made this window look like a piece of the main app that had come loose. -->
+          <Canvas x:Name="LibraryGroundHost" IsHitTestVisible="False">
+            <Rectangle x:Name="LibraryGround" Fill="{StaticResource AmpGroundBrush}"/>
+          </Canvas>
+          <Border Background="#33000000" IsHitTestVisible="False"/>
+          <Border Background="#1AFFFFFF" IsHitTestVisible="False"/>
+
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>   <!-- title bar -->
+              <RowDefinition Height="*"/>      <!-- the pane itself -->
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" x:Name="LibraryTitleBar" Background="{StaticResource TitleBarBrush}"
+                  Height="34" Padding="8,0">
+              <TextBlock Text="{loc:Str Key=Amp_Collection}" Style="{StaticResource AmpWordmark}"/>
+              <StackPanel Orientation="Horizontal" Spacing="6"
+                          HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Which collection the pane is showing, and the way into another one. That is this
+                     machine's own collection, or a shelf shared by someone else. It is the same switch as
+                     the deck's share button, so the two always agree. -->
+                <Button x:Name="LibrarySwitchButton" Style="{StaticResource AmpChip}"
+                        FontWeight="Normal">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock x:Name="LibrarySwitchLabel" Text="{loc:Str Key=Share_MyLibrary}" FontSize="11"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="&#xf078;" FontFamily="{StaticResource Fa}" FontSize="8"
+                               VerticalAlignment="Center" Opacity="0.7"/>
+                  </StackPanel>
+                  <Button.Flyout>
+                    <!-- The deck's own library list. It opens downwards from a button in a title bar, and
+                         not upwards from one on the deck. The list itself is the same control
+                         (LibraryPicker), so the two
+                         cannot drift apart. -->
+                    <Flyout x:Name="LibrarySwitchFlyout" Placement="Bottom"
+                            Opening="LibrarySwitch_Opening">
+                      <Flyout.FlyoutPresenterStyle>
+                        <Style TargetType="FlyoutPresenter">
+                          <Setter Property="Padding" Value="0"/>
+                          <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                      </Flyout.FlyoutPresenterStyle>
+                      <StackPanel Width="320" RequestedTheme="Dark">
+                        <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
+                                Height="32" Padding="14,0"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="0,0,0,1">
+                          <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                            <TextBlock Text="&#xf5db;" FontFamily="{StaticResource Fa}" FontSize="11"
+                                       Foreground="#CCFFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Str Key=Share_Title}" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="#CCFFFFFF"
+                                       VerticalAlignment="Center"/>
+                          </StackPanel>
+                        </Border>
+                        <trans:LibraryPicker x:Name="LibraryPickerList" Look="Compact"
+                                             Margin="8,8,8,10"/>
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+                <!-- The player's own close button. It is not a second kind of button. It is the same
+                     frosted disc, with the glyph that fades in under the pointer (AmpCaptionButton). -->
+                <Button x:Name="LibraryCloseButton" Style="{StaticResource AmpCaptionButton}"
+                        Click="LibraryToggle_Click" Tag="{Binding ElementName=AmpLibCloseGlyph}"
+                        PointerEntered="ChromeBtn_Enter" PointerExited="ChromeBtn_Exit"
+                        ToolTipService.ToolTip="{loc:Str Key=Window_Close}"
+                        AutomationProperties.Name="{loc:Str Key=Window_Close}">
+                  <Grid Width="15" Height="15">
+                    <Ellipse Width="15" Height="15">
+                      <Ellipse.Fill>
+                        <ui:GlassBrush BlurAmount="14"/>
+                      </Ellipse.Fill>
+                    </Ellipse>
+                    <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+                    <Path x:Name="AmpLibCloseGlyph" Opacity="0" Data="M0,0 L7,7 M7,0 L0,7"
+                          Stroke="#EAF0F3" StrokeThickness="1.3"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="8" ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="168"/>   <!-- the tree of lists -->
+                <ColumnDefinition Width="*"/>     <!-- everything it opens -->
+              </Grid.ColumnDefinitions>
+
+              <Grid Grid.Column="0" RowSpacing="8">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>     <!-- the tree -->
+                  <RowDefinition Height="Auto"/>  <!-- the cover under it -->
+                </Grid.RowDefinitions>
+
+                <!-- The tree: Local Library and its lists, then the playlists. One column, no header. -->
+                <Border Background="{StaticResource AmpGridSurface}" CornerRadius="3"
+                        BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+                  <grids:RpmGrid x:Name="LibNavGrid" Background="{StaticResource AmpGridSurface}"/>
+                </Border>
+
+                <!-- The cover of the song picked in the list. It is square and as wide as the tree. When
+                     nothing is picked, the placeholder shows, and the card stays in place.
+
+                     A record with no artwork shows what it shows everywhere else in the app: a picture made
+                     from its own folder (SleeveFigureConverter), with the record mark on top. The square is
+                     the same size in both states, so a pane that shows a record without a cover does not
+                     look like a pane that failed to load one. -->
+                <Border x:Name="LibArtCard" Grid.Row="1" Height="168"
+                        Background="{StaticResource AmpGridSurface}" CornerRadius="3"
+                        BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+                  <Grid>
+                    <Border x:Name="LibArtFigure" CornerRadius="3" IsHitTestVisible="False"/>
+                    <Image x:Name="LibArt" Stretch="UniformToFill"/>
+                    <FontIcon x:Name="LibArtMark" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
+                              FontSize="40" Foreground="#4DFFFFFF" IsHitTestVisible="False"/>
+                  </Grid>
+                </Border>
+              </Grid>
+
+              <Grid Grid.Column="1" RowSpacing="8">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>   <!-- search -->
+                  <RowDefinition Height="176"/>    <!-- artist and album -->
+                  <RowDefinition Height="*"/>      <!-- the songs -->
+                  <RowDefinition Height="Auto"/>   <!-- what they add up to -->
+                </Grid.RowDefinitions>
+
+                <!-- Search across the top, as in Winamp. The box narrows the list that is open, and the
+                     panes under it too. -->
+                <Grid Grid.Row="0" ColumnSpacing="6">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Which columns the list shows. The same menu the library table's headers open. -->
+                  <Button Grid.Column="0" x:Name="LibColumnsButton" Style="{StaticResource AmpChip}"
+                          Content="&#xf0db;" FontFamily="{StaticResource Fa}" FontWeight="Normal"
+                          Width="26" Padding="0" ToolTipService.ToolTip="{loc:Str Key=Amp_Columns}"
+                          AutomationProperties.Name="{loc:Str Key=Amp_Columns}"
+                          Click="LibColumns_Click"/>
+
+                  <TextBlock Grid.Column="1" Text="{loc:Str Key=Amp_Search}" FontSize="11" Foreground="#8C97A0"
+                             VerticalAlignment="Center"/>
+
+                  <TextBox Grid.Column="2" x:Name="LibSearchBox" Height="24" Padding="8,2"
+                           FontSize="11" MinHeight="0" CornerRadius="3"
+                           Background="{StaticResource AmpGridSurface}" Foreground="#EAF0F3"
+                           BorderBrush="{StaticResource ListEdgeBrush}" BorderThickness="1"
+                           TextChanged="LibSearch_TextChanged"/>
+
+                  <Button Grid.Column="3" Style="{StaticResource AmpChip}" Content="{loc:Str Key=Amp_ClearSearch}"
+                          FontWeight="Normal" Click="LibClearSearch_Click"/>
+                </Grid>
+
+                <!-- The two name panes. The artist pane narrows the album pane beside it. Either pane
+                     narrows the songs below. -->
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <Border Grid.Column="0" Background="{StaticResource AmpGridSurface}" CornerRadius="3"
+                          BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+                    <grids:RpmGrid x:Name="LibArtistGrid" Background="{StaticResource AmpGridSurface}"/>
+                  </Border>
+                  <Border Grid.Column="1" Background="{StaticResource AmpGridSurface}" CornerRadius="3"
+                          BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+                    <grids:RpmGrid x:Name="LibAlbumGrid" Background="{StaticResource AmpGridSurface}"/>
+                  </Border>
+                </Grid>
+
+                <!-- The songs that the panes leave. Double-clicking one plays it, and the rest of the list
+                     becomes the queue behind it. -->
+                <Border Grid.Row="2" Background="{StaticResource AmpGridSurface}" CornerRadius="3"
+                        BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+                  <grids:RpmGrid x:Name="LibTrackGrid" Background="{StaticResource AmpGridSurface}"/>
+                </Border>
+
+                <!-- The foot: what to do with the list, and what it adds up to. -->
+                <Grid Grid.Row="3" ColumnSpacing="6">
+                  <Grid.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#28FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#4DFFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#4DFFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF"/>
+                  </Grid.Resources>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <Button Grid.Column="0" Style="{StaticResource AmpChip}" Content="{loc:Str Key=Amp_Play}"
+                          Click="LibPlay_Click"/>
+                  <Button Grid.Column="1" Style="{StaticResource AmpChip}" Content="{loc:Str Key=Amp_Add}"
+                          Click="LibAdd_Click"/>
+                  <TextBlock Grid.Column="2" Text="{Binding LibStatus}" FontFamily="{StaticResource Mono}"
+                             FontSize="10" Foreground="#8C97A0" HorizontalAlignment="Right"
+                             VerticalAlignment="Center"/>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

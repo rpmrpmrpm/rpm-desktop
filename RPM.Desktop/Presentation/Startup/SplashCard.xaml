@@ -1,0 +1,85 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Startup.SplashCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             RequestedTheme="Dark">
+
+  <!-- Transparent all the way down. The glass is the WINDOW's backdrop (see SplashWindow), and a
+       background painted here would cover it.
+
+       The edge is drawn here and not by the compositor. Windows draws a solid pale thin line round a
+       window. The card wants the same edge as the app's own cards (the home banner's): one pixel of
+       #2EFFFFFF. SplashWindow asks DWM to draw no line at all (WindowEdges.Round), so this is the only
+       one.
+
+       CornerRadius 8 is the radius that Windows 11 gives a window. It must match: the window is
+       clipped to that shape whatever this says, so a larger radius here has its corners cut off and a
+       smaller one leaves a sliver of glass outside the line. -->
+  <Border Background="Transparent" CornerRadius="8" BorderBrush="#2EFFFFFF" BorderThickness="1">
+    <Grid Background="Transparent">
+
+    <!-- The card's own glass, for a head that cannot use the system's.
+         It is collapsed by default: on Windows the glass is desktop acrylic behind the window, and
+         anything painted here would cover it. macOS shows it. See SplashWindow.Show on that head and
+         MacWindowCard, which explains why a see-through Skia surface is not possible.
+
+         What it imitates: the Windows card is DesktopAcrylicKind.Thin in dark theme. That is a light,
+         neutral, translucent pane with the desktop's own colour showing through. So the plate uses
+         neutral greys, fairly light, and no accent colour.
+
+         What it cannot do is show the desktop (see MacWindowCard). So it is a fixed pane where Windows
+         has a live one. The grey values below are the numbers to adjust if the two heads do not look
+         the same: lighter is closer to thin acrylic over a bright desktop, darker is closer to it over
+         a dark one. -->
+    <Grid x:Name="Plate" Visibility="Collapsed">
+      <Border CornerRadius="7">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FF3C4045" Offset="0"/>
+            <GradientStop Color="#FF2E3237" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+
+      <!-- The light along the top, which makes a flat fill look like a pane of glass. It is fairly
+           strong: a bright ground needs a bright highlight to look like the same pane, and thin
+           acrylic has a clear highlight at its top edge. -->
+      <Border CornerRadius="7">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2BFFFFFF" Offset="0"/>
+            <GradientStop Color="#00FFFFFF" Offset="0.55"/>
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+    </Grid>
+
+    <!-- The mark and the line under it are centred as ONE group, not separately. The tagline is
+         longer than the mark and extends to the right of it, so centring each one alone would put the
+         mark in the middle and the line off-centre. The group has no size of its own: the Grid
+         measures to the combined area of the two children, and that area is centred. -->
+    <Grid x:Name="MarkGroup" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+      <!-- Same geometry as the parked mark in the artwork header (ArtDisplay's RpmMark), at the size
+           it has there: 46.5 wide, zoomed by 2. It is solid white, not the header's 55%, because the
+           header sits on the app's own dark artwork and this sits on glass.
+
+           It is a vector Path and not the SVG asset, because an Image decodes asynchronously and this
+           window must be on screen while the app has nothing else to show. -->
+      <Path x:Name="Mark" Stretch="Uniform" Width="93" Height="35.8" Fill="#FFFFFFFF"
+            HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"
+            Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+
+      <!-- Placed in code (PlaceTagline), from the mark's own geometry: the d of "re-discover" stands
+           under the P's descender stem and the top of the line is the foot of that descender. The
+           parked header uses the same placement, so the line is attached to the letter and not to the
+           element's box.
+
+           Both parts are white, and brighter than in the parked header, because this sits on bright
+           glass and not on the app's dark artwork. The leading "re-" is only a little darker. -->
+      <TextBlock x:Name="Tagline" FontSize="11" LineHeight="14"
+                 LineStackingStrategy="BlockLineHeight" IsHitTestVisible="False"
+                 HorizontalAlignment="Left" VerticalAlignment="Top" MaxLines="1"><Run x:Name="TaglineHead" Foreground="#B3FFFFFF"/><Run x:Name="TaglineTail" Foreground="#FFFFFFFF"/></TextBlock>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

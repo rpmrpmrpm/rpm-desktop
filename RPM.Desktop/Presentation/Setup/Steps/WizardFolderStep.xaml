@@ -1,0 +1,130 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Setup.Steps.WizardFolderStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <!-- Step one: the central music folder.
+
+       The record on the left is the app saying what it is before it asks for anything. It has no label,
+       because there is no collection yet. Step two puts the count on it.
+
+       THE PICKER ROW CARRIES ITS OWN VALIDATION. The row's rim, its glyph and its second line are the
+       state, so there is one object to read. A coloured line under the button would be a second element
+       on the screen describing the first. -->
+
+  <Grid>
+
+    <!-- The greeting. The mark stays where it is for the rest of the app's life: top left of the
+         window, at the size and position that the artwork header parks it at once setup is done. So
+         nothing about it moves when the wizard ends. ArtDisplay draws it at 46.5 x 18 on a margin of
+         25,44. When the deck is idle it grows by RpmParkedScale to 93 x 36. These are those numbers.
+
+         The tagline is Art_ParkedTagline. It is the same words under the same mark, split the same way:
+         the leading "re-" a shade down, and only where the translation begins with it.
+
+         Below both is the one line that says what is about to happen. The logo and the tagline sit
+         where they do after onboarding, with the text below. -->
+    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="25,44,0,0" MaxWidth="470">
+      <Path Style="{StaticResource RpmWordmark}" Fill="#E8FFFFFF" Width="93" Height="36"
+            HorizontalAlignment="Left"/>
+
+      <!-- Nudged right, so the tagline's first letter stands under the descender of the mark's p.
+           ArtDisplay.PlaceTagline works this out properly. Here it is approximated, because that
+           calculation measures the head's own width in its own type. The wizard's mark never moves or
+           rescales, so the approximation holds. -->
+      <TextBlock x:Name="Tagline" FontSize="11" LineHeight="14" Margin="8,1,0,0">
+        <Run x:Name="TaglineHead" Foreground="#66FFFFFF"/><Run x:Name="TaglineTail" Foreground="#A6FFFFFF"/>
+      </TextBlock>
+
+    </StackPanel>
+
+
+  <!-- The pair is centred as a GROUP. Each half does not fill its share of the window. At a
+       proportional split the record floated in the left third, and the text began a third of the way
+       across a 1700 pt window. That reads as two things that happen to share a screen, not as one
+       composition.
+
+       The welcome text sits ABOVE that group, centred over it. Placed at the top of the window, it
+       would belong to nothing. It is the sentence addressed to the person, and what it introduces is
+       the record and the question beside it. NoWrap, because a greeting that breaks mid-clause reads as
+       a paragraph. -->
+  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+              Margin="52,44,52,96" Spacing="30" MaxWidth="1080">
+
+    <TextBlock Text="{loc:Str Key=Wizard_Welcome}" FontSize="14.5"
+               Foreground="#C4FFFFFF" TextWrapping="NoWrap" HorizontalAlignment="Center"/>
+
+    <Grid ColumnSpacing="54" HorizontalAlignment="Center">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto"/>
+      <ColumnDefinition Width="Auto"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- The record. WizardRecord sizes and presses it. RecordDisc arrives aligned to the right with no
+         vinyl on it. In the shell it hangs off the window edge, and ArtDisplay presses it. -->
+    <ctl:RecordDisc x:Name="Disc" Grid.Column="0" VerticalAlignment="Center"
+                    IsHitTestVisible="False"/>
+
+    <!-- The ask. -->
+    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="20" Width="560"
+                HorizontalAlignment="Left">
+
+      <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF"
+                 CharacterSpacing="220"/>
+
+      <TextBlock Text="{loc:Str Key=Wizard_FolderTitle}"
+                 FontFamily="{StaticResource RpmDisplayFontBold}"
+                 FontSize="38" LineHeight="42" Foreground="White" TextWrapping="Wrap"/>
+
+      <TextBlock Text="{loc:Str Key=Wizard_FolderBody}" FontSize="14" LineHeight="22"
+                 Foreground="#A3FFFFFF" TextWrapping="Wrap" MaxWidth="460"
+                 HorizontalAlignment="Left"/>
+
+      <!-- The picker, which is also the validation. -->
+      <Border x:Name="PickerRow" CornerRadius="12" Padding="16,14"
+              Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+        <Grid ColumnSpacing="14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <FontIcon x:Name="PickerGlyph" Grid.Column="0" Style="{StaticResource FaIcon}"
+                    Glyph="&#xF07C;" FontSize="18" Foreground="{StaticResource RpmCyanBrush}"
+                    VerticalAlignment="Center"/>
+
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+            <TextBlock x:Name="PathText" Text="{loc:Str Key=Wizard_NoFolderChosen}"
+                       FontSize="14" Foreground="White"
+                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            <TextBlock x:Name="StateText" FontSize="12" Foreground="#99FFFFFF"
+                       TextWrapping="Wrap" Visibility="Collapsed"/>
+          </StackPanel>
+
+          <ctl:RpmButton Grid.Column="2" x:Name="BrowseButton" Click="Browse_Click"
+                         Padding="18,0" VerticalAlignment="Center"
+                         Content="{loc:Str Key=Main_Browse}"/>
+        </Grid>
+      </Border>
+
+    </StackPanel>
+    </Grid>
+  </StackPanel>
+
+    <!-- Footer. It sits on the dots' own line, at the far end. The band's height is shared with the
+         host and the other steps, so all three feet land together. -->
+    <Grid Height="{StaticResource WizardFooterHeight}" VerticalAlignment="Bottom">
+      <ctl:RpmPrimaryButton x:Name="NextButton" Click="Next_Click" IsEnabled="False"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Margin="0,0,52,0" Padding="26,0">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="{loc:Str Key=Wizard_Next}" FontWeight="Bold" VerticalAlignment="Center"/>
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF054;" FontSize="12"
+                    VerticalAlignment="Center"/>
+        </StackPanel>
+      </ctl:RpmPrimaryButton>
+    </Grid>
+  </Grid>
+</UserControl>

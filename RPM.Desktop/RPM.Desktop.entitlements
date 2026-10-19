@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Entitlements for the direct download (Developer ID and the hardened runtime).
+    Kept to the minimum .NET needs: more permissive flags make Apple's notary
+    service analyse the app more deeply, and notarisation takes longer.
+
+    The .NET runtime cannot start without these two. The release signs the app
+    with the hardened runtime, and CoreCLR's JIT writes and runs generated code in
+    W^X pages, which the hardened runtime blocks unless these are granted. Without
+    them the kernel kills the process as soon as the JIT runs (the app never
+    opens; launchd reports error 163).
+
+    MacWebAuth's ObjC thunks depend on this too: the ASWebAuthenticationSession
+    completion block's invoke pointer comes from
+    Marshal.GetFunctionPointerForDelegate, which is JIT-generated code.
+  -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+
+  <!--
+    Vinyl recording opens the audio input (Services/Audio/OpenAlCapture.cs). Under the hardened
+    runtime that is refused without this entitlement, whatever the user answers. The usage string
+    that goes with it, NSMicrophoneUsageDescription, is written into Info.plist by the release.
+  -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+
+  <!--
+    Not in this file, on purpose: the keychain. The app's own signature also
+    carries com.apple.application-identifier, com.apple.developer.team-identifier
+    and keychain-access-groups (LBW775Z8JG.com.rpm.player), which is where the
+    sign-in session is kept. The release adds them to a copy of this file, next to
+    the embedded provisioning profile that authorises them, and signs the app with
+    that copy after the deep signing pass has signed the bundle with this one.
+    They cannot be in this file: the deep pass puts this file on every executable
+    in the bundle, and ffmpeg, fpcalc or UpdateMac carrying a restricted
+    entitlement without a profile of their own would be killed when they start.
+
+    Never put a double hyphen in these comments: Apple's entitlement parser (AMFI)
+    rejects the file, although plutil accepts it.
+  -->
+
+  <!--
+    Also not in this file, on purpose: com.apple.security.app-sandbox. This file is
+    for the direct download. A Mac App Store build needs its own sandboxed
+    entitlements, with com.apple.application-identifier and
+    com.apple.developer.team-identifier matching an embedded provisioning profile,
+    and com.apple.security.network.client. Without that last one the sandbox
+    blocks every socket and DNS lookup (getaddrinfo fails with "nodename nor
+    servname provided"), which an App Store reviewer sees at the sign-in screen.
+
+    ASWebAuthenticationSession needs no entitlement; the sign-in sheet works under
+    both identities.
+  -->
+</dict>
+</plist>

@@ -1,0 +1,117 @@
+<Application x:Class="RPM.Desktop.App"
+       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- Load WinUI resources -->
+        <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+        <!-- Load Uno.UI.Toolkit resources -->
+        <ToolkitResources xmlns="using:Uno.Toolkit.UI" />
+        <!-- Custom control default styles + rpm brand resources -->
+        <ResourceDictionary Source="ms-appx:///Themes/Generic.xaml" />
+        <!-- The message band's three voices, app-wide: the left pane's foot and the mass-edit
+             window's head use the same colours. -->
+        <ResourceDictionary Source="ms-appx:///Themes/MessageBand.xaml" />
+        <!-- The import workbench's own surfaces, keys and rails. -->
+        <ResourceDictionary Source="ms-appx:///Themes/Workbench.xaml" />
+        <!-- The cover-size slider, used by the library header and the playlists pane. App-wide
+             because two files use the same control. -->
+        <ResourceDictionary Source="ms-appx:///Themes/SizeSlider.xaml" />
+        <!-- The scroll bars, with the step arrows removed so the thumb can reach the top and the
+             bottom of the content. Listed last because this is a copy of the framework's own style
+             with changes, and it must win over the framework's version. -->
+        <ResourceDictionary Source="ms-appx:///Themes/ScrollBars.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <!-- Placeholder text, app-wide. These MUST be inside ThemeDictionaries. A flat resource loses to
+           the framework's own theme entry, and the placeholder then stays near-white. The colour is
+           the same dim ink as AppFormPalette (#40E6E6E6), used by every TextBox, ComboBox and
+           NumberBox. -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <SolidColorBrush x:Key="TextControlPlaceholderForeground"            Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused"     Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled"    Color="#28E6E6E6"/>
+          <SolidColorBrush x:Key="ComboBoxPlaceHolderForeground"               Color="#40E6E6E6"/>
+          <!-- The scrim behind every ContentDialog. On Uno the scrim is the popup's light-dismiss
+               overlay. It is looked up by THIS key on the popup root. The ContentDialogSmokeFill that
+               each dialog has only covers the in-place path, and never paints here. This dim is
+               lighter than the framework's default, so the artwork behind a dialog can still be seen
+               through it. -->
+          <SolidColorBrush x:Key="ContentDialogLightDismissOverlayBackground"  Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="TextControlPlaceholderForeground"            Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused"     Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled"    Color="#28E6E6E6"/>
+          <SolidColorBrush x:Key="ComboBoxPlaceHolderForeground"               Color="#40E6E6E6"/>
+          <SolidColorBrush x:Key="ContentDialogLightDismissOverlayBackground"  Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="TextControlPlaceholderForeground"            Color="#66000000"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#66000000"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused"     Color="#66000000"/>
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled"    Color="#40000000"/>
+          <SolidColorBrush x:Key="ComboBoxPlaceHolderForeground"               Color="#66000000"/>
+          <SolidColorBrush x:Key="ContentDialogLightDismissOverlayBackground"  Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- The look of a link inside a sentence. The only such link in the app is the artist's name
+           under a record's title (AlbumDetailView.PaintSubtitle). It must stay an INLINE element. A
+           name moved into its own control stops wrapping and centring with the rest of its line. So
+           this look cannot be set the way RpmLink sets its look. Uno's Hyperlink reads these three
+           keys by name (Documents/Hyperlink.SetCurrentForeground). It looks them up through
+           ResourceResolver.ResolveTopLevelResource, which only checks Application.Resources.
+
+           These keys must be FLAT. A ResourceDictionary checks its own values first, then its merged
+           dictionaries, and its ThemeDictionaries last. In the theme block above, these keys lost to
+           the hyperlink blue from XamlControlsResources, which is merged in before them. The two
+           rules are opposite because the two lookups work in opposite ways.
+
+           A link that sets no colour of its own is the app's cyan, like RpmLink. The artist's name sets
+           its own colour (the line's white), because a second colour under the title would read as a
+           second heading. It keeps that colour at rest and turns cyan under the pointer. The local value
+           wins the normal state, and these keys win the other two states. Pressed is the cyan dimmed,
+           as RpmLink does with opacity. -->
+      <SolidColorBrush x:Key="HyperlinkForeground"            Color="#04C8FF"/>
+      <SolidColorBrush x:Key="HyperlinkForegroundPointerOver" Color="#04C8FF"/>
+      <SolidColorBrush x:Key="HyperlinkForegroundPressed"     Color="#9904C8FF"/>
+
+      <!-- The accent, pinned to the app's cyan so it does not follow the Windows accent setting.
+
+           On the WinUI 3 head the framework reads SystemAccentColor and its six tonal variants from
+           the OS. generic.xaml builds every accent-derived brush from them: the text-selection
+           highlight (AccentFillColorSelectedTextBackgroundBrush, which TextControlSelectionHighlightColor
+           points to), the SystemControlHighlight*Brush family, the focus ring, and the list and
+           calendar selection colours. generic.xaml never defines these seven colours itself. So the
+           lookup skips it and finds Application.Resources, and the values here are used instead of the
+           system values. They stay in use after the user changes the accent colour in Settings.
+
+           These keys must be FLAT, for the opposite reason to the placeholder ink above. There is no
+           framework theme entry for these keys, so nothing overrides a top-level value, and no theme
+           block is needed.
+
+           All seven are the same cyan as RpmAccentControls.xaml. That file stays, and each screen still
+           merges it. It overrides the derived brushes by name, which the Uno Skia head needs. It also
+           sets the shades that this file cannot reach (disabled #026480, and the white radio dot).
+           Both files use #04C8FF. If one changes, change the other. -->
+      <Color x:Key="SystemAccentColor">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorLight1">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorLight2">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorLight3">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorDark1">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorDark2">#04C8FF</Color>
+      <Color x:Key="SystemAccentColorDark3">#04C8FF</Color>
+
+      <!-- Default background for frames and pages, shown before the shell loads -->
+      <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="#0e1520"/>
+    </ResourceDictionary>
+  </Application.Resources>
+
+</Application>

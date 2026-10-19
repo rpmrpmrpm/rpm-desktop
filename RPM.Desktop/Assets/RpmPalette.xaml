@@ -1,0 +1,109 @@
+<!--
+  RPM palette: the app's accent gradients.
+
+  Every colour is a real band tint. Each one comes from the album grid colour calculation
+  (CoverColor.Highlight, or Dominant if there is no highlight), applied to real album covers. The
+  BandBrush dim ramp is then applied (x0.62 at the top, x0.51 in the middle, x0.40 at the foot).
+  No colour here was picked by hand. The gradients are the ones the bands actually produce. They
+  were chosen for a varied set of hues (the best one per hue), with a light green and a dark green
+  added.
+
+  Each entry has two resources:
+    Rpm<Name>Color     the undimmed base tint. Code that needs a different dim level can use it.
+    Rpm<Name>Gradient  a ready 3-stop vertical gradient, as used on the bands.
+
+  The album each colour comes from is named in the comment above it. To use this file, merge it
+  into App.xaml or into a theme's MergedDictionaries.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ═══ WARM ═══ -->
+
+  <!-- Vermilion (from Now That's What I Call Music! 20) -->
+  <Color x:Key="RpmVermilionColor">#FFD2310E</Color>
+  <LinearGradientBrush x:Key="RpmVermilionGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF821E08"/>
+    <GradientStop Offset="0.5" Color="#FF6B1807"/>
+    <GradientStop Offset="1"   Color="#FF541305"/>
+  </LinearGradientBrush>
+
+  <!-- Rust (from Dark Side of the Moon) -->
+  <Color x:Key="RpmRustColor">#FFCC6E11</Color>
+  <LinearGradientBrush x:Key="RpmRustGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF7E440A"/>
+    <GradientStop Offset="0.5" Color="#FF683808"/>
+    <GradientStop Offset="1"   Color="#FF512C06"/>
+  </LinearGradientBrush>
+
+  <!-- Gold (from Now That's What I Call Music! 04) -->
+  <Color x:Key="RpmGoldColor">#FFEFAF12</Color>
+  <LinearGradientBrush x:Key="RpmGoldGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF946C0B"/>
+    <GradientStop Offset="0.5" Color="#FF795909"/>
+    <GradientStop Offset="1"   Color="#FF5F4607"/>
+  </LinearGradientBrush>
+
+  <!-- ═══ GREEN ═══ -->
+
+  <!-- Lime (light green), from the Weezer Green Album -->
+  <Color x:Key="RpmLimeColor">#FFADD038</Color>
+  <LinearGradientBrush x:Key="RpmLimeGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF6B8022"/>
+    <GradientStop Offset="0.5" Color="#FF586A1C"/>
+    <GradientStop Offset="1"   Color="#FF455316"/>
+  </LinearGradientBrush>
+
+  <!-- Forest (dark green), from Type O Negative's October Rust -->
+  <Color x:Key="RpmForestColor">#FF134C27</Color>
+  <LinearGradientBrush x:Key="RpmForestGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF0B2F18"/>
+    <GradientStop Offset="0.5" Color="#FF092613"/>
+    <GradientStop Offset="1"   Color="#FF071E0F"/>
+  </LinearGradientBrush>
+
+  <!-- ═══ COOL ═══ -->
+
+  <!-- Azure (from Melodrama) -->
+  <Color x:Key="RpmAzureColor">#FF0371D0</Color>
+  <LinearGradientBrush x:Key="RpmAzureGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF014680"/>
+    <GradientStop Offset="0.5" Color="#FF01396A"/>
+    <GradientStop Offset="1"   Color="#FF012D53"/>
+  </LinearGradientBrush>
+
+  <!-- Indigo (from Hotel California) -->
+  <Color x:Key="RpmIndigoColor">#FF4750AE</Color>
+  <LinearGradientBrush x:Key="RpmIndigoGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF2C316B"/>
+    <GradientStop Offset="0.5" Color="#FF242858"/>
+    <GradientStop Offset="1"   Color="#FF1C2045"/>
+  </LinearGradientBrush>
+
+  <!-- ═══ MAGENTA / RED ═══ -->
+
+  <!-- Magenta (from Graduation) -->
+  <Color x:Key="RpmMagentaColor">#FFAC528D</Color>
+  <LinearGradientBrush x:Key="RpmMagentaGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF6A3257"/>
+    <GradientStop Offset="0.5" Color="#FF572947"/>
+    <GradientStop Offset="1"   Color="#FF442038"/>
+  </LinearGradientBrush>
+
+  <!-- Crimson (from Channel Orange) -->
+  <Color x:Key="RpmCrimsonColor">#FFEA154E</Color>
+  <LinearGradientBrush x:Key="RpmCrimsonGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF910D30"/>
+    <GradientStop Offset="0.5" Color="#FF770A27"/>
+    <GradientStop Offset="1"   Color="#FF5D081F"/>
+  </LinearGradientBrush>
+
+  <!-- Red (from DAMN) -->
+  <Color x:Key="RpmRedColor">#FFEE0709</Color>
+  <LinearGradientBrush x:Key="RpmRedGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#FF930405"/>
+    <GradientStop Offset="0.5" Color="#FF790304"/>
+    <GradientStop Offset="1"   Color="#FF5F0203"/>
+  </LinearGradientBrush>
+
+</ResourceDictionary>

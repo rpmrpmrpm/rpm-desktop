@@ -1,0 +1,88 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.LeftPane.VizGalleryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+  </UserControl.Resources>
+
+  <!-- The Visualizations pane: a card for each visualizer, each one a still of it. Nothing renders
+       here. The launch button hands the id up, and the shell runs that visualizer over the whole
+       window. -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Margin="16,12,16,0">
+      <Grid Style="{StaticResource RpmPaneHeadingBox}">
+        <TextBlock Text="{loc:Str Key=Viz_GalleryTitle}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+      <!-- Empty on purpose. A gallery has no count to show, but the strip where the other panes
+           show their subtitle is kept here too. Without it, this pane's first card would start 17
+           points above the content of the other panes. -->
+      <TextBlock Style="{StaticResource RpmPaneSubheading}"/>
+    </StackPanel>
+
+    <!-- No top padding: the gallery starts on the line under the heading, the same as the first row
+         of the album wall. -->
+    <ScrollViewer Grid.Row="1" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto"
+                  Padding="16,0,16,20">
+      <!-- MinWidth is the card's own width, and it is needed. UniformGridLayout works out how many
+           cards fit on a line by dividing the width it is given, and then divides by that count.
+           At zero width the count is zero and the layout throws DivideByZeroException. The
+           exception is thrown in a layout pass on the dispatcher, where nothing catches it, so the
+           whole pass is abandoned and the window is left half-measured (the library squeezed into
+           a corner over a bare backdrop).
+           Zero width is not unusual: the left pane's open and close animation passes through it,
+           so every close ends there and every open starts there. The minimum keeps the division
+           valid. The gallery is measured one card wide while the pane is too narrow to show one,
+           and the pane clips it either way. -->
+      <ItemsRepeater x:Name="VizList" MinWidth="240">
+        <ItemsRepeater.Layout>
+          <UniformGridLayout MinItemWidth="240" MinColumnSpacing="14" MinRowSpacing="14"
+                             ItemsStretch="Fill"/>
+        </ItemsRepeater.Layout>
+        <ItemsRepeater.ItemTemplate>
+          <DataTemplate>
+            <!-- One visualizer: its still, its name, what it does, and the launch button. Rows, not
+                 a stack: the description takes the spare height (*), so the button lands on the
+                 card's foot whether the text runs to two lines or four, and every card's button
+                 lines up. -->
+            <Border Background="{StaticResource RpmCardPlateBrush}" BorderBrush="#22FFFFFF" BorderThickness="1"
+                    CornerRadius="10" VerticalAlignment="Stretch">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" CornerRadius="9,9,0,0" Background="#000000">
+                  <Image Source="{Binding Preview}" Stretch="UniformToFill" Height="132"/>
+                </Border>
+                <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                           Foreground="#F2FFFFFF" Margin="12,10,12,0"/>
+                <TextBlock Grid.Row="2" Text="{Binding Description}" FontSize="11.5"
+                           Foreground="#99FFFFFF" TextWrapping="Wrap" Margin="12,4,12,0"/>
+                <!-- Expand icon, not a play triangle: this does not start the music. It takes the
+                     visualizer full screen. -->
+                <Button Grid.Row="3" Tag="{Binding Id}" Click="VizLaunch_Click"
+                        HorizontalAlignment="Right" Margin="0,10,12,12"
+                        Style="{StaticResource GlassPrimaryButtonStyle}"
+                        Width="30" Height="26" MinHeight="26" MinWidth="0" Padding="0"
+                        ToolTipService.ToolTip="{loc:Str Key=Viz_Launch}"
+                        AutomationProperties.Name="{loc:Str Key=Viz_Launch}">
+                  <FontIcon Glyph="&#xf065;" FontFamily="{StaticResource Fa}" FontSize="11"/>
+                </Button>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsRepeater.ItemTemplate>
+      </ItemsRepeater>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

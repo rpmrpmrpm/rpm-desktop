@@ -1,0 +1,46 @@
+<Project Sdk="Uno.Sdk">
+
+  <!--
+    The desktop app's own tests.
+
+    Uno.Sdk rather than Microsoft.NET.Sdk, and net10.0-desktop rather than net10.0: those are not a
+    preference. RPM.Desktop is an Uno single project and offers only the net10.0-desktop framework, so a
+    plain SDK project cannot even name the target ("the target platform identifier desktop was not
+    recognized"), and one on net10.0 is refused the reference outright (NU1201). This is the one shape
+    that can see the app's own code.
+
+    What that buys is narrow on purpose. The tests here run in an ordinary headless test host with no
+    application, no window and no dispatcher — so anything that builds a XAML object or touches a
+    control belongs in the app, not in a test. What is tested here is the interface's REASONING:
+    formatting, field rules, menu contents, the sums a view does before it draws.
+
+    Logic that has no interface in it goes on living in RPM.Core, which is cheaper to test and does not
+    build a whole app to do it.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-desktop</TargetFramework>
+    <OutputType>Library</OutputType>
+    <UnoSingleProject>true</UnoSingleProject>
+    <IsPackable>false</IsPackable>
+    <!-- MacWindowCardTests hands the Objective-C runtime a method of its own (a function pointer). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="RPM.Fingerprint.Net" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RPM.Desktop\RPM.Desktop.csproj" />
+  </ItemGroup>
+
+</Project>

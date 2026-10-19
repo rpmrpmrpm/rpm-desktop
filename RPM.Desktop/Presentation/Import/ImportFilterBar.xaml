@@ -1,0 +1,67 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Import.ImportFilterBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+    <!-- The two lists, styled like the key chips. The system ComboBox draws a border and a rim at rest,
+         and lights them again on hover. Beside the flat chips that looks like a form field. These use the
+         same empty, wash and darker wash brushes as the keys, given to the standard template. -->
+    <StaticResource x:Key="ComboBoxBackground"                     ResourceKey="ToolKeyFaceBrush"/>
+    <StaticResource x:Key="ComboBoxBackgroundPointerOver"          ResourceKey="ToolKeyHoverBrush"/>
+    <StaticResource x:Key="ComboBoxBackgroundPressed"              ResourceKey="ToolKeyPressedBrush"/>
+    <StaticResource x:Key="ComboBoxBackgroundUnfocused"            ResourceKey="ToolKeyFaceBrush"/>
+    <StaticResource x:Key="ComboBoxBackgroundDisabled"             ResourceKey="ToolKeyFaceBrush"/>
+    <StaticResource x:Key="ComboBoxBorderBrush"                    ResourceKey="ToolKeyRimBrush"/>
+    <StaticResource x:Key="ComboBoxBorderBrushPointerOver"         ResourceKey="ToolKeyRimBrush"/>
+    <StaticResource x:Key="ComboBoxBorderBrushPressed"             ResourceKey="ToolKeyRimBrush"/>
+    <StaticResource x:Key="ComboBoxBorderBrushDisabled"            ResourceKey="ToolKeyRimBrush"/>
+    <StaticResource x:Key="ComboBoxForeground"                     ResourceKey="ToolKeyInkBrush"/>
+    <StaticResource x:Key="ComboBoxForegroundPointerOver"          ResourceKey="ToolKeyInkBrush"/>
+    <StaticResource x:Key="ComboBoxForegroundPressed"              ResourceKey="ToolKeyInkBrush"/>
+    <StaticResource x:Key="ComboBoxDropDownGlyphForeground"        ResourceKey="ToolKeyInkDimBrush"/>
+    <StaticResource x:Key="ComboBoxDropDownGlyphForegroundFocused" ResourceKey="ToolKeyInkBrush"/>
+    <StaticResource x:Key="ComboBoxDropDownGlyphForegroundFocusedPressed" ResourceKey="ToolKeyInkBrush"/>
+  </UserControl.Resources>
+
+  <!-- The filter strip: what the grid is narrowed to, as one line under the toolbar.
+
+       It is not always shown. The toolbar's filter key shows it and hides it. The pane opens without it,
+       with one row of controls and the grid.
+
+       A chip shows its own count, and that count is for the WHOLE queue. If a chip counted only the rows
+       that the other chips had not hidden, its count would drop to zero as soon as it was pressed. That
+       would look like a broken button, not a narrowed list. -->
+  <Grid Padding="12,5,12,5">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                  HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
+      <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+
+        <StackPanel x:Name="ChipRow" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <ToggleButton x:Name="ChipNotIdentified" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+          <ToggleButton x:Name="ChipDuplicates" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+          <ToggleButton x:Name="ChipUnreadable" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+          <ToggleButton x:Name="ChipSplit" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+          <ToggleButton x:Name="ChipNoData" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+          <ToggleButton x:Name="ChipTicked" Style="{StaticResource ToolToggleStyle}" Click="Chip_Click"/>
+
+          <!-- The two lists. Hidden when the queue holds one source or one kind. A list with a single entry
+               is a control that cannot do anything. -->
+          <Border x:Name="SourceHost" Style="{StaticResource ToolGroupDividerStyle}" Visibility="Collapsed"/>
+          <ComboBox x:Name="SourceBox" Style="{StaticResource ToolComboStyle}" MinWidth="112"
+                    Visibility="Collapsed" SelectionChanged="List_SelectionChanged"/>
+          <ComboBox x:Name="KindBox" Style="{StaticResource ToolComboStyle}" MinWidth="92"
+                    Visibility="Collapsed" SelectionChanged="List_SelectionChanged"/>
+        </StackPanel>
+
+        <!-- Only shown when there is something to clear. The label says what it clears. An X at the end
+             of a row of chips does not say what it will remove. -->
+        <Button x:Name="ClearButton" Style="{StaticResource ToolKeyStyle}" Visibility="Collapsed"
+                Foreground="{StaticResource ToolKeyInkDimBrush}"
+                Content="{loc:Str Key=Queue_ClearFilters}" Click="Clear_Click"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -1,0 +1,113 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Artists.ArtistWallView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:artists="using:RPM.Desktop.Presentation.Main.Artists"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- One artist: their photograph in grey, their own colour laid over it, and their name across
+         the middle. The whole box is one Button, so the whole box can be pressed. If only the name
+         could be pressed, the target would be the size of a word. -->
+    <DataTemplate x:Key="ArtistTemplate">
+      <Button Click="Tile_Click" Tag="{Binding}"
+              Width="{Binding Metrics.Width}" Height="{Binding Metrics.Height}"
+              Padding="0" MinWidth="0" MinHeight="0"
+              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+              Background="Transparent" BorderThickness="1" CornerRadius="10"
+              BorderBrush="#33FFFFFF">
+        <Button.Resources>
+          <!-- The box shows its edge under the pointer. It does not add a wash over itself. The wash is
+               already the artist's colour. A second wash would look like a different artist. -->
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AAFFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FFFFFFFF"/>
+        </Button.Resources>
+
+        <!-- The box's own base: the app's card plate, the same translucent layer that a visualizer's
+             card and a review in the groove use. It is what the box shows before the picture arrives.
+             Many artists never get a picture, so for them this is the final look. -->
+        <Border CornerRadius="9" Background="{StaticResource RpmCardPlateBrush}">
+          <Grid>
+            <!-- The ground: clear when there is nothing else, so the plate above shows. For an artist
+                 with no photograph, it is the colour of their first record, snapped to the palette. It
+                 sits under the photograph, not in its place, so a box has the same shape whether or
+                 not a picture arrives. -->
+            <Rectangle Fill="{Binding Ground}"/>
+
+            <!-- The photograph, in its own colours. UniformToFill, because backdrops arrive in the box's
+                 shape. A picture of another shape loses its margins, not its subject. -->
+            <Image Source="{Binding Picture}" Stretch="UniformToFill"
+                   Visibility="{Binding HasPicture, Converter={StaticResource BoolToVisible}}"/>
+
+            <!-- The colour layer: the picture's dominant tone, snapped to the palette. It fades from the
+                 top of the box to the bottom, not flat across it. See ArtistVeil. The brush sets the
+                 transparency, so the layer itself is at full strength. The colour at the top and at the
+                 bottom is set in one place. A single opacity cannot express that. -->
+            <Rectangle Fill="{Binding Wash}"/>
+
+            <!-- A flat dark layer under the name, so the text stands out from the picture. It is flat,
+                 not a gradient, because the name sits in the middle of the box. A bottom-up gradient
+                 would have nothing left to give there. A box that still shows only its plate gets none
+                 of this. See ArtistTile.Ink. -->
+            <Rectangle Fill="{Binding Ink}"/>
+
+            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                       MaxWidth="{Binding Metrics.NameRoom}"
+                       TextWrapping="Wrap" TextAlignment="Center" MaxLines="2"
+                       TextTrimming="CharacterEllipsis"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid>
+    <!-- Right padding is 26, not 14. The index rail sits in that strip. A box under the rail would
+         have a letter printed over its name. -->
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                  BringIntoViewOnFocusChange="False"
+                  Padding="14,0,26,20" SizeChanged="Scroller_SizeChanged"
+                  ViewChanged="Scroller_ViewChanged">
+      <!-- MinWidth must be a WHOLE TILE. UniformGridLayout counts how many tiles fit across the width,
+           then divides by that count. A width narrower than one tile gives zero tiles per line, and the
+           measure throws a DivideByZeroException. This is the floor for the first pass only. The tile
+           grows and shrinks with the wall. After that, Relayout sets this and MinItemWidth together.
+           They must be the same number, or neither is a floor. -->
+      <ItemsRepeater x:Name="Tiles" MinWidth="260" ItemTemplate="{StaticResource ArtistTemplate}">
+        <ItemsRepeater.Layout>
+          <UniformGridLayout x:Name="TileLayout" MinItemWidth="260" MinItemHeight="146"
+                             MinColumnSpacing="14" MinRowSpacing="14"/>
+        </ItemsRepeater.Layout>
+      </ItemsRepeater>
+    </ScrollViewer>
+
+    <!-- The index sits down the right edge and over the wall, not beside it. It moves the wall. It is
+         not a column of the page. A column of its own would make every box narrower by its width. -->
+    <artists:AlphabetRail x:Name="Rail" HorizontalAlignment="Right" Margin="0,0,2,0"/>
+
+    <!-- Empty state: there are no artists to show yet. -->
+    <StackPanel x:Name="EmptyHint" Spacing="14" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+      <FontIcon Glyph="&#xf130;" FontFamily="{StaticResource Fa}" FontSize="42" Foreground="#55FFFFFF"/>
+      <TextBlock Text="{loc:Str Key=Artists_Empty}" FontSize="13" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </StackPanel>
+
+    <!-- The other empty state has a different message. There ARE artists, but none match the search
+         text. The two are kept apart because the way out of each is different. One needs music
+         imported. The other needs the search field cleared. -->
+    <StackPanel x:Name="NoMatchHint" Spacing="14" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+      <FontIcon Glyph="&#xf002;" FontFamily="{StaticResource Fa}" FontSize="34" Foreground="#55FFFFFF"/>
+      <TextBlock Text="{loc:Str Key=Artists_NoMatch}" FontSize="13" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,191 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.MassEditDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- The standard sizing for data-entry forms: 24 px inputs, 12 pt text. It is set here, not
+             app-wide, so only the form windows are made smaller. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter modal scrim than the framework default. The dialog card is live glass, so
+               the artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter modal scrim than the framework default. The dialog card is live glass, so
+               the artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <ctl:ResizableDialogShell x:Name="Shell" Title="{loc:Str Key=MassEdit_Title}" TitleGlyph="&#xf044;"
+                            ScrollBody="False">
+
+    <!-- The caution band uses the app's warning style (Themes/MessageBand.xaml), the same one the
+         left pane shows. It sits in the shell's BANNER slot, so it spans the full width of the
+         card, directly under the header, and not inside the form as its first row. It is square.
+         Its only edge is the thin line along the foot that separates it from the form.
+
+         It is at the top, not the foot, because it must be read BEFORE the form is filled in. What
+         it says: this window edits whatever was selected, and it does not stop at a folder
+         boundary. That is what it is for. But a selection that reaches across several records sets
+         a ticked album field on all of them, and the form cannot show this. There is no dismiss
+         button. The condition is still true after the window closes, and a warning that the user
+         can close and then forget is worse than none.
+
+         The mark is a FontIcon with the app-wide FaIcon style, NOT a TextBlock with {StaticResource
+         Fa}. "Fa" is declared page by page (MainPage, RPaMpView, and a dozen others) and not app-
+         wide. Here it resolved to nothing, so the triangle drew as the missing-glyph box. -->
+    <ctl:ResizableDialogShell.Banner>
+      <Border x:Name="CautionBand" Visibility="Collapsed"
+              BorderThickness="0,0,0,1"
+              BorderBrush="{StaticResource BandWarningEdge}"
+              Background="{StaticResource BandWarningFill}"
+              Padding="24,10">
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <FontIcon Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xf071;" FontSize="12"
+                    Foreground="{StaticResource BandWarningMark}" VerticalAlignment="Center"/>
+          <TextBlock x:Name="CautionBandText" Grid.Column="1" FontSize="12"
+                     Foreground="{StaticResource BandWarningInk}"
+                     TextWrapping="Wrap" VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+    </ctl:ResizableDialogShell.Banner>
+
+    <!-- The shell scrolls its body. The fields are built in code into the tabs below. They are
+         grouped the same way, and under the same tab names, as the other two metadata editors (see
+         MetadataTabs), so a field is found in the same place whichever window the user came from. -->
+    <!-- Two rows: the tab strip, which is fixed, and the tab under it. The caution band, when
+         shown, is not in this region. It is the shell's Banner, above the whole region and edge to
+         edge. The shell's body scroller is off (ScrollBody), because it would scroll the strip away
+         with the fields. Each tab has its own scroller and takes the bar's lane as PADDING, so the
+         bar cannot cover the inputs at the right edge. This is the same layout as the per-file
+         editor. -->
+    <Grid RowSpacing="12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- The tab strip and the release lookup share one row, as in the per-file editor. The strip
+           is shared (see RailTabStrip). This window has the widest set of fields of the three. In
+           one long two-column scroll they would be hard to use. -->
+      <Grid Grid.Row="0" ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Border x:Name="TabStripHost" Grid.Column="0" HorizontalAlignment="Left"/>
+        <!-- The release lookup is an action for the whole window, not for the art tab. It fills
+             every ticked field from the pressing the user picks. The tooltip is on this host, not
+             on the button, because a disabled control does not take pointer input and its own
+             tooltip would never show. The host is Transparent, not unset. A null background is not
+             hit-testable, and the host has to take the pointer that the disabled button refuses. -->
+        <Grid x:Name="LookupHost" Grid.Column="1" Background="Transparent" VerticalAlignment="Top">
+          <Button x:Name="LookupButton" Click="LookUpRelease_Click"
+                  Style="{StaticResource DenseButtonStyle}" Padding="12,0" IsEnabled="False">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf002;" FontSize="11"/>
+              <TextBlock Text="{loc:Str Key=MassEdit_LookUpRelease}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Grid>
+
+      <ScrollViewer x:Name="PanelBasic" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled" Padding="0,0,14,0">
+        <Grid ColumnSpacing="{StaticResource DenseColumnSpacing}" VerticalAlignment="Top">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel x:Name="BasicLeft"  Grid.Column="0" Spacing="{StaticResource DenseGroupSpacing}"/>
+          <StackPanel x:Name="BasicRight" Grid.Column="1" Spacing="{StaticResource DenseGroupSpacing}"/>
+        </Grid>
+      </ScrollViewer>
+
+      <ScrollViewer x:Name="PanelCredits" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled" Padding="0,0,14,0" Visibility="Collapsed">
+        <Grid ColumnSpacing="{StaticResource DenseColumnSpacing}" VerticalAlignment="Top">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel x:Name="CreditsLeft"  Grid.Column="0" Spacing="{StaticResource DenseGroupSpacing}"/>
+          <StackPanel x:Name="CreditsRight" Grid.Column="1" Spacing="{StaticResource DenseGroupSpacing}"/>
+        </Grid>
+      </ScrollViewer>
+
+      <ScrollViewer x:Name="PanelWork" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled" Padding="0,0,14,0" Visibility="Collapsed">
+        <Grid ColumnSpacing="{StaticResource DenseColumnSpacing}" VerticalAlignment="Top">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel x:Name="WorkLeft"  Grid.Column="0" Spacing="{StaticResource DenseGroupSpacing}"/>
+          <StackPanel x:Name="WorkRight" Grid.Column="1" Spacing="{StaticResource DenseGroupSpacing}"/>
+        </Grid>
+      </ScrollViewer>
+
+      <!-- The cover and the disc's printed label. Each one is enabled by its own tick box. -->
+      <ScrollViewer x:Name="PanelArtwork" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled" Padding="0,0,14,0" Visibility="Collapsed">
+        <StackPanel x:Name="ArtworkHost" Orientation="Horizontal" Spacing="12"
+                    VerticalAlignment="Top"/>
+      </ScrollViewer>
+    </Grid>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Click="Cancel_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <ctl:RpmPrimaryButton x:Name="ApplyButton" Click="Apply_Click" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00c;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Review_MassApply}" FontWeight="Bold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

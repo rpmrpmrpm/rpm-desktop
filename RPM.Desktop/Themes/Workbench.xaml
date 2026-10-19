@@ -1,0 +1,260 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ══ The import workbench ══
+       A workbench is a surface for the work, not a page. The grid is the work, and the area around it
+       is the bench it sits on. The bench is DARKER than the work, so the rows are easy to see. This
+       reversal is the basis of the surface system here: chrome recedes, and the data stands out.
+
+       The CONTROLS on it are flat. A tool rail has many keys in a row. If each key had its own face
+       and rim, the row would look like a strip of chips on a shelf. Toolbars in tools that users
+       already know (Mp3tag, Picard, Explorer, Excel) draw nothing until the pointer is over a key.
+       So a key has no rest face and no rest rim. It gets a fill on hover, a darker fill on press, and
+       a rim only when it holds a state that is on. -->
+
+  <!-- The bench: the toolbar, the filter strip, the tag panel and the status bar. These are the parts
+       that run along the grid. They use the grid's own DARK row colour (GridSurfaceBrush), the ground
+       that the rows are banded over. The chrome and the work use one colour, so the
+       hairlines are what separate them. The brush is referenced, not copied. The two are the same
+       value, and a copy would drift the first time the grid's value is tuned.
+
+       The pane's heading and the grid's column headers are not on the bench. The heading is the pane's
+       title, and the column headers are the grid's own parts. -->
+  <StaticResource x:Key="BenchSurfaceBrush" ResourceKey="GridSurfaceBrush"/>
+
+  <!-- Every line drawn on the bench: band edges, group dividers and the rule under a kicker.
+       There is one value, so no line is a shade off from another. -->
+  <SolidColorBrush x:Key="BenchRuleBrush" Color="#1FFFFFFF"/>
+
+  <!-- ── the tool key ────────────────────────────────────────────────────────────────────────────
+       Flat. The face and the rim are the key's RESTING state, and both are nothing. A toolbar draws
+       itself with its labels and icons, and the buttons appear under the pointer. The two resources
+       are kept because the filter rail assigns them to each chip. That gives the unlit state its
+       colours. -->
+  <SolidColorBrush x:Key="ToolKeyFaceBrush"        Color="Transparent"/>
+  <SolidColorBrush x:Key="ToolKeyRimBrush"         Color="Transparent"/>
+  <!-- What the pointer paints, and what a press paints under it. -->
+  <SolidColorBrush x:Key="ToolKeyHoverBrush"       Color="#1FFFFFFF"/>
+  <SolidColorBrush x:Key="ToolKeyPressedBrush"     Color="#0FFFFFFF"/>
+  <SolidColorBrush x:Key="ToolKeyInkBrush"         Color="#E0FFFFFF"/>
+  <SolidColorBrush x:Key="ToolKeyInkDimBrush"      Color="#8AFFFFFF"/>
+
+  <!-- A chip pressed ON, in the filter strip. It is cyan, not azure. Azure marks SELECTION. Cyan
+       marks what is RUNNING or ACTIVE everywhere else in the app, and a filter is switched on in the
+       same way. This is the one place on the bench that draws a rim at rest, because an on state must
+       be visible without pointing at it. -->
+  <SolidColorBrush x:Key="ChipOnFaceBrush" Color="#2E04C8FF"/>
+  <SolidColorBrush x:Key="ChipOnRimBrush"  Color="#7004C8FF"/>
+  <SolidColorBrush x:Key="ChipOnInkBrush"  Color="#FFFFFFFF"/>
+
+  <!-- ── the marks the grid wears ─────────────────────────────────────────────────────────────────
+       The first two columns of the queue mark every row with one glyph. The same marks are what the
+       filter chips and the legend describe. They are named here, so a chip, its legend entry and the
+       row it filters all use one colour. The values belong to each row. They are chosen at the end of
+       ImportQueueNodes.cs. -->
+  <SolidColorBrush x:Key="QueueMarkMissingBrush"    Color="#04C8FF"/>
+  <SolidColorBrush x:Key="QueueMarkAlbumFileBrush"  Color="#63C9F0"/>
+  <SolidColorBrush x:Key="QueueMarkDatalessBrush"   Color="#B4D2E6"/>
+  <SolidColorBrush x:Key="QueueMarkOriginalBrush"   Color="#8C8FB0C8"/>
+  <SolidColorBrush x:Key="QueueMarkUnreadableBrush" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="QueueMarkDuplicateBrush"  Color="#8FB0C8"/>
+  <SolidColorBrush x:Key="QueueMarkTickBrush"       Color="#7FC4FF"/>
+
+  <!-- The count on a chip. It is shown quietly and is read second, after the word. -->
+  <SolidColorBrush x:Key="ChipCountInkBrush" Color="#8AFFFFFF"/>
+
+  <!-- ── the status bar ──────────────────────────────────────────────────────────────────────────
+       The foot of the pane states the queue as facts, as a file manager does: how many files, how big,
+       how long, and how many still need a person to act. -->
+  <SolidColorBrush x:Key="StatusInkBrush"       Color="#A8FFFFFF"/>
+  <SolidColorBrush x:Key="StatusStrongInkBrush" Color="#E0FFFFFF"/>
+  <SolidColorBrush x:Key="StatusWarnInkBrush"   Color="#F0B454"/>
+
+  <!-- ── type ─────────────────────────────────────────────────────────────────────────────────────
+       All of it uses the system UI font. The display font is for the pane headings and the record
+       sleeves. A toolbar set in the display font would look like branding on top of a tool. -->
+
+  <!-- What a band is. It uses sentence case at reading size, not spaced capitals. Small caps above a
+       row of buttons look like a magazine layout, and this is a workbench. -->
+  <Style x:Key="BenchKickerStyle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="#A8FFFFFF"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="ToolKeyLabelStyle" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+  </Style>
+
+  <!-- ── the keys themselves ───────────────────────────────────────────────────────────────────────
+       28 px high, the height of a toolbar button in the rest of the app. MinWidth is 0, so an icon-only
+       key is a square and not a button with space on each side.
+
+       The template is written out in full, not inherited. The stock button gets its hover and press
+       colours from theme brushes. Here both colours belong to the bench, and the resting state draws
+       nothing. -->
+  <ControlTemplate x:Key="ToolKeyTemplate" TargetType="Button">
+    <Grid x:Name="Root" Background="{TemplateBinding Background}"
+          BorderBrush="{TemplateBinding BorderBrush}"
+          BorderThickness="{TemplateBinding BorderThickness}"
+          CornerRadius="{TemplateBinding CornerRadius}">
+      <Grid x:Name="Wash" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"
+            Background="{StaticResource ToolKeyHoverBrush}"/>
+      <ContentPresenter x:Name="Presenter"
+                        Content="{TemplateBinding Content}"
+                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                        Padding="{TemplateBinding Padding}"
+                        Foreground="{TemplateBinding Foreground}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="CommonStates">
+          <VisualState x:Name="Normal"/>
+          <VisualState x:Name="PointerOver">
+            <VisualState.Setters>
+              <Setter Target="Wash.Opacity" Value="1"/>
+            </VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Pressed">
+            <VisualState.Setters>
+              <Setter Target="Wash.Opacity" Value="1"/>
+              <Setter Target="Wash.Background" Value="{StaticResource ToolKeyPressedBrush}"/>
+            </VisualState.Setters>
+          </VisualState>
+          <!-- A tool that cannot act fades instead of turning grey. The bench is translucent, and a grey
+               over live glass is a different colour on every album. -->
+          <VisualState x:Name="Disabled">
+            <VisualState.Setters>
+              <Setter Target="Presenter.Opacity" Value="0.35"/>
+            </VisualState.Setters>
+          </VisualState>
+        </VisualStateGroup>
+      </VisualStateManager.VisualStateGroups>
+    </Grid>
+  </ControlTemplate>
+
+  <Style x:Key="ToolKeyStyle" TargetType="Button">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Padding" Value="9,0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{StaticResource ToolKeyRimBrush}"/>
+    <Setter Property="Background" Value="{StaticResource ToolKeyFaceBrush}"/>
+    <Setter Property="Foreground" Value="{StaticResource ToolKeyInkBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="UseSystemFocusVisuals" Value="True"/>
+    <Setter Property="Template" Value="{StaticResource ToolKeyTemplate}"/>
+  </Style>
+
+  <!-- The same key, but it holds a state instead of performing an action. The rail that owns it
+       writes its face and rim (lit or unlit). The template only adds the pointer's own wash on top. -->
+  <Style x:Key="ToolToggleStyle" TargetType="ToggleButton">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Padding" Value="9,0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{StaticResource ToolKeyRimBrush}"/>
+    <Setter Property="Background" Value="{StaticResource ToolKeyFaceBrush}"/>
+    <Setter Property="Foreground" Value="{StaticResource ToolKeyInkBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="UseSystemFocusVisuals" Value="True"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToggleButton">
+          <Grid x:Name="Root" Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+            <Grid x:Name="Wash" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"
+                  Background="{StaticResource ToolKeyHoverBrush}"/>
+            <ContentPresenter x:Name="Presenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Padding="{TemplateBinding Padding}"
+                              Foreground="{TemplateBinding Foreground}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters>
+                    <Setter Target="Wash.Opacity" Value="1"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters>
+                    <Setter Target="Wash.Opacity" Value="1"/>
+                    <Setter Target="Wash.Background" Value="{StaticResource ToolKeyPressedBrush}"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled">
+                  <VisualState.Setters>
+                    <Setter Target="Presenter.Opacity" Value="0.35"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <!-- Checked uses the same three. The rail writes the lit face onto Background, so a
+                     checked key hovers and presses the same way as an unchecked one. -->
+                <VisualState x:Name="Checked"/>
+                <VisualState x:Name="CheckedPointerOver">
+                  <VisualState.Setters>
+                    <Setter Target="Wash.Opacity" Value="1"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="CheckedPressed">
+                  <VisualState.Setters>
+                    <Setter Target="Wash.Opacity" Value="1"/>
+                    <Setter Target="Wash.Background" Value="{StaticResource ToolKeyPressedBrush}"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="CheckedDisabled">
+                  <VisualState.Setters>
+                    <Setter Target="Presenter.Opacity" Value="0.35"/>
+                  </VisualState.Setters>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A list on the filter strip. It is the system ComboBox, cut down to the key's height and drawn
+       with no face at rest. The strip is a row of chips. A stock dropdown is 32 px high with a face at
+       rest, and it would look like a form field. The states reach the template through the theme
+       brushes that the strip overrides. -->
+  <Style x:Key="ToolComboStyle" TargetType="ComboBox">
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Padding" Value="9,0,0,0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <!-- The hairline between two groups of keys. Short, so it separates without ruling the band. -->
+  <Style x:Key="ToolGroupDividerStyle" TargetType="Border">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Height" Value="18"/>
+    <Setter Property="Margin" Value="5,0"/>
+    <Setter Property="Background" Value="{StaticResource BenchRuleBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- The search field on the toolbar. It is a well, not a key, because it is typed into and not
+       pressed. A box that takes typing has to look recessed next to buttons that look like nothing. -->
+  <SolidColorBrush x:Key="ToolFieldFaceBrush" Color="#38000000"/>
+  <SolidColorBrush x:Key="ToolFieldRimBrush"  Color="#24FFFFFF"/>
+
+</ResourceDictionary>

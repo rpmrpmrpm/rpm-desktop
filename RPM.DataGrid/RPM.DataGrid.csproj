@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The grid RPM's two tables are drawn with. Everything except the XAML surface that hosts it: the
+    column and row arithmetic, the selection, the scroll model, the tree, and the SkiaSharp painter
+    that turns all of it into pixels.
+
+    A library and not a folder inside RPM.Desktop, for one reason: RPM.Desktop is an Uno single
+    project whose tests run in a host with no application and no dispatcher, so nothing there can
+    raster anything. Here the painter is ordinary code against an SKSurface, which means a test can
+    draw a row and read the pixels back. That is how the text is proved.
+
+    No Microsoft.UI, no XAML, no Uno. Adding any of those to this project takes the painter out of
+    reach of its tests.
+
+    Not in RPM.Core: RPM.Lambda.Transcode references that, and a Lambda package has no business
+    carrying Skia's native libraries.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RPM.DataGrid.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <!-- Shaping. Every run is shaped rather than only the ones that look like they need it: a
+         library holds titles in every script anybody has ever released a record in, and the
+         result is cached per string, so the cost is paid once for a string that is drawn on
+         every frame of a scroll. -->
+    <PackageReference Include="SkiaSharp.HarfBuzz" />
+  </ItemGroup>
+
+</Project>

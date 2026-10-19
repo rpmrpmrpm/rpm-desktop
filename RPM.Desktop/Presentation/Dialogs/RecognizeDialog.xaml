@@ -1,0 +1,307 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.RecognizeDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:dlg="using:RPM.Desktop.Presentation.Dialogs"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        <!-- Sizes for data entry: 24 px inputs, 12 pt text. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter scrim than the framework default. The dialog card is translucent, so the
+               artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- One line per track, with a compact row height, so that about fifteen tracks fit on screen. A
+           run acts on this list, so it should show as many tracks as possible. -->
+      <Style x:Key="RecogRowStyle" TargetType="ListViewItem">
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="12,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      </Style>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <ctl:ResizableDialogShell x:Name="Shell" Title="{loc:Str Key=Recognize_Title}" TitleGlyph="&#xf5f0;">
+
+    <!-- ══ The footnotes ══ What the advanced layer did, and a plain sentence on what it is for. The
+         footnote is pinned below the list, not in the scrolling body, so it stays visible when the list
+         is long. -->
+    <ctl:ResizableDialogShell.Footnote>
+      <StackPanel Spacing="8" Margin="0,12,0,0">
+        <TextBlock x:Name="AdvancedNoteText" FontSize="11.5"
+                   Foreground="#77FFFFFF" TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <!-- Shown only when the account is known not to support rpm. Supporters never see it. Neither
+             do users whose standing the server could not confirm. -->
+        <Border x:Name="SupportPitch" Visibility="Collapsed" CornerRadius="6" Padding="12,8"
+                Background="#14FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+          <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <FontIcon Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xf004;" FontSize="11"
+                      Foreground="{StaticResource RpmCyanBrush}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{loc:Str Key=Recognize_SupportPitch}" FontSize="11.5"
+                       Foreground="#CCFFFFFF" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Click="Support_Click" Style="{StaticResource DenseButtonStyle}">
+              <TextBlock Text="{loc:Str Key=Cloud_BecomeSupporter}" FontSize="11.5"
+                         VerticalAlignment="Center"/>
+            </Button>
+          </Grid>
+        </Border>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footnote>
+
+    <!-- Which layer this account's run will use. It is a plain statement in the quietest place on the
+         window. Supporting rpm is what turns the advanced layer on. -->
+    <ctl:ResizableDialogShell.FooterLeading>
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <FontIcon x:Name="ReachIcon" Style="{StaticResource FaIcon}" Glyph="&#xf5f0;" FontSize="11"
+                  Foreground="{StaticResource DenseLabelInkBrush}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="SupportText" FontSize="11.5"
+                   Foreground="{StaticResource DenseLabelInkBrush}" VerticalAlignment="Center"/>
+      </StackPanel>
+    </ctl:ResizableDialogShell.FooterLeading>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <!-- Shown only on the report, and only when several tracks were looked up. It corrects a whole
+             batch's album or year in one window. -->
+        <Button x:Name="EditAllButton" Click="EditAll_Click" Visibility="Collapsed"
+                Style="{StaticResource GlassButtonStyle}" Padding="14,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf304;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock x:Name="EditAllButtonText" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="CloseButton" Click="Close_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=RecogResult_Close}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <!-- The icon matches the label: a fingerprint while the button starts a run, and a cross while
+             it stops the run that is going. -->
+        <ctl:RpmPrimaryButton x:Name="StartButton" Click="Start_Click" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon x:Name="StartButtonIcon" Style="{StaticResource FaIcon}" Glyph="&#xf577;"
+                      FontSize="11" Foreground="#F5FFFFFF" VerticalAlignment="Center"/>
+            <TextBlock x:Name="StartButtonText" Text="{loc:Str Key=Recognize_Start}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+
+    <Grid RowSpacing="8">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- what is about to happen, or how far it has got -->
+        <RowDefinition Height="*"/>      <!-- the files, then what came back for each -->
+      </Grid.RowDefinitions>
+
+      <!-- ══ The line at the top ══ The same slot is used in both phases. Before the run it says what
+           will be looked up. During and after the run it says how far the run got. -->
+      <Grid Grid.Row="0">
+        <StackPanel x:Name="ChooseHead" Spacing="4">
+          <TextBlock x:Name="IntroText" FontSize="11.5"
+                     Foreground="{StaticResource DenseLabelInkBrush}" TextWrapping="Wrap"/>
+          <!-- Only one run can happen at a time. A second run would get rows that the first run is
+               still writing to. The text explains why the button is off, rather than hiding it. -->
+          <TextBlock x:Name="BusyText" FontSize="11.5"
+                     Foreground="#FFD466" TextWrapping="Wrap" Visibility="Collapsed"/>
+        </StackPanel>
+
+        <StackPanel x:Name="RunHead" Spacing="6" Visibility="Collapsed">
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" x:Name="RunHeadline" Style="{StaticResource DenseGroupHeaderStyle}"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" x:Name="WorkingText" FontSize="11.5"
+                       Foreground="{StaticResource DenseLabelInkBrush}"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+          </Grid>
+          <ProgressBar x:Name="WorkingBar" Minimum="0" Maximum="1" Height="3"/>
+          <TextBlock x:Name="FatalText" FontSize="11.5" Foreground="#FFD466"
+                     TextWrapping="Wrap" Visibility="Collapsed"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- ══ The list ══ One card with two contents. Before the run it shows the files. After the run
+           it shows the same files with their answers, so the report grows from the list the user
+           already sees. -->
+      <Border Grid.Row="1" Style="{StaticResource ContentBorderStyle}" Padding="0">
+        <Grid>
+          <!-- Choose step: what will be looked up, what each file is called now, and the status of
+               each file. -->
+          <Grid x:Name="ChooseStep">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="{StaticResource DenseRuleBrush}" BorderThickness="0,0,0,1"
+                    Padding="12,8,12,5">
+              <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.4*"/>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="92"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{loc:Str Key=Tags_ColFile}"
+                           Style="{StaticResource DenseGroupHeaderStyle}"/>
+                <TextBlock Grid.Column="1" Text="{loc:Str Key=TagsFromTags_ColNow}"
+                           Style="{StaticResource DenseGroupHeaderStyle}"/>
+                <TextBlock Grid.Column="2" Text="{loc:Str Key=Recognize_ColStatus}"
+                           Style="{StaticResource DenseGroupHeaderStyle}" HorizontalAlignment="Right"/>
+              </Grid>
+            </Border>
+
+            <ListView Grid.Row="1" x:Name="TargetList" SelectionMode="None" Background="Transparent"
+                      Padding="0,4,0,8" ItemContainerStyle="{StaticResource RecogRowStyle}">
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="dlg:RecognizeTargetRow">
+                  <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="1.6*"/>
+                      <ColumnDefinition Width="92"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{x:Bind FileName}" FontSize="11.5"
+                               Foreground="#D9FFFFFF" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind CurrentName}" FontSize="11.5"
+                               Foreground="#77FFFFFF" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind StateNote}" FontSize="11.5"
+                               Foreground="{x:Bind StateBrush}" HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis"/>
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+          </Grid>
+
+          <!-- Run step: the same files in the same order, with the result for each, and a way to
+               correct a wrong result. -->
+          <Grid x:Name="RunStep" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="{StaticResource DenseRuleBrush}" BorderThickness="0,0,0,1"
+                    Padding="12,8,12,5">
+              <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="16"/>
+                  <ColumnDefinition Width="1.2*"/>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="96"/>
+                  <ColumnDefinition Width="58"/>
+                  <ColumnDefinition Width="30"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="1" Text="{loc:Str Key=Tags_ColFile}"
+                           Style="{StaticResource DenseGroupHeaderStyle}"/>
+                <TextBlock Grid.Column="2" Text="{loc:Str Key=Recognize_ColResult}"
+                           Style="{StaticResource DenseGroupHeaderStyle}"/>
+                <TextBlock Grid.Column="3" Text="{loc:Str Key=Recognize_ColSource}"
+                           Style="{StaticResource DenseGroupHeaderStyle}" HorizontalAlignment="Right"/>
+              </Grid>
+            </Border>
+
+            <ListView Grid.Row="1" x:Name="ResultList" SelectionMode="None" Background="Transparent"
+                      Padding="0,4,0,8" ItemContainerStyle="{StaticResource RecogRowStyle}">
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="dlg:RecognitionRow">
+                  <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="16"/>
+                      <ColumnDefinition Width="1.2*"/>
+                      <ColumnDefinition Width="1.6*"/>
+                      <ColumnDefinition Width="96"/>
+                      <ColumnDefinition Width="58"/>
+                      <ColumnDefinition Width="30"/>
+                    </Grid.ColumnDefinitions>
+
+                    <FontIcon Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph, Mode=OneWay}"
+                              FontSize="11" Foreground="{x:Bind GlyphBrush, Mode=OneWay}"
+                              VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Column="1" Text="{x:Bind Detail, Mode=OneWay}" FontSize="11.5"
+                               Foreground="#77FFFFFF" TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Column="2" Text="{x:Bind Result, Mode=OneWay}" FontSize="11.5"
+                               Foreground="#D9FFFFFF" TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+
+                    <!-- Which layer answered, and how sure it was. -->
+                    <TextBlock Grid.Column="3" Text="{x:Bind SourceNote, Mode=OneWay}" FontSize="11.5"
+                               Foreground="#88FFFFFF" HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="4" Text="{x:Bind ScoreNote, Mode=OneWay}" FontSize="11.5"
+                               Foreground="#66FFFFFF" HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+
+                    <!-- A wrong answer is corrected here, in the same track editor the rest of the app
+                         uses. -->
+                    <Button Grid.Column="5" Click="EditRow_Click"
+                            Style="{StaticResource DenseButtonStyle}" Padding="8,0"
+                            Height="20" MinHeight="20" VerticalAlignment="Center"
+                            IsEnabled="{x:Bind CanEdit, Mode=OneWay}"
+                            ToolTipService.ToolTip="{loc:Str Key=Recognize_EditTip}"
+                            AutomationProperties.Name="{loc:Str Key=Recognize_EditTip}">
+                      <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf304;" FontSize="10"/>
+                    </Button>
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+          </Grid>
+        </Grid>
+      </Border>
+
+    </Grid>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

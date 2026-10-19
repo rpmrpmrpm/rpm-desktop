@@ -1,0 +1,46 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Shell.ShellGround"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False">
+
+  <!-- The base layer of the window. It shows one thing at a time: the app's own backdrop, a record's
+       colours, or an artist's photo. The backdrop is one of the things this layer can show. It is not
+       a layer under the others.
+
+       A page's colours laid on top of the backdrop would be a sheet over a photo. Any gap between two
+       sheets, such as the short time between leaving one record and the next one being drawn, would
+       show the photo. This layer has no such gap. It keeps whatever was shown last, the backdrop
+       included, until something replaces it.
+
+       There are two faces. The arriving face is drawn over the one it replaces, not swapped with it. It
+       is painted on the idle face, raised, and faded in. The outgoing face stays at full strength
+       underneath for the whole fade. Fading the two faces past each other would let the window's own
+       fill show through the middle of a move.
+
+       Each face has three layers, in the order a page builds them (see PageBackdrop.Ground): the colour,
+       the picture (blurred, with its exposure held back inside the layer), and a black veil over both. The app's backdrop is the same stack
+       with only the picture in it, at full strength. -->
+  <Grid>
+    <Grid x:Name="FaceA" Opacity="0">
+      <Rectangle x:Name="ColourA"/>
+      <Border x:Name="WashA" Opacity="0">
+        <Border.Background>
+          <ImageBrush x:Name="WashArtA" Stretch="UniformToFill"/>
+        </Border.Background>
+        <Border x:Name="VeilA" Background="#FF000000" Opacity="0"/>
+      </Border>
+      <Rectangle x:Name="WeightA"/>
+    </Grid>
+
+    <Grid x:Name="FaceB" Opacity="0">
+      <Rectangle x:Name="ColourB"/>
+      <Border x:Name="WashB" Opacity="0">
+        <Border.Background>
+          <ImageBrush x:Name="WashArtB" Stretch="UniformToFill"/>
+        </Border.Background>
+        <Border x:Name="VeilB" Background="#FF000000" Opacity="0"/>
+      </Border>
+      <Rectangle x:Name="WeightB"/>
+    </Grid>
+  </Grid>
+</UserControl>

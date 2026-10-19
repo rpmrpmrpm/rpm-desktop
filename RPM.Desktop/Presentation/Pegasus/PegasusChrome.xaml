@@ -1,0 +1,2335 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Pegasus.PegasusChrome"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:local="using:RPM.Desktop.Presentation.Pegasus"
+             xmlns:pane="using:RPM.Desktop.Presentation.Main.LeftPane.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="PegasusFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- The same pair of glyphs that the album views use for their heart: the mark is FILLED when the
+         song is loved and hollow when it is not. It is written as two weights of one glyph, not as two
+         colours, so this key says the same thing here as it does on a track line in the library. -->
+    <FontFamily x:Key="PegasusFaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+
+    <!-- The app's smoked glass in a light version: the card that the main window's panes are made of
+         (DmCardBrush, a fifth of black, under the rim of DmCardBorderBrush, lit at the top and the
+         bottom) with the smoke turned white. The fill is lighter than the dark card's black is dark,
+         because white over a light room hides the words sooner than black over a dark room. The rim is
+         brighter than the dark card's rim, because a white rim on white glass is what shows the edge.
+         Used by the mini player's card and its pill of keys. -->
+    <SolidColorBrush x:Key="LightSmokeBrush" Color="#26FFFFFF"/>
+    <LinearGradientBrush x:Key="LightSmokeRimBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Offset="0" Color="#59FFFFFF"/>
+      <GradientStop Offset="0.5" Color="#26FFFFFF"/>
+      <GradientStop Offset="1" Color="#66FFFFFF"/>
+    </LinearGradientBrush>
+
+    <!-- Glyphs and nothing else. The deck's own transport is dressed in the same way (see TransportDeck):
+         no disc and no edge, only the key. On a picture that changes colour every second, a dark circle
+         looks like a hole in the room, and three of them look like a control panel fixed on top. The box
+         stays 36 points square so that the hit target is comfortable. Only the paint is removed. -->
+    <Style x:Key="PegasusTransportButton" TargetType="Button">
+      <Setter Property="Width" Value="36"/>
+      <Setter Property="Height" Value="36"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="18"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="#E6FFFFFF"/>
+      <Setter Property="FontFamily" Value="{StaticResource PegasusFa}"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- One of the menu's buttons on home (see LibraryMenu): a box of the light glass with a white rim
+         and its name in the middle. Its size, corner and type are set in SizeLibraryMenu, at the
+         collection's scale. -->
+    <Style x:Key="PegasusMenuButton" TargetType="Button">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="#14FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#B3FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Foreground" Value="#FFFFFFFF"/>
+      <Setter Property="AllowFocusOnInteraction" Value="False"/>
+    </Style>
+
+    <!-- One entry in the side menu on home (see LibraryMenu): an icon and a name on the glass, with no
+         box of their own until the pointer is over them or the remote has the focus on them (see
+         LightOnKeys in the side menu code). Height, padding, corner and type are set in SizeSideMenu. -->
+    <Style x:Key="PegasusSideButton" TargetType="Button">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="#FFFFFFFF"/>
+      <Setter Property="AllowFocusOnInteraction" Value="False"/>
+    </Style>
+
+    <!-- A button that draws nothing of its own, only what is put in it. It turns a tile or a line that
+         answered only the pointer into something that the remote can reach and press with OK (Click fires
+         on Enter as well as on a press). It has no hover or pressed states and no system focus rectangle:
+         the content keeps its own look, and the focus is drawn by the host's ring (see
+         PegasusPlayer.FocusRing). The view is made for use with a TV remote control. -->
+    <Style x:Key="PegasusPlainButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+      <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <ContentPresenter Background="{TemplateBinding Background}"
+                              CornerRadius="{TemplateBinding CornerRadius}"
+                              Padding="{TemplateBinding Padding}"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- One station in the tuner's list, and one in the results of radio's search: controls that build
+         their own parts and read the station they are given when the repeater realizes them (see
+         PegasusStationRow and PegasusStationTile). They are keyed here so that each repeater keeps one
+         pool, for the reason PegasusCardTemplate gives below. -->
+    <DataTemplate x:Key="RadioRowTemplate">
+      <local:PegasusStationRow/>
+    </DataTemplate>
+    <DataTemplate x:Key="RadioTileTemplate">
+      <local:PegasusStationTile Style="{StaticResource PegasusPlainButton}"/>
+    </DataTemplate>
+
+    <!-- One album on the wall.
+
+         It is a keyed resource here, not written inline inside the row, and this placement is what keeps a
+         fast scroll smooth. A repeater pools its elements per DataTemplate INSTANCE. A template declared
+         inside the row's own template is a new instance for every row that the outer repeater creates:
+         eight separate pools, none of which ever has an element to reuse. One template is one pool, shared
+         by every row, so a row that scrolls in takes eight tiles that already exist and gives them another
+         album. The library window's wall keeps its card template in the same place for the same reason. -->
+    <!-- In a plain button (see PegasusPlainButton), so that a remote can move to it and OK opens it. The
+         mouse opens it with the same Click. A Grid that handled PointerReleased could only be reached
+         with a pointer. -->
+    <!-- Padding 8: the space that every card carries so that the remote's grow effect is not cut off at
+         the edge of its row (see CardRoomAround). The rows, and the covers in a row, are spaced 6 instead
+         of 22, and the wall's inset is 8 less (LayOutLibraryTop), so every cover is at the same place as
+         without the padding. -->
+    <DataTemplate x:Key="PegasusCardTemplate">
+      <Button Style="{StaticResource PegasusPlainButton}" Click="LibraryCard_Click" CornerRadius="8"
+              Padding="8" VerticalAlignment="Top">
+      <Grid Width="{Binding Metrics.Edge}" Background="Transparent">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- The cover in a frame, like every other cover in the app: an album with no picture shows a
+             quiet square, not a hole in the wall. -->
+        <!-- Two layers, because of the swap between them. A tile shows a small picture as soon as it
+             exists and a large one a moment later. Writing the second over the first in one assignment is
+             a visible pop: the jump in sharpness looks like a flicker on every tile, all the way down a
+             scroll. So the sharp picture is its own layer over the resident one, starting at opacity 0
+             and fading in. The result is one cover that becomes sharp, not two pictures that change
+             places. -->
+        <Border Grid.Row="0" Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}"
+                CornerRadius="6" Background="#22FFFFFF">
+          <Grid>
+            <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+            <Image Source="{Binding Sharp}" Stretch="UniformToFill" Opacity="0"
+                   DataContextChanged="LibrarySharp_DataContextChanged"/>
+          </Grid>
+        </Border>
+
+        <!-- Both lines keep their height whether or not they have text. This is a layout rule, not a
+             typographic one. A TextBlock with no text measures to NOTHING, so an album with no artist
+             line would make a card fifteen points shorter than its neighbours, and a row is as tall as
+             the tallest card in it. Rows of different heights are the one case that a virtualizing
+             StackLayout cannot handle correctly: it places the rows it has not realized from an estimate
+             taken from the rows it has, so every row with a different height corrects the estimate and
+             moves everything below it. That correction makes the wall jump by one line while the user
+             scrolls. Fixed lines make the estimate exact, so there is nothing to correct. -->
+        <StackPanel Grid.Row="1" Margin="0,7,0,0" Spacing="7">
+          <!-- Written in the same way as home's album cards write the same two lines (HomeCardTemplate),
+               so an album looks the same on the wall as in home's rows: the name in SemiBold with its E
+               right after it, the pair centred under the cover, 7 between the cover and the name and 7
+               between the name and the artist. Every size here comes from the wall's metrics, which use
+               home's sizes on the mini player's figure (see PegasusTileMetrics). -->
+          <Grid MinHeight="{Binding Metrics.TitleBox}">
+            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+              <TextBlock Text="{Binding Name}" FontSize="{Binding Metrics.Title}" FontWeight="SemiBold"
+                         Foreground="#F2FFFFFF" MaxWidth="{Binding Metrics.TitleRoom}"
+                         VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+              <ctl:ExplicitBadge Width="{Binding Metrics.Badge}" Height="{Binding Metrics.Badge}"
+                                 VerticalAlignment="Center"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Text="{Binding Under}" FontSize="{Binding Metrics.Line}" Foreground="#99FFFFFF"
+                     MinHeight="{Binding Metrics.LineBox}" TextAlignment="Center"
+                     TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+      </Grid>
+      </Button>
+    </DataTemplate>
+
+    <!-- One artist on the artists screen (see PegasusChrome.Artists): the photograph in a circle, the
+         artist's first letter under it until the photograph arrives, and the name and the number of
+         albums under the circle. It is a keyed resource for the reason PegasusCardTemplate gives: one
+         template, one pool. Both lines keep their height whether or not they have text, so every row has
+         the same height. -->
+    <DataTemplate x:Key="PegasusArtistTemplate">
+      <!-- Padding 8: the space that every card carries so that the remote's grow effect is not cut off at
+           the edge of its row (see CardRoomAround). The rows are spaced 6 instead of 22, and the wall's
+           host inset is 8 less. -->
+      <!-- Shown in the way the tvOS app shows an artist (FocusLift): the photograph zooms and the lines
+           move down, with no glow. The corner is square because the presenter clips to a rounded corner,
+           which would cut the zoom. The photograph is in a holder with space for the zoom, and is moved
+           back into place. -->
+      <Button Style="{StaticResource PegasusPlainButton}" Click="ArtistCard_Click" CornerRadius="0"
+              Padding="8" VerticalAlignment="Top" local:FocusLift.Part="Card">
+        <Grid Width="{Binding Metrics.Edge}" Background="Transparent">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <Grid Grid.Row="0" Margin="{Binding Metrics.HolderMargin}">
+            <Border Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}" Margin="{Binding Metrics.PhotoMargin}"
+                    CornerRadius="{Binding Metrics.Round}" Background="#22FFFFFF"
+                    local:FocusLift.Part="Photo">
+              <Grid>
+                <TextBlock Text="{Binding Letter}" FontSize="{Binding Metrics.InitialSize}" FontWeight="SemiBold"
+                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Glyph}" FontSize="{Binding Metrics.InitialSize}"
+                           FontFamily="{StaticResource PegasusFa}"
+                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Image Source="{Binding Picture}" Stretch="UniformToFill"/>
+              </Grid>
+            </Border>
+          </Grid>
+          <StackPanel Grid.Row="1" Margin="0,9,0,0" Spacing="5" local:FocusLift.Part="Below">
+            <TextBlock Text="{Binding Name}" FontSize="{Binding Metrics.Title}" FontWeight="SemiBold"
+                       Foreground="#F2FFFFFF" MinHeight="{Binding Metrics.TitleBox}" TextAlignment="Center"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Line}" FontSize="{Binding Metrics.Line}" Foreground="#99FFFFFF"
+                       MinHeight="{Binding Metrics.LineBox}" TextAlignment="Center"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </Grid>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- Pegasus's own chrome: the record half out of its sleeve in the middle of the screen, and what is
+       playing written down the left of it.
+
+       This is XAML over the GL stage, not geometry inside it. The advantage that matters more than
+       consistency is that the record here is the app's OWN RecordDisc: the same pressing in the same
+       colour, and the same photographed disc art when the album has one. So the record that turns full
+       screen is the same record that turns in the header, not a second drawing of it.
+
+       Unlike the foot chrome, this does NOT hide when the pointer is quiet: it is not chrome over the
+       visualizer, it IS the visualizer. Only the pin and close buttons fade. -->
+  <Grid x:Name="Root" SizeChanged="Root_SizeChanged" Background="Transparent">
+
+    <!-- Everything that is the PICTURE, in one container, so that one transform can push all of it aside
+         when the queue drawer opens. The drawer itself is outside this container and does not move with
+         it. This is the only reason for the grouping.
+
+         It uses a RenderTransform, never a margin: the value is written on every frame of the slide, and
+         a margin would cause a layout pass through the tree sixty times a second, in front of the shader.
+         The GL stage is not in here (it belongs to the host, one level up), so the same figure is passed
+         out (see ShiftChanged) and the host slides the room by exactly the distance that this composition
+         moved. -->
+    <Grid x:Name="Composition">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="CompositionShift"/>
+      </Grid.RenderTransform>
+
+    <!-- A soft dark band down the left edge. The stage already does most of this itself: it dims that
+         side of the room instead of laying grey over it, which keeps the colour. This band is only a
+         safeguard against a bright figure or a loud bar passing under the words. It is wide and very
+         soft, because anything harder looks like a panel. -->
+    <Rectangle x:Name="WordScrim" HorizontalAlignment="Left" IsHitTestVisible="False">
+      <Rectangle.Fill>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Offset="0.0" Color="#40000000"/>
+          <GradientStop Offset="0.55" Color="#1F000000"/>
+          <GradientStop Offset="1.0" Color="#00000000"/>
+        </LinearGradientBrush>
+      </Rectangle.Fill>
+    </Rectangle>
+
+    <!-- ═══ the centrepiece ═══ the record behind, the cover over it. It is sized in code (Relayout) from
+         the SHARED fractions that the stage uses for the start of its spectrum, so the bars always come
+         out from behind this disc and never from the middle of it. -->
+    <Grid x:Name="Centre" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <!-- Slid left when the lyric is beside the record (PegasusView.LyricsBeside), by the same figure as
+           the three lines under it (see ApplyBeside). It uses a transform, so the slide needs no layout
+           pass. -->
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="CentreBeside"/>
+      </Grid.RenderTransform>
+
+      <!-- The record. It is pushed right so that a quarter of it shows past the cover and the rest is
+           behind. It is moved by a transform (never a margin), because it is written on every frame by
+           the wobble of the spin, and a margin would cause a layout pass through the window sixty times a
+           second, which the stage cannot afford. -->
+      <ctl:RecordDisc x:Name="Record" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      IsHitTestVisible="False">
+        <ctl:RecordDisc.RenderTransform>
+          <TranslateTransform x:Name="DiscShift"/>
+        </ctl:RecordDisc.RenderTransform>
+      </ctl:RecordDisc>
+
+      <!-- The cover. The frame takes the cover's own dominant colour, which connects the square to the
+           room around it instead of leaving it floating on the tint.
+
+           The frame is OPAQUE, not a translucent tint over the room. An album with no cover is the one
+           case where this square is all there is to see. If the frame were translucent (four fifths
+           black), the disc behind it would show through, and the "no artwork" mark would look like a
+           ghost over a record instead of a blank cover. A cover is not see-through, and a cover that has
+           arrived hides this frame completely anyway. -->
+      <Border x:Name="CoverFrame" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="#FF0A0A0A" BorderBrush="#33FFFFFF" BorderThickness="0">
+        <Border x:Name="CoverEdge" BorderBrush="#59000000" BorderThickness="1">
+          <Grid>
+            <TextBlock x:Name="CoverPlaceholder" Text="&#xf51f;" FontFamily="{StaticResource PegasusFa}"
+                       Foreground="#FFFFFFFF" FontSize="48"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- Two layers, with a cross-fade between them. A cover cannot dissolve into the next one
+                 from a single Image: as soon as its Source changes the old picture is gone, so a fade on
+                 one layer can only blink through whatever is behind it. The header has two layers for the
+                 same reason (see ArtDisplay.ShowCover). -->
+            <!-- What a transparent mark stands on, for example a station's logo, which has nothing behind
+                 it of its own. It is the same made ground that the header uses, republished with the
+                 cover (ArtDisplay.TrackGround) and not calculated a second time here, so one station is
+                 one badge wherever it is shown. Empty for every ordinary cover. -->
+            <Image x:Name="CoverGround" Stretch="UniformToFill" Opacity="0" IsHitTestVisible="False"/>
+            <Image x:Name="CoverA" Stretch="UniformToFill" Opacity="0"/>
+            <Image x:Name="CoverB" Stretch="UniformToFill" Opacity="0"/>
+          </Grid>
+        </Border>
+      </Border>
+    </Grid>
+
+    <!-- ═══ the lyric ═══ the words as they are sung, for the one view that has them.
+
+         This is a Canvas, and the lines are placed on it by hand, not stacked in a panel. The scroll has to
+         run by a fraction of a line at reading speed and be pointed at a new line whenever the singer moves
+         on, which is one translate per frame. A StackPanel would need a layout pass for the same effect,
+         sixty times a second, in front of the one thing on this screen that cannot afford it. The lines are
+         built once when a sheet arrives (BuildLyrics) and after that they are only moved and recoloured.
+
+         It is collapsed until a sheet is really available, so it costs nothing for the great majority of
+         albums, which have no synced lyric anywhere. -->
+    <Grid x:Name="LyricLayer" IsHitTestVisible="False" Opacity="0" Visibility="Collapsed">
+
+      <!-- The sheet that scrolls. The layer above carries the opacity of the VIEW for everything in here,
+           so this element can be moved by the singer alone: the scroll transform belongs only to it, and
+           the card below must not move with it. -->
+      <Canvas x:Name="LyricHost">
+        <!-- The sheet's own opacity INSIDE the layer's opacity, the same technique as the transport
+             below. The layer says whether this view is on screen, and this says whether anything is being
+             sung now. The two multiply, and neither needs to know about the other. It is a canvas with no
+             size of its own: it is a handle to fade by, not a box, and every line inside it is placed at
+             the same coordinates as without it, on the host's own origin. See TickLyrics. -->
+        <Canvas x:Name="LyricBody">
+          <!-- The light behind the line that is being sung. It is a soft radial gradient, not a blurred
+               copy of the words: text drawn twice looks like a double image unless it is really blurred,
+               and a gradient is soft by construction, with nothing to blur. It is inside the sheet's own
+               canvas, so it moves with the scroll without extra work. Only its size and its brightness
+               are written. -->
+          <Rectangle x:Name="LyricGlow" IsHitTestVisible="False" Opacity="0"
+                     RenderTransformOrigin="0.5,0.5">
+            <Rectangle.RenderTransform>
+              <ScaleTransform x:Name="LyricGlowScale"/>
+            </Rectangle.RenderTransform>
+            <Rectangle.Fill>
+              <RadialGradientBrush Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                <GradientStop Offset="0.0" Color="#B0FFFFFF"/>
+                <GradientStop Offset="0.35" Color="#4DFFFFFF"/>
+                <GradientStop Offset="0.7" Color="#14FFFFFF"/>
+                <GradientStop Offset="1.0" Color="#00FFFFFF"/>
+              </RadialGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+        </Canvas>
+      </Canvas>
+
+      <!-- What is shown in place of the sheet during a long intro: the track's own name, in the middle of
+           the screen. It has the same style and size as the words under the cover in the drawn-in
+           composition, on purpose: it answers the same question, "what am I listening to", and a user who
+           has seen one should recognise the other.
+
+           The title and the artist only. The album is on the third line of the second view because there
+           is a column there to carry it. Here there is a short wait before a song starts, and a third
+           line would turn the name into an album cover.
+
+           Its opacity is the exact complement of the sheet's, so the two cross-fade and are not both on
+           screen at once: the card arrives as the words leave and is gone by the time the words are back.
+           It is placed in the LAYER, not the host, so that it stays still while the sheet scrolls behind
+           it. It wraps and does not scroll: a long title here has the whole width of the screen, with no
+           column that clips it, so it never needs to move. -->
+      <StackPanel x:Name="LyricIntro" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsHitTestVisible="False" Opacity="0" Spacing="6">
+        <TextBlock x:Name="LyricIntroTitle" FontWeight="SemiBold" TextWrapping="Wrap"
+                   TextAlignment="Center" HorizontalAlignment="Center" Foreground="#FFFFFFFF"/>
+        <TextBlock x:Name="LyricIntroArtist" TextWrapping="Wrap"
+                   TextAlignment="Center" HorizontalAlignment="Center" Foreground="#B3FFFFFF"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- The lyric view's own seek bar, along the foot at the width of the words above it.
+
+         It is a second SeekBar, because the one in the column is faded away for this view, and one control
+         cannot be in two places. It is the same control on the same transport, as the header also carries
+         two of its own (the open drawer's and the parked drawer's), so whichever is on screen shows the
+         same playhead and scrubs the same track. -->
+    <StackPanel x:Name="LyricFoot" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Opacity="0" IsHitTestVisible="False">
+      <!-- Scaled as a block, as the column's bar and keys are (see ControlsScale). The width of its bar
+           is set in LayoutLyrics as the column width divided by the scale, so the block is as wide as the
+           words. -->
+      <ui:ScaleBox x:Name="LyricFootScale">
+        <StackPanel>
+          <ctl:SeekBar x:Name="LyricSeek" Opacity="0" IsHitTestVisible="False" TakesKeys="True"/>
+
+          <!-- The keys under the bar: the lyric key at the left end of the bar, and the transport centred
+               on the bar, in the same arrangement as the row under the record. Their opacity is INSIDE
+               the container's opacity: the container says whether this view is on screen, the row says
+               whether the pointer has been still for five seconds, and the two multiply without either
+               needing to know about the other. -->
+          <Grid x:Name="LyricKeys" Opacity="0" IsHitTestVisible="False" Margin="0,14,0,0">
+            <Grid.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </Grid.Resources>
+
+            <!-- The way back to the record: the lyric key from the row under the record, filled, because
+                 this view is the state that it switches on. It is the same drawing as LyricViewFilled.
+                 Change both. -->
+            <Button x:Name="LyricViewFootButton" Click="LyricView_Click"
+                    Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                    ToolTipService.ToolTip="{loc:Str Key=Viz_LyricsBack}"
+                    AutomationProperties.Name="{loc:Str Key=Viz_LyricsBack}">
+              <PathIcon Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Button>
+
+            <!-- DataContext is null until AttachAmp. See TransportRow below for why it is not inherited. -->
+            <StackPanel x:Name="LyricTransport" Orientation="Horizontal" Spacing="10"
+                        DataContext="{x:Null}" HorizontalAlignment="Center">
+              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
+                      Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
+                      ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+              <Button x:Name="LyricPlayButton" Style="{StaticResource PegasusTransportButton}" Content="{Binding PlayPauseGlyph}"
+                      Command="{Binding PlayPauseCommand}" FontSize="20" Width="42" Height="42"
+                      ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
+              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
+                      Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                      ToolTipService.ToolTip="{Binding NextToolTip}"
+                      AutomationProperties.Name="{Binding NextToolTip}"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </ui:ScaleBox>
+    </StackPanel>
+
+    <!-- ═══ the words ═══ down the left, centred against the record.
+
+         Each line is in a host that clips it. A line that is too long for its column scrolls and is not cut
+         off with an ellipsis: on a full screen there is room to read the whole title, and it is the one
+         place in the app where waiting a few seconds to read the rest is acceptable.
+
+         The line NEVER trims. Trimming and scrolling are two answers to the same problem, and a TextBlock
+         that has already removed its tail has nothing left to scroll.
+
+         Each host is a CANVAS, and this choice is essential. A Canvas measures its children against
+         infinity and arranges them at the size they ask for, so a line wider than the column is laid out at
+         its OWN width and every glyph in it is drawn. In any panel that measures against the column (for
+         example a Grid), the framework limits the line's desired width to the space offered, the line is
+         arranged at the column's width, and a TextBlock draws only what fits the box it was arranged in. In
+         that case the tail is not clipped at the column's edge: it is never drawn at all, and scrolling
+         would move a line that stops short.
+
+         The hosts are sized and clipped in code (Relayout / Marquee.Fit), not by a SizeChanged handler: the
+         travel, the clip and the arrange must all come from ONE width, and a handler that fires on its own
+         schedule can make them disagree. -->
+    <StackPanel x:Name="Words" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="2">
+      <StackPanel.RenderTransform>
+        <TranslateTransform x:Name="WordsShift"/>
+      </StackPanel.RenderTransform>
+      <!-- The title, the artist and the album, in a panel of their own, so that the three can slide with
+           the record when the lyric is beside it (see ApplyBeside) while the seek bar and the keys under
+           them stay where they are. The spacing is the same as the column's, so wrapping them moves
+           nothing. -->
+      <StackPanel x:Name="Heading" Spacing="2">
+        <StackPanel.RenderTransform>
+          <TranslateTransform x:Name="HeadingBeside"/>
+        </StackPanel.RenderTransform>
+        <Canvas x:Name="TitleHost">
+          <TextBlock x:Name="TitleText" FontWeight="SemiBold" TextWrapping="NoWrap">
+            <TextBlock.RenderTransform>
+              <TranslateTransform x:Name="TitleShift"/>
+            </TextBlock.RenderTransform>
+          </TextBlock>
+        </Canvas>
+        <Canvas x:Name="ArtistHost">
+          <TextBlock x:Name="ArtistText" TextWrapping="NoWrap">
+            <TextBlock.RenderTransform>
+              <TranslateTransform x:Name="ArtistShift"/>
+            </TextBlock.RenderTransform>
+          </TextBlock>
+        </Canvas>
+        <Canvas x:Name="AlbumHost">
+          <TextBlock x:Name="AlbumText" TextWrapping="NoWrap">
+            <TextBlock.RenderTransform>
+              <TranslateTransform x:Name="AlbumShift"/>
+            </TextBlock.RenderTransform>
+          </TextBlock>
+        </Canvas>
+      </StackPanel>
+      <!-- The seek bar and the row of keys, drawn larger as one block on a tall screen. The scale is the
+           same figure that sizes home's text and the mini player (QueueScale), limited where the column
+           is too narrow for the row at that size (see Relayout, ControlsLeast). The block keeps the
+           column's width, and everything inside it grows. Its top margin is outside the box and so is not
+           scaled; it is set in Relayout. -->
+      <ui:ScaleBox x:Name="ControlsScale">
+        <StackPanel Spacing="2">
+          <!-- The shared seek bar, with its own countdown at the right end of the line. It is the same
+               control, with the same scrub, as the header and the foot chrome use.
+
+               It starts hidden, like the keys under it. The same five seconds show it and hide it. If it
+               started visible, it would stay on screen for good whenever there is no record to wake it. -->
+          <ctl:SeekBar x:Name="Seek" Opacity="0" IsHitTestVisible="False" TakesKeys="True"/>
+
+          <!-- The transport, under the line. It hides five seconds after the last pointer move and
+               returns on the next one. The words and the record do not hide, because they ARE the
+               visualizer, and the transport is the one part of the composition that is a control and not
+               a picture. It fades as one row with a composition-only opacity, so an idle screen costs the
+               stage nothing. -->
+          <!-- The same commands, glyphs and enabled rules that the transport deck uses, so this is the
+               player's own transport and not a second implementation of it. Its DataContext is the shared
+               model, set in SetTransport. -->
+          <!-- Centred on the column, which has the seek bar's own width, so the keys are under the middle
+               of the bar and do not hang off its left end. IsHitTestVisible starts false to match the
+               opacity it starts at: an invisible row must not be clickable before the first pointer move
+               wakes it. -->
+          <!-- One row with two things in it: the keys centred on the column, and the list key at its left
+               end. It is a Grid, not more of the StackPanel above, because the two want different
+               alignments on the same line: the transport belongs under the middle of the bar, and the
+               list key belongs under its left edge, where the words above it begin.
+
+               The whole row fades, not the keys alone (see FadeTransport): the list key is a control like
+               the others and leaves with them when the screen goes quiet. -->
+          <!-- Nothing stays visible when the screen is quiet. A strip that is only visible while
+               everything else is hidden would still take its height out of this column all the time, and
+               the words above it would be placed too low to make room for two buttons that nobody looks
+               at. Quiet means quiet: the screen is the record, and the way out is the pointer, which
+               brings the whole row back as soon as it moves, or Escape. -->
+          <!-- DataContext is null until AttachAmp gives the player, and it is not inherited: the chrome
+               is built into a host that has its own model, so an inherited context would resolve every
+               {Binding} under here against that model instead. -->
+          <Grid x:Name="TransportRow" DataContext="{x:Null}" Opacity="0" IsHitTestVisible="False" Margin="0,16,0,0">
+            <!-- The only paint these keys ever have: a light white wash under the pointer, on the round
+                 corner that the box already has. Nothing is drawn when the pointer is elsewhere. -->
+            <Grid.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </Grid.Resources>
+
+            <!-- The three keys at the left end of the row: what is coming next, the way out, and whether
+                 this track is loved. They are together in one strip, not each with its own margin, so
+                 they keep their spacing at every window size and none of them needs to know where the one
+                 beside it ends. -->
+            <StackPanel Orientation="Horizontal" Spacing="2"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+
+              <!-- What is coming next, and the only way to see it: the drawer opens on the queue and the
+                   shelves beside it, and nothing else on this screen opens it. The icon is bars, because
+                   that is how a list of things in order looks everywhere else.
+
+                   It is first on the row, left of the way out, because it is the key about the MUSIC
+                   (what plays after this track), and the arrow beside it is about the app. Read from left
+                   to right, the keys go from the record outwards. -->
+              <Button x:Name="QueueButton" Click="Queue_Click"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf0c9;" FontSize="15"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_Queue}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_Queue}"/>
+
+              <!-- The way out, next to it. The two keys are different: the way out must not use the
+                   queue's mark, because then the user would have to choose between what is on next and
+                   how to get out. A full-screen player with no way back to the collection is a room with
+                   no door, and a door that is also the queue is a door that sometimes opens onto the
+                   wrong room. An arrow says the one thing that this key does. -->
+              <Button x:Name="BackButton" Click="Back_Click"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf060;" FontSize="15"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_BackToLibrary}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_BackToLibrary}"/>
+
+              <!-- The heart, next to it. It is the same mark that the album views put at the end of a
+                   track line and that the generated favourites playlist is made of: one bit on one row,
+                   written through the library service so that every surface that shows this song is
+                   updated.
+
+                   It is filled or hollow, never a second colour: that is how the heart looks everywhere
+                   else in the app, and a key that meant one thing on a track line and another here would
+                   be two different marks. The weight is swapped from code (see PaintFavorite). -->
+              <Button x:Name="FavoriteButton" Click="Favorite_Click"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf004;" FontSize="14"
+                      FontFamily="{StaticResource PegasusFaRegular}"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Track_SetFavorite}"
+                      AutomationProperties.Name="{loc:Str Key=Track_SetFavorite}"/>
+
+              <!-- The lyric view key, after the heart. It is shown only while there is a sheet for this
+                   album, by the host's rule (see PegasusPlayer.ApplyView and LyricKeyShown). The lyric
+                   view's own foot carries the same key, lit, as the way back.
+
+                   The mark is a path, not a glyph: a speech box with two quotes. It is a PathIcon so that
+                   it takes the key's foreground, including the white on hover, as the glyphs beside it
+                   do. Each quote is one outline, dot and tail together, so that the filled version can
+                   cut them out of a solid box under the even-odd rule. The filled drawing is also in
+                   LyricViewFootButton below. Change both. -->
+              <!-- Corner 8 instead of the style's round 18: the mark is a square, and a round wash under
+                   it would cut its corners. -->
+              <Button x:Name="LyricViewButton" Click="LyricView_Click" Visibility="Collapsed"
+                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_Lyrics}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_Lyrics}">
+                <!-- Hollow while the lyric is off, filled while it is on: the heart beside it shows its
+                     state in the same way. ShowLyricKey sets which one is shown. -->
+                <Grid>
+                  <PathIcon x:Name="LyricViewHollow" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <PathIcon x:Name="LyricViewFilled" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+            </StackPanel>
+
+            <StackPanel x:Name="Transport" Orientation="Horizontal" Spacing="10"
+                        HorizontalAlignment="Center">
+              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
+                      Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
+                      ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+              <Button x:Name="TransportPlayButton" Style="{StaticResource PegasusTransportButton}" Content="{Binding PlayPauseGlyph}"
+                      Command="{Binding PlayPauseCommand}" FontSize="20" Width="42" Height="42"
+                      ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
+              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
+                      Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                      ToolTipService.ToolTip="{Binding NextToolTip}"
+                      AutomationProperties.Name="{Binding NextToolTip}"/>
+            </StackPanel>
+
+            <!-- The volume, at the right end of the row, opposite the list key. It is the same knob that
+                 the deck's own slider turns (one Volume on one model), so the two can never disagree
+                 about how loud it is. This is a second place to reach the volume, not a second
+                 implementation of it.
+
+                 It is a ContentControl around the glyph and the bar, so that the remote can focus the
+                 volume: Left and Right turn it (see PegasusChrome.Adjust). It is named VolumeGroup
+                 because the code that hides it on a narrow column hides this element. -->
+            <ContentControl x:Name="VolumeGroup" IsTabStop="True" UseSystemFocusVisuals="False"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+
+              <TextBlock x:Name="VolumeGlyph" Text="&#xf027;" FontFamily="{StaticResource PegasusFa}"
+                         FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
+
+              <!-- Drawn by hand, not a Slider, and it uses the seek bar's own drawing: a 3 pt line with a
+                   3x14 bar as the knob (see SeekBar). The framework's slider puts a circle on the line,
+                   and a circle beside the bar above it looks like two different kinds of control for the
+                   same gesture.
+
+                   Re-templating the stock Slider would be worse: its thumb comes from a Style that the
+                   template names, so replacing it means owning the whole template, which is a great deal
+                   of XAML to end up with the four rectangles below.
+
+                   Root takes the pointer, so the whole strip can be grabbed and not just the line. -->
+              <Grid x:Name="VolumeBar" Width="72" Height="14" Background="Transparent"
+                    ToolTipService.ToolTip="{loc:Str Key=Viz_Volume}"
+                    PointerPressed="Volume_PointerPressed" PointerMoved="Volume_PointerMoved"
+                    PointerReleased="Volume_PointerReleased" PointerCaptureLost="Volume_PointerReleased">
+                <Canvas x:Name="VolumeCanvas" VerticalAlignment="Center" Height="14"
+                        SizeChanged="Volume_SizeChanged">
+                  <Rectangle x:Name="VolumeTrack" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="#33FFFFFF"/>
+                  <Rectangle x:Name="VolumeFill" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="#FFFFFFFF"/>
+                  <Rectangle x:Name="VolumeKnob" Width="3" Height="14" RadiusX="1.5" RadiusY="1.5" Fill="#FFFFFFFF"/>
+                </Canvas>
+              </Grid>
+            </StackPanel>
+            </ContentControl>
+          </Grid>
+        </StackPanel>
+      </ui:ScaleBox>
+    </StackPanel>
+    </Grid>
+
+    <!-- ═══ the collection ═══ all of it, over the room, for the two moments when the visualizer is not
+         about one album: when the user is looking for an album, and when nothing is playing.
+
+         Everything above this is a picture OF an album. This is the app's own library brought into the
+         room: the same albums that the window behind shows, laid out in the way that window lays them
+         out. So Pegasus is a place where you can put music on, and not only a place where you can watch
+         it.
+
+         The room stays. It is not a background painted here: the whole layer is over the GL stage, and
+         the host is told to draw the bare room while it is shown (see LibraryShown / EffectiveView), in
+         the same way as the New Year greeting. What is under the covers is the real visualizer, still
+         running on whatever is playing.
+
+         This is outside the composition above, so the drawer opening does not slide it: the drawer opens
+         OVER this and does not push it aside. It is a card over a wall, not another half of one picture.
+         -->
+    <Grid x:Name="LibraryLayer" Visibility="Collapsed" Opacity="0">
+
+      <!-- A light dark layer over the room, and nothing more. The covers and their names must be readable
+           against figures that move in an album's own colours, which is a surface that goes from near-
+           black to white while a track plays. Under this layer they stay readable, and the room still
+           shows through every gap between them. -->
+      <Rectangle Fill="#73000000" IsHitTestVisible="False"/>
+
+      <!-- Home: the main window's home screen, the same control, built on first use and added here in
+           code (see PegasusChrome.EnsureHome). Its side margins are set in LayOutLibraryTop.
+
+           It covers the whole layer, behind the grid that holds the mini player, and does not stand in
+           the row under the player. So its rows pass under the player with nothing painted over the strip
+           around it. No space is kept for the player: home's content starts just under the corner keys
+           (see HomeTopPad) and the player is over the banner. The header is fully transparent, so what
+           scrolls underneath shows through. The wall below does the same. -->
+      <Grid x:Name="HomeHost" Visibility="Collapsed"/>
+
+      <!-- ═══ the screens the collection can open on ═══ the wall, or home. Both cover the whole layer,
+           behind the grid that holds the mini player, so their rows pass under the player with nothing
+           painted over the strip around it. Exactly one of them is visible; which one is chosen when the
+           collection comes up (see PegasusChrome.ShowLibrary and CollectionScreen). The wall's elements
+           are wrapped in one grid so that one write hides all of them. -->
+      <Grid x:Name="WallScreen">
+      <!-- ═══ the wall ═══ every album in the collection: a cover is how anybody finds an album, and a
+           name is how they are sure.
+
+           It is a repeater, not the hand-built rows that the drawer is made of, and this exception
+           confirms the rule: a drawer holds a few dozen lines and this holds a few thousand, which is the
+           one case where a virtualizing panel is worth the layout pass that it brings. The library
+           window's own wall uses the same. -->
+      <!-- The wall, in a wrapper that it does not use itself: the bottom of the wall is masked out as it
+           runs off the screen (see PegasusChrome.TopFade, which does the head of the drawer in the same
+           way, and this mirrors it), and a mask needs an element to cut that is not the element being
+           copied. -->
+      <Grid x:Name="LibraryScreen">
+      <!-- BringIntoViewOnFocusChange is OFF, for the same reason as in the library window's own wall: an
+           open album puts Buttons on the wall, so one of them usually has the focus. When its element is
+           recycled during a scroll, the focus lands on some other realized element, and the ScrollViewer
+           scrolls THERE, so the wall jumps on its own just after the user stops scrolling. Only a press
+           moves this wall. -->
+      <ScrollViewer x:Name="LibraryScroll" Padding="34,20,34,28"
+                    ViewChanged="LibraryScroll_ViewChanged" SizeChanged="LibraryScroll_SizeChanged"
+                    BringIntoViewOnFocusChange="False"
+                    VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+
+        <!-- Eight to a row, and the wall is a list of ROWS, not a flow of covers. This is not only a way
+             of counting them: it lets an album open where it stands. Pressing a cover in the library
+             window unfolds the album under its own row, and a flow layout has no "under its row" to
+             unfold into, so the band would land wherever the reflow puts it. Rows are the structure that
+             this gesture needs, so the wall is built from rows, exactly as the window's own wall is. -->
+        <!-- A ground under the rows, and it belongs to the wheel: the wall is scrolled one frame at a
+             time from here, not in one write by the scroller (see the wheel note in
+             PegasusChrome.Library). It is transparent and filled, because neither the repeater nor its
+             panels have a fill of their own, and a pointer in the gap between two covers would fall
+             through them to the scroller. -->
+        <Grid x:Name="LibraryWallHost" Background="Transparent"
+              PointerWheelChanged="LibraryWallHost_PointerWheelChanged">
+        <!-- The repeater keeps half a screen of rows on each side of the row being viewed, where a
+             repeater's own default is two (five screens of tiles are held live, not two). A row is eight
+             covers and sixteen lines of text, more than forty elements, and every one of them is measured
+             again when this screen is shown: the wall is collapsed when it goes away and needs a full
+             layout pass when it comes back, in front of a shader. That pass is the wait between pressing
+             the key and seeing the collection. With half a screen, a row is already ready before it is
+             scrolled to. -->
+        <!-- Rows are 6 apart: with each card's space of 8 above and below, the covers are 22 apart (see
+             PegasusCardTemplate). -->
+        <ItemsRepeater x:Name="LibraryWall" VerticalCacheLength="0.5"
+                       ElementPrepared="LibraryWall_ElementPrepared"
+                       ElementClearing="LibraryWall_ElementClearing">
+          <ItemsRepeater.Layout>
+            <StackLayout Spacing="6"/>
+          </ItemsRepeater.Layout>
+          <ItemsRepeater.ItemTemplate>
+            <DataTemplate>
+              <!-- The row IS its repeater. There is no stack of two with a content control under the
+                   covers: a press opens the album on its own screen (see PegasusChrome.Record). This
+                   keeps one element fewer per row, on the one layout in the app that is measured by the
+                   row. -->
+              <!-- An ItemsRepeater for the row's eight covers, NOT an ItemsControl, and the difference
+                     matters for a fast scroll. The outer repeater recycles the ROW element: a row that
+                     has scrolled off is given to a row that has scrolled on, with another eight albums
+                     set on it. An ItemsControl answers that by throwing away its eight containers and
+                     creating eight new card templates. That is more than eighty elements built from
+                     nothing for every row that crosses the edge of the screen, on the thread that also
+                     draws the room. A repeater rebinds the eight it already has and builds none of them.
+                     The card template is a keyed resource for the same reason; see PegasusCardTemplate. -->
+              <ItemsRepeater ItemsSource="{Binding Cards, FallbackValue={StaticResource NoItems}}"
+                             ItemTemplate="{StaticResource PegasusCardTemplate}"
+                             HorizontalAlignment="Left">
+                <ItemsRepeater.Layout>
+                  <StackLayout Orientation="Horizontal" Spacing="6"/>
+                </ItemsRepeater.Layout>
+              </ItemsRepeater>
+            </DataTemplate>
+          </ItemsRepeater.ItemTemplate>
+        </ItemsRepeater>
+        </Grid>
+      </ScrollViewer>
+      </Grid>
+
+      <!-- Empty on purpose: the band where the wall fades along the foot of the screen as it runs off the
+           bottom. What paints in it is a composition visual that holds a copy of the wall's own pixels
+           with an alpha ramp through it: the same technique as the drawer's head (see
+           PegasusChrome.TopFade), turned upside down. It is outside the wrapper above, which is cut away
+           in exactly this band. There is no band at the head: the wall runs up under the mini player to
+           the top of the screen, as home does, with nothing over it. -->
+      <Grid x:Name="LibraryBottomFade" VerticalAlignment="Bottom" Height="0"
+            IsHitTestVisible="False" SizeChanged="LibraryBottomFade_SizeChanged"/>
+
+      <!-- What is shown in the wall's place while it is being read, or where there is nothing to read. -->
+      <TextBlock x:Name="LibraryEmpty" Visibility="Collapsed"
+                 Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+
+      <!-- ═══ the three questions ═══ what am I looking for, what order is it in, and only the ones I
+           love. These are the same three that the library window's own header carries, in the same order,
+           so a user who knows that wall already knows this one.
+
+           They are over the wall, not in a row above it, and they stay in place while it scrolls, in the
+           top right corner level with the back key in the top left. The covers run under them, and the
+           wall's own top padding is set to clear them at rest. See LayOutLibraryTop, which places both. -->
+      <StackPanel x:Name="LibraryTools" Orientation="Horizontal" Spacing="8"
+                  HorizontalAlignment="Right" VerticalAlignment="Top">
+
+        <!-- The same field that the drawer's own shelf uses, with the same style: a magnifier, bare text,
+             and every default TextBox chrome removed by name. The template paints a filled box and, on
+             focus, an accent underline that the control's own BorderThickness cannot override. -->
+        <!-- Its size, and the sizes of everything in the tools, are set in SizeLibraryTools, at the
+             wall's text scale. -->
+        <Border x:Name="LibrarySearchBox" CornerRadius="6"
+                Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                VerticalAlignment="Center">
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="LibrarySearchMark" Grid.Column="0" Text="&#xf002;"
+                       FontFamily="{StaticResource PegasusFa}" Foreground="#99FFFFFF"
+                       VerticalAlignment="Center"/>
+            <!-- Centred and not stretched: when stretched, the template pins the text and its placeholder
+                 to the top of the box. -->
+            <TextBox x:Name="LibrarySearch" Grid.Column="1"
+                     TextChanged="LibrarySearch_TextChanged"
+                     GotFocus="LibrarySearch_FocusChanged" LostFocus="LibrarySearch_FocusChanged"
+                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                     Background="Transparent" BorderThickness="0" Padding="0"
+                     MinWidth="0" MinHeight="0"
+                     PlaceholderText="{loc:Str Key=Viz_BrowseSearch}">
+              <TextBox.Resources>
+                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8CFFFFFF"/>
+                <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#A6FFFFFF"/>
+                <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#A6FFFFFF"/>
+                <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+              </TextBox.Resources>
+            </TextBox>
+          </Grid>
+        </Border>
+
+        <!-- The order. It is a menu, not a row of chips, exactly as in the window and on the phone: it is
+             a choice that is made rarely, and four chips across the top of a wall of album art would be
+             four chips in the way of it all the time. -->
+        <Border CornerRadius="6" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                VerticalAlignment="Center">
+          <Button x:Name="LibrarySortButton" Click="LibrarySort_Click"
+                  Background="Transparent" BorderThickness="0" CornerRadius="5"
+                  MinWidth="0" MinHeight="0" Padding="0"
+                  FontFamily="{StaticResource PegasusFa}" Content="&#xf160;"
+                  Foreground="#E6FFFFFF"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  ToolTipService.ToolTip="{loc:Str Key=AlbumSort_Tooltip}"
+                  AutomationProperties.Name="{loc:Str Key=AlbumSort_Tooltip}">
+            <Button.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </Button.Resources>
+          </Button>
+        </Border>
+
+        <!-- Only the albums that the user has loved. Face and colour are set in code
+             (PaintLibraryFavorites): filled and lit while the filter is on, an outline while it is off.
+             It is the same pair that the cover sticker and a song's own line use. -->
+        <Border CornerRadius="6" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                VerticalAlignment="Center">
+          <Button x:Name="LibraryFavoritesButton" Click="LibraryFavorites_Click"
+                  Background="Transparent" BorderThickness="0" CornerRadius="5"
+                  MinWidth="0" MinHeight="0" Padding="0"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  ToolTipService.ToolTip="{loc:Str Key=Library_FavoritesOnly}"
+                  AutomationProperties.Name="{loc:Str Key=Library_FavoritesOnly}">
+            <Button.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+            </Button.Resources>
+            <FontIcon x:Name="LibraryFavoritesIcon" Glyph="&#xf004;"
+                      FontFamily="{StaticResource PegasusFaRegular}"
+                      Foreground="{StaticResource FavoriteMarkIdleBrush}"/>
+          </Button>
+        </Border>
+      </StackPanel>
+
+      <!-- Shown only when the collection takes a moment to answer. A search over a large library is one
+           indexed query and usually finishes within a frame. On a slow disk, or for the first question
+           asked of a cold mirror, it does not. A wall that empties and stays empty for a second looks
+           like a search that found nothing, not a search that is still running. It is held back by
+           LibraryBusyDelayMs so that the ordinary case never shows it, and it fades out and is not
+           switched off, so it does not blink away under the arriving covers. -->
+      <Grid x:Name="LibraryBusy" Opacity="0" Visibility="Collapsed"
+            HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+        <ctl:RecordSpinner x:Name="LibraryBusyRecord" Width="46" Height="46"/>
+      </Grid>
+      </Grid>
+
+      <!-- ═══ radio ═══ the collection's third screen, opened by the side menu's Internet Radio: a banner
+           of stations stepped with Left and Right, the essential stations of the user's country, and the
+           favourite stations. It covers the whole layer as home does, and the mini player is over it as
+           it is over home (see PegasusChrome.PlayerAway). Everything in it is built in code, at the
+           collection's scale (see PegasusChrome.Radio). -->
+      <Grid x:Name="RadioScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="RadioScroll" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                      ViewChanged="RadioScroll_ViewChanged">
+          <StackPanel x:Name="RadioContent">
+            <!-- The banner: five hosts at offsets -2 to 2 from the card in front, and the remote's one
+                 stop over the card in front. It is clipped to its own box, so the hosts beyond the peeks
+                 are out of sight until a step slides them in. -->
+            <Grid x:Name="RadioBanner" HorizontalAlignment="Stretch"/>
+
+            <TextBlock x:Name="RadioEssentialHeading" FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                       TextTrimming="CharacterEllipsis"/>
+            <ScrollViewer x:Name="RadioEssentialScroll" HorizontalScrollMode="Enabled"
+                          HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
+                          VerticalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
+              <StackPanel x:Name="RadioEssentialRow" Orientation="Horizontal"/>
+            </ScrollViewer>
+            <TextBlock x:Name="RadioEssentialNote" Foreground="#99FFFFFF" TextWrapping="Wrap"
+                       Visibility="Collapsed"/>
+
+            <TextBlock x:Name="RadioFavoritesHeading" Text="{loc:Str Key=Viz_RadioFavorites}"
+                       FontWeight="SemiBold" Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis"/>
+            <ScrollViewer x:Name="RadioFavoritesScroll" HorizontalScrollMode="Enabled"
+                          HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
+                          VerticalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
+              <StackPanel x:Name="RadioFavoritesRow" Orientation="Horizontal"/>
+            </ScrollViewer>
+            <TextBlock x:Name="RadioFavoritesNote" Text="{loc:Str Key=Viz_RadioNoFavorites}"
+                       Foreground="#99FFFFFF" TextWrapping="Wrap" Visibility="Collapsed"/>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Shown while the directory is read, the first time radio is opened. -->
+        <ctl:RecordSpinner x:Name="RadioSpinner" Width="46" Height="46" Spinning="False"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+      </Grid>
+
+      <!-- ═══ artists ═══ every artist that the collection files an album under, as round photographs,
+           six to a row (see PegasusChrome.Artists). Opened by the side menu's Artists. The rows are a
+           virtualizing repeater, like the wall's, and the tools are in the top right corner, like the
+           wall's. Its padding and the tools' margin are set in LayOutLibraryTop, and its sizes in
+           SizeArtists. -->
+      <Grid x:Name="ArtistsScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="ArtistsScroll" BringIntoViewOnFocusChange="False"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                      ViewChanged="PageScroll_ViewChanged">
+          <!-- The inset is this host's padding (set in LayOutLibraryTop), not the scroller's: the
+               scroller clips at the bounds of its content, and the focused card's grow effect reaches
+               past the inset. -->
+          <Grid x:Name="ArtistsWallHost">
+          <ItemsRepeater x:Name="ArtistsWall" VerticalCacheLength="0.5"
+                         ElementPrepared="ArtistsWall_ElementPrepared"
+                         ElementClearing="ArtistsWall_ElementClearing">
+            <ItemsRepeater.Layout>
+              <StackLayout Spacing="6"/>
+            </ItemsRepeater.Layout>
+            <ItemsRepeater.ItemTemplate>
+              <DataTemplate>
+                <ItemsRepeater ItemsSource="{Binding Cards, FallbackValue={StaticResource NoItems}}"
+                               ItemTemplate="{StaticResource PegasusArtistTemplate}"
+                               HorizontalAlignment="Left">
+                  <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="6"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </DataTemplate>
+            </ItemsRepeater.ItemTemplate>
+          </ItemsRepeater>
+          </Grid>
+        </ScrollViewer>
+
+        <TextBlock x:Name="ArtistsEmpty" Visibility="Collapsed"
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+
+        <!-- The search field and the order, with the same style as the wall's (LibraryTools). -->
+        <StackPanel x:Name="ArtistsTools" Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Right" VerticalAlignment="Top">
+          <Border x:Name="ArtistsSearchBox" CornerRadius="6"
+                  Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                  VerticalAlignment="Center">
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="ArtistsSearchMark" Grid.Column="0" Text="&#xf002;"
+                         FontFamily="{StaticResource PegasusFa}" Foreground="#99FFFFFF"
+                         VerticalAlignment="Center"/>
+              <TextBox x:Name="ArtistsSearch" Grid.Column="1"
+                       TextChanged="ArtistsSearch_TextChanged"
+                       GotFocus="ArtistsSearch_FocusChanged" LostFocus="ArtistsSearch_FocusChanged"
+                       VerticalAlignment="Center" VerticalContentAlignment="Center"
+                       Background="Transparent" BorderThickness="0" Padding="0"
+                       MinWidth="0" MinHeight="0"
+                       PlaceholderText="{loc:Str Key=Artists_SearchPlaceholder}">
+                <TextBox.Resources>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8CFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#A6FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#A6FFFFFF"/>
+                  <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                  <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </TextBox.Resources>
+              </TextBox>
+            </Grid>
+          </Border>
+          <Border CornerRadius="6" Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                  VerticalAlignment="Center">
+            <Button x:Name="ArtistsSortButton" Click="ArtistsSort_Click"
+                    Background="Transparent" BorderThickness="0" CornerRadius="5"
+                    MinWidth="0" MinHeight="0" Padding="0"
+                    FontFamily="{StaticResource PegasusFa}" Content="&#xf160;"
+                    Foreground="#E6FFFFFF"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    ToolTipService.ToolTip="{loc:Str Key=Viz_ArtistsSort}"
+                    AutomationProperties.Name="{loc:Str Key=Viz_ArtistsSort}">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+              </Button.Resources>
+            </Button>
+          </Border>
+        </StackPanel>
+
+        <!-- Shown while the collection is read, the first time the artists are opened. -->
+        <ctl:RecordSpinner x:Name="ArtistsSpinner" Width="46" Height="46" Spinning="False"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+      </Grid>
+
+      <!-- ═══ genres ═══ every genre of which the collection holds an album, as cards in the genre's
+           colour with its wordmark, four to a row (see PegasusChrome.Genres). Opened by the side menu's
+           Genres. The cards are built in code; there are a few dozen at most. -->
+      <Grid x:Name="GenresScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="GenresScroll" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                      ViewChanged="PageScroll_ViewChanged">
+          <StackPanel x:Name="GenresContent"/>
+        </ScrollViewer>
+        <TextBlock x:Name="GenresEmpty" Visibility="Collapsed"
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+        <ctl:RecordSpinner x:Name="GenresSpinner" Width="46" Height="46" Spinning="False"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+      </Grid>
+
+      <!-- ═══ one artist ═══ the photograph and the name at the head, then the albums on shelves (see
+           PegasusChrome.ArtistPage). Built in code when it is opened. -->
+      <Grid x:Name="ArtistPageScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="ArtistPageScroll" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                      ViewChanged="PageScroll_ViewChanged">
+          <StackPanel x:Name="ArtistPageContent"/>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- ═══ one genre ═══ a header across the whole width from the top of the screen, with the genre's
+           photograph in its colour, then shelves (see PegasusChrome.GenrePage). Built in code when it is
+           opened. -->
+      <Grid x:Name="GenrePageScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="GenrePageScroll" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                      ViewChanged="PageScroll_ViewChanged">
+          <StackPanel x:Name="GenrePageContent"/>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- The mini player, over both screens. Nothing is under it in this grid: the wall and home run the
+           whole height of the layer behind it. Its place is set in LayOutLibraryTop. -->
+      <Grid>
+
+        <!-- ═══ the mini player ═══ what is playing, at the top and in the middle, over the wall and over
+             home. The cover, and beside it the title, the artist and the album, with the playhead under
+             them and the keys on the card's edge. It has its own SeekBar and its own keys, not the ones
+             in the column: that column is faded away while this screen is shown, and a control cannot be
+             in two places at once. The lyric view's foot makes the same choice (see LyricFoot). The
+             transport underneath is the same, so both scrub the same track.
+
+             The cover and the words are a way to the turning record: a press on either hides the
+             collection (see LibraryPlayer_Tapped), as the back key on home does. The keys keep their own
+             presses. A tuned station shows its name and the play/pause key, with no playhead. Its margin
+             is set in LayOutLibraryTop. -->
+        <!-- The player is a card of the app's smoked glass in its light version, the same size whatever
+             is playing, with the three keys in a pill of the same glass on its bottom edge. A line that
+             is too long for the card scrolls in the same way as the lines of the record view. The card's
+             sizes are set in SizeLibrary, and nothing in it grows with its words. -->
+        <!-- Shown whenever the collection is shown: with nothing on the deck, the card holds the app's
+             mark in place of an album, centred in the card. The same applies when playback has finished.
+             What is IN the card cross-fades between the two (see ApplyLibraryPlayer); the card itself
+             does not appear and disappear. -->
+        <!-- Over home and the wall it goes away after five seconds of nothing playing and on a scroll
+             down, and comes back by sliding down from above the screen. Its opacity, this shift and
+             whether it takes the pointer are written on the tick (see PegasusChrome.PlayerAway). -->
+        <Grid x:Name="LibraryPlayer" HorizontalAlignment="Center" VerticalAlignment="Top">
+          <Grid.RenderTransform>
+            <TranslateTransform x:Name="LibraryPlayerSlide"/>
+          </Grid.RenderTransform>
+          <Grid.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+          </Grid.Resources>
+
+          <!-- The card's glass is DRAWN, not worn by the border below: a rounded rectangle with a notch
+               cut out of its bottom edge around the upper half of the pill, a little wider than the pill,
+               so that neither the card's fill nor its rim runs behind the pill's own glass. The pill
+               stands on the room. A clip cannot do this, because an element's clip is a rectangle. The
+               shape is built in code (ShapeLibraryPlayerGlass) from the sizes of the card and the pill.
+               It has no notch while the card holds the app's mark and there is no pill. -->
+          <!-- The frost under it: the same outline (ShapeLibraryPlayerGlass writes both), filled with the
+               app's live backdrop blur at the drawer's strength, because it frosts the same room. The
+               smoke and the rim stay on the path above, so where the blur cannot read what is behind it,
+               the card looks as it does without the blur. It is live, so it runs again on every frame
+               while it is shown (see the drawer's Glass note below). It is the size of the card and
+               nothing more. -->
+          <Path x:Name="LibraryPlayerFrost" HorizontalAlignment="Left" VerticalAlignment="Top"
+                IsHitTestVisible="False">
+            <Path.Fill>
+              <ui:GlassBrush BlurAmount="34"/>
+            </Path.Fill>
+          </Path>
+          <Path x:Name="LibraryPlayerGlass" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Fill="{StaticResource LightSmokeBrush}" Stroke="{StaticResource LightSmokeRimBrush}"
+                StrokeThickness="1" IsHitTestVisible="False"/>
+
+          <!-- The card. Its bottom margin is half the pill's height (SizeLibrary), so that the pill below
+               can stand on the card's edge and still be inside this grid. It lays out the card's contents
+               and paints nothing: the glass is the path above. It is Transparent and not empty, so a
+               press on the card's padding stops here: home scrolls under the card, and a press on the
+               glass must not open a tile behind it. -->
+          <Border x:Name="LibraryPlayerCard" VerticalAlignment="Top" Background="Transparent">
+            <Grid>
+            <!-- What is playing: lowered, and out of reach of the pointer, while nothing is playing. -->
+            <Grid x:Name="LibraryPlayerContent" Opacity="0" IsHitTestVisible="False">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- The cover. It is a quiet square with the record mark where there is no cover, like
+                   every other cover in the app. A station's logo is fitted whole on the ground that the
+                   header made for it and is not cropped (see ApplyLibraryPlayerArt). -->
+              <!-- A plain button (see PegasusPlainButton): the remote can reach it, and OK, like a press,
+                   goes to the turning record. -->
+              <Button x:Name="LibraryPlayerArtFrame" Grid.Column="0" VerticalAlignment="Top"
+                      Style="{StaticResource PegasusPlainButton}" IsTabStop="False"
+                      CornerRadius="6" Background="#22FFFFFF" Click="LibraryPlayerCover_Click"
+                      AutomationProperties.Name="{loc:Str Key=Viz_LibraryBack}">
+                <Grid>
+                  <TextBlock x:Name="LibraryPlayerArtPlaceholder" Text="&#xf51f;" FontFamily="{StaticResource PegasusFa}"
+                             Foreground="#59FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsHitTestVisible="False"/>
+                  <Image x:Name="LibraryPlayerArtGround" Stretch="UniformToFill" IsHitTestVisible="False"/>
+                  <Image x:Name="LibraryPlayerArt" Stretch="UniformToFill" IsHitTestVisible="False"/>
+                </Grid>
+              </Button>
+
+              <StackPanel x:Name="LibraryWords" Grid.Column="1" VerticalAlignment="Top" Spacing="2">
+                <!-- The three lines, on a ground of their own so that a press between two words still
+                     lands. Each is in a Canvas clipped to the card's column, the same arrangement as the
+                     record view (see Marquee): a Canvas lays a line out at its whole width, the clip
+                     decides what shows, and a line that is too long for the column moves along it. A line
+                     with no text is removed by its host (see Apply), or the host would keep the row's
+                     height. The lines are aligned left: the album's host is narrower than the column (it
+                     gives way to the countdown), and an element of a set width in a wider column is
+                     centred in it, which would put the album half a countdown width in from the other
+                     two. -->
+                <StackPanel Background="Transparent" Spacing="2" Tapped="LibraryPlayer_Tapped">
+                  <Canvas x:Name="LibraryTitleHost" HorizontalAlignment="Left">
+                    <TextBlock x:Name="LibraryTitle" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                               TextWrapping="NoWrap">
+                      <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="LibraryTitleShift"/>
+                      </TextBlock.RenderTransform>
+                    </TextBlock>
+                  </Canvas>
+                  <Canvas x:Name="LibraryArtistHost" HorizontalAlignment="Left">
+                    <TextBlock x:Name="LibraryArtist" Foreground="#B3FFFFFF" TextWrapping="NoWrap">
+                      <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="LibraryArtistShift"/>
+                      </TextBlock.RenderTransform>
+                    </TextBlock>
+                  </Canvas>
+                  <Canvas x:Name="LibraryAlbumHost" HorizontalAlignment="Left">
+                    <TextBlock x:Name="LibraryAlbum" Foreground="#99FFFFFF" TextWrapping="NoWrap">
+                      <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="LibraryAlbumShift"/>
+                      </TextBlock.RenderTransform>
+                    </TextBlock>
+                  </Canvas>
+                </StackPanel>
+
+                <!-- The playhead, drawn at the card's scale as one block, like the record view's (see
+                     ControlsScale): its countdown, its line and its knob grow together. The time is
+                     resized in the same way as in the main visualizer view. -->
+                <ui:ScaleBox x:Name="LibrarySeekScale" Margin="0,10,0,0">
+                  <ctl:SeekBar x:Name="LibrarySeek"/>
+                </ui:ScaleBox>
+              </StackPanel>
+            </Grid>
+
+            <!-- The app's mark, centred, while nothing is on the deck. It is the same drawing that the
+                 header shows in its top left corner (ArtDisplay.RpmMark), in the same white. Change both.
+                 Sized in SizeLibraryPlayer. -->
+            <Path x:Name="LibraryPlayerLogo" Stretch="Uniform" Fill="#8CFFFFFF"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                  Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94
+                  103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236
+                  -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216
+                  -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127
+                  510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136
+                  358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395
+                  -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+            </Grid>
+          </Border>
+
+          <!-- The keys, in a pill of the same glass, centred on the card's bottom edge. Their sizes are
+               set in SizeLibrary: about 133 by 37 on a screen 1440 high. DataContext is null until
+               AttachAmp; see TransportRow above. Previous and next are named because a tuned station
+               hides them (see ApplyLibraryPlayer): they step the album queue, and pressing one would
+               switch the station off. The pill then holds only the one key. -->
+          <Border x:Name="LibraryTransportPill" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                  LightSmokeRimBrush}" BorderThickness="1" Opacity="0" IsHitTestVisible="False">
+            <Grid>
+            <!-- The pill's frost, inside its rim, so that its lower half (over home, below the card) is
+                 frosted like the card. Its corner is set together with the pill's corner in
+                 SizeLibraryPlayer. -->
+            <Rectangle x:Name="LibraryPillFrost" IsHitTestVisible="False">
+              <Rectangle.Fill>
+                <ui:GlassBrush BlurAmount="34"/>
+              </Rectangle.Fill>
+            </Rectangle>
+            <StackPanel x:Name="LibraryTransport" Orientation="Horizontal" DataContext="{x:Null}">
+              <!-- Not stops for the remote: the whole player is one stop (see
+                   PegasusChrome.BuildPlayerKey), and the remote's media keys do what these keys do. -->
+              <Button x:Name="LibraryPrevButton" AllowFocusOnInteraction="False" IsTabStop="False"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
+                      Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
+                      ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                      AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+              <Button x:Name="LibraryPlayButton" Style="{StaticResource PegasusTransportButton}"
+                      Content="{Binding PlayPauseGlyph}" Command="{Binding PlayPauseCommand}"
+                      AllowFocusOnInteraction="False" IsTabStop="False" ToolTipService.ToolTip="{loc:Str
+                      Key=Transport_PlayPause}" AutomationProperties.Name="{loc:Str
+                      Key=Transport_PlayPause}"/>
+              <Button x:Name="LibraryNextButton" AllowFocusOnInteraction="False" IsTabStop="False"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
+                      Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                      ToolTipService.ToolTip="{Binding NextToolTip}"
+                      AutomationProperties.Name="{Binding NextToolTip}"/>
+            </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+
+      <!-- The top edge of the screen: when the pointer reaches it, the mini player comes back until the
+           screen under it is scrolled again (see PegasusChrome.PlayerAway). It is a strip of its own,
+           filled so that it takes the pointer: a screen under it ends where its content ends, and a
+           pointer over nothing reaches nothing. It is three points high, so the edge itself is hovered,
+           not the top of a row under it. It is over home, the wall and the player, and under the keys and
+           the menu. -->
+      <Grid x:Name="PlayerPeekEdge" VerticalAlignment="Top" Height="3" Background="Transparent"
+            PointerEntered="PlayerPeekEdge_Pointer" PointerMoved="PlayerPeekEdge_Pointer"/>
+
+      <!-- The back key, top left, opposite the host's own keys. On the wall it goes to home; on home it
+           goes to the turning record. What it says is set by PaintLibraryBack.
+
+           It does not take the keyboard focus when pressed. It is one key with two meanings, and when it
+           kept the focus the space bar became a second press: space after going to home went to the
+           turning record instead of pausing. The space bar belongs to the view's own play/pause
+           (PegasusPlayer.Root_PreviewKeyDown), and so do the mini player's keys below. -->
+      <Button x:Name="LibraryBackButton" Click="LibraryBack_Click" AllowFocusOnInteraction="False"
+              HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
+              Style="{StaticResource PegasusTransportButton}" Content="&#xf053;" FontSize="14"
+              ToolTipService.ToolTip="{loc:Str Key=Viz_LibraryBackHome}"
+              AutomationProperties.Name="{loc:Str Key=Viz_LibraryBackHome}"/>
+
+      <!-- ═══ the menu ═══ a panel down the left of home, over it as the mini player is, in the same
+           glass: who the collection on screen belongs to (and a key to switch to another, where one is
+           shared), the collection's screens as entries with the main window's icons, and at the foot the
+           way out of Pegasus and the key to its settings. Back or Backspace closes it. The corner key
+           also opens it, for the mouse.
+
+           The remote opens it with Left held for two seconds on home or radio (see
+           PegasusChrome.HoldOpens and PegasusPlayer.SideKey). A press outside the panels closes it (the
+           ground under it), and so does Back. Sizes are set in SizeSideMenu, at the collection's scale. -->
+      <Grid x:Name="LibraryMenu" Visibility="Collapsed" Opacity="0">
+        <Grid Background="Transparent" Tapped="LibraryMenuGround_Tapped"/>
+
+        <Grid x:Name="SideMenuPanel" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+          <Grid.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#E6FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+          </Grid.Resources>
+
+          <!-- The mini player's glass: the live blur, and over it the light smoke and its rim. These are
+               two borders, not the player's drawn path, because this panel is a plain rounded rectangle.
+               -->
+          <Border x:Name="SideMenuFrost" IsHitTestVisible="False">
+            <Border.Background>
+              <ui:GlassBrush BlurAmount="34"/>
+            </Border.Background>
+          </Border>
+          <Border x:Name="SideMenuGlass" IsHitTestVisible="False" BorderThickness="1"
+                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                  LightSmokeRimBrush}"/>
+
+          <!-- Transparent and not empty, so a press on the glass between the entries stops here and does
+               not reach the ground, which would close the menu. -->
+          <Grid x:Name="SideMenuBody" Background="Transparent">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Whose collection is on screen: their picture (else the first letter of their name, else
+                 the collection's mark), their name, and which collection it is. The key on the right
+                 switches to another collection. It is there only when there is one to switch to. -->
+            <Grid x:Name="SideMenuHeader" Grid.Row="0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Grid x:Name="SideMenuAvatar" Grid.Column="0" VerticalAlignment="Center">
+                <Border x:Name="SideMenuAvatarGround" Background="#26FFFFFF"/>
+                <TextBlock x:Name="SideMenuAvatarGlyph" FontFamily="{StaticResource PegasusFa}"
+                           Foreground="#F2FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock x:Name="SideMenuAvatarInitial" FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <ctl:AvatarPicture x:Name="SideMenuAvatarPicture"/>
+              </Grid>
+              <StackPanel x:Name="SideMenuWho" Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock x:Name="SideMenuName" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                <TextBlock x:Name="SideMenuCollection" Foreground="#B3FFFFFF"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+              </StackPanel>
+              <Button x:Name="SideMenuSwitch" Grid.Column="2" VerticalAlignment="Center"
+                      Style="{StaticResource PegasusMenuButton}" Visibility="Collapsed"
+                      Click="SideMenuSwitch_Click" ToolTipService.ToolTip="{loc:Str Key=Viz_MenuSwitch}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_MenuSwitch}">
+                <TextBlock Text="&#xf5db;" FontFamily="{StaticResource PegasusFa}"/>
+              </Button>
+            </Grid>
+
+            <!-- The collection's screens, with the icons that the main window's rails use for them (see
+                 LeftRail and RightRail). Each entry is the icon and the name side by side, and their
+                 sizes are set in SizeSideMenu. Albums opens the wall, Search opens the wall's search
+                 field, Artists and Genres open their lists (see PegasusChrome.ArtistsGenres) and Internet
+                 Radio opens the radio screen. Playlists has no screen in Pegasus yet. -->
+            <StackPanel x:Name="SideMenuItems" Grid.Row="1">
+              <Button x:Name="SideMenuSearch" Style="{StaticResource PegasusSideButton}" Click="SideMenuSearch_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf002;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuSearch}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="SideMenuAlbums" Style="{StaticResource PegasusSideButton}" Click="SideMenuAlbums_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf51f;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuAlbums}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="SideMenuArtists" Style="{StaticResource PegasusSideButton}" Click="SideMenuArtists_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf007;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuArtists}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="SideMenuGenres" Style="{StaticResource PegasusSideButton}" Click="SideMenuGenres_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf001;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuGenres}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Style="{StaticResource PegasusSideButton}">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf8c9;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuPlaylists}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="SideMenuRadio" Style="{StaticResource PegasusSideButton}" Click="SideMenuRadio_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf8d7;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Viz_MenuRadio}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- The way out of Pegasus, and the key to its settings beside it. -->
+            <Grid x:Name="SideMenuFoot" Grid.Row="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Button x:Name="SideMenuExit" Grid.Column="0" Style="{StaticResource PegasusMenuButton}"
+                      Content="{loc:Str Key=Viz_MenuExit}" FontWeight="SemiBold"
+                      Click="SideMenuExit_Click"/>
+              <Button x:Name="SideMenuSettings" Grid.Column="1" Style="{StaticResource PegasusMenuButton}"
+                      Click="SideMenuSettings_Click" ToolTipService.ToolTip="{loc:Str Key=Viz_MenuSettings}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_MenuSettings}">
+                <TextBlock Text="&#xf013;" FontFamily="{StaticResource PegasusFa}"/>
+              </Button>
+            </Grid>
+          </Grid>
+        </Grid>
+
+        <!-- The collections to switch between, beside the switch key: the same list that the main
+             window's share button offers (SharedLibraryRow.Build), one row each, built when it opens. -->
+        <Grid x:Name="CollectionsPanel" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed">
+          <Grid.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+          </Grid.Resources>
+          <Border x:Name="CollectionsFrost" IsHitTestVisible="False">
+            <Border.Background>
+              <ui:GlassBrush BlurAmount="34"/>
+            </Border.Background>
+          </Border>
+          <Border x:Name="CollectionsGlass" IsHitTestVisible="False" BorderThickness="1"
+                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                  LightSmokeRimBrush}"/>
+          <StackPanel x:Name="CollectionsRows" Background="Transparent"/>
+        </Grid>
+
+        <!-- Pegasus's own settings, and only those (see IPegasusSettings), in a panel of the same glass
+             in the middle of the screen over a darkened ground. A press on the ground closes it, as Back
+             does. The rows are built in code. -->
+        <Grid x:Name="SettingsLayer" Visibility="Collapsed">
+          <Grid Background="#66000000" Tapped="SettingsGround_Tapped"/>
+          <Grid x:Name="SettingsPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </Grid.Resources>
+            <Border x:Name="SettingsFrost" IsHitTestVisible="False">
+              <Border.Background>
+                <ui:GlassBrush BlurAmount="34"/>
+              </Border.Background>
+            </Border>
+            <Border x:Name="SettingsGlass" IsHitTestVisible="False" BorderThickness="1"
+                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                    LightSmokeRimBrush}"/>
+            <StackPanel x:Name="SettingsBody" Background="Transparent">
+              <TextBlock x:Name="SettingsTitle" Text="{loc:Str Key=Viz_MenuSettings}" FontWeight="SemiBold"
+                         Foreground="#FFFFFFFF"/>
+              <StackPanel x:Name="SettingsRows"/>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      <!-- ═══ radio's search ═══ over radio, with radio blurred behind it: one field in the light glass,
+           centred, and under it a card of the same glass that holds what the directory found, asked again
+           as the words change. OK on a station tunes it and closes the search. Sizes are set in
+           SizeRadioSearch. -->
+      <Grid x:Name="RadioSearchLayer" Visibility="Collapsed" Opacity="0" Background="Transparent">
+        <Border IsHitTestVisible="False">
+          <Border.Background>
+            <ui:GlassBrush BlurAmount="60"/>
+          </Border.Background>
+        </Border>
+        <Rectangle Fill="#33000000" IsHitTestVisible="False"/>
+
+        <!-- Stretched to the foot of the screen, so that the results card keeps its height whatever it
+             holds and "No stations match your search." is in its middle. -->
+        <Grid x:Name="RadioSearchColumn" HorizontalAlignment="Center" VerticalAlignment="Stretch">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Grid x:Name="RadioSearchTop" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- The field, in the mini player's glass: the live frost, the light smoke and its rim. -->
+            <Grid x:Name="RadioSearchField" Grid.Column="0">
+              <Border x:Name="RadioSearchFrost" IsHitTestVisible="False">
+                <Border.Background>
+                  <ui:GlassBrush BlurAmount="34"/>
+                </Border.Background>
+              </Border>
+              <Border x:Name="RadioSearchGlass" IsHitTestVisible="False" BorderThickness="1"
+                      Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                      LightSmokeRimBrush}"/>
+              <TextBox x:Name="RadioSearchBox" PlaceholderText="{loc:Str Key=Radio_SearchPlaceholder}"
+                       VerticalAlignment="Center" VerticalContentAlignment="Center"
+                       Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0"
+                       IsSpellCheckEnabled="False"
+                       TextChanged="RadioSearchBox_TextChanged" KeyDown="RadioSearchBox_KeyDown">
+                <TextBox.Resources>
+                  <x:Double x:Key="TextControlThemeMinHeight">0</x:Double>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#B3FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#CCFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#CCFFFFFF"/>
+                  <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                  <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </TextBox.Resources>
+              </TextBox>
+            </Grid>
+
+            <!-- Searches now, and does not wait for the pause that the typing normally waits for. -->
+            <Button x:Name="RadioSearchGo" Grid.Column="1" Style="{StaticResource PegasusMenuButton}"
+                    Click="RadioSearchGo_Click" ToolTipService.ToolTip="{loc:Str Key=Viz_MenuSearch}"
+                    AutomationProperties.Name="{loc:Str Key=Viz_MenuSearch}">
+              <TextBlock x:Name="RadioSearchGoMark" Text="&#xf002;" FontFamily="{StaticResource PegasusFa}"/>
+            </Button>
+          </Grid>
+
+          <!-- What was found, in the same glass. -->
+          <Grid x:Name="RadioResultsCard" Grid.Row="1">
+            <Border x:Name="RadioResultsFrost" IsHitTestVisible="False">
+              <Border.Background>
+                <ui:GlassBrush BlurAmount="34"/>
+              </Border.Background>
+            </Border>
+            <Border x:Name="RadioResultsGlass" IsHitTestVisible="False" BorderThickness="1"
+                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                    LightSmokeRimBrush}"/>
+            <ScrollViewer x:Name="RadioResultsScroll" VerticalScrollBarVisibility="Hidden"
+                          HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False">
+              <ItemsRepeater x:Name="RadioSearchTiles" ItemTemplate="{StaticResource RadioTileTemplate}"
+                             ElementPrepared="RadioSearchTiles_ElementPrepared">
+                <ItemsRepeater.Layout>
+                  <UniformGridLayout x:Name="RadioResultsLayout" MaximumRowsOrColumns="4"
+                                     ItemsJustification="Start" ItemsStretch="None"/>
+                </ItemsRepeater.Layout>
+              </ItemsRepeater>
+            </ScrollViewer>
+            <TextBlock x:Name="RadioResultsNote" Foreground="#CCFFFFFF" TextWrapping="Wrap"
+                       TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsHitTestVisible="False" Visibility="Collapsed"/>
+            <ctl:RecordSpinner x:Name="RadioResultsSpinner" Width="46" Height="46" Spinning="False"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsHitTestVisible="False"/>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      <!-- ═══ radio's wheel ═══ down the right of radio, with radio blurred behind it: the places that
+           radio can go, turned past a marker drawn in the way the tuner draws its needle. The entry on
+           the marker is sharp, and the others are blurred more the further they are from it. It opens
+           when Right is held for two seconds anywhere on radio. Up and Down turn it, OK opens the entry,
+           and Back and Left close it. It is drawn by RadioWheel; see PegasusChrome.RadioWheel. -->
+      <Grid x:Name="RadioWheelLayer" Visibility="Collapsed" Opacity="0" Background="Transparent"
+            Tapped="RadioWheelGround_Tapped">
+        <Border IsHitTestVisible="False">
+          <Border.Background>
+            <ui:GlassBrush BlurAmount="60"/>
+          </Border.Background>
+        </Border>
+        <Rectangle Fill="#33000000" IsHitTestVisible="False"/>
+        <Grid x:Name="RadioWheelHost" HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
+      </Grid>
+    </Grid>
+
+    <!-- ═══ one album ═══ what a press on a cover opens: the cover, what the album is, how much is in it,
+         what it has been given, the three things you can do to it, and everything on it.
+
+         It is a screen of its own, not a fold under the row where it was pressed. The fold is the library
+         window's gesture, and it is right THERE: the wall is read across, and the album opens in place so
+         the user keeps their position. Here the wall is the only thing on the screen and there is no
+         position to keep, so the album gets the screen, as it does on the phone. It is also the only
+         shape that lets the ROOM answer: with the wall gone, the album's own colours have somewhere to go
+         (see PegasusChrome.Record).
+
+         It is laid out in code and not in a template, like every other screen in this file: the cover is
+         sized from the window, the lines are read once when the album is opened, and there is nothing
+         here for a binding to keep up with. -->
+    <Grid x:Name="RecordLayer" Visibility="Collapsed" Opacity="0"
+          SizeChanged="RecordLayer_SizeChanged">
+
+      <!-- The same light dark layer that the wall has, with exactly the same value: this screen REPLACES
+           the wall and is not over it, so a second layer would make the room a shade darker every time an
+           album was opened. -->
+      <Rectangle Fill="#73000000" IsHitTestVisible="False"/>
+
+      <!-- The page: the album and its running order side by side, the pair of them centred on the screen.
+           Both widths and the gap between them are set from the window size. See SizeRecord.
+
+           The album is OUTSIDE the scroller, which is the purpose of this Grid. If it were inside the
+           scroller, it would need a transform to carry it back up by the distance that the page has
+           scrolled. That means putting a panel back each time, and it lags the scroll by one frame on a
+           fast scroll and visibly drifts. Out here it is not scrolled at all, so there is nothing to
+           correct and nothing to lag.
+
+           Both columns are Auto, and each is given its width in code. They are not Star, because the two
+           columns are not shares of anything: one is a cover with keys under it, the other is a list of
+           titles, and what either needs has nothing to do with the other. -->
+      <!-- Centred both ways, and the margin is what it is centred WITHIN: 108 from the top because 58 of
+           that is the back key's own strip, which the cover must not stand under, and 44 from the bottom
+           so that the page does not sit on the edge of the screen.
+
+           Its height is limited in SizeRecord, and that limit keeps the centring correct. Without it, a
+           Grid that holds a ScrollViewer asks for the whole height of the list inside it, so a long album
+           would grow taller than the screen and hang off both ends instead of scrolling. With the limit
+           set to the space that exists, an album that fits is centred in it and one that does not fit
+           fills it and scrolls. That is one rule, not two. -->
+      <Grid x:Name="RecordPage" HorizontalAlignment="Center" Margin="0,108,0,44">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The page STRETCHES and the album is centred inside it, instead of the page being centred with
+             the album at its top. The two look the same at rest, but they differ when the panel changes
+             height: what is said about the album arrives a few seconds after the page, and a centred PAGE
+             would re-centre everything on it, including the running order, which has no reason to move.
+             With the album centred in a page that stays still, the panel opens around its own middle and
+             the tracks beside it do not move. -->
+        <StackPanel x:Name="RecordInfoPanel" Grid.Column="0"
+                    VerticalAlignment="Center" Spacing="0"/>
+
+        <!-- The running order, and the two bands that it fades into at each end.
+
+             It is centred and limited, which is the same rule that the album beside it follows, for the
+             same reason: the dozen titles of a short album are read beside the cover and are not left at
+             the top of a tall column, and a long album fills the space it has and scrolls inside it. The
+             limit is set in SizeRecord, and it makes the centring safe: a ScrollViewer without a limit asks
+             for the whole height of the list in it, so an unlimited box would grow past the screen instead
+             of scrolling.
+
+             The bands are IN here, not outside, so that they are fixed to the box's own top and foot. If
+             they were in the column, they would be at the ends of the page, and would fade empty space
+             above and below a short list. -->
+        <Grid x:Name="RecordTracks" Grid.Column="1" VerticalAlignment="Center">
+          <!-- The wrapper that the cuts go on, for the reason that PhotoCut and SheetCut exist: the copy
+               taken of the scroller is that visual's own rendering, clip included, so cutting the
+               scroller itself would also cut the copy and the band would be lost from both. -->
+          <Grid x:Name="RecordTrackCut">
+            <!-- No bar. The list shows that it continues by fading at both ends (see
+                 PegasusChrome.RecordFade), which is the same information in the drawer's own terms, and a
+                 grey rail down the edge of an album over a visualizer looks like it belongs to another
+                 application. The bar is Hidden and not Disabled: the wheel and the drag still work, but
+                 nothing is drawn at the side. -->
+            <ScrollViewer x:Name="RecordScroll" Padding="0,0,0,20"
+                          VerticalScrollBarVisibility="Hidden" HorizontalScrollMode="Disabled"
+                          BringIntoViewOnFocusChange="False"
+                          SizeChanged="RecordScroll_SizeChanged"
+                          ViewChanged="RecordScroll_ViewChanged">
+              <StackPanel x:Name="RecordBody" Spacing="0"/>
+            </ScrollViewer>
+          </Grid>
+
+          <!-- Empty in the markup: a composition sprite goes in each, and both are given their depth in
+               code. See PegasusChrome.RecordFade. -->
+          <Grid x:Name="RecordTracksTopFade" Height="0" VerticalAlignment="Top"
+                IsHitTestVisible="False"/>
+          <Grid x:Name="RecordTracksFootFade" Height="0" VerticalAlignment="Bottom"
+                IsHitTestVisible="False"/>
+        </Grid>
+      </Grid>
+
+      <!-- Back to the screen where the album was opened from, the wall or home, in the same corner as the
+           collection's own back key. -->
+      <Button x:Name="RecordBackButton" Click="RecordBack_Click"
+              HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
+              Style="{StaticResource PegasusTransportButton}" Content="&#xf053;" FontSize="14"
+              ToolTipService.ToolTip="{loc:Str Key=Viz_LibraryBack}"
+              AutomationProperties.Name="{loc:Str Key=Viz_LibraryBack}"/>
+    </Grid>
+
+    <!-- ═══ the tuner ═══ radio's own page, opened from radio's wheel: the main window's tuning dial
+         drawn wide across the top, the station list under it on the left, and on the right a player for
+         the tuned station, with its mark in a small room of its own colours. The dial is wider than in
+         the main app, but not stretched.
+
+         It is a page over radio, as an album's page is over the wall: it cross-fades with the collection
+         and does not stand on it (see PegasusChrome.RadioTuner, CrossToTuner). Every size is set in
+         SizeTuner. -->
+    <Grid x:Name="TunerLayer" Visibility="Collapsed" Opacity="0" SizeChanged="TunerLayer_SizeChanged">
+      <Rectangle Fill="#73000000" IsHitTestVisible="False"/>
+
+      <Grid x:Name="TunerPage">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- The dial is scaled as a whole and not stretched: it is laid out at a width of its own and the
+             box scales it up, so its names and squares keep their shapes. The remote's stop over it is
+             added in code (see BuildTunerDialKey). -->
+        <Grid x:Name="TunerDialRow" Grid.Row="0" HorizontalAlignment="Center">
+          <Viewbox x:Name="TunerDialBox" Stretch="Uniform">
+            <pane:RadioDial x:Name="TunerDial"/>
+          </Viewbox>
+        </Grid>
+
+        <Grid x:Name="TunerBody" Grid.Row="1">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- The station list, as the main window's radio pane lists them: a search field, the country,
+               the order, the filter and the favourites switch, then a row per station. -->
+          <Grid x:Name="TunerBrowser" Grid.Column="0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="TunerTools" Grid.Row="0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <Border x:Name="TunerSearchBox" Grid.Column="0" Background="#1FFFFFFF"
+                      BorderBrush="#26FFFFFF" BorderThickness="1">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="TunerSearchMark" Grid.Column="0" Text="&#xf002;"
+                             FontFamily="{StaticResource PegasusFa}" Foreground="#99FFFFFF"
+                             VerticalAlignment="Center"/>
+                  <TextBox x:Name="TunerSearch" Grid.Column="1"
+                           PlaceholderText="{loc:Str Key=Radio_SearchPlaceholder}"
+                           TextChanged="TunerSearch_TextChanged"
+                           VerticalAlignment="Center" VerticalContentAlignment="Center"
+                           Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0"
+                           MinHeight="0" IsSpellCheckEnabled="False">
+                    <TextBox.Resources>
+                      <x:Double x:Key="TextControlThemeMinHeight">0</x:Double>
+                      <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                      <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                      <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                      <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8CFFFFFF"/>
+                      <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#A6FFFFFF"/>
+                      <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#A6FFFFFF"/>
+                      <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                      <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                    </TextBox.Resources>
+                  </TextBox>
+                </Grid>
+              </Border>
+
+              <Button x:Name="TunerCountry" Grid.Column="1" Style="{StaticResource PegasusMenuButton}"
+                      HorizontalContentAlignment="Stretch" Click="TunerCountry_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="TunerCountryLabel" Grid.Column="0" VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis"/>
+                  <TextBlock x:Name="TunerCountryMark" Grid.Column="1" Text="&#xf078;"
+                             FontFamily="{StaticResource PegasusFa}" Opacity="0.7"
+                             VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+
+              <Button x:Name="TunerSort" Grid.Column="2" Style="{StaticResource PegasusMenuButton}"
+                      Click="TunerSort_Click" ToolTipService.ToolTip="{loc:Str Key=Radio_Sort}"
+                      AutomationProperties.Name="{loc:Str Key=Radio_Sort}">
+                <Grid>
+                  <TextBlock x:Name="TunerSortMark" Text="&#xf160;" FontFamily="{StaticResource PegasusFa}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Ellipse x:Name="TunerSortDot" Fill="{StaticResource RpmCyanBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"/>
+                </Grid>
+              </Button>
+
+              <Button x:Name="TunerFilter" Grid.Column="3" Style="{StaticResource PegasusMenuButton}"
+                      Click="TunerFilter_Click" ToolTipService.ToolTip="{loc:Str Key=Radio_Filter}"
+                      AutomationProperties.Name="{loc:Str Key=Radio_Filter}">
+                <Grid>
+                  <TextBlock x:Name="TunerFilterMark" Text="&#xf0b0;" FontFamily="{StaticResource PegasusFa}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Ellipse x:Name="TunerFilterDot" Fill="{StaticResource RpmCyanBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"/>
+                </Grid>
+              </Button>
+
+              <Button x:Name="TunerFavorites" Grid.Column="4" Style="{StaticResource PegasusMenuButton}"
+                      Click="TunerFavorites_Click" ToolTipService.ToolTip="{loc:Str
+                      Key=Radio_ShowFavorites}" AutomationProperties.Name="{loc:Str
+                      Key=Radio_ShowFavorites}">
+                <TextBlock x:Name="TunerFavoritesMark" Text="&#xf004;" FontFamily="{StaticResource PegasusFaRegular}"
+                           Foreground="{StaticResource FavoriteMarkIdleBrush}"/>
+              </Button>
+            </Grid>
+
+            <Grid Grid.Row="1">
+              <ScrollViewer x:Name="TunerScroll" VerticalScrollBarVisibility="Hidden"
+                            HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False">
+                <ItemsRepeater x:Name="TunerRows" ItemTemplate="{StaticResource RadioRowTemplate}"
+                               ElementPrepared="TunerRows_ElementPrepared">
+                  <ItemsRepeater.Layout>
+                    <StackLayout x:Name="TunerRowsLayout"/>
+                  </ItemsRepeater.Layout>
+                </ItemsRepeater>
+              </ScrollViewer>
+              <TextBlock x:Name="TunerNote" Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                         HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False"
+                         Visibility="Collapsed"/>
+              <ctl:RecordSpinner x:Name="TunerSpinner" Width="46" Height="46" Spinning="False"
+                                 HorizontalAlignment="Center" VerticalAlignment="Top"
+                                 IsHitTestVisible="False"/>
+            </Grid>
+          </Grid>
+
+          <!-- The player: the station's mark in the middle of a small room in the mark's own colours,
+               what it is playing under it, and the key that plays or stops it. -->
+          <Grid x:Name="TunerPlayer" Grid.Column="1" VerticalAlignment="Top">
+            <Border x:Name="TunerPlayerFrost" IsHitTestVisible="False">
+              <Border.Background>
+                <ui:GlassBrush BlurAmount="34"/>
+              </Border.Background>
+            </Border>
+            <ui:CardRoom x:Name="TunerRoom" Shown="False"/>
+            <Border x:Name="TunerPlayerVeil" Background="#33000000" IsHitTestVisible="False"/>
+            <Border x:Name="TunerPlayerGlass" IsHitTestVisible="False" BorderThickness="1"
+                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                    LightSmokeRimBrush}"/>
+            <StackPanel x:Name="TunerPlayerBody" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Grid x:Name="TunerWellHost" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="TunerTitle" FontWeight="Bold" Foreground="#FFFFFFFF" TextAlignment="Center"
+                         HorizontalAlignment="Center" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="TunerArtist" Foreground="#D9FFFFFF" TextAlignment="Center"
+                         HorizontalAlignment="Center" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="TunerStation" Foreground="#99FFFFFF" TextAlignment="Center"
+                         HorizontalAlignment="Center" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+              <Button x:Name="TunerPlayKey" Style="{StaticResource PegasusMenuButton}" HorizontalAlignment="Center"
+                      Click="TunerPlay_Click">
+                <TextBlock x:Name="TunerPlayMark" FontFamily="{StaticResource PegasusFa}"/>
+              </Button>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <!-- ═══ what is playing next ═══ a drawer down the left edge, full height.
+
+         It slides IN and does not just appear, and the picture moves right by exactly its width and does
+         not hide under it. Both parts matter: a card that appears over the record looks like something
+         dropped on the screen, and a drawer that covers the words means that opening the list to see what
+         is next hides what is playing now.
+
+         It is flush to the edge and full height, which makes it a drawer and not a card. Only the right
+         corners are rounded and only the right edge is drawn. The other three sides belong to the screen,
+         and a border along them would draw a box around the window.
+
+         The rows are built in code (BuildQueue), as the lyric sheet next door is: a hand-built list is a
+         few TextBlocks laid out once, whereas an ItemsControl would bring a template, a panel and a layout
+         pass in front of the one thing on this screen that cannot afford it. The list is rebuilt when the
+         drawer opens and while it is open, and costs nothing when it is closed. -->
+    <Border x:Name="QueuePanel" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False"
+            HorizontalAlignment="Left" VerticalAlignment="Stretch"
+            PointerEntered="Queue_PointerEntered" PointerExited="Queue_PointerExited"
+            PointerMoved="Queue_PointerMoved"
+            BorderBrush="#26FFFFFF" BorderThickness="0,0,1,0">
+      <Border.RenderTransform>
+        <TranslateTransform x:Name="QueueShift"/>
+      </Border.RenderTransform>
+
+      <!-- The keys on this panel (the arrow, the two words, the way out) are Buttons, so without this
+           style they would use the theme's own hover, which is a pale shape drawn for a light surface on
+           the darkest card in the app. The ROWS do not rely on it: they are Borders painted from code
+           (see LightRow), which stops a scrolled list from leaving a trail of lit rows. -->
+      <Border.Resources>
+        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
+        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2BFFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3DFFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+        <SolidColorBrush x:Key="ButtonForeground" Color="#F2FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+      </Border.Resources>
+
+      <!-- ═══ Glass ═══ the app's own live frost (see GlassBrush), the same treatment that every card in
+           the library window has: a backdrop blur of whatever is really behind this panel, which here is
+           the room, the spectrum and half an album.
+
+           It is LIVE, and this is the one place in the app where that word has a cost. The library's
+           cards stand on a cached plate (see FrostPlate) because nothing behind them moves. Behind this
+           panel the whole picture moves, so there is nothing to cache and the blur is taken every frame.
+           That is affordable only because the drawer is a few hundred points wide and hides after three
+           seconds: nobody leaves it on screen.
+
+           The veil over it is the tint, exactly as the grids do it. It is heavier than theirs, and it
+           must be: they frost a still photograph, and this frosts a room that goes from black to white
+           and back while a track plays. Under a lighter veil the words on this panel would come and go
+           with the music. -->
+      <Grid>
+        <Rectangle>
+          <Rectangle.Fill>
+            <ui:GlassBrush BlurAmount="34"/>
+          </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- The tint, and the fallback. Where the frost cannot read what is behind it (for example a
+             machine with no composition backdrop to sample), this is the whole colour of the panel, and
+             it is a near-black. Nothing about the panel depends on the blur being available. -->
+        <Rectangle Fill="#B0000000"/>
+
+        <!-- ═══ The album's own wash ═══ the open album's cover, enlarged to fill the drawer and blurred
+             until no detail is left (see ArtScaler.Wash), so the screen that shows one album is coloured
+             by THAT album and not by the same near-black as every other screen.
+
+             It is over the tint and not under it, so it is a wash on the panel and not a picture behind a
+             veil, and it has its own gradient: lightest at the top, where the cover is in front of it and
+             the two together look like one object with a glow, and heaviest at the bottom, where a dozen
+             lines of small text must stay readable over whatever colours the album has. The gradient is
+             the only reason this can be as bright as it is.
+
+             It is blurred before it arrives: the picture given to this brush is already soft. A
+             composition blur here would run again on every frame while the drawer is shown, on top of the
+             live frost below it, and a machine without the effect pipeline would show a sharp album cover
+             behind its track list. It is shown only while the album screen is shown (see ShowScreen), and
+             it is never hit-testable: it is a picture behind a list, and a pointer that lands on it would
+             be a pointer that the list has lost. -->
+        <Grid x:Name="AlbumBackdrop" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False">
+          <!-- A Border that uses the picture as its BACKGROUND, not an Image: a background is painted
+               into the element's own bounds, so a square cover that fills a tall panel is cropped by the
+               panel and cannot paint outside it. (An Image would rely on the control to clip its own
+               overflow. This is also the reason the scrim tail in ArtDisplay is a Border: Uno's Skia
+               renderer honours an ImageBrush as a background and draws nothing for one on a Shape's Fill.
+               The gradient below is still a Rectangle, which that note also allows.) -->
+          <Border>
+            <Border.Background>
+              <ImageBrush x:Name="AlbumBackdropArt" Stretch="UniformToFill"/>
+            </Border.Background>
+          </Border>
+          <Rectangle>
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Offset="0.0" Color="#4D000000"/>
+                <GradientStop Offset="0.45" Color="#8C000000"/>
+                <GradientStop Offset="1.0" Color="#C4000000"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+        </Grid>
+
+        <!-- A light edge down the leading side, which stops frosted glass from looking like a grey
+             rectangle: the edge nearest the picture catches a little of it. -->
+        <Rectangle Width="1" HorizontalAlignment="Right">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Offset="0.0" Color="#00FFFFFF"/>
+              <GradientStop Offset="0.35" Color="#26FFFFFF"/>
+              <GradientStop Offset="1.0" Color="#00FFFFFF"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+
+        <Grid Margin="0,12,0,12">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- No heading over the list. "Now playing" would name the one thing on this screen that is never
+             in doubt, because the record turns in the middle of it, and a row of titles under a label
+             looks like a section of a page and not like the queue itself. The head of the drawer holds
+             the way OUT of it, and the way BACK from it. All of it is sized in code (LayoutQueue), with
+             the rows underneath.
+
+             There is no arrow on the left either. The three words beside it are peers: what is playing,
+             what you made and what you own are one question with three answers, and a back arrow over
+             three peers goes nowhere. -->
+        <Grid Grid.Row="0" Margin="8,0,10,6">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <StackPanel x:Name="QueueHead" Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                      HorizontalAlignment="Left" VerticalAlignment="Center">
+            <!-- Which of the three lists the drawer shows. They are words, not a dropdown or a segmented
+                 control: each is one or two words, and anything with a chrome around it would be the
+                 loudest thing on a screen whose whole purpose is a turning record.
+
+                 They are three peers, not one screen with two tabs. The three lists are one question:
+                 what should be playing. They are shown together on both screens, and hidden on an album,
+                 whose head is about that album. -->
+            <Button x:Name="BrowseQueueTab" Click="BrowseTab_Click" Tag="queue"
+                    Visibility="Collapsed" VerticalAlignment="Center"
+                    MinWidth="0" MinHeight="0"
+                    Content="{loc:Str Key=Viz_BrowseQueue}"/>
+            <Button x:Name="BrowsePlaylistsTab" Click="BrowseTab_Click" Tag="playlists"
+                    Visibility="Collapsed" VerticalAlignment="Center"
+                    MinWidth="0" MinHeight="0"
+                    Content="{loc:Str Key=Viz_BrowsePlaylists}"/>
+            <Button x:Name="BrowseAlbumsTab" Click="BrowseTab_Click" Tag="albums"
+                    Visibility="Collapsed" VerticalAlignment="Center"
+                    MinWidth="0" MinHeight="0"
+                    Content="{loc:Str Key=Viz_BrowseAlbums}"/>
+          </StackPanel>
+
+          <!-- ═══ Finding one album ═══ beside the way out, and only while albums are what is on screen.
+               A collection is the one list in this drawer that is too long to scroll to the end of: the
+               queue is what somebody lined up and the playlists are what they made, but the albums are
+               everything they own. So it is the one list that needs a search and not just reading.
+
+               The question goes to the DATABASE, not to the rows already built (see ReadAlbums): the
+               shelf is capped at five hundred rows, and a filter over the rows on screen could only find
+               an album in the first five hundred. A real search reaches the whole collection, so the cap
+               does not matter.
+
+               It is the same field that the library's own header uses, with the style of this panel: a
+               magnifier, bare text, and every default TextBox chrome removed. The template paints a
+               filled box and, on focus, an accent-blue underline that the control's own BorderThickness
+               cannot override, so every state is set to zero by name. -->
+          <Border x:Name="BrowseSearchBox" Grid.Column="1" Visibility="Collapsed"
+                  CornerRadius="6" Padding="9,0" Margin="10,0,10,0"
+                  Background="#1FFFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                  VerticalAlignment="Center" HorizontalAlignment="Stretch" MinWidth="0">
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="BrowseSearchGlyph" Grid.Column="0" Text="&#xf002;"
+                         FontFamily="{StaticResource PegasusFa}" Foreground="#99FFFFFF"
+                         VerticalAlignment="Center"/>
+              <!-- The TextBox centres itself and is not stretched: when stretched, its template keeps the
+                   text (and the placeholder) at the top of the box. -->
+              <TextBox x:Name="BrowseSearch" Grid.Column="1"
+                       TextChanged="BrowseSearch_TextChanged"
+                       GotFocus="BrowseSearch_FocusChanged" LostFocus="BrowseSearch_FocusChanged"
+                       VerticalAlignment="Center" VerticalContentAlignment="Center"
+                       Background="Transparent" BorderThickness="0" Padding="0"
+                       MinWidth="0" MinHeight="0"
+                       PlaceholderText="{loc:Str Key=Viz_BrowseSearch}">
+                <TextBox.Resources>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8CFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#A6FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#A6FFFFFF"/>
+                  <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                  <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </TextBox.Resources>
+              </TextBox>
+            </Grid>
+          </Border>
+
+          <!-- Its own way out, on the panel and not only on the key that opened it. A card over the
+               picture should close where it is, without the user having to find the button it came from.
+               It is on both screens, because it closes the drawer and not the screen. -->
+          <Button x:Name="QueueCloseButton" Click="QueueClose_Click" Grid.Column="2"
+                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                  Padding="0" MinWidth="0" MinHeight="0"
+                  Content="&#xf00d;" FontFamily="{StaticResource PegasusFa}"
+                  Foreground="#99FFFFFF"
+                  ToolTipService.ToolTip="{loc:Str Key=Viz_QueueClose}"
+                  AutomationProperties.Name="{loc:Str Key=Viz_QueueClose}"/>
+        </Grid>
+
+        <!-- The two screens, one over the other with a cross-fade between them (see ShowBrowse). Both are
+             in the tree the whole time the drawer is shown: they are lists of a few dozen rows, and a
+             screen built on the way in is a layout pass in front of the shader at the moment when the
+             user is watching the slide. Only the screen being viewed is ever FILLED, which is where the
+             cost really is. -->
+        <Grid Grid.Row="1">
+          <ScrollViewer x:Name="QueueScroll"
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                        ViewChanged="Drawer_ViewChanged">
+            <!-- The lists are all 18 in from the panel's edges. See the note on AlbumBody below. -->
+            <StackPanel x:Name="QueueRows" Margin="18,0,18,0"/>
+          </ScrollViewer>
+
+          <ScrollViewer x:Name="BrowseScroll" Opacity="0" Visibility="Collapsed"
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                        ViewChanged="Browse_ViewChanged">
+            <StackPanel x:Name="BrowseRows" Margin="18,0,18,0"/>
+          </ScrollViewer>
+
+          <!-- The album itself: what a chosen album is, before any of it plays. It is a third screen, not
+               a press that starts the music, because choosing an album from a shelf and starting its
+               first track are two different intentions, and choosing it expresses only one of them. Built
+               in code (see PegasusChrome.Album). -->
+          <!-- A wrapper with nothing in it except the album screen, and it is not decoration: the top of
+               this list is masked out as it passes under the head (see PegasusChrome.TopFade), and a mask
+               needs two elements. The copy that is faded is taken from the visual of AlbumScroll, and the
+               live one has to be cut away in the same band, so the cut goes HERE, on the parent. A cut on
+               AlbumScroll itself would also be a cut in what was copied. -->
+          <Grid x:Name="AlbumScreen">
+            <ScrollViewer x:Name="AlbumScroll" Opacity="0" Visibility="Collapsed"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                          BringIntoViewOnFocusChange="False"
+                          ViewChanged="Drawer_ViewChanged">
+              <!-- Ten points wider on both sides than the rows are elsewhere, and the same ten on all
+                   three screens: the drawer is one panel with one head over it, and a list that changed
+                   its left edge on the way from the shelf into an album would look like the whole screen
+                   shifting under the arrow. The extra space gives room around the cover, which is the one
+                   thing in this drawer that is meant to be looked at and not read. -->
+              <StackPanel x:Name="AlbumBody" Margin="18,0,18,0"/>
+            </ScrollViewer>
+          </Grid>
+
+          <!-- What is shown in place of an empty list: what is here, and how to fill it. It is its own
+               element and not a row, because it is a sentence to be read and not something to press. -->
+          <TextBlock x:Name="BrowseEmpty" Visibility="Collapsed"
+                     TextWrapping="Wrap" Foreground="#99FFFFFF"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     TextAlignment="Center" Margin="24,0,24,0"/>
+
+          <!-- Empty on purpose: the band at the top of the list where the album fades under the head.
+               What paints here is a composition visual attached to this element (see
+               PegasusChrome.TopFade), which holds a copy of the list's own pixels with an alpha ramp
+               through them. It is outside AlbumScreen above, because that element is cut in exactly this
+               band, and a mask that is cut away together with what it masks would paint nothing. It is
+               last in the panel, so it is drawn over the lists, and it is never hit-testable, so the list
+               keeps every press. -->
+          <Grid x:Name="DrawerTopFade" VerticalAlignment="Top" Height="26"
+                IsHitTestVisible="False" SizeChanged="DrawerTopFade_SizeChanged"/>
+        </Grid>
+
+        </Grid>
+
+        <!-- ═══ Which playlist ═══ the one question that a swipe cannot answer by itself. Everything else
+             in this drawer happens on the press: a song swiped one way goes up next, and there is only
+             one queue for it. Swiped the other way, it goes onto a PLAYLIST, and the user has several, so
+             the gesture asks here, over the drawer where it was made, and not in a dialog in the middle
+             of a full-screen visualizer.
+
+             The user chooses and then confirms, in two presses. If one press on a name chose the
+             playlist, a mis-swipe would put a song in the wrong playlist, and this panel is scrolled with
+             a pointer that has just been moving sideways.
+
+             It is over everything, and hit-testable: unlike the rest of the furniture on this panel, it
+             is the thing being talked to while it is shown. Built in code, like every other list in this
+             drawer (see PegasusChrome.Playlists). -->
+        <Border x:Name="PlaylistSheet" Visibility="Collapsed" Opacity="0"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                Margin="18,0,18,0" CornerRadius="10" Padding="14,12,14,12"
+                Background="#F00A0A0A" BorderBrush="#26FFFFFF" BorderThickness="1">
+          <!-- Sized by what is in it, not by the drawer: it is a card in the middle of the panel and not
+               a second panel over it. There are three Auto rows and the list is limited in code (see
+               SizeSheet). The question is "which of these", and a box as high as the whole drawer to hold
+               three names would look like a place the user has been taken to, not something they were
+               asked. Past the limit the names scroll inside the card and the box stops growing. -->
+          <Grid RowSpacing="10">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="PlaylistSheetTitle" Grid.Row="0" Text="{loc:Str Key=Playlists_AddToPlaylist}"
+                       FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+
+            <ScrollViewer x:Name="PlaylistSheetScroll" Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+              <StackPanel x:Name="PlaylistSheetRows"/>
+            </ScrollViewer>
+
+            <!-- A collection with no playlists yet: this is said in the panel, instead of showing an
+                 empty panel. -->
+            <TextBlock x:Name="PlaylistSheetEmpty" Grid.Row="1" Visibility="Collapsed"
+                       Text="{loc:Str Key=Viz_BrowseNoPlaylists}" TextWrapping="Wrap"
+                       Foreground="#99FFFFFF" TextAlignment="Center"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Grid Grid.Row="2" ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Button x:Name="PlaylistSheetCancel" Grid.Column="0" Click="PlaylistSheetCancel_Click"
+                      Content="{loc:Str Key=Common_Cancel}" MinWidth="0" MinHeight="0"/>
+              <Button x:Name="PlaylistSheetAdd" Grid.Column="1" Click="PlaylistSheetAdd_Click"
+                      Content="{loc:Str Key=Playlists_AddToPlaylist}" IsEnabled="False"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                      MinWidth="0" MinHeight="0"/>
+            </Grid>
+          </Grid>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- ═══ switching collections ═══ over everything in this view while home reads the collection that
+         was just picked in the side menu: what is behind is blurred out, and in the middle are the
+         picture of the collection's owner, the words, and the spinner. It is shown from the pick until
+         home's first reading after it is shown (see PegasusChrome.PickCollection). It takes the pointer,
+         and the shell gives it none of the remote's keys while it is shown. Sizes are set in
+         SizeSwitching. -->
+    <Grid x:Name="SwitchLayer" Visibility="Collapsed" Opacity="0" Background="Transparent">
+      <Border IsHitTestVisible="False">
+        <Border.Background>
+          <ui:GlassBrush BlurAmount="60"/>
+        </Border.Background>
+      </Border>
+      <Rectangle Fill="#33000000" IsHitTestVisible="False"/>
+      <StackPanel x:Name="SwitchStack" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsHitTestVisible="False">
+        <!-- The picture in a white ring; otherwise the first letter of the name, otherwise the
+             collection's mark, on black. -->
+        <Grid x:Name="SwitchFace" HorizontalAlignment="Center">
+          <Border x:Name="SwitchFaceGround" Background="#FF000000"/>
+          <TextBlock x:Name="SwitchFaceGlyph" FontFamily="{StaticResource PegasusFa}" Foreground="#F2FFFFFF"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <TextBlock x:Name="SwitchFaceInitial" FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <ctl:AvatarPicture x:Name="SwitchFacePicture"/>
+          <Border x:Name="SwitchFaceRing" BorderBrush="#FFFFFFFF"/>
+        </Grid>
+        <TextBlock x:Name="SwitchWords" Text="{loc:Str Key=Viz_SwitchingCollection}" Foreground="#FFFFFFFF"
+                   HorizontalAlignment="Center" TextAlignment="Center"/>
+        <ctl:RecordSpinner x:Name="SwitchSpinner" HorizontalAlignment="Center"/>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

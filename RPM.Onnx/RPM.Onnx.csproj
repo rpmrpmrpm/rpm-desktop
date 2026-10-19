@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!-- The ONNX runtime, in one of its two builds, picked exactly the way RPM.Desktop picks it —
+       see the long note there. Both projects have to arrive at the same answer, because the two
+       builds each carry an onnxruntime native and only one of them can end up beside the app; the
+       RID flows down from whatever is being published, so they do. -->
+  <PropertyGroup>
+    <RpmOnnxRid Condition="'$(RpmOnnxRid)' == ''">$(RuntimeIdentifier)</RpmOnnxRid>
+    <RpmOnnxRid Condition="'$(RpmOnnxRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</RpmOnnxRid>
+    <RpmOnnxDirectMl Condition="'$(RpmOnnxDirectMl)' == '' And '$(RpmOnnxRid)' != '' And $(RpmOnnxRid.StartsWith('win'))">true</RpmOnnxDirectMl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Condition="'$(RpmOnnxDirectMl)' != 'true'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Condition="'$(RpmOnnxDirectMl)' == 'true'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RPM.Core\RPM.Core.csproj" />
+  </ItemGroup>
+
+  <!-- The repo's own rules, as compile errors, as in RPM.Core and RPM.Desktop. -->
+  <ItemGroup>
+    <ProjectReference Include="..\\RPM.Analyzers\\RPM.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

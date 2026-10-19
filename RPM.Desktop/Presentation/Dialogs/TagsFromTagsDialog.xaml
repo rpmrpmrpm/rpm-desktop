@@ -1,0 +1,196 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.TagsFromTagsDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:local="using:RPM.Desktop.Presentation.Dialogs"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+      <!-- The same form sizing as TrackDetailsDialog: 24 px inputs and 12 pt text. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <ctl:ResizableDialogShell x:Name="Shell" Title="{loc:Str Key=TagsFromTags_Title}"
+                            TitleGlyph="&#xf0ec;">
+
+    <Grid RowSpacing="10">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- which field, built from what -->
+        <RowDefinition Height="*"/>      <!-- what it would do to every ticked file -->
+        <RowDefinition Height="Auto"/>   <!-- how many would be written -->
+      </Grid.RowDefinitions>
+
+    <!-- The field to write, and the pattern that makes its new value. The words and the steps are the
+         same as in the tags-from-filename window, so one form is learned for both. -->
+      <Border Grid.Row="0" Style="{StaticResource ContentBorderStyle}" Padding="12">
+        <Grid ColumnSpacing="8" RowSpacing="{StaticResource DenseRowSpacing}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="82"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Str Key=TagsFromTags_Target}"
+                     Style="{StaticResource DenseFieldLabelStyle}"/>
+          <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TargetBox"
+                    HorizontalAlignment="Stretch" SelectionChanged="Target_SelectionChanged"/>
+
+          <!-- A preset describes what it does, in the app's own field names. The pattern is in the box. -->
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Str Key=FilenameTags_Preset}"
+                     Style="{StaticResource DenseFieldLabelStyle}"/>
+          <ComboBox Grid.Row="1" Grid.Column="1" x:Name="PresetBox"
+                    HorizontalAlignment="Stretch" SelectionChanged="Preset_SelectionChanged">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="local:TagPresetRow">
+                <Grid ColumnSpacing="12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Pattern}" FontSize="11"
+                             Foreground="#66FFFFFF" FontFamily="Consolas,Menlo,monospace"
+                             VerticalAlignment="Center"/>
+                </Grid>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="{loc:Str Key=TagsFromTags_Format}"
+                     Style="{StaticResource DenseFieldLabelStyle}"/>
+          <TextBox Grid.Row="2" Grid.Column="1" x:Name="PatternBox"
+                   FontFamily="Consolas,Menlo,monospace"
+                   TextChanged="Pattern_TextChanged"/>
+
+          <!-- Every field in the catalogue, as keys that insert themselves into the box. This window
+               reads the file's own tags, so any of them can be used in the pattern. -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="{loc:Str Key=Tags_Fields}"
+                     Style="{StaticResource DenseFieldLabelStyle}" VerticalAlignment="Top"
+                     Margin="0,4,0,0"/>
+          <ContentControl Grid.Row="3" Grid.Column="1" x:Name="ChipHost"
+                          HorizontalContentAlignment="Stretch"/>
+        </Grid>
+      </Border>
+
+      <!-- Every ticked file, with the value the field holds now and the value the pattern would put
+           there. Nothing is written until Apply. The current value is shown next to the new one. -->
+      <Border Grid.Row="1" Style="{StaticResource ContentBorderStyle}" Padding="0">
+        <Grid RowSpacing="0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0" BorderBrush="{StaticResource DenseRuleBrush}" BorderThickness="0,0,0,1"
+                  Padding="12,8,12,5">
+            <Grid ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="1.2*"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="{loc:Str Key=Tags_ColFile}"
+                         Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <TextBlock Grid.Column="1" Text="{loc:Str Key=TagsFromTags_ColNow}"
+                         Style="{StaticResource DenseGroupHeaderStyle}"/>
+              <TextBlock Grid.Column="2" Text="{loc:Str Key=TagsFromTags_ColNew}"
+                         Style="{StaticResource DenseGroupHeaderStyle}"/>
+            </Grid>
+          </Border>
+
+          <ListView Grid.Row="1" x:Name="PreviewList" SelectionMode="None"
+                    Background="Transparent" Padding="0,4,0,8">
+            <ListView.ItemContainerStyle>
+              <Style TargetType="ListViewItem">
+                <Setter Property="MinHeight" Value="0"/>
+                <Setter Property="Padding" Value="12,2"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+              </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+              <DataTemplate x:DataType="local:TagPreviewRow">
+                <Grid ColumnSpacing="12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.2*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Text="{Binding FileName}" FontSize="11.5"
+                             Foreground="#AAFFFFFF" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Current}" FontSize="11.5"
+                             Foreground="#77FFFFFF" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="11.5"
+                             Foreground="{Binding Ink}" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </Grid>
+      </Border>
+
+      <TextBlock Grid.Row="2" x:Name="SummaryText" FontSize="11.5"
+                 Foreground="{StaticResource DenseLabelInkBrush}"/>
+    </Grid>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button x:Name="CancelButton" Click="Cancel_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <ctl:RpmPrimaryButton x:Name="ApplyButton" Click="Apply_Click" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00c;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=FilenameTags_Apply}" FontWeight="Bold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

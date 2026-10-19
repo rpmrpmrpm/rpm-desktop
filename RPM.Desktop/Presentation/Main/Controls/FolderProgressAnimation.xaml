@@ -1,0 +1,381 @@
+<UserControl
+    x:Class="RPM.Desktop.Presentation.Main.Controls.FolderProgressAnimation"
+    x:Name="Root"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+
+        <!-- The icon font is declared here, not inherited from the page. This control is used on more
+             than one page, and it cannot know which page's Resources it is placed in. -->
+        <FontFamily x:Key="FaSolid">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+        <Storyboard x:Key="MagnifySearchAnimation"
+                    RepeatBehavior="Forever">
+
+            <!-- Magnifying glass X -->
+            <DoubleAnimationUsingKeyFrames
+                Storyboard.TargetName="MagnifyTranslate"
+                Storyboard.TargetProperty="X">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="-38">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.0" Value="38">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.0" Value="38">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:3.0" Value="-38">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:4.0" Value="-38">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Magnifying glass Y -->
+            <DoubleAnimationUsingKeyFrames
+                Storyboard.TargetName="MagnifyTranslate"
+                Storyboard.TargetProperty="Y">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="-22">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.0" Value="-22">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.0" Value="22">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:3.0" Value="22">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:4.0" Value="-22">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Magnifying glass rotation -->
+            <DoubleAnimationUsingKeyFrames
+                Storyboard.TargetName="MagnifyRotate"
+                Storyboard.TargetProperty="Angle">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="-15">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.0" Value="0">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.0" Value="15">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:3.0" Value="0">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:4.0" Value="-15">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Folder scale pulse -->
+            <DoubleAnimationUsingKeyFrames
+                Storyboard.TargetName="FolderScale"
+                Storyboard.TargetProperty="ScaleX">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="1.04">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.5" Value="1.04">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:4.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames
+                Storyboard.TargetName="FolderScale"
+                Storyboard.TargetProperty="ScaleY">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="1.04">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.5" Value="1.04">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:4.0" Value="1.00">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+            </DoubleAnimationUsingKeyFrames>
+
+        </Storyboard>
+
+        <!-- Filing: the same folder, with records dropping into it one after another. There is no
+             magnifier, because nothing is being searched for. The files are going in. One note lands
+             every 0.8 s, and the folder takes each one. The loop reads as a steady stream, not a bounce.
+             The three notes use the same flight, each started later. Their keyframes are the same except
+             for the 0.8 s offset. -->
+        <Storyboard x:Key="FileDropAnimation" RepeatBehavior="Forever">
+
+            <!-- ── note 1, landing at 0:0.7 ── -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note1Move" Storyboard.TargetProperty="Y">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="-70"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.7" Value="-4">
+                    <EasingDoubleKeyFrame.EasingFunction><QuadraticEase EasingMode="EaseIn"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="-70"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note1Move" Storyboard.TargetProperty="X">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.0" Value="-26"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.7" Value="-10">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="-26"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note1" Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.0" Value="0"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.15" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.55" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.7" Value="0"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- ── note 2, landing at 0:1.5 ── -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note2Move" Storyboard.TargetProperty="Y">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.0" Value="-70"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.8" Value="-70"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.5" Value="-4">
+                    <EasingDoubleKeyFrame.EasingFunction><QuadraticEase EasingMode="EaseIn"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="-70"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note2Move" Storyboard.TargetProperty="X">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.8" Value="14"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.5" Value="4">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="14"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note2" Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.0" Value="0"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.8" Value="0"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.35" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.5" Value="0"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- ── note 3, landing at 0:2.3 ── -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note3Move" Storyboard.TargetProperty="Y">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.0" Value="-70"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:1.6" Value="-70"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.3" Value="-4">
+                    <EasingDoubleKeyFrame.EasingFunction><QuadraticEase EasingMode="EaseIn"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="-70"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note3Move" Storyboard.TargetProperty="X">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:1.6" Value="34"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.3" Value="18">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseInOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="34"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Note3" Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.0" Value="0"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:1.6" Value="0"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.75" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.15" Value="1"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.3" Value="0"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:2.4" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- The folder bumps slightly as each note goes in. That happens three times per loop. -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FolderScale" Storyboard.TargetProperty="ScaleX">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.6" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.75" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.55" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.75" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.35" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.4" Value="1.00"/>
+            </DoubleAnimationUsingKeyFrames>
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FolderScale" Storyboard.TargetProperty="ScaleY">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.6" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.75" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.55" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:1.75" Value="1.00"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.35" Value="1.05">
+                    <EasingDoubleKeyFrame.EasingFunction><SineEase EasingMode="EaseOut"/></EasingDoubleKeyFrame.EasingFunction>
+                </EasingDoubleKeyFrame>
+                <EasingDoubleKeyFrame KeyTime="0:0:2.4" Value="1.00"/>
+            </DoubleAnimationUsingKeyFrames>
+
+        </Storyboard>
+    </UserControl.Resources>
+
+    <!-- Shown in place of the queue tree while a folder is being walked. It is not drawn over the tree.
+         The grid is hidden for this time (MainModel.QueueTreeVisibility), so nothing here paints a
+         background. A frost layer or a scrim was only there to hide rows that are no longer shown, and
+         each one made the app look covered.
+
+         What is left is the pane's own glass with the magnifier on it, so the control looks like the
+         rest of the window. The Background is Transparent, not null. A Grid with no brush at all cannot be
+         hit-tested, and the clicks this control is meant to catch would go through to whatever is behind
+         it. -->
+    <Grid Background="Transparent">
+
+        <!-- Centred card -->
+        <Border Background="Transparent"
+                CornerRadius="16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                MinWidth="200">
+
+            <StackPanel Spacing="24" HorizontalAlignment="Center">
+
+                <!-- Animation icons -->
+                <Grid Width="240" Height="180" HorizontalAlignment="Center">
+
+                    <!-- Folder icon -->
+                    <Viewbox Width="160" Height="120"
+                             Stretch="Uniform"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             RenderTransformOrigin="0.5,0.5">
+                        <Viewbox.RenderTransform>
+                            <ScaleTransform x:Name="FolderScale" ScaleX="1.0" ScaleY="1.0"/>
+                        </Viewbox.RenderTransform>
+                        <Canvas Width="640" Height="640">
+                            <Path Data="M128 512L512 512C547.3 512 576 483.3 576 448L576 208C576 172.7 547.3 144 512 144L362.7 144C355.8 144 349 141.8 343.5 137.6L305.1 108.8C294 100.5 280.5 96 266.7 96L128 96C92.7 96 64 124.7 64 160L64 448C64 483.3 92.7 512 128 512z">
+                              <!-- Blue gradient for the folder. The shape is a Path, so a gradient can paint it. It runs
+                                   from the lightest blue at the top to the dark navy of the app palette at the bottom. -->
+                              <Path.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                  <GradientStop Offset="0"   Color="#0B84E0"/>
+                                  <GradientStop Offset="0.5" Color="#0371D0"/>
+                                  <GradientStop Offset="1"   Color="#014680"/>
+                                </LinearGradientBrush>
+                              </Path.Fill>
+                            </Path>
+                        </Canvas>
+                    </Viewbox>
+
+                    <!-- Filing: records going into the folder. These are notes, not file sheets. The thing being
+                         filed is music, and the same note marks the playing row elsewhere in the window. Each
+                         note has its own TranslateTransform, so the storyboard can stagger three identical
+                         movements. The notes start invisible. The storyboard makes them visible, so nothing
+                         floats in the air while the search art is the one on show. -->
+                    <Grid x:Name="FilingArt" Visibility="Collapsed"
+                          HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock x:Name="Note1" Text="&#xf001;" Opacity="0"
+                                   FontFamily="{StaticResource FaSolid}" FontSize="38" Foreground="#F2FFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform x:Name="Note1Move" X="-26" Y="-70"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                        <TextBlock x:Name="Note2" Text="&#xf001;" Opacity="0"
+                                   FontFamily="{StaticResource FaSolid}" FontSize="29" Foreground="#CCFFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform x:Name="Note2Move" X="14" Y="-70"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                        <TextBlock x:Name="Note3" Text="&#xf001;" Opacity="0"
+                                   FontFamily="{StaticResource FaSolid}" FontSize="23" Foreground="#99FFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform x:Name="Note3Move" X="34" Y="-70"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </Grid>
+
+                    <!--
+                        Magnifying glass + glass overlay share a single TranslateTransform
+                        so they are guaranteed to move together during animation.
+                    -->
+                    <Grid x:Name="SearchArt" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid.RenderTransform>
+                            <TranslateTransform x:Name="MagnifyTranslate" X="-38" Y="-22"/>
+                        </Grid.RenderTransform>
+
+                        <!-- Magnifying glass icon. The white lens path is in the same Canvas, so it stays on the
+                             lens circle while MagnifyRotate is animating. -->
+                        <Viewbox Width="70" Height="70"
+                                 Stretch="Uniform"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Viewbox.RenderTransform>
+                                <RotateTransform x:Name="MagnifyRotate" Angle="-15"/>
+                            </Viewbox.RenderTransform>
+                            <Canvas Width="512" Height="512">
+
+                                <Path Fill="#40000000"
+                                      Data="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z">
+                                    <Path.RenderTransform>
+                                        <TranslateTransform X="8" Y="8"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                                <!-- The white lens, drawn over the dark card. It crosses the folder as it moves. The
+                                     folder's blue is dark enough for the white lens to show over it. -->
+                                <Path Fill="#F2FFFFFF"
+                                      Data="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Grid>
+
+                </Grid>
+
+                <!-- A running tally under the magnifier: one line for the current action, a slim progress bar
+                     in the folder icon's blue, and an "n / total files" line under it. The caller binds all
+                     three to its own state, such as the scan or the import. So this control does not assume
+                     which job is running. With no total yet, the bar moves back and forth (indeterminate). -->
+                <StackPanel Spacing="10" HorizontalAlignment="Center" MinWidth="220" Margin="0,-4,0,0">
+                    <TextBlock x:Name="CaptionText"
+                               Text="{Binding Caption, ElementName=Root}"
+                               HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                               MaxWidth="260"
+                               FontSize="13"
+                               Foreground="#CCFFFFFF"/>
+                    <ProgressBar Minimum="0"
+                                 Maximum="{Binding ProgressMax, ElementName=Root}"
+                                 Value="{Binding ProgressValue, ElementName=Root}"
+                                 IsIndeterminate="{Binding IsIndeterminate, ElementName=Root}"
+                                 Height="4" CornerRadius="2"
+                                 Foreground="#0B84E0"
+                                 Background="#26FFFFFF"/>
+                    <TextBlock Text="{Binding CountText, ElementName=Root}"
+                               HorizontalAlignment="Center"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="#CCFFFFFF"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+
+</UserControl>

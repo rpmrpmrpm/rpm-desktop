@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    What survives Native AOT, asked in about a minute instead of a forty-minute app build.
+
+    Every bug this catches has the same shape: a library that finds its types or its natives by
+    NAME at runtime, a trimmer that cannot see those names, and a failure that is caught and turned
+    into an empty result somewhere. Nothing on screen says anything is wrong. Two of them shipped in
+    the first macOS AOT build — TagLib# read no tags at all, and the OpenGL visualizers opened black
+    — and both had been sitting in the publish log as warnings nobody chased.
+
+    So this publishes AOT, runs, and asserts. It exercises the same libraries the app does, on the
+    same runtime identifier, and exits non-zero when one of them has gone quiet. Run it BEFORE
+    building the app for a new RID: it is the cheapest way to find out what a platform has broken.
+
+        ./scripts/aot-smoke.sh                 (this machine)
+        ./scripts/aot-smoke.sh win-x64         (from Windows)
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <!-- The app keeps these too, and the harness is only honest if it is built the same way. -->
+    <IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <IsPackable>false</IsPackable>
+    <!-- The app's own analyzers are not the subject here. -->
+    <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <!-- Linked for the same reason the app links it: the classic linker is the only one on macOS that
+       will take a binary this size. Harmless here (this one is small) and kept so the harness fails
+       the way the app would. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
+    <CustomLinkerArg Include="-ld_classic" />
+  </ItemGroup>
+
+  <!-- The same rooting the app applies. If this line is removed, check 'tags' below fails — which is
+       exactly what it is here to prove. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <TrimmerRootAssembly Include="TagLibSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\RPM.Core\RPM.Core.csproj" />
+    <ProjectReference Include="..\..\RPM.Cast\RPM.Cast.csproj" />
+    <ProjectReference Include="..\..\RPM.Fingerprint\RPM.Fingerprint.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Silk.NET.OpenAL" />
+    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="TagLibSharp" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+  </ItemGroup>
+
+  <!-- The ANGLE pair for this RID, laid out exactly as the app lays it out: beside the binary, the
+       only place a published build looks. The harness is only worth running if it ships what the app
+       ships, so a Mac publish without the pair stops here rather than passing without it. -->
+  <PropertyGroup>
+    <RpmAngleDir>$(MSBuildThisFileDirectory)..\..\RPM.Desktop\NativeLibs\angle\$(RuntimeIdentifier)\</RpmAngleDir>
+  </PropertyGroup>
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('osx'))">
+    <Content Include="$(RpmAngleDir)libEGL.dylib" Link="libEGL.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(RpmAngleDir)libGLESv2.dylib" Link="libGLESv2.dylib" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CheckRpmAngle" BeforeTargets="BeforeBuild" Condition="$(RuntimeIdentifier.StartsWith('osx'))">
+    <Error Condition="!Exists('$(RpmAngleDir)libEGL.dylib') Or !Exists('$(RpmAngleDir)libGLESv2.dylib')"
+           Text="The ANGLE pair for $(RuntimeIdentifier) is not in $(RpmAngleDir). Build RPM.Desktop for that RID, or run scripts/fetch-angle.sh $(RuntimeIdentifier)." />
+  </Target>
+
+</Project>

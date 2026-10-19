@@ -1,0 +1,274 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.CoverArtSearchDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:model="using:RPM.Desktop.Presentation.Dialogs.Models"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter modal scrim than the framework default. The dialog card is live glass, so
+               the artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter modal scrim than the framework default. The dialog card is live glass, so
+               the artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <Style x:Key="CoverFieldLabelStyle" TargetType="TextBlock"
+             BasedOn="{StaticResource DenseFieldLabelStyle}">
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+      </Style>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <!-- ScrollBody is off. The grid fills the card. A scrolling body would measure it against
+       infinity and collapse it to a single row of tiles. -->
+  <!-- The title and its icon are set in code. This one window handles both of the record's
+       pictures. The pane it is opened from decides which picture it looks for. -->
+  <ctl:ResizableDialogShell x:Name="Shell" TitleGlyph="&#xf03e;" ScrollBody="False">
+
+    <Grid ColumnSpacing="{StaticResource DenseColumnSpacing}">
+      <Grid.ColumnDefinitions>
+        <!-- The label column and a readable box. Everything else is pictures, and the pictures are
+             what the user is looking at here. -->
+        <ColumnDefinition Width="270"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                    Padding="0,0,14,0">
+        <StackPanel Spacing="{StaticResource DenseGroupSpacing}" VerticalAlignment="Top">
+
+          <!-- Search. -->
+          <StackPanel>
+            <TextBlock Text="{loc:Str Key=CoverSearch_SearchKicker}"
+                       Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+
+            <Grid ColumnSpacing="8" RowSpacing="{StaticResource DenseRowSpacing}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="62"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Str Key=Lookup_Artist}"
+                         Style="{StaticResource CoverFieldLabelStyle}"/>
+              <TextBox x:Name="ArtistBox" Grid.Row="0" Grid.Column="1" KeyDown="Field_KeyDown"/>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Str Key=Lookup_Album}"
+                         Style="{StaticResource CoverFieldLabelStyle}"/>
+              <TextBox x:Name="AlbumBox" Grid.Row="1" Grid.Column="1" KeyDown="Field_KeyDown"/>
+            </Grid>
+
+            <ctl:RpmPrimaryButton x:Name="SearchButton" Click="Search_Click" Margin="0,10,0,0"
+                                  HorizontalAlignment="Stretch" Padding="18,0">
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf002;" FontSize="11"
+                          VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Str Key=CoverSearch_Search}" FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+              </StackPanel>
+            </ctl:RpmPrimaryButton>
+          </StackPanel>
+
+          <!-- Sources: built from the sources the server can reach, plus the user's own fanart.tv
+               key. A source without a key is not offered. -->
+          <StackPanel>
+            <TextBlock Text="{loc:Str Key=CoverSearch_SourcesKicker}"
+                       Style="{StaticResource DenseGroupHeaderStyle}"/>
+            <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,8"/>
+
+            <ItemsControl x:Name="SourceList">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="model:CoverSourceToggle">
+                  <CheckBox IsChecked="{Binding IsOn, Mode=TwoWay}" Content="{Binding Name}"
+                            MinWidth="0" MinHeight="0" Margin="0,1"
+                            VerticalContentAlignment="Center"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- A note about the list above, if one is needed. It says either that Discogs would
+                 add pressing scans if it were connected, or that the list is short because the API
+                 could not be reached. It never says both, and the first is never shown when the
+                 second is true. -->
+            <TextBlock x:Name="HintText"
+                       FontSize="11" Foreground="{StaticResource DenseLabelInkBrush}"
+                       TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"/>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Results. -->
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- A GridView, not an ItemsControl in a wrap panel, because the tiles are selectable and
+             selection is the main interaction. Double-tapping a tile chooses it. The handler is on
+             the view, not on each tile. -->
+        <GridView x:Name="ResultGrid" SelectionMode="Single"
+                  SelectionChanged="Results_SelectionChanged"
+                  DoubleTapped="Results_DoubleTapped"
+                  IsItemClickEnabled="False"
+                  Padding="0,0,14,0"
+                  ScrollViewer.HorizontalScrollMode="Disabled"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <GridView.ItemContainerStyle>
+            <Style TargetType="GridViewItem">
+              <Setter Property="Margin" Value="0,0,10,10"/>
+              <Setter Property="Padding" Value="0"/>
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+              <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            </Style>
+          </GridView.ItemContainerStyle>
+
+          <GridView.ItemTemplate>
+            <DataTemplate x:DataType="model:CoverResultRow">
+              <StackPanel Width="152" Spacing="5">
+                <!-- The square is drawn even when no picture arrives. This keeps the grid from
+                     moving as the thumbnails load one by one. -->
+                <Grid Width="152" Height="152" CornerRadius="4" Background="#18FFFFFF">
+                  <Image Source="{Binding Thumb}" Stretch="UniformToFill"
+                         Visibility="{Binding ThumbVisibility}"/>
+
+                  <ctl:RecordSpinner Width="22" Height="22" Spinning="{Binding Pending}"/>
+
+                  <!-- The host refused to serve the picture. It is marked here, so it does not look
+                       like a blank square that is still loading. -->
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf127;" FontSize="16"
+                            Foreground="#66FFFFFF" Visibility="{Binding UnavailableVisibility}"/>
+
+                  <!-- The source badge sits on the picture because there is no room for it
+                       underneath. The source is the first thing a user needs to know about a
+                       result. -->
+                  <Border Background="#B0000000" CornerRadius="3" Padding="5,2"
+                          HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="5">
+                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#EEFFFFFF"/>
+                  </Border>
+
+                  <!-- This cover comes with its disc. The disc badge is in the corner opposite the
+                       source badge, so a long source name cannot push it off the tile. -->
+                  <Border Background="#B0000000" CornerRadius="11" Width="22" Height="22"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="5"
+                          Visibility="{Binding DiscMarkVisibility}"
+                          ToolTipService.ToolTip="{loc:Str Key=CoverSearch_IncludesDisc}">
+                    <!-- compact-disc -->
+                    <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf51f;" FontSize="12"
+                              Foreground="#EEFFFFFF"/>
+                  </Border>
+                </Grid>
+
+                <TextBlock Text="{Binding Title}" FontSize="11.5" Foreground="#DDFFFFFF"
+                           TextTrimming="CharacterEllipsis" Visibility="{Binding TitleVisibility}"/>
+                <TextBlock Text="{Binding Detail}" FontSize="10.5"
+                           Foreground="{StaticResource DenseLabelInkBrush}"
+                           TextTrimming="CharacterEllipsis" Visibility="{Binding DetailVisibility}"/>
+              </StackPanel>
+            </DataTemplate>
+          </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Nothing typed yet, nothing found, or the search still running. This one block shows all
+             three messages. They use the same place in the window, and only one of them is true at
+             a time. -->
+        <StackPanel x:Name="EmptyState" Spacing="10" VerticalAlignment="Center"
+                    HorizontalAlignment="Center" MaxWidth="320">
+          <ctl:RecordSpinner x:Name="Spinner" Width="52" Height="52"
+                             HorizontalAlignment="Center" Visibility="Collapsed"/>
+          <TextBlock x:Name="EmptyText" FontSize="12" Foreground="{StaticResource DenseLabelInkBrush}"
+                     TextAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Taking a picture is the one slow step in this window, and it shows nothing while it
+             runs. A cover from the source can be several megabytes, and cutting a disc out of a
+             photograph decodes all of it. So the busy veil covers the grid instead of sitting in a
+             corner. The results are no longer what the user is looking at. The veil also stops a
+             second tile from being double-tapped into a second download while the first is still
+             loading. -->
+        <Grid x:Name="BusyVeil" Background="#99000000" Visibility="Collapsed">
+          <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center"
+                      MaxWidth="320">
+            <ctl:RecordSpinner x:Name="BusySpinner" Width="64" Height="64"
+                               HorizontalAlignment="Center"/>
+            <TextBlock x:Name="BusyText" FontSize="12" Foreground="#DDFFFFFF"
+                       TextAlignment="Center" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <ctl:ResizableDialogShell.FooterLeading>
+      <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+        <TextBlock x:Name="StatusText" FontSize="11.5" Foreground="{StaticResource DenseLabelInkBrush}"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <Button x:Name="OpenPageButton" Click="OpenPage_Click" IsEnabled="False"
+                Style="{StaticResource DenseButtonStyle}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf35d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=CoverSearch_OpenSource}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </ctl:ResizableDialogShell.FooterLeading>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button x:Name="CloseButton" Click="Close_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <ctl:RpmPrimaryButton x:Name="UseButton" Click="Use_Click" IsEnabled="False" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00c;" FontSize="11"
+                      VerticalAlignment="Center"/>
+            <!-- Set in code. The button says 'Use this cover' or 'Use this disc', depending on
+                 which picture the window was opened for. -->
+            <TextBlock x:Name="UseText" FontWeight="Bold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

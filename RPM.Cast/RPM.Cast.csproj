@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sharpcaster 3.0.0 (MIT, Teemu Tapanila — https://github.com/Tapanila/SharpCaster), vendored.
+
+    Not a whim. The CASTV2 conversation is fine as it stands and RPM does not want to own it; what
+    RPM needs is three things the package cannot give from outside:
+
+      1. A channel of its own. RPM casts through its own receiver so that next and previous pressed
+         on the speaker reach the app instead of arriving as an indistinguishable stop, and that
+         needs a custom namespace. Upstream registers its channels from a private static method into
+         a private property, and dispatches an incoming message only if its `type` is in a private
+         type registry — none of it reachable, and all of it needed.
+
+      2. A heartbeat that cannot take the process down. Upstream's timer handler is an `async void`
+         that writes to the socket with no try/catch of its own, so a speaker that has gone leaves
+         the ping throwing IOException on a thread pool thread, where nothing in the app can catch
+         it. See the note in Channels/HeartbeatChannel.cs.
+
+      3. No Debugger.Break() in the receive loop. A message type we do not know about halts the whole
+         app under a debugger, which is how RPM is normally run.
+
+    Every change to the vendored source is marked with an "RPM:" comment, so a diff against the
+    upstream 3.0.0 tag shows exactly what we did and why. Those changes go upstream as pull requests;
+    if they land, this project shrinks back to a package reference.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- The language version this source was written against, and deliberately not `latest`: C# 14
+         made the array-to-Span conversion first class, which silently re-resolves `bytes.Reverse()`
+         from LINQ's (returns a sequence) to MemoryExtensions' (returns void, reverses in place).
+         Upstream's CastMessage.ToProto is written for the first one. Pinning the language keeps the
+         vendored source byte-identical to the tag instead of patching it to survive our compiler. -->
+    <LangVersion>13.0</LangVersion>
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- Vendored source, kept as close to upstream as possible: its warnings are not ours to fix,
+         and silencing them here is what keeps the diff readable. -->
+    <NoWarn>$(NoWarn);1591;CA1819;CA1003;CA1031;CA1056;CA1716;CA1720;CA2227;CA1849;CS0618;CS8618;CS8602;CS8622;CS8625;CS8600;CS8604</NoWarn>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisMode>None</AnalysisMode>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Zeroconf" />
+  </ItemGroup>
+
+</Project>

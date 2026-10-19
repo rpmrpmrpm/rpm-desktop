@@ -1,0 +1,225 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Setup.Steps.WizardImportStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:grids="using:RPM.Desktop.Presentation.Grids"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <!-- Step two: the first import.
+
+       Two faces. SourcePanel asks where the music is. ReviewPanel shows what the scan found and what
+       will be done about it. Both live here, not in two controls, because they share the header and the
+       footer. Going back from the review to the sources is one visibility change, not a navigation.
+
+       THE DESTINATION PREVIEW IS ON SCREEN BESIDE THE CHOICE, not behind a button. A naming template is
+       the largest single cause of a disordered collection. It can only be caught while its effect is
+       visible. Change the radio button on the left, and the paths on the right change with it. -->
+
+  <UserControl.Resources>
+    <!-- The source tiles, drawn as AddMusicDialog draws them: a frosted pane and a thin rim, with no
+         glints. They are repeated here, not moved into Generic.xaml. The Style relies on four implicit
+         brush overrides that must sit in the button's own scope. Moving them would change a dialog that
+         works. If a third surface needs these tiles, move all five together. -->
+    <Style x:Key="SourceTileStyle" TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource GlassButtonBaseFillBrush}"/>
+      <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="14,16"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Foreground" Value="#F2FFFFFF"/>
+    </Style>
+    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#26FFFFFF"/>
+    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#45FFFFFF"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#45FFFFFF"/>
+  </UserControl.Resources>
+
+  <Grid Margin="52,40,52,0" RowSpacing="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- ═══ header: the small record, the kicker, the heading, the source ═══ -->
+    <Grid Grid.Row="0" ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <ctl:RecordDisc x:Name="Disc" Grid.Column="0" IsHitTestVisible="False"/>
+
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+        <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+        <TextBlock Text="{loc:Str Key=Wizard_ImportTitle}"
+                   FontFamily="{StaticResource RpmDisplayFontBold}"
+                   FontSize="24" Foreground="White"/>
+      </StackPanel>
+
+      <StackPanel x:Name="SourceChrome" Grid.Column="2" Orientation="Horizontal" Spacing="12"
+                  VerticalAlignment="Center" Visibility="Collapsed">
+        <TextBlock x:Name="SourceText" FontSize="13" Foreground="#A3FFFFFF"
+                   VerticalAlignment="Center" MaxWidth="320"
+                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+        <ctl:RpmButton Click="ChangeSource_Click" Padding="16,0"
+                       Content="{loc:Str Key=Settings_Change}"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- ═══ face one: where is the music ═══ -->
+    <StackPanel x:Name="SourcePanel" Grid.Row="1" VerticalAlignment="Center"
+                HorizontalAlignment="Center" Spacing="26" MaxWidth="760">
+
+      <TextBlock Text="{loc:Str Key=Wizard_ImportBody}" FontSize="14" LineHeight="22"
+                 Foreground="#A3FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                 HorizontalAlignment="Center" MaxWidth="520"/>
+
+      <!-- ONE SOURCE, AND IT IS A FOLDER. The library page's Add music also offers a disc and a
+           turntable. Neither belongs here. A rip is a drive, a job and its own failures. A first import
+           is someone pointing at the music they already have. Both options are on the library page once
+           setup is done. -->
+      <Button x:Name="FolderCard" Style="{StaticResource SourceTileStyle}" Click="Folder_Click"
+              HorizontalAlignment="Center" Padding="40,30">
+        <StackPanel Spacing="14" Width="300">
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF07C;" FontSize="38"
+                    Foreground="{StaticResource RpmCyanBrush}"/>
+          <TextBlock Text="{loc:Str Key=Wizard_ChooseFolder}" FontSize="16" FontWeight="SemiBold"
+                     Foreground="White" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Str Key=AddMusic_FolderHint}" FontSize="12.5" Foreground="#8CFFFFFF"
+                     TextWrapping="Wrap" TextAlignment="Center"/>
+        </StackPanel>
+      </Button>
+    </StackPanel>
+
+    <!-- ═══ scanning ═══ -->
+    <StackPanel x:Name="ScanPanel" Grid.Row="1" Visibility="Collapsed" Spacing="18"
+                VerticalAlignment="Center" HorizontalAlignment="Center">
+      <!-- Turned by ShowFace with the panel, so it is not turning while the panel is down. -->
+      <ctl:RecordSpinner x:Name="ScanSpinner" Width="48" Height="48" HorizontalAlignment="Center"/>
+      <TextBlock x:Name="ScanText" FontSize="13.5" Foreground="#A3FFFFFF"
+                 HorizontalAlignment="Center"/>
+    </StackPanel>
+
+    <!-- ═══ face two: the review ═══ -->
+    <Grid x:Name="ReviewPanel" Grid.Row="1" Visibility="Collapsed" RowSpacing="14">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- the scan strip -->
+      <Border Grid.Row="0" CornerRadius="12" Padding="14,11"
+              Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="ScanSummary" Grid.Column="0" FontSize="13" Foreground="#D6FFFFFF"
+                     VerticalAlignment="Center" TextWrapping="Wrap"/>
+          <StackPanel x:Name="Chips" Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                      VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+
+      <!-- the two columns -->
+      <Grid Grid.Row="1" ColumnSpacing="14">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="0.47*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- left: the two decisions -->
+        <Grid Grid.Column="0" RowSpacing="12">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0" CornerRadius="12" Padding="15,13"
+                  Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+            <StackPanel Spacing="9">
+              <TextBlock Text="{loc:Str Key=Wizard_LayoutHeading}" FontSize="11"
+                         Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+              <TextBlock Text="{loc:Str Key=Wizard_LayoutHint}" FontSize="12.5" LineHeight="18"
+                         Foreground="#99FFFFFF" TextWrapping="Wrap" Margin="0,-2,0,3"/>
+              <StackPanel x:Name="Templates" Spacing="7"/>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="1" CornerRadius="12" Padding="15,13"
+                  Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+            <StackPanel Spacing="9">
+              <TextBlock Text="{loc:Str Key=Wizard_OriginalsHeading}" FontSize="11"
+                         Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+              <TextBlock Text="{loc:Str Key=Wizard_OriginalsHint}" FontSize="12.5" LineHeight="18"
+                         Foreground="#99FFFFFF" TextWrapping="Wrap" Margin="0,-2,0,3"/>
+              <!-- One of the two is always checked. With neither checked, the Import button was
+                   disabled and gave no visible reason. Copy is the default, so a first run does not
+                   move files out of a folder before the person knows the app. -->
+              <RadioButton x:Name="MoveOption" GroupName="Originals" Checked="Originals_Checked"
+                           Content="{loc:Str Key=Wizard_OriginalsMove}" FontSize="13"/>
+              <RadioButton x:Name="CopyOption" GroupName="Originals" Checked="Originals_Checked"
+                           IsChecked="True"
+                           Content="{loc:Str Key=Wizard_OriginalsCopy}" FontSize="13"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- right: what will happen -->
+        <Border Grid.Column="1" CornerRadius="12" Padding="15,13"
+                Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+          <Grid RowSpacing="9">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
+              <TextBlock Text="{loc:Str Key=Wizard_PlanHeading}" FontSize="11"
+                         Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+              <TextBlock Text="{loc:Str Key=Wizard_PlanHint}" FontSize="12.5" LineHeight="18"
+                         Foreground="#99FFFFFF" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- The app's own grid, not a list of text lines. It is virtualized, so this shows the
+                 WHOLE plan, not the first fifteen with a count under them: every file, where it lands,
+                 and it scrolls. The plan is built on a worker and handed over as one list (see
+                 RefreshPlan). -->
+            <grids:RpmGrid x:Name="PlanGrid" Grid.Row="1"
+                           Background="{StaticResource GridSurfaceBrush}"/>
+            <TextBlock x:Name="Clashes" Grid.Row="2" FontSize="11" Foreground="#6BFFFFFF"
+                       TextWrapping="Wrap" Visibility="Collapsed"/>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+
+    <!-- ═══ pressing ═══ -->
+    <StackPanel x:Name="PressPanel" Grid.Row="1" Visibility="Collapsed" Spacing="20"
+                VerticalAlignment="Center" HorizontalAlignment="Center">
+      <TextBlock x:Name="PressText" FontSize="15" Foreground="White" HorizontalAlignment="Center"/>
+      <ProgressBar x:Name="PressBar" Width="360" Height="6"
+                   Foreground="{StaticResource RpmCyanBrush}" Background="#1FFFFFFF"/>
+    </StackPanel>
+
+    <!-- ═══ footer ═══ The dots' line. This step's own margin already gives the 52 pt side gutter, so
+         the buttons only need to match the band's height and centre in it. -->
+    <Grid Grid.Row="2" Height="{StaticResource WizardFooterHeight}">
+      <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Right"
+                  VerticalAlignment="Center">
+        <ctl:RpmLink x:Name="SkipLink" Click="Skip_Click" Content="{loc:Str Key=Wizard_SkipForNow}"
+                     VerticalAlignment="Center"/>
+        <ctl:RpmPrimaryButton x:Name="ImportButton" Click="Import_Click" IsEnabled="False"
+                              Padding="26,0" Visibility="Collapsed"/>
+      </StackPanel>
+    </Grid>
+
+  </Grid>
+</UserControl>

@@ -1,0 +1,903 @@
+<Project Sdk="Uno.Sdk">
+  <PropertyGroup>
+    <!-- Two heads, two renderers. net10.0-desktop is Uno's own Skia host (OpenGL on Windows, Metal on
+         macOS, X11 on Linux) and is what macOS and Linux run. net10.0-windows10.0.19041 is the real
+         WinUI 3 / Windows App SDK head: native controls, and the window is composed by Windows rather
+         than painted by us. Both build from this one project; see Platforms/Windows for what only the
+         second one has.
+
+         Both heads must target .NET 10. The desktop head is published Native AOT (see below), and the
+         ILC of .NET 9 cannot do that here: it emits a 1.1 GB object file that no macOS linker accepts,
+         where the ILC of .NET 10 emits 398 MB and links. The libraries that both heads share target
+         net10.0, so a net9.0-windows head could not reference any of them. The Windows App SDK allows
+         this: Microsoft.WindowsAppSDK.WinUI ships lib/net6.0-windows10.0.17763.0, which is a floor and
+         not a ceiling. -->
+    <TargetFrameworks>net10.0-desktop;net10.0-windows10.0.19041</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <UnoSingleProject>true</UnoSingleProject>
+
+    <!-- No MSIX build tools. They are on by default for any Windows executable, and their targets fail
+         outright when nothing has set up a packaging pipeline. Uno's `dotnet run` helper pulls the same
+         tools in as a dependency, so it is turned off too. The app is launched by path in development and
+         by the shortcut of the installer on a user's machine.
+
+         These are set here and not under the Windows condition below, because the implicit package graph
+         is computed during restore, where TargetFramework is empty and any per-head condition is false.
+         Both properties are read only by the WinAppSDK targets, so they have no effect on the other head. -->
+    <UnoDisableWinAppRunSupport>true</UnoDisableWinAppRunSupport>
+
+    <!-- The Windows App SDK version is pinned. Uno.Sdk 6.7.18 takes 1.7.250909003 by default.
+
+         They are two different packagings, not two versions of one package. 1.7 is a single
+         Microsoft.WindowsAppSDK. 1.8 split it into Base / Foundation / InteractiveExperiences / WinUI
+         under a 2.x umbrella. Mixing them does not work: the build props of 1.7 re-import those of 1.8
+         and are then ignored, and the MSIX targets that Base of 1.8 pulls in fail because the props they
+         need are shadowed. Use one generation or the other.
+
+         2.x is the version that this head is known to build on. The default of Uno may work now, but it
+         has not been tried. -->
+    <WinAppSdkVersion>2.2.0</WinAppSdkVersion>
+
+    <!-- Display name -->
+    <ApplicationTitle>rpm</ApplicationTitle>
+    <!-- The binary is "rpm", not "RPM.Desktop". A development run is unbundled, so macOS types the
+         executable file by its suffix. ".Desktop" resolves to a dynamic UTI that GIMP claims (it
+         registers Linux .desktop files), so the Dock shows the icon of GIMP for the app. -->
+    <AssemblyName>rpm</AssemblyName>
+    <!-- The version resource's CompanyName, which Windows Security shows as the publisher when it
+         asks about the firewall. It is rpm, so the question says that rpm is asking, and FOBO appears
+         nowhere in the app. The UAC prompt that can follow reads the code signature instead and shows
+         FOBO, the CN of the certificate. -->
+    <Company>rpm</Company>
+    <!-- The icon sources are built into an icon set by Resizetizer, so they must not also ship
+         beside the binary as assets: icon.png and window-icon.png are what the icon set and the
+         .ico are built from, and Icon Exports and icons.icon are the Icon Composer document and
+         its renders, 8 MB of design source. -->
+    <RpmAssetsKeptOut>$(RpmAssetsKeptOut);Assets/Icons/icon.png;Assets/Icons/window-icon.png;Assets/Icons/Icon Exports/**;Assets/Icons/icons.icon/**</RpmAssetsKeptOut>
+    <!-- Files under Assets that the app never reads, so they do not ship: notes, GIMP documents, the
+         SVGs that the Discogs, artist and rpm marks were copied from path for path into XAML, the brand
+         exports, and the palette references that the accents and ramps were picked from. Anything else
+         under Assets ships. AssetsShippedTests fails on a
+         shipped file that nothing names and on a listed file that something loads. -->
+    <RpmAssetsKeptOut>$(RpmAssetsKeptOut);Assets/**/*.md;Assets/**/*.xcf;Assets/Svg/**;Assets/Brand/**;Assets/rpm-palette.*;Assets/cyan-candidates.png;Assets/*-over-black-ramp.png</RpmAssetsKeptOut>
+    <!-- App Identifier: the desktop of the rpm set (the phone is com.rpm.player, RPM.iOS). -->
+    <ApplicationId>com.rpm.desktop</ApplicationId>
+    <!-- Versions. The version of a release is its tag, rpm-v<X.Y.Z>, and nothing here is changed for a
+         release. release-rpm-desktop.yml and release-mac.sh pass the version of the tag as Version and
+         ApplicationDisplayVersion (Uno's SDK sets Version from ApplicationDisplayVersion, so both are
+         needed). 0.0.0 is the version of every other build. No release has this number, so an error or
+         crash report from a development build is never filed under a release. ReleaseVersionTests fails
+         if this changes. ApplicationVersion is left at the default of Uno: it numbers an MSIX manifest,
+         and neither head builds one. -->
+    <Version>0.0.0</Version>
+    <ApplicationDisplayVersion>0.0.0</ApplicationDisplayVersion>
+    <!-- Package Publisher -->
+    <ApplicationPublisher>RPM</ApplicationPublisher>
+    <!-- Package Description -->
+    <Description>Build your central music folder: import from anywhere, identify tracks, fix filenames, organize your library.</Description>
+
+    <!--
+      UnoFeatures are used to quickly add and manage features enabled for your app.
+      Serilog and ThemeService are not enabled.
+      https://aka.platform.uno/singleproject-features
+    -->
+    <UnoFeatures>
+      Hosting;
+      Toolkit;
+      Navigation;
+      Logging;
+      MVUX;
+      Svg;
+      Configuration;
+      Localization;
+      Serialization;
+      SkiaRenderer;
+      GLCanvas;
+      <!-- Hunspell behind TextBox. Without it Uno logs a warning on every text box it lays out and
+           spell checking is off everywhere. Only the prose fields ask for it. The implicit TextBox
+           style in Themes/Generic.xaml turns it off for the rest, which are names and paths. -->
+      SpellChecking;
+    </UnoFeatures>
+  </PropertyGroup>
+
+  <!-- Which head is compiling. Several places reach the window, the renderer or the GL surface
+       through an API that only one of the two heads has. They branch on these constants and not on a
+       runtime check, because the type they name does not exist to bind against on the other head. -->
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
+    <DefineConstants>$(DefineConstants);RPM_SKIA</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Uno's SDK puts System.Windows.Input in the implicit usings. On the WinUI head that namespace has a
+       KeyEventHandler, a FocusManager, an InputScope, an InputScopeName, an InputScopeNameValue and an
+       InputDevice. Each of these is also the name of something in Microsoft.UI.Xaml.Input, so every use
+       of those names is ambiguous. Only ICommand is needed from the namespace, and
+       Presentation/Common/RelayCommand.cs already asks for it by name. The using is removed for both
+       heads so that they compile against the same set.
+
+       This is a target and not a plain ItemGroup. Uno adds its Using items from a .targets file, which
+       is imported after the body of this project, so a Remove written here would run first and match
+       nothing. -->
+  <Target Name="RpmDropSystemWindowsInputUsing" BeforeTargets="GenerateGlobalUsings;CoreCompile">
+    <ItemGroup>
+      <Using Remove="System.Windows.Input" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <DefineConstants>$(DefineConstants);RPM_WINUI</DefineConstants>
+    <!-- Platforms/Windows/Program.cs is the entry point instead of the one the markup compiler writes.
+         See the note in that file: the generated Main catches nothing, and a failure inside
+         Application.Start leaves no record of the managed exception at all. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+
+    <!-- The icon embedded in rpm.exe, which Explorer, the Start menu and desktop shortcuts, and a
+         pinned taskbar button all read. The full square, the same file the window and the installer
+         use. Resizetizer fills ApplicationIcon from the UnoIcon only when it is empty, and the UnoIcon
+         is the rounded tile with a margin, which is the phone's shape and wrong on Windows. -->
+    <ApplicationIcon>Assets\Icons\window-icon.ico</ApplicationIcon>
+
+    <!-- Unpackaged. rpm ships as an installer that lays down a folder, not as an MSIX from the Store.
+         WindowsPackageType is decided by whether Platforms/Windows/Package.appxmanifest exists, and that
+         file deliberately does not exist. The value is set here as well, so the decision can be read in
+         this file and does not have to be inferred from a missing one. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- The Windows App SDK binaries ship beside the app, so a machine needs no runtime installed
+         first. Same reason the ffmpeg and OpenAL natives are copied out: an installed copy has to
+         work on a machine that has never seen a developer tool. -->
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Pins the Windows projection (Microsoft.Windows.SDK.NET.dll) to the version that this head is
+         built on. Removing the pin is a separate change that has to be built and tested. -->
+    <WindowsSdkPackageVersion>10.0.19041.57</WindowsSdkPackageVersion>
+
+    <!-- CsWinRT's AOT warnings are on for every build of this head, not only the AOT publish, and
+         CsWinRT1028 is an error. 1028 means that a class implements a WinRT interface without being
+         partial. CsWinRT then generates nothing for it, and under Native AOT the object crosses to WinUI
+         with no interfaces. The app then fails on launch with E_XAMLPARSEFAILED. On a plain build the
+         class works by reflection, so this error is the only place where the fault shows before a
+         release. -->
+    <CsWinRTAotWarningLevel>1</CsWinRTAotWarningLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);CsWinRT1028</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The app icon for every head: the iPhone app's icon (RPM.iOS, exported from
+         Assets/Icons/icons.icon), with the black corners cleared and the tile inset to 824 of
+         1024 by scripts/make_app_icon.py. It is named explicitly because the default of Resizetizer is
+         the pair icon.svg and icon_foreground.svg of Uno, and those files are not in this project, so no
+         default item is created.
+         macOS does not use this one: it draws a squarer corner than the phone's, so the phone
+         tile reads as a smaller icon than the ones beside it in the Dock. AppIcon.icns below is
+         the same document rendered by actool for macOS, and it wins there. -->
+    <UnoIcon Include="Assets/Icons/icon.png" />
+  </ItemGroup>
+
+
+  <!-- The desktop head ships Native AOT: one native binary, no runtime beside it, and about half the
+       startup time. It is on for every build of this head and not only for the release publish. Day to
+       day, the cost is the trim and AOT analysers, and they are the point: a reflection path added here
+       fails the build instead of the app.
+
+       The WinUI head has its own switch for Native AOT: see RpmWinUiAot below.
+
+       Reflection-based JSON is OFF in this build (IsReflectionEnabledByDefault=false). Every shape the
+       app reads or writes is listed on a JsonSerializerContext next to where it is used; a type that
+       is not listed throws at the call. -->
+  <!-- The WinUI head can be published Native AOT BEHIND A SWITCH: -p:RpmWinUiAot=true.
+       Windows ships Native AOT: the release workflow (release-rpm-desktop.yml) passes the switch. It
+       is off for any other build of this head, so a local Release build or publish stays a plain .NET
+       app unless the switch is given. The Windows App SDK has supported Native AOT since 1.6, and this
+       project pins 2.2.0 (WinAppSdkVersion).
+
+       This switch is used instead of -p:PublishAot=true on the command line, because that is a GLOBAL
+       property: it reaches every referenced project, and RPM.Analyzers is netstandard2.0, which answers
+       NETSDK1207 and fails the build before this head is compiled. -->
+  <!-- WPF is dropped from the closure of the WinUI head when this head is published Native AOT.
+
+       It is in the closure transitively and nothing in this app asks for it. Zeroconf 3.7.16 (the Cast
+       mDNS discovery) depends on System.Reactive 5.0.0. The net5.0-windows10.0.19041 asset of that
+       package declares a FrameworkReference to Microsoft.WindowsDesktop.App. That pulls in the whole
+       WPF runtime pack, and two assemblies in it, DirectWriteForwarder.dll and System.Printing.dll, are
+       C++/CLI. A Native AOT app cannot load a mixed-mode assembly at all: it runs _initterm_m at module
+       initialisation, which calls ModuleHandle.ResolveMethodHandle, which answers
+       PlatformNotSupportedException, and the process fail-fasts with 0xC0000409 before Main. The app
+       then never reaches its own first line, so it writes nothing about the crash.
+
+       Only the WPF and WinForms schedulers of Rx live behind that reference, and this app uses neither,
+       so the trimmer removes what is left. This applies only under the AOT switch. The ordinary WinUI
+       build is not AOT and loads the mixed-mode assemblies without complaint.
+
+       The reference is removed from TransitiveFrameworkReference and not only from FrameworkReference.
+       The AddTransitiveFrameworkReferences target of the SDK copies the first list into the second
+       AfterTargets ResolvePackageAssets. A project target hooked to the same point runs first, because
+       the project body is declared before the SDK targets are imported. Removing only the second item
+       is too late, and the WPF runtime pack is resolved anyway. -->
+  <Target Name="RpmDropWpfFromAotClosure" AfterTargets="ResolvePackageAssets"
+          Condition="'$(RpmWinUiAot)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <ItemGroup>
+      <TransitiveFrameworkReference Remove="Microsoft.WindowsDesktop.App" />
+      <FrameworkReference Remove="Microsoft.WindowsDesktop.App" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' And '$(RpmWinUiAot)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
+    <PublishAot>true</PublishAot>
+    <!-- Keeps method names in stack traces, which ExceptionTrace and Gate read for their diagnostic
+         lines. It is on by default. It is set here because turning it off to save a few megabytes
+         silently empties both of them. -->
+    <IlcGenerateStackTraceData>true</IlcGenerateStackTraceData>
+  </PropertyGroup>
+
+  <!-- Libraries lent to the descriptor scan of Uno, and only to it, so that it stops warning about
+       what it cannot find.
+
+       The Win32 Skia runtime of Uno (Uno.UI.Runtime.Skia.Win32) references Microsoft.Web.WebView2.Core,
+       .WinForms and .Wpf, and nothing in its package brings them. With PublishAot on, which is always
+       the case on this head, Uno runs _UnoGenerateLinkerDescriptors after every compile. It resolves
+       what each reference references, all the way down, and it warns three times per build that it
+       cannot find those three. Lending only those three leads to thirty warnings, because they
+       reference WinForms, WPF, System.Drawing and the rest of the Windows desktop reference pack, and
+       that pack references System.IO.Ports. With all of these lent, the chain closes and the build has
+       no warnings.
+
+       Nothing here is referenced. PackageDownload puts the packages in the NuGet cache without
+       compiling against them or copying them to the output. The libraries go onto ReferencePath
+       immediately before that one target and come off immediately after it, so the compiler, the
+       linker and the copy to the output never see them.
+
+       The only output of the scan is two descriptor files (Uno.Bindable and Uno.AttachedProperties,
+       under obj). They are byte for byte the same with and without this. Compare them again if any of
+       this is changed.
+
+       The WebView2 version is the one that the runtime of Uno asks for. When Uno moves to another
+       version, the warnings come back and name it. The other two follow the runtime version of the
+       SDK. -->
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
+    <RpmWebView2ForUnoScan>1.0.2592.51</RpmWebView2ForUnoScan>
+  </PropertyGroup>
+  <ItemGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
+    <PackageDownload Include="Microsoft.Web.WebView2" Version="[$(RpmWebView2ForUnoScan)]" />
+    <PackageDownload Include="Microsoft.WindowsDesktop.App.Ref" Version="[$(BundledNETCoreAppPackageVersion)]" />
+    <PackageDownload Include="System.IO.Ports" Version="[$(BundledNETCoreAppPackageVersion)]" />
+  </ItemGroup>
+  <Target Name="RpmLendToUnoScan" BeforeTargets="_UnoGenerateLinkerDescriptors"
+          Condition="$(TargetFramework.EndsWith('-desktop')) And '$(PublishAot)' == 'true'">
+    <ItemGroup>
+      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)microsoft.web.webview2/$(RpmWebView2ForUnoScan)/lib/netcoreapp3.0/Microsoft.Web.WebView2.*.dll" />
+      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/*.dll" />
+      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)system.io.ports/$(BundledNETCoreAppPackageVersion)/lib/net10.0/System.IO.Ports.dll" />
+      <ReferencePath Include="@(_RpmLentToUnoScan)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="RpmTakeBackFromUnoScan" AfterTargets="_UnoGenerateLinkerDescriptors"
+          Condition="$(TargetFramework.EndsWith('-desktop')) And '$(PublishAot)' == 'true'">
+    <ItemGroup>
+      <ReferencePath Remove="@(_RpmLentToUnoScan)" />
+      <_RpmLentToUnoScan Remove="@(_RpmLentToUnoScan)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Built-in COM interop, kept on for the Windows desktop head.
+       Native AOT switches it off by default. The Win32 accessibility code of Uno talks to UI Automation
+       through COM: seven P/Invokes in Win32UIAutomationInterop and Win32Accessibility declare COM
+       parameters, and one of them (HandleGetObject) runs from the window procedure on WM_GETOBJECT,
+       which is whenever a screen reader attaches. With COM interop off, the result is at best no
+       accessibility and at worst a throw inside the message loop.
+
+       This property is NOT ENOUGH on its own. With it set (check with
+       -getProperty:BuiltInComInteropSupport on the win-x64 publish), the UI Automation calls still
+       throw: 108 MarshalDirectiveException in 40 seconds of an idle window, from
+       UiaRaiseStructureChangedEvent and UiaRaiseAutomationPropertyChangedEvent, reached from
+       Win32Accessibility.OnSizeOrOffsetChanged on every arrange. The exceptions are caught, so the app
+       runs and accessibility silently does nothing. The cost is one throw per arrange, the same kind of
+       cost as the swallowed exceptions on the pane move.
+
+       The property is kept because it is not known to do harm, and removing it is a separate change
+       that has to be measured. The cause is not here: the throw is inside the P/Invoke signatures of
+       Uno, which declare COM parameters that ILC cannot generate marshalling for. Uno has no switch to
+       turn the Skia accessibility layer off. -->
+  <PropertyGroup Condition="'$(PublishAot)' == 'true' And $(RuntimeIdentifier.StartsWith('win'))">
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <!-- TagLib# is kept whole, members and all.
+       It picks the class that reads a file by scanning its own assembly for [SupportedMimeType] and
+       then calling Activator.CreateInstance on what it finds, so the trimmer sees no call site for
+       any of them and removes their constructors. The failure is quiet and total: every read throws
+       "No parameterless constructor defined for type 'TagLib.Flac.File'", TagReader catches it and
+       returns a TrackInfo with no title, artist or album. A track then plays with no text anywhere,
+       an import names nothing, and nothing in the app says why.
+
+       The whole assembly is kept, and not only the formats that are used now, because the scan covers
+       all of them and the file type is chosen at runtime by what the user drags in. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <TrimmerRootAssembly Include="TagLibSharp" />
+  </ItemGroup>
+
+  <!-- rpm is linked by the CLASSIC linker of Apple, deliberately.
+       .NET 10 passes -ld_classic only on Xcode 15, so the default here is the modern linker, and the
+       modern linker cannot link this app: it fails inside itself with
+       "Assertion failed: (_addend == uniqueIndex && &quot;too many large addends&quot;), Fixup.cpp:1510".
+       The classic linker links the same object without complaint (checked on Xcode 26.6).
+
+       -ld_classic is deprecated and Apple will remove it. When it goes, this build stops working, and
+       the answer is to make the binary smaller, not to look for another flag. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
+    <CustomLinkerArg Include="-ld_classic" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Font Awesome + config need to sit next to the binary at runtime -->
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The window, task bar and alt-tab icon on Windows, set by App.TrySetWindowIcon, which reads
+         it by path. Square and flat, the shape Windows draws icons in: see scripts/make_app_icon.py.
+         Not in a Mac build, which never reads it. -->
+    <Content Include="Assets\Icons\window-icon.ico" CopyToOutputDirectory="PreserveNewest"
+             Condition="!$(RpmToolsRid.StartsWith('osx'))" />
+    <!-- The Dock icon on macOS, read by path by MacDockIcon. Apple's own render of
+         Assets/Icons/icons.icon, in the shape macOS draws app icons in: see
+         scripts/make_app_icon.py, which compiles it with actool. Only in a Mac build. -->
+    <Content Include="Assets\Icons\AppIcon.icns" CopyToOutputDirectory="PreserveNewest"
+             Condition="$(RpmToolsRid.StartsWith('osx'))" />
+    <!-- The app's own mark, stamped on every cover the app makes for itself (PlaylistMark).
+         CONDITIONAL, and deliberately: with no file there, the covers are drawn without the mark, so a
+         head built without the asset still builds and the tests need no logo to exercise the art. An
+         unconditional Include of a file that is not there fails the copy. -->
+    <Content Include="Assets\PlaylistMark.png" Condition="Exists('Assets\PlaylistMark.png')"
+             CopyToOutputDirectory="PreserveNewest" />
+    <!-- The frames a generated playlist's cover is drawn inside (CoverOverlay). Read off disk by
+         SkiaSharp when a cover is composed, and by ms-appx from the markup where the room drifts
+         behind one live, so the file has to be in the output folder either way. -->
+    <Content Include="Assets\PlaylistOverlays\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The photograph behind the frame, one per generated playlist that has one (PlaylistPhotos).
+         Written by scripts/gen_playlist_photos.py, read off disk by SkiaSharp on whichever thread is
+         composing the cover. A missing file is a list that draws its figure instead, so a pruned
+         install degrades rather than breaks. -->
+    <Content Include="Assets\PlaylistPhotos\*.jpg" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Font Awesome 5 Pro, solid and regular. The licence does not allow publishing the font files,
+         so they are not in the repo: RpmIconFonts below copies them from a private checkout. -->
+    <Content Include="Assets\Fonts\fa-solid-900.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\fa-regular-400.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\fa-brands-400.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Doto (SIL OFL, see Doto-OFL.txt): dot-matrix face for the RPaMp ticker. A static instance
+         baked from the variable font at wght=600 ROND=100, because Uno-Skia ignores variable-font axes. -->
+    <Content Include="Assets\Fonts\Doto.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Cabin Medium (Google Fonts, SIL OFL): a humanist face like Trebuchet. Dialog titles use it,
+         lowercased with extra tracking. Instanced static from the variable font at wght 500. -->
+    <Content Include="Assets\Fonts\Cabin-Medium.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\Cabin-Bold.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Thiamine RPM: a cut of Thiamine made for rpm (Typodermic, CC0) with the extreme tall stems compressed
+         (ascenders from 987 to 300 units); see scripts. The dialog header uses it. -->
+    <Content Include="Assets\Fonts\ThiamineRPM.otf" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The licence texts the About dialog shows in full. Written by scripts/gen_credits.py from
+         scripts/licenses, and a wildcard rather than a list because which of them ship is decided
+         by scripts/credits.json: an entry added there can bring a licence with it, and a file named
+         here by hand would be one more place to forget. -->
+    <Content Include="Assets\Licenses\*.txt" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- U²-Netp finds the subject of an artist backdrop, UltraFace finds the faces in it; between them
+         they decide how the art display crops it (both Apache 2.0 / MIT, see Assets/OnnxModels/README.md).
+         Copied, not embedded: the services load them by path. -->
+    <Content Include="Assets\OnnxModels\u2netp.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\OnnxModels\ultraface.onnx" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- Beat This! reads the beats and bar lines that a mix is timed against, S-KEY reads the key it is
+         chosen on (both MIT, weights included; see Assets/OnnxModels/README.md). They are rebuilt by
+         scripts/export_beat_this_onnx.py, scripts/quantize_beat_this.py and
+         scripts/export_skey_onnx.py.
+
+         The beat model ships as the float32 file only, on every platform. Beat grids go into a pool that
+         every user reads, and two reports agree only when they are the same text. On the same window, the
+         float32 weights give the same result on arm64 and x64, and the eight-bit copy does not. The
+         eight-bit copy (scripts/quantize_beat_this.py) is kept out of the build by RpmAssetsKeptOut below
+         and is opened only when RPM_BEAT_MODEL=int8 asks for it.
+
+         wav2vec2 places the words of a lyric sheet on the singer and not on the line (Apache 2.0,
+         written by scripts/export_wav2vec2_onnx.py and quantised by scripts/quantize_wav2vec2.py). It
+         ships as its eight-bit copy with its vocabulary, which the aligner needs.
+
+         Not committed: the four files are 214 MB together. FetchRpmModels below downloads each one that
+         is missing from $(RpmModelHost)<Sha256>/<file name> and checks it against Sha256, so a clean
+         checkout builds. Everything that ships comes from this one list, so a model cannot be shipped
+         without being fetched, and every build of a commit ships the same bytes. -->
+    <RpmModel Include="Assets\OnnxModels\beat_this.onnx" Sha256="6d0e82b701dd96b45b90aab27fdc60831a399225c0e6a9941709fbdb84bc37a8" />
+    <RpmModel Include="Assets\OnnxModels\skey.onnx" Sha256="be50b8b287ae654844286e4f0ba7603c268272c2a635340b1e54f15c402940b2" />
+    <RpmModel Include="Assets\OnnxModels\wav2vec2.int8.onnx" Sha256="88b6ad0240f550756d0c82ec8eaad2a241c187f2238e165f5a20754189f2eca3" />
+    <RpmModel Include="Assets\OnnxModels\wav2vec2.vocab.json" Sha256="4d70b35556db6d771a3d295d4e153399a79e253a17049f8c424ea597139dcab0" />
+    <Content Include="@(RpmModel)" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The sound the app makes when it opens. Read by path off the sound device, so it is copied
+         rather than embedded: see Services/Audio/AppSound.cs. -->
+    <Content Include="Assets\Sounds\rpm-open.wav" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- One photograph for the head of every genre's page (Pexels License: free use, commercial use
+         included, redistribution as part of a work permitted). Chosen once and cut to the head's own
+         panel by scripts/gen_genre_photos.py; read by path, so copied rather than embedded; see
+         Presentation/Main/Genres/GenrePhotos.Data.cs. A wildcard because the set is generated: a
+         genre added to scripts/genre-photos.json must not also need a line here. -->
+    <Content Include="Assets\GenrePhotos\*.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- The eight-bit beat model, when a working copy has it (scripts/quantize_beat_this.py, or a bench
+       run with RPM_BEAT_MODEL=int8), does not ship: the Assets globs of Uno and the Windows App SDK
+       would otherwise pick it up. -->
+  <PropertyGroup>
+    <RpmAssetsKeptOut>$(RpmAssetsKeptOut);Assets/OnnxModels/beat_this.int8.onnx</RpmAssetsKeptOut>
+  </PropertyGroup>
+
+  <!-- The float32 wav2vec2 weights, when a working copy has them (the source of the quantiser, or of
+       LyricBench), do not ship: wav2vec2.int8.onnx is an RpmModel above, and OnnxAligner opens it
+       first and does not fall back, so nothing would read the 378 MB file. The exclude is what keeps
+       it out: the Assets globs of Uno and the Windows App SDK would pick it up again without it. -->
+  <PropertyGroup>
+    <RpmAssetsKeptOut>$(RpmAssetsKeptOut);Assets/OnnxModels/wav2vec2.onnx</RpmAssetsKeptOut>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- RPaMp audio output. OpenAL Soft ships natives for every desktop RID that rpm supports
+         (osx-arm64/x64, win-arm64/x64/x86, linux-arm/arm64/x64). -->
+    <PackageReference Include="Silk.NET.OpenAL" />
+    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" />
+
+    <!-- The visualizers: OpenGL binding for the GLCanvasElement (GLCanvas UnoFeature).
+         On macOS this runs OpenGL ES 3.0 through ANGLE on Metal; on Windows and Linux it runs desktop GL 3.0 or later. -->
+    <PackageReference Include="Silk.NET.OpenGL" />
+
+    <!-- In-place updating: reads the feed on updates.rpmrpmrpm.com, stages the next version and hands
+         the swap to its own updater process. See Services/Updates. -->
+    <PackageReference Include="Velopack" />
+
+    <!-- Casting to Google speakers: mDNS discovery + the CASTV2 protocol. Pure managed, no natives. -->
+    <ProjectReference Include="../RPM.Cast/RPM.Cast.csproj" />
+
+    <!-- Library sharing: the beacon that says another RPM is on this network. Zeroconf (which comes
+         with Cast) resolves but cannot publish, and a machine that offers its library has to be
+         findable. Pure managed; it opens the multicast socket itself, which is why the phone uses
+         Bonjour instead; see RPM.Mobile/Services/CastDiscovery.cs. -->
+    <PackageReference Include="Makaretu.Dns.Multicast.New" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- OpenAL's device/context handles are raw pointers -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- ffmpeg (decode/cut/encode) and fpcalc (Chromaprint) are shelled out to, not linked. Expecting
+       them on PATH fails for a GUI app launched from Finder or Explorer, because that PATH has
+       neither Homebrew nor winget on it. So the build fetches the binaries for each RID and puts
+       them next to the app, where ToolPaths finds them. PATH stays a fallback for development
+       machines.
+
+       They are NOT committed. scripts/fetch-tools.{ps1,sh} pull the versions pinned in
+       scripts/tool-versions.txt into NativeLibs/tools/<rid>/, which is gitignored, and install a
+       binary only when its SHA-256 is the one pinned there for that RID (FFMPEG_BINARY_SHA256_<RID>,
+       FPCALC_BINARY_SHA256_<RID>). RpmTool below carries those hashes.
+
+       A build warns when the fetch fails and goes on, so a machine without gh signed in still builds
+       and finds the tools on PATH. A publish does not: PublishRpmTools fails unless both binaries are
+       there with the pinned hashes, because a published app without them decodes and fingerprints
+       nothing on a machine without Homebrew. Set RpmSkipToolFetch=true to skip the
+       download; the publish check still runs. -->
+  <PropertyGroup>
+    <RpmToolsRid Condition="'$(RpmToolsRid)' == ''">$(RuntimeIdentifier)</RpmToolsRid>
+    <RpmToolsRid Condition="'$(RpmToolsRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</RpmToolsRid>
+    <RpmToolsDir>$(MSBuildThisFileDirectory)NativeLibs\tools\$(RpmToolsRid)\</RpmToolsDir>
+    <RpmToolsExe Condition="$(RpmToolsRid.StartsWith('win'))">.exe</RpmToolsExe>
+    <RpmToolVersions>$(MSBuildThisFileDirectory)..\scripts\tool-versions.txt</RpmToolVersions>
+    <_RpmToolsKey>$(RpmToolsRid.ToUpperInvariant().Replace('-', '_'))</_RpmToolsKey>
+    <!-- Read as one string and searched, rather than passed in quotes: the file has apostrophes. -->
+    <_RpmToolPins>$([System.IO.File]::ReadAllText('$(RpmToolVersions)'))</_RpmToolPins>
+  </PropertyGroup>
+
+  <!-- Each head's icon file is kept out of the other's build. The Content items
+       for them are conditioned the same way, but Uno's and the Windows App SDK's own Assets globs
+       would pick the file up again without this. Here rather than beside the other RpmAssetsKeptOut
+       lines because it needs RpmToolsRid, which is only set above. -->
+  <PropertyGroup>
+    <RpmAssetsKeptOut Condition="$(RpmToolsRid.StartsWith('osx'))">$(RpmAssetsKeptOut);Assets/Icons/window-icon.ico</RpmAssetsKeptOut>
+    <RpmAssetsKeptOut Condition="!$(RpmToolsRid.StartsWith('osx'))">$(RpmAssetsKeptOut);Assets/Icons/AppIcon.icns</RpmAssetsKeptOut>
+  </PropertyGroup>
+
+  <!-- The two binaries every publish ships, each with the hash tool-versions.txt pins for this RID.
+       Sha256 is empty when the RID has no pin, and the publish then fails naming the missing key. -->
+  <ItemGroup>
+    <RpmTool Include="$(RpmToolsDir)ffmpeg$(RpmToolsExe)" Pin="FFMPEG_BINARY_SHA256_$(_RpmToolsKey)"
+             Sha256="$([System.Text.RegularExpressions.Regex]::Match($(_RpmToolPins), '(?m)(?&lt;=^FFMPEG_BINARY_SHA256_$(_RpmToolsKey)=)[0-9a-f]{64}(?=\s*$)').Value)" />
+    <RpmTool Include="$(RpmToolsDir)fpcalc$(RpmToolsExe)" Pin="FPCALC_BINARY_SHA256_$(_RpmToolsKey)"
+             Sha256="$([System.Text.RegularExpressions.Regex]::Match($(_RpmToolPins), '(?m)(?&lt;=^FPCALC_BINARY_SHA256_$(_RpmToolsKey)=)[0-9a-f]{64}(?=\s*$)').Value)" />
+  </ItemGroup>
+
+  <!-- A published app uses only the tools it ships: ToolPaths reads this switch and then never looks
+       on PATH or in Homebrew's folders. The publish fails without the tools (PublishRpmTools), so a
+       published app missing one had it removed, and its launch check says so. `dotnet publish` sets
+       _IsPublishing, and both release paths publish that way; a build leaves the switch out, so a
+       development build still falls back to the machine's tools. -->
+  <ItemGroup Condition="'$(_IsPublishing)' == 'true'">
+    <RuntimeHostConfigurationOption Include="RPM.ShipsTools" Value="true" />
+  </ItemGroup>
+
+  <!-- A Release build of the app reads none of its RPM_* environment switches: DevSwitch and
+       ToolPaths read this and answer "unset" for every one. A Debug build, the tests and the tools leave it out and keep them. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeHostConfigurationOption Include="RPM.DevSwitches" Value="false" />
+  </ItemGroup>
+
+  <Target Name="FetchRpmTools" BeforeTargets="Build;Publish" Condition="'$(RpmSkipToolFetch)' != 'true'">
+    <!-- Only pays the process spawn when a binary is missing or is not the pinned one, which is also
+         what a version change in tool-versions.txt looks like from here. -->
+    <GetFileHash Files="@(RpmTool)" Condition="Exists('%(RpmTool.FullPath)')">
+      <Output TaskParameter="Items" ItemName="_RpmToolHere" />
+    </GetFileHash>
+    <ItemGroup>
+      <_RpmToolCurrent Include="@(_RpmToolHere)" Condition="'%(Sha256)' != '' And '%(FileHash)' == '%(Sha256)'" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_RpmToolsCurrent>false</_RpmToolsCurrent>
+      <_RpmToolsCurrent Condition="'@(_RpmToolCurrent->Count())' == '@(RpmTool->Count())'">true</_RpmToolsCurrent>
+    </PropertyGroup>
+    <Exec Condition="'$(_RpmToolsCurrent)' != 'true' And $([MSBuild]::IsOSPlatform('Windows'))"
+          Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\scripts\fetch-tools.ps1&quot; -Rid $(RpmToolsRid)"
+          ContinueOnError="WarnAndContinue" />
+    <Exec Condition="'$(_RpmToolsCurrent)' != 'true' And !$([MSBuild]::IsOSPlatform('Windows'))"
+          Command="bash &quot;$(MSBuildThisFileDirectory)../scripts/fetch-tools.sh&quot; $(RpmToolsRid)"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <!-- Copied explicitly after the build rather than declared as Content: Content is copied in
+       CoreBuild, which runs before FetchRpmTools (hooked to Build itself), so on a fresh clone the
+       files would not be there yet when the copy ran. -->
+  <Target Name="CopyRpmTools" AfterTargets="Build" DependsOnTargets="FetchRpmTools"
+          Condition="'$(TargetFramework)' != ''">
+    <ItemGroup>
+      <_RpmToolBuilt Include="@(RpmTool)" Condition="Exists('%(FullPath)')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RpmToolBuilt)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true"
+          UseHardlinksIfPossible="true" />
+  </Target>
+
+  <!-- Same binaries again for `dotnet publish` (what release-mac.sh and the Windows release workflow
+       drive), where OutDir copies don't apply and the publish list is built separately. Every
+       release goes through here, so this is where a release without the tools is stopped: missing,
+       unpinned or different, the publish fails and says which. -->
+  <Target Name="PublishRpmTools" BeforeTargets="ComputeResolvedFilesToPublishList" DependsOnTargets="FetchRpmTools">
+    <Error Condition="'%(RpmTool.Sha256)' == ''"
+           Text="scripts/tool-versions.txt pins no %(RpmTool.Pin), so a $(RpmToolsRid) publish cannot check %(RpmTool.Filename)%(RpmTool.Extension). Add the SHA-256 of the published binary there." />
+    <Error Condition="!Exists('%(RpmTool.FullPath)')"
+           Text="%(RpmTool.FullPath) is missing, and an app published without it cannot decode or fingerprint anything. The fetch warning above says why; scripts/fetch-tools.sh $(RpmToolsRid) (or fetch-tools.ps1 -Rid $(RpmToolsRid)) runs the fetch alone." />
+    <GetFileHash Files="@(RpmTool)">
+      <Output TaskParameter="Items" ItemName="_RpmToolShipped" />
+    </GetFileHash>
+    <Error Condition="'%(_RpmToolShipped.FileHash)' != '%(_RpmToolShipped.Sha256)'"
+           Text="%(_RpmToolShipped.FullPath) has SHA-256 %(_RpmToolShipped.FileHash), and scripts/tool-versions.txt pins %(_RpmToolShipped.Pin)=%(_RpmToolShipped.Sha256). Delete it and publish again to fetch the pinned binary." />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(RpmTool)">
+        <RelativePath>%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+    <Message Importance="high" Text="Publishing %(_RpmToolShipped.Filename)%(_RpmToolShipped.Extension) for $(RpmToolsRid) (SHA-256 %(_RpmToolShipped.FileHash))" />
+  </Target>
+
+  <!-- ANGLE (libEGL.dylib, libGLESv2.dylib) for the OpenGL visualizers on macOS. Uno's
+       GLCanvasElement opens libEGL by name and Uno ships no copy for macOS, so without this pair every
+       visualizer and Pegasus open black, and nothing on screen says why. The pair is built from
+       Chromium's ANGLE source by kivy/angle-builder; the release and the SHA-256 of each file for each
+       RID are pinned in scripts/tool-versions.txt, beside the tools above, and scripts/fetch-angle.sh
+       downloads them into NativeLibs/angle/<rid>/, which is gitignored.
+
+       Shipped as published, never modified: install_name_tool or a re-sign changes the bytes, and the
+       arm64 pair's signature then does not match, which macOS answers by killing the app on load.
+       release-mac.sh signs both files with the app.
+
+       One copy, beside the executable. A Native AOT app has no deps.json, and runtimes/<rid>/native is
+       a folder the host only learns about from deps.json, so a copy there is never found in a
+       published build. The app's own folder is
+       searched by both kinds of build; AngleTests loads the pair from beside the test assembly, in a
+       host that has a deps.json, through Uno's own EGL code. -->
+  <PropertyGroup>
+    <RpmAngleDir Condition="'$(RpmAngleDir)' == ''">$(MSBuildThisFileDirectory)NativeLibs\angle\$(RpmToolsRid)\</RpmAngleDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(RpmToolsRid.StartsWith('osx'))">
+    <RpmAngle Include="$(RpmAngleDir)libEGL.dylib" Pin="ANGLE_LIBEGL_SHA256_$(_RpmToolsKey)"
+              Sha256="$([System.Text.RegularExpressions.Regex]::Match($(_RpmToolPins), '(?m)(?&lt;=^ANGLE_LIBEGL_SHA256_$(_RpmToolsKey)=)[0-9a-f]{64}(?=\s*$)').Value)" />
+    <RpmAngle Include="$(RpmAngleDir)libGLESv2.dylib" Pin="ANGLE_LIBGLESV2_SHA256_$(_RpmToolsKey)"
+              Sha256="$([System.Text.RegularExpressions.Regex]::Match($(_RpmToolPins), '(?m)(?&lt;=^ANGLE_LIBGLESV2_SHA256_$(_RpmToolsKey)=)[0-9a-f]{64}(?=\s*$)').Value)" />
+    <Content Include="$(RpmAngleDir)libEGL.dylib" Link="libEGL.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(RpmAngleDir)libGLESv2.dylib" Link="libGLESv2.dylib" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Every macOS build and publish has the pinned pair or fails. There is no build without it,
+       because that build would be an app whose visualizers are black. Set RpmSkipAngleFetch=true to
+       skip the download; the check still runs.
+
+       Runs before BeforeBuild for the same reason as FetchRpmModels: the pair is Content, which is
+       copied in CoreBuild, before anything hooked to Build itself. -->
+  <Target Name="FetchRpmAngle" BeforeTargets="BeforeBuild;ComputeResolvedFilesToPublishList"
+          Condition="'@(RpmAngle)' != ''">
+    <Error Condition="'%(RpmAngle.Sha256)' == ''"
+           Text="scripts/tool-versions.txt pins no %(RpmAngle.Pin), so a $(RpmToolsRid) build cannot check %(RpmAngle.Filename)%(RpmAngle.Extension). Add the SHA-256 of the file from ANGLE_RELEASE there." />
+    <GetFileHash Files="@(RpmAngle)" Condition="Exists('%(RpmAngle.FullPath)')">
+      <Output TaskParameter="Items" ItemName="_RpmAngleHere" />
+    </GetFileHash>
+    <ItemGroup>
+      <_RpmAngleCurrent Include="@(_RpmAngleHere)" Condition="'%(FileHash)' == '%(Sha256)'" />
+    </ItemGroup>
+    <Exec Condition="'$(RpmSkipAngleFetch)' != 'true' And '@(_RpmAngleCurrent->Count())' != '@(RpmAngle->Count())'"
+          Command="bash &quot;$(MSBuildThisFileDirectory)../scripts/fetch-angle.sh&quot; $(RpmToolsRid)" />
+    <Error Condition="!Exists('%(RpmAngle.FullPath)')"
+           Text="%(RpmAngle.FullPath) is missing, and an app built without it opens every visualizer black. scripts/fetch-angle.sh $(RpmToolsRid) downloads the pinned pair." />
+    <GetFileHash Files="@(RpmAngle)">
+      <Output TaskParameter="Items" ItemName="_RpmAngleShipped" />
+    </GetFileHash>
+    <Error Condition="'%(_RpmAngleShipped.FileHash)' != '%(_RpmAngleShipped.Sha256)'"
+           Text="%(_RpmAngleShipped.FullPath) has SHA-256 %(_RpmAngleShipped.FileHash), and scripts/tool-versions.txt pins %(_RpmAngleShipped.Pin)=%(_RpmAngleShipped.Sha256). Delete it and build again to fetch the pinned file." />
+    <Message Condition="'$(_IsPublishing)' == 'true'" Importance="high"
+             Text="Publishing %(_RpmAngleShipped.Filename)%(_RpmAngleShipped.Extension) for $(RpmToolsRid) (SHA-256 %(_RpmAngleShipped.FileHash))" />
+  </Target>
+
+  <!-- The beat and key models (RpmModel, above), downloaded when they are missing. Unlike the tool
+       fetch this fails the build instead of warning: the models are Content, so a build without them
+       stops at the copy anyway, and this error says which file and why.
+
+       Each file is served from a path named by its hash and is never replaced there, so a new model
+       is a new Sha256 and a new URL, and the CDN may cache any of them for any length of time.
+
+       Runs before BeforeBuild rather than Build: the Content copy is part of CoreBuild, which runs
+       before anything hooked to Build itself. ComputeResolvedFilesToPublishList covers a publish with
+       NoBuild. Downloads go to a .part file in this build's obj folder and are moved into Assets only
+       once the hash matches, so a failed or parallel download never leaves a partial model where the
+       Content item reads it. -->
+  <PropertyGroup>
+    <RpmModelHost Condition="'$(RpmModelHost)' == ''">https://updates.rpmrpmrpm.com/models/</RpmModelHost>
+  </PropertyGroup>
+
+  <Target Name="FetchRpmModels" BeforeTargets="BeforeBuild;ComputeResolvedFilesToPublishList">
+    <!-- A model that is already here is checked, never replaced. A file re-exported on purpose is
+         reported, not overwritten by the next build. -->
+    <GetFileHash Files="@(RpmModel)" Condition="Exists('%(RpmModel.FullPath)')">
+      <Output TaskParameter="Items" ItemName="_RpmModelHere" />
+    </GetFileHash>
+    <Error Condition="'%(_RpmModelHere.FileHash)' != '%(_RpmModelHere.Sha256)'"
+           Text="%(_RpmModelHere.Identity) is not the model this build ships. Its SHA-256 is %(_RpmModelHere.FileHash); RpmModel in RPM.Desktop.csproj expects %(_RpmModelHere.Sha256). Delete the file and build again to download the expected one. If the new file is meant to ship, follow 'Changing a model' in Assets/OnnxModels/README.md." />
+
+    <PropertyGroup>
+      <_RpmModelParts>$(IntermediateOutputPath)models\</_RpmModelParts>
+    </PropertyGroup>
+    <ItemGroup>
+      <_RpmModelMissing Include="@(RpmModel)" Condition="!Exists('%(FullPath)')">
+        <Destination>%(FullPath)</Destination>
+      </_RpmModelMissing>
+    </ItemGroup>
+
+    <DownloadFile Condition="'@(_RpmModelMissing)' != ''"
+                  SourceUrl="$(RpmModelHost)%(_RpmModelMissing.Sha256)/%(_RpmModelMissing.Filename)%(_RpmModelMissing.Extension)"
+                  DestinationFolder="$(_RpmModelParts)"
+                  DestinationFileName="%(_RpmModelMissing.Filename)%(_RpmModelMissing.Extension).part"
+                  SkipUnchangedFiles="false" Retries="3" RetryDelayMilliseconds="5000" />
+
+    <ItemGroup>
+      <_RpmModelPart Include="@(_RpmModelMissing->'$(_RpmModelParts)%(Filename)%(Extension).part')" />
+    </ItemGroup>
+    <GetFileHash Files="@(_RpmModelPart)" Condition="'@(_RpmModelPart)' != ''">
+      <Output TaskParameter="Items" ItemName="_RpmModelFetched" />
+    </GetFileHash>
+    <Delete Files="@(_RpmModelFetched)" Condition="'%(FileHash)' != '%(Sha256)'" />
+    <Error Condition="'%(_RpmModelFetched.FileHash)' != '%(_RpmModelFetched.Sha256)'"
+           Text="%(_RpmModelFetched.Filename) downloaded from $(RpmModelHost) has SHA-256 %(_RpmModelFetched.FileHash), not %(_RpmModelFetched.Sha256). The download was deleted." />
+    <Move SourceFiles="@(_RpmModelFetched)" DestinationFiles="@(_RpmModelFetched->'%(Destination)')" />
+    <Message Condition="'@(_RpmModelFetched)' != ''" Importance="high"
+             Text="Downloaded %(_RpmModelFetched.Filename) (SHA-256 %(_RpmModelFetched.Sha256))" />
+  </Target>
+
+  <!-- The ONNX runtime, in one of its two builds. They carry the same managed assembly and differ
+       only in the natives: the DirectML one adds the provider that runs a model on whatever DirectX
+       12 device the machine has, which is worth having on a Windows laptop where the beat model is
+       the slowest thing the app does. The two cannot both be referenced, because each brings an
+       onnxruntime.dll, so this picks by RID, the same way the ffmpeg fetch above does: the one
+       being published for, or the host's when nothing was asked for. Which build is present only
+       decides what is possible; using it is opt-in at runtime (RPM_ONNX_PROVIDER=dml) and the code
+       falls back to the processor when the provider will not start. -->
+  <!-- Set RpmOnnxDirectMl=true to force the DirectML build in, or false to keep it out. -->
+  <PropertyGroup>
+    <RpmOnnxRid Condition="'$(RpmOnnxRid)' == ''">$(RuntimeIdentifier)</RpmOnnxRid>
+    <RpmOnnxRid Condition="'$(RpmOnnxRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</RpmOnnxRid>
+    <RpmOnnxDirectMl Condition="'$(RpmOnnxDirectMl)' == '' And '$(RpmOnnxRid)' != '' And $(RpmOnnxRid.StartsWith('win'))">true</RpmOnnxDirectMl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Condition="'$(RpmOnnxDirectMl)' != 'true'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Condition="'$(RpmOnnxDirectMl)' == 'true'" />
+  </ItemGroup>
+
+  <!-- Windows ML (Microsoft.Windows.AI.MachineLearning) comes in with the Windows App SDK and carries its
+       own onnxruntime.dll, DirectML.dll and a managed Microsoft.ML.OnnxRuntime.dll (stamped 0.0.0.0).
+       Its native pair wins the file conflict at publish against the files of ONNX Runtime 1.20.1 and
+       DirectML 1.15.2, so the models would run on the runtime of Windows ML under the 1.20.1 managed
+       API, and the credits would name two files that are not shipped. rpm calls no Windows ML API. Its files are excluded here, so the WinUI head ships the ONNX Runtime and
+       DirectML the app is built against: the runtime version the Mac and the server run, which the
+       shared analysis pool depends on. The release workflow checks the shipped pair byte for byte
+       against those two packages. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- DirectML's package copies its debug layer (DirectML.Debug.dll, 2.2 MB) unless told not to. It is
+       loaded only when a DirectML device is created with the debug flag, which a release build of ONNX
+       Runtime never sets. -->
+  <PropertyGroup>
+    <Microsoft_AI_DirectML_SkipDebugLayerCopy>true</Microsoft_AI_DirectML_SkipDebugLayerCopy>
+  </PropertyGroup>
+
+  <!-- Files that the packages and the SDK put in the publish folder and that this build never reads.
+       ONNX Runtime's package adds its win-x64 onnxruntime.dll and
+       onnxruntime_providers_shared.dll to every x64 or AnyCPU build on any operating system, so the Mac
+       bundle carried 12 MB of Windows DLLs; every file from a package's runtimes/win-* folder is
+       dropped from a publish for another OS. An import library (.lib) is for linking against a DLL,
+       never for running it. Assets.xcassets is the icon set Resizetizer writes for Xcode to compile;
+       release-mac.sh assembles the bundle itself and gives it Assets/Icons/AppIcon.icns, so nothing
+       reads the uncompiled set. -->
+  <Target Name="DropUnreadPublishFiles" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <_RpmUnread Include="@(ResolvedFileToPublish)"
+                  Condition="!$(RuntimeIdentifier.StartsWith('win')) And $([System.String]::Copy('%(ResolvedFileToPublish.FullPath)').Replace('\', '/').Contains('/runtimes/win-'))" />
+      <_RpmUnread Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.lib'" />
+      <_RpmUnread Include="@(ResolvedFileToPublish)"
+                  Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('Assets.xcassets/'))" />
+      <ResolvedFileToPublish Remove="@(_RpmUnread)" />
+    </ItemGroup>
+    <Message Condition="'@(_RpmUnread)' != ''" Importance="high"
+             Text="Not publishing %(_RpmUnread.RelativePath): not read by a $(RuntimeIdentifier) build" />
+  </Target>
+
+  <!-- The Visual C++ runtime, shipped as part of the app on Windows. soft_oal.dll (OpenAL Soft: all
+       audio output, the vinyl monitor and capture) imports the DLLs listed in RpmVcRuntimeFile, and
+       ONNX Runtime 1.20.1's onnxruntime.dll imports them too. They are not part of Windows, so on a PC
+       that has never installed them Windows refuses to load soft_oal.dll and the app plays nothing.
+       Native AOT does not change this: it links the runtime into rpm.exe, not into
+       the prebuilt DLLs. Both heads ship ONNX Runtime's own onnxruntime.dll (the WinUI head too,
+       because Windows ML is excluded above).
+
+       Copied at publish from the build machine's Visual Studio, out of the folder Microsoft documents
+       for app-local deployment (VC\Redist\MSVC\<version>\<arch>\Microsoft.VC14x.CRT), into the publish
+       folder next to rpm.exe. Velopack packs that folder, so Setup and every update install them with
+       the app. The app carries the runtime itself and does not use the Visual C++ Redistributable installer.
+
+       The publish fails when Visual Studio, the folder or a listed file is missing, or when the runtime
+       is older than RpmVcRuntimeMinimum. Microsoft's rule is that the runtime must be at least as new
+       as the newest toolset any component was linked with, and onnxruntime.dll 1.20.1 was linked with
+       MSVC 14.40. VcRuntimeTests reads every Windows native the app ships and fails when one imports a
+       runtime DLL that is not listed here, or was linked with a newer toolset than the minimum. -->
+  <PropertyGroup>
+    <RpmVcRuntimeMinimum>14.40</RpmVcRuntimeMinimum>
+  </PropertyGroup>
+  <ItemGroup>
+    <RpmVcRuntimeFile Include="msvcp140.dll;msvcp140_1.dll;vcruntime140.dll;vcruntime140_1.dll" />
+  </ItemGroup>
+
+  <Target Name="PublishVcRuntime" BeforeTargets="ComputeResolvedFilesToPublishList"
+          Condition="$(RuntimeIdentifier.StartsWith('win'))">
+    <PropertyGroup>
+      <_RpmVsWhere>$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer\vswhere.exe</_RpmVsWhere>
+      <_RpmVcArch>$(RuntimeIdentifier.Substring(4))</_RpmVcArch>
+    </PropertyGroup>
+    <Error Condition="'$(_RpmVcArch)' != 'x64' And '$(_RpmVcArch)' != 'arm64' And '$(_RpmVcArch)' != 'x86'"
+           Text="PublishVcRuntime does not know which Visual C++ runtime folder serves $(RuntimeIdentifier)." />
+    <Error Condition="!Exists('$(_RpmVsWhere)')"
+           Text="A Windows publish copies the Visual C++ runtime from Visual Studio, and vswhere.exe is not at $(_RpmVsWhere). Install Visual Studio or the Build Tools with the C++ workload." />
+
+    <Exec Command="&quot;$(_RpmVsWhere)&quot; -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath"
+          ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RpmVsPath" />
+    </Exec>
+    <Error Condition="'$(_RpmVsPath)' == ''"
+           Text="A Windows publish copies the Visual C++ runtime from Visual Studio, and vswhere found no installation with the C++ workload." />
+
+    <PropertyGroup>
+      <_RpmVcVersionFile>$(_RpmVsPath)\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt</_RpmVcVersionFile>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_RpmVcVersionFile)')"
+           Text="$(_RpmVsPath) has no $(_RpmVcVersionFile), which names the Visual C++ runtime version it carries." />
+    <PropertyGroup>
+      <_RpmVcVersion>$([System.IO.File]::ReadAllText('$(_RpmVcVersionFile)').Trim())</_RpmVcVersion>
+    </PropertyGroup>
+    <Error Condition="$([MSBuild]::VersionLessThan('$(_RpmVcVersion)', '$(RpmVcRuntimeMinimum)'))"
+           Text="The Visual C++ runtime in $(_RpmVsPath) is $(_RpmVcVersion), older than RpmVcRuntimeMinimum $(RpmVcRuntimeMinimum). Update Visual Studio; an older runtime than a component was linked with can crash it." />
+
+    <ItemGroup>
+      <_RpmVcCrt Include="$(_RpmVsPath)\VC\Redist\MSVC\$(_RpmVcVersion)\$(_RpmVcArch)\Microsoft.VC14*.CRT\vcruntime140.dll" />
+    </ItemGroup>
+    <Error Condition="'@(_RpmVcCrt->Count())' != '1'"
+           Text="Expected one Visual C++ runtime folder under $(_RpmVsPath)\VC\Redist\MSVC\$(_RpmVcVersion)\$(_RpmVcArch), found @(_RpmVcCrt->Count()). For arm64 or x86, install that architecture's C++ build tools." />
+    <PropertyGroup>
+      <_RpmVcCrtDir>@(_RpmVcCrt->'%(RootDir)%(Directory)')</_RpmVcCrtDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_RpmVcRuntime Include="@(RpmVcRuntimeFile->'$(_RpmVcCrtDir)%(Filename)%(Extension)')" />
+    </ItemGroup>
+    <Error Condition="!Exists('%(_RpmVcRuntime.FullPath)')"
+           Text="%(_RpmVcRuntime.FullPath) is listed in RpmVcRuntimeFile and is not in this Visual Studio's runtime folder." />
+
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_RpmVcRuntime)">
+        <RelativePath>%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+    <Message Importance="high" Text="Visual C++ runtime $(_RpmVcVersion) ($(_RpmVcArch)) published next to rpm.exe: @(RpmVcRuntimeFile, ', ')" />
+  </Target>
+
+  <!-- WinUI head only: the Direct2D effect wrappers GlassBrush's blur is built from. See
+       Presentation/Common/GlassBrush.cs for what the Skia head does instead. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PackageReference Include="Microsoft.Graphics.Win2D" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RPM.Core\RPM.Core.csproj" />
+    <!-- The grid the library table and the import queue are drawn with. Holds the arithmetic and the
+         SkiaSharp painter and nothing from XAML, so its tests can raster a frame and read the pixels
+         back; this project only supplies the surface, the input and the app's own colours. -->
+    <ProjectReference Include="..\RPM.DataGrid\RPM.DataGrid.csproj" />
+    <ProjectReference Include="..\RPM.Fingerprint\RPM.Fingerprint.csproj" />
+    <!-- The beat model's runtime, out here rather than in the app so a measurement can run the same
+         weights the same way without an Uno head around them; see tools/TempoBench. -->
+    <ProjectReference Include="..\RPM.Onnx\RPM.Onnx.csproj" />
+  </ItemGroup>
+
+  <!-- The repo's own rules, as compile errors. Not referenced by RPM.Lambda.Api or RPM.Fingerprint:
+       the API is the one process allowed to reach a catalogue, so RPM002 would be wrong there. -->
+  <ItemGroup>
+    <ProjectReference Include="..\\RPM.Analyzers\\RPM.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- The genre placer is a developer's tool: only a Debug build opens it (App.xaml.cs, #if DEBUG).
+       Left out of every other build, page and all, so nothing of it ships and RPM016 has no English
+       of its to judge in a Release build. -->
+  <PropertyGroup Condition="'$(Configuration)' != 'Debug'">
+    <DefaultItemExcludes>$(DefaultItemExcludes);Presentation\Dev\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Every file under Assets that does not ship, from the RpmAssetsKeptOut lines above, kept out of
+       both heads. The two heads take Assets in differently: Uno's glob (the Skia
+       head, Uno.DefaultItems.targets) honours DefaultItemExcludes, and the Windows App SDK's
+       (Microsoft.WinUI.props, the WinUI head: Content Include="Assets/**/*.*" with no Exclude) does
+       not, so on Windows every design source, note and kept-out model would ship. Its
+       items are removed here, after the props add them; this comes last so that nothing added
+       later brings one back. AssetsShippedTests evaluates the Content of both heads against this list. -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(RpmAssetsKeptOut)</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="$(RpmAssetsKeptOut)" />
+  </ItemGroup>
+  <!-- The Font Awesome 5 Pro files, copied from a checkout of the private rpm-fonts-pro repo next to
+       this repo (or the folder in RpmFontsPro) when they are not here yet. Without them the app still
+       builds and runs, with blank icons, and the build says so. -->
+  <PropertyGroup>
+    <RpmFontsPro Condition="'$(RpmFontsPro)' == ''">$(MSBuildThisFileDirectory)..\..\rpm-fonts-pro\</RpmFontsPro>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RpmIconFont Include="fa-solid-900.ttf;fa-regular-400.ttf" />
+  </ItemGroup>
+
+  <Target Name="RpmIconFonts" BeforeTargets="BeforeBuild">
+    <Copy SourceFiles="$(RpmFontsPro)%(RpmIconFont.Identity)"
+          DestinationFolder="$(MSBuildThisFileDirectory)Assets\Fonts\"
+          Condition="!Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)') And Exists('$(RpmFontsPro)%(RpmIconFont.Identity)')" />
+    <Warning Condition="!Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)')"
+             Text="Assets/Fonts/%(RpmIconFont.Identity) is missing, so icons that use it are blank. It comes from the private rpm-fonts-pro repo, checked out next to this repo or set in RpmFontsPro." />
+    <ItemGroup>
+      <Content Remove="Assets\Fonts\%(RpmIconFont.Identity)"
+               Condition="!Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)')" />
+    </ItemGroup>
+  </Target>
+
+</Project>
