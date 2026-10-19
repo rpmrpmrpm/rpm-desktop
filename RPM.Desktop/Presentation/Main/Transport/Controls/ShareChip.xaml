@@ -1,0 +1,83 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.Controls.ShareChip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.Transport.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             xmlns:win="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             RequestedTheme="Dark"
+             Visibility="Collapsed">
+
+  <!-- The collections this computer can be standing in, and the computers on the network that it can
+       share with. It works like the rip chip. A request from another computer opens the flyout by itself,
+       on the deck, rather than as a notification from somewhere else. Closing the flyout changes nothing.
+       The dot on the chip stays while something is waiting for an answer. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+  </UserControl.Resources>
+
+  <Button x:Name="ChipButton" VerticalAlignment="Stretch"
+          Background="{StaticResource OnGlassBrush}"
+          BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="6"
+          Padding="12,0" MinHeight="0" MinWidth="0"
+          ToolTipService.ToolTip="{loc:Str Key=Share_ChipTooltip}"
+          AutomationProperties.Name="{loc:Str Key=Share_ChipTooltip}">
+    <Button.Resources>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#33FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#33FFFFFF"/>
+    </Button.Resources>
+
+    <Grid Width="24" Height="24">
+      <TextBlock x:Name="ShareGlyph" Text="&#xf5db;" FontFamily="{StaticResource Fa}" FontSize="11"
+                 Foreground="#F0FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      <!-- A code to read out, or an ending nobody has dismissed. -->
+      <Ellipse x:Name="AttentionDot" Width="7" Height="7" Fill="#04C8FF"
+               HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,0,0"
+               Visibility="Collapsed"/>
+    </Grid>
+
+    <Button.Flyout>
+      <Flyout x:Name="ShareFlyout" Placement="Top">
+        <Flyout.FlyoutPresenterStyle>
+          <Style TargetType="FlyoutPresenter">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+          </Style>
+        </Flyout.FlyoutPresenterStyle>
+
+        <StackPanel Width="320" RequestedTheme="Dark">
+          <StackPanel.Resources>
+            <ResourceDictionary>
+              <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+              </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+          </StackPanel.Resources>
+
+          <!-- Header band, as on the other deck chips: 32 px high, title-bar fill, and a thin line underneath. -->
+          <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
+                  Height="32" Padding="14,0"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+              <TextBlock Text="&#xf5db;" FontFamily="{StaticResource Fa}" FontSize="11"
+                         Foreground="#CCFFFFFF" VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Share_Title}" FontSize="12" FontWeight="SemiBold"
+                         Foreground="#CCFFFFFF" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <!-- The collections this computer can be standing in. The one it is standing in now is lit.
+               Choosing another one here switches to it. -->
+          <local:LibraryPicker x:Name="LibraryList" Look="Roomy" Margin="8,8,8,4"
+                               Visibility="Collapsed"/>
+
+          <!-- Computers on this network that can be asked, and every request in progress. -->
+          <local:NearbyList x:Name="NearbyPanel" Margin="14,8,14,12" Visibility="Collapsed"/>
+        </StackPanel>
+      </Flyout>
+    </Button.Flyout>
+  </Button>
+</UserControl>

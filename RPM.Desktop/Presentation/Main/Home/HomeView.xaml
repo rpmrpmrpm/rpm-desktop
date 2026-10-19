@@ -1,0 +1,1234 @@
+﻿<UserControl
+    x:Class="RPM.Desktop.Presentation.Main.Home.HomeView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:RPM.Desktop.Strings"
+    xmlns:model="using:RPM.Desktop.Presentation.Main.Home"
+    xmlns:libmodel="using:RPM.Desktop.Presentation.Main.Library.Models"
+    xmlns:lib="using:RPM.Desktop.Presentation.Main.Library"
+    xmlns:conv="using:RPM.Desktop.Converters"
+    xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+    xmlns:common="using:RPM.Desktop.Presentation.Common"
+    mc:Ignorable="d"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+  <UserControl.Resources>
+
+    <!-- A control's resources are its own: what the library card declares is not in scope here, and a
+         key that resolves in the album page but not in this one would fail on first use. So the four
+         resources this view binds through are declared here, as every other view in this app does.
+         RpmPaneHeading and OnGlassBrush are not among them: those belong to the app, in
+         Themes/Generic.xaml. -->
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <!-- The typeface a row's name is set in: the same one the album page uses for its section headings,
+         because a row of records under a heading is the same thing on both screens.
+
+         The text sizes of the banner, the quick selection, the lists and the rows come from
+         HomeTextSizes, which Pegasus scales: a template binds it through its card, and a named element
+         has it set by HomeView.ApplyTextSizes. So none of the styles here sets a FontSize. The drawer
+         under a row and the empty and locked panels state their sizes as numbers and are scaled as a
+         whole by a ScaleBox. -->
+    <Style x:Key="SectionHeadingStyle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#AAFFFFFF"/>
+    </Style>
+
+    <!-- One record, drawn the way the ALBUM WALL draws one: the cover, the name centred under it, the
+         act under that. The wall is where users see most of the records in this app, so it sets how a
+         record looks. See AlbumWallView's CardTemplate, which every number below is taken from. Size is
+         a separate matter and comes from the same slider as the wall's tiles (SimilarTileMetrics, aimed
+         at AlbumTileSize), so a record has one size and one appearance wherever it is drawn.
+
+         The name and its badge are one centred group, as on the wall: the E sits against the end of the
+         name and not at the card's edge, so a short name and its badge are not separated by empty card.
+         The cost is that a card WITH a badge has its title half a badge-width left of the card's centre
+         line. The wall has the same cost, and it is not visible on records without a badge. -->
+    <DataTemplate x:Key="HomeCardTemplate" x:DataType="libmodel:SimilarRow">
+      <Button Click="Card_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+              Padding="8" MinHeight="0" CornerRadius="10"
+              VerticalAlignment="Top" HorizontalContentAlignment="Left">
+        <!-- No hover or press wash on a cover, as on the album wall's same kind of card. A wash under the
+             whole tile is what the cards that GO somewhere wear on this screen (the lists and the quick
+             cards above), and it would suggest that this record opens its own page. It opens a drawer, and
+             the ring that the open card wears (below) shows that. -->
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+        </Button.Resources>
+        <!-- Seven between the cover and the name and seven again between the two lines, which is the
+             wall's own Spacing. Two lines flush against each other in a StackPanel of their own would be a
+             tighter block of text than the wall's and would look like a different kind of card. -->
+        <StackPanel Width="{Binding Metrics.Edge}" Spacing="7">
+          <Grid Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}"
+                PointerEntered="Art_PointerEntered" PointerExited="Art_PointerExited">
+            <Border CornerRadius="6" Background="#33000000"/>
+            <!-- Nothing to show: the generated picture that a record with no artwork wears everywhere else,
+                 made from the folder, so it is the same picture the wall drew. -->
+            <Border CornerRadius="6" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <Border CornerRadius="6">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                     Opacity="0" Loaded="Sleeve_Loaded"/>
+            </Border>
+            <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="20" Foreground="#4DFFFFFF"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+
+            <!-- The open card wears a ring in its own drawer's background colour, and the drawer below points
+                 a triangle up at it. These are the wall's own pair of marks on the wall's own kind of card: a
+                 press here opens a tracklist elsewhere on the screen, and these two marks are all that connect
+                 the two. -->
+            <Border CornerRadius="6" BorderThickness="2" BorderBrush="{Binding Ring}" IsHitTestVisible="False"
+                    Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}"/>
+
+            <!-- The way to the record's own page. Pressing the card itself opens the tracklist under the row,
+                 so the page needs a control of its own. It is the album wall's control, down to the glyph, the
+                 size and the corner, because it is the same choice on the same kind of card. It is shown only
+                 while the pointer is on the cover.
+
+                 It is built on the first hover (x:Load) and not with the card: it is a bordered button of
+                 about five elements, and at most one card on the screen has the pointer on it. Looking it up
+                 by name is what builds it, so only the show path of ShowOpenKey may name it. -->
+            <Border x:Name="OpenSlot" x:Load="False"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,7,7" CornerRadius="7" BorderBrush="#22FFFFFF" BorderThickness="1"
+                    Background="{StaticResource OnGlassBrush}" Opacity="0" IsHitTestVisible="False">
+              <Button Click="OpenPage_Click" PointerPressed="OpenPage_PointerPressed" Tag="{Binding}"
+                      Background="Transparent" BorderThickness="0" CornerRadius="6"
+                      Width="38" Height="30" MinWidth="0" MinHeight="0" Padding="0"
+                      FontFamily="{StaticResource Fa}" FontSize="14" Content="&#xf51f;"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_AlbumPage}"
+                      AutomationProperties.Name="{loc:Str Key=AlbumMenu_AlbumPage}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                </Button.Resources>
+              </Button>
+            </Border>
+          </Grid>
+          <!-- MinHeight is set on the GRID and not Height on the line: a line keeps its box when it is
+               empty, and may be taller than the box if the typeface changes. A fixed Height of 14 would crop
+               the descenders of a size 12 as soon as the size changed.
+
+               The title's own maximum width comes from the metrics, because a StackPanel measures its
+               children with unlimited width: without it a long name never trims and pushes the E off the
+               card. It moves with the size slider, which is why it is not a number in the markup.
+
+               The box, the type and the E all come from HomeTextSizes and scale together. TitleRoom leaves
+               the E its own size from the same object, so the maximum width moves with it. -->
+          <Grid MinHeight="{Binding Metrics.TextSizes.CardTitleBox}">
+            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+              <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}"
+                         FontSize="{Binding Metrics.TextSizes.CardTitle}"
+                         FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                         MaxLines="1" TextTrimming="CharacterEllipsis"
+                         MaxWidth="{Binding Metrics.TitleRoom}" VerticalAlignment="Center"
+                         ToolTipService.ToolTip="{Binding Title, Converter={StaticResource Censor}}"/>
+              <ctl:ExplicitBadge Width="{Binding Metrics.TextSizes.Badge}" Height="{Binding Metrics.TextSizes.Badge}"
+                                 VerticalAlignment="Center"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Text="{Binding Artist}" Foreground="#99FFFFFF"
+                     FontSize="{Binding Metrics.TextSizes.CardLine}"
+                     MinHeight="{Binding Metrics.TextSizes.CardLineBox}"
+                     MaxLines="1" TextTrimming="CharacterEllipsis" TextAlignment="Center"
+                     ToolTipService.ToolTip="{Binding Artist}"/>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
+    <!-- One generated list, drawn as the same square as a record: its own picture, at the size the
+         rows below draw a cover. The picture is the one the list has everywhere else in the app (see
+         HomeView.FillListCoverAsync), so the card here and the head of the list it opens show one
+         picture.
+
+         The mark the list wears in the playlist tree is still on the card, in the corner over the
+         picture: a list is not a record, and at this size without the mark it would look like one.
+         Where no picture arrives, the mark is in the middle of the list's own colour. -->
+    <DataTemplate x:Key="HomeListTemplate" x:DataType="model:HomeListCard">
+      <Button Click="List_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+              Padding="8" MinHeight="0" CornerRadius="10"
+              VerticalAlignment="Top" HorizontalContentAlignment="Left">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+        </Button.Resources>
+        <!-- Text is written and spaced exactly as for a record: a list and a record stand side by side
+             down this screen, and two kinds of text under two identical squares would make one of them look
+             unfinished. -->
+        <StackPanel Width="{Binding Metrics.Edge}" Spacing="7">
+          <Grid Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}">
+            <Border CornerRadius="6" Background="#1FFFFFFF"/>
+            <Border CornerRadius="6">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                     Opacity="0" Loaded="Sleeve_Loaded"/>
+            </Border>
+
+            <!-- ═══ the framed cards ═══ currently one list. The square is a drawing with a window cut in it
+                 (CoverOverlay) and the room drifts behind the window. It is the same picture the banner's
+                 generated cards stand on, and the same one this list's cover is composed from everywhere else
+                 in the app. A framed card fetches no cover at all: see HomeView.FillListCoverAsync, which
+                 explains why a still room is used over a drifting one.
+
+                 Fewest is 32 because this square is smaller than the plate and drawn at the same tenth: a
+                 260-point tile works out at 26 rows against the plate's 35, and the wall's slider reaches
+                 smaller tiles than that. It is a minimum and not a divisor of its own: at a third, this card
+                 would be 87 by 87 and take 10.7 ms of every 31 ms tick.
+
+                 Live is left false: this card is not the one in front of the user, and that value only splits
+                 the timing line on the rooms channel. What decides whether it draws is Shown, which
+                 HomeView.ShowRooms sets on every card. -->
+            <common:CardRoom CornerRadius="6" Fewest="32"
+                             Apart="{Binding RoomApart}" Palette="{Binding RoomColours}"
+                             Shown="{Binding RoomShown}" Visibility="{Binding RoomDrawn}"/>
+            <!-- The frame is composed on a worker and arrives a moment after the room does, so it has its own
+                 visibility. The room alone is the list's colours across the whole square, which is a finished
+                 picture; half a frame would be a window with no edges.
+
+                 It is IN A BORDER, cut to the same radius of 6 as every other square on this screen. The frame
+                 is a rectangle of solid colour out to its own edges, so without this it would be the one cover
+                 on the row with square corners. A Border does the cutting and not a CornerRadius on the Image,
+                 for the reason CardRoom keeps one inside it: on WinUI a CornerRadius rounds a background and
+                 does not clip a child. -->
+            <Border CornerRadius="6" Visibility="{Binding FrameShown}">
+              <Image Source="{Binding Overlay}" Stretch="Fill" IsHitTestVisible="False"/>
+            </Border>
+
+            <FontIcon Glyph="{Binding Glyph}" FontFamily="{StaticResource Fa}" FontSize="26"
+                      Foreground="{Binding Ink}" Visibility="{Binding MarkShown}"/>
+            <!-- The mark again, small, once there is a picture under it. It is the same badge the genre page's
+                 list cards wear, so a generated list is marked the same way on both screens. It is not shown on
+                 a framed cover, because the frame carries the app's own name in this same corner. -->
+            <Border CornerRadius="5" Background="#99000000" Margin="0,0,6,6" Padding="6,3"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
+                    Visibility="{Binding BadgeShown}">
+              <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource Fa}" FontSize="10"
+                         Foreground="#EEFFFFFF"/>
+            </Border>
+          </Grid>
+          <!-- A list wears the E on the same terms as a record: it means at least one explicit song is in
+               it, which is how the playlists tree already reads the same list. -->
+          <Grid MinHeight="{Binding Metrics.TextSizes.CardTitleBox}">
+            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+              <TextBlock Text="{Binding Name}" FontSize="{Binding Metrics.TextSizes.CardTitle}"
+                         FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                         MaxLines="1" TextTrimming="CharacterEllipsis"
+                         MaxWidth="{Binding Metrics.TitleRoom}" VerticalAlignment="Center"
+                         ToolTipService.ToolTip="{Binding Name}"/>
+              <ctl:ExplicitBadge Width="{Binding Metrics.TextSizes.Badge}" Height="{Binding Metrics.TextSizes.Badge}"
+                                 VerticalAlignment="Center"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </StackPanel>
+          </Grid>
+          <!-- What the list IS where it can say so, and how long it is where it cannot (see
+               HomeListCard.Caption). A mood's sentence is longer than one line of a card, so it trims like
+               every other line here and the whole text is in the tooltip. -->
+          <TextBlock Text="{Binding Caption}" Foreground="#99FFFFFF"
+                     FontSize="{Binding Metrics.TextSizes.CardLine}"
+                     MinHeight="{Binding Metrics.TextSizes.CardLineBox}"
+                     MaxLines="1" TextTrimming="CharacterEllipsis" TextAlignment="Center"
+                     ToolTipService.ToolTip="{Binding Caption}"/>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
+    <!-- One entry in the quick selection: a small square, a name, and a line under it.
+
+         One template for all four kinds, because on screen they ARE one thing. What differs is where
+         the square's picture comes from and what pressing it does, and both are a switch on the kind in
+         the code behind (HomeView.QuickCoverAsync, HomeView.Quick_Click).
+
+         The square falls back twice, in the order every square on this screen does: the picture, then
+         the generated cover for a record with no artwork anywhere, then the kind's own mark. A song and
+         a record fall back to a generated cover made from the folder; a list and a station have no
+         folder and go straight to the mark, in their own colour. -->
+    <DataTemplate x:Key="HomeQuickTemplate" x:DataType="model:HomeQuickCard">
+      <Button Click="Quick_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+              Padding="8,6" MinHeight="0" CornerRadius="8" HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Left">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+        </Button.Resources>
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Grid Width="{Binding Metrics.TextSizes.QuickSquare}" Height="{Binding Metrics.TextSizes.QuickSquare}"
+                VerticalAlignment="Center">
+            <Border CornerRadius="5" Background="#33000000"/>
+            <Border CornerRadius="5" IsHitTestVisible="False"
+                    Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"/>
+            <!-- What a station's mark stands on: the same generated figure that the stations pane puts one
+                 on. It is null on every other kind and on a station whose logo is already a solid picture, so
+                 the square keeps its plain dark colour for all of those. It is clipped by the same corner
+                 radius, and NOT inset: it is the background. See HomeQuickCard.WearMark. -->
+            <Border CornerRadius="5">
+              <Image Source="{Binding CoverGround}" Stretch="UniformToFill" IsHitTestVisible="False"
+                     Opacity="0" Loaded="Sleeve_Loaded"/>
+            </Border>
+            <!-- A cover fills the square and is rounded by it, and so is a station's logo that is already
+                 square. A mark with nothing behind it is held away from the edges on its background. The card
+                 decides which: see HomeQuickCard.CoverStretch, which follows the same rule as
+                 RadioStationItem.LogoStretch. -->
+            <Border CornerRadius="5" Padding="{Binding CoverPad}">
+              <Image Source="{Binding Cover}" Stretch="{Binding CoverStretch}"
+                     Opacity="0" Loaded="Sleeve_Loaded"/>
+            </Border>
+            <FontIcon Glyph="{Binding Glyph}" FontFamily="{StaticResource Fa}"
+                      FontSize="{Binding Metrics.TextSizes.QuickMark}"
+                      Foreground="{Binding Ink}" Visibility="{Binding MarkShown}"/>
+          </Grid>
+
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}"
+                       FontSize="{Binding Metrics.TextSizes.QuickTitle}"
+                       FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                       MaxLines="1" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{Binding Title, Converter={StaticResource Censor}}"/>
+            <TextBlock Text="{Binding Subtitle}" FontSize="{Binding Metrics.TextSizes.QuickLine}"
+                       Foreground="#99FFFFFF"
+                       MaxLines="1" TextTrimming="CharacterEllipsis"
+                       Visibility="{Binding SubtitleShown}"
+                       ToolTipService.ToolTip="{Binding Subtitle}"/>
+          </StackPanel>
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+    <!-- A row: what it is, and the records in it. It is its own template and not four hand-written
+         rows, because they differ only in heading and contents, and four copies of this markup would be
+         four places to change when a row gets a key on its right. -->
+    <DataTemplate x:Key="HomeRowTemplate" x:DataType="model:HomeRowModel">
+      <StackPanel Spacing="8" Margin="0,0,0,26" Visibility="{Binding Shown}">
+        <TextBlock Text="{Binding Heading}" Style="{StaticResource SectionHeadingStyle}"
+                   FontSize="{Binding Metrics.TextSizes.Heading}"/>
+        <!-- The margin cancels a card's own padding at the left so the first COVER starts on the
+             heading's line. There is no scrollbar: a row shows that there are more records past its end by
+             fading out that end, as every other list in this app does. There are three elements, the shape
+             ScrollHem needs: the cut holds only the scroller, and the two bands are drawn over it. -->
+        <Grid Margin="-8,0,0,0">
+          <Grid Tag="cut">
+            <!-- HorizontalScrollMode is DISABLED, and that is what keeps the mouse wheel off the row.
+                 Marking the wheel notch as handled does not work: a ScrollViewer scrolls the wheel through its
+                 own input processing and not through the routed event, so the handler that takes the notch is
+                 talking to a scroller that has already moved. The handler ran, reported that the notch was not
+                 already handled, and the row still scrolled sideways. Disabled stops the input path. The keys
+                 still move the row, because ChangeView is not user input. The row is meant to scroll only with
+                 the arrow keys. -->
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                          VerticalScrollMode="Disabled" HorizontalScrollMode="Disabled"
+                          SizeChanged="Row_SizeChanged" ViewChanged="Row_ViewChanged"
+                          Loaded="Row_Loaded" Tag="{Binding}">
+              <!-- Transparent so the whole row answers the pointer, not only the squares on it. The wheel is
+                   taken here (see HomeView.Row_PointerWheel), and a panel with no background is not hit-tested in
+                   WinUI, so over the space between two cards the notch would reach the scroller instead and move
+                   the row sideways. That is about the POINTER; what keeps the wheel off the row is the scroller's
+                   own HorizontalScrollMode, above. -->
+              <!-- An ItemsRepeater and not an ItemsControl, because this row is REALIZED and every realized card
+                   is re-measured whenever the row's width changes. A row holds up to HomeShelf.RowLength (twenty)
+                   and this screen draws several rows, so an ItemsControl over a StackPanel would lay out about a
+                   hundred cards on every frame of a pane move while only four are on screen. With it, home
+                   delivered 5 frames of a 240 ms move where the album wall, which virtualizes, delivered 8. Home
+                   therefore virtualizes like the other pages.
+                   The space between two cards is the layout's spacing: it is added between cards and not after
+                   the last one. It is the same six as the album page's suggestions row. -->
+              <ItemsRepeater ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource HomeCardTemplate}"
+                             VerticalAlignment="Top" Background="Transparent"
+                             SizeChanged="RowCards_SizeChanged">
+                <ItemsRepeater.Layout>
+                  <StackLayout Orientation="Horizontal" Spacing="6"/>
+                </ItemsRepeater.Layout>
+              </ItemsRepeater>
+            </ScrollViewer>
+          </Grid>
+
+          <!-- Width zero until there is something to show: a row whose records all fit wears neither band,
+               so that a band means something. -->
+          <Border Tag="head" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False"/>
+          <Border Tag="foot" HorizontalAlignment="Right" Width="0" IsHitTestVisible="False"/>
+
+          <!-- And a key at each end, shown by the same condition as the band beside it: there are records
+               past this end. A row that fits wears neither key. -->
+          <!-- The key is centred on the COVER and not on the card, and the bottom margin does that: the
+               key stretches from the top of the row to this far from its bottom, so the margin has to be the
+               height of the text under the cover. That is 7 + 16 + 7 + 15 at a text scale of 1, worked out in
+               HomeTextSizes from the same two boxes the card binds. If this margin is not updated when that
+               text changes, nothing fails: both keys just sit a few points too low. -->
+          <Button Tag="left" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Left"
+                  Width="{Binding Metrics.TextSizes.KeyWidth}" Height="{Binding Metrics.TextSizes.KeyHeight}"
+                  Margin="{Binding Metrics.TextSizes.RowKeyLeft}" Click="RowLeft_Click"
+                  AutomationProperties.Name="{loc:Str Key=Row_ScrollLeft}">
+            <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}"
+                      FontSize="{Binding Metrics.TextSizes.KeyMark}" Foreground="#FFFFFFFF"/>
+          </Button>
+          <Button Tag="right" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Right"
+                  Width="{Binding Metrics.TextSizes.KeyWidth}" Height="{Binding Metrics.TextSizes.KeyHeight}"
+                  Margin="{Binding Metrics.TextSizes.RowKeyRight}" Click="RowRight_Click"
+                  AutomationProperties.Name="{loc:Str Key=Row_ScrollRight}">
+            <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}"
+                      FontSize="{Binding Metrics.TextSizes.KeyMark}" Foreground="#FFFFFFFF"/>
+          </Button>
+        </Grid>
+
+        <!-- The record that a press on the row opened: its tracklist, its cover and the three ways to
+             play it. It is the album wall's own control and not a copy (see AlbumBandView), so a record
+             opened here is the same as the record opened there.
+
+             The GRID is the drawer, not the control inside it: the triangle and the tracklist open as one
+             thing, so the animation that unfolds them owns this element and the mark cannot appear on the
+             row ahead of the drawer it belongs to (see HomeView.Records.OpenAsync).
+
+             It is Collapsed and not merely empty, so a row with nothing open takes no room and the triangle
+             is not hit-tested over the row above it.
+
+             There is one per row, and at most one open on the screen: pressing a record in another row
+             folds this one (see HomeView.Records). -->
+        <Grid x:Name="DrawerRoot" Visibility="Collapsed">
+          <!-- The triangle over the card the drawer belongs to, in the drawer's own colour and fading to
+               transparent at its point, so it rises out of the row and does not look like a hard little
+               arrow. Its base runs 2px PAST the drawer's top edge (the control below has a 10px top margin
+               and draws over it), so the join has no sub-pixel gap. See BandPointer.Ramp.
+
+               Its left margin is NOT the card's index times a step, as the wall's is: this row scrolls
+               sideways under a drawer that does not, so the position is the index read against the row's
+               current offset. It is calculated again every time the row moves, and is empty where the card is
+               off either end. See HomeView.PointAtOpenCard. -->
+          <Polygon x:Name="DrawerPoint" Points="0,12 10,0 20,12" Width="20" Height="12"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"/>
+          <!-- In a ScaleBox, so in Pegasus the whole drawer is drawn at home's text scale: its text, its
+               keys, its hearts and its cover together. The drawer is the album wall's own control and its
+               lines are built by the wall's models, so it is scaled from outside and not given sizes of its
+               own. At a scale of 1 the box sets no transform. The 10 above it stays outside the box, unscaled,
+               because the triangle's base is placed against it. -->
+          <common:ScaleBox Margin="0,10,0,0" Factor="{Binding Metrics.TextSizes.Scale}">
+            <lib:AlbumBandView x:Name="Drawer"/>
+          </common:ScaleBox>
+        </Grid>
+      </StackPanel>
+    </DataTemplate>
+
+
+    <!-- Every key on this screen is GlowKeyStyle (Themes/Generic.xaml): the two that step the featured
+         banner use it as is, and the two at each row's ends use RowKeyStyle below, which is the same
+         key at the row's own size.
+
+         It stands on the SCREEN and not on a card, so it has no fill and no outline of its own. A chip
+         there would be a third thing on a row that already has three. -->
+
+    <!-- The two keys that scroll a row: the banner's key, at the row's own size.
+
+         They have no fill, so they cover nothing. The narrow width is spent on the target and not on
+         the picture, and every key on this screen is one thing: a mark that appears under the pointer
+         behind a glow. The bottom margin the two carry in the template keeps them off the caption under
+         the cover.
+
+         Down until there is something past the row's end: the same condition that draws the faded band
+         beside it. A row that fits wears neither key. -->
+    <!-- Its width, its height and its arrow are HomeTextSizes.KeyWidth, KeyHeight and KeyMark (36, 44
+         and 15 at a scale of 1). They are bound in the rows' template and set by
+         HomeView.ApplyTextSizes on the keys outside it. A key with this style and none of these set is
+         GlowKeyStyle's 44 square. -->
+    <Style x:Key="RowKeyStyle" TargetType="Button" BasedOn="{StaticResource GlowKeyStyle}">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Visibility" Value="Collapsed"/>
+    </Style>
+
+    <!-- ═══ the text on a featured card ═══
+
+         Three styles, one per line. The shadow under them is not here: it is an empty Border declared
+         behind each line in the template, carrying a blurred copy of that line's own glyphs. See
+         TextShade, where the mechanism and its numbers are explained.
+
+         Why there is a shadow at all: the scrims over the photograph are light, so the picture shows at 80% of its own lightness
+         and the text has little cover to stand on. The scrims cannot be made stronger, so the shadow is the setting that is
+         left. -->
+    <!-- At their own sizes, unscaled: the whole banner is drawn larger in Pegasus by the ScaleBox it
+         stands in (see FeatureScale), so a scaled size here would be scaled twice. -->
+    <Style x:Key="FeatureKicker" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="CharacterSpacing" Value="110"/>
+      <Setter Property="Foreground" Value="#A8FFFFFF"/>
+      <Setter Property="MaxLines" Value="1"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <Style x:Key="FeatureTitle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="24"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#FFFFFFFF"/>
+      <Setter Property="LineHeight" Value="29"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="MaxLines" Value="2"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <!-- The third line: whichever of the hype and the act's name is shown. One pair of styles serves
+         both, since they are the same type in the same place and only one of them is ever drawn. -->
+    <Style x:Key="FeatureLine" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="Foreground" Value="#CCFFFFFF"/>
+      <Setter Property="MaxLines" Value="1"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <!-- One featured card: the record or the list it opens, drawn as a wide plate.
+
+         The background is the record's own cover blurred (ArtScaler.Wash) and not the cover stretched:
+         a square cover fitted to a plate three times as wide as it is tall would have most of it cut
+         off. The blur is made on a worker and arrives as an ordinary picture, so nothing here is a live
+         effect. See HomeView.FillFeatureAsync.
+
+         The same template draws the plate and the two cards behind it. They differ in width, height and
+         opacity, which the strip sets on the hosts; what is ON them is one card in three places, and
+         three copies of this markup would be three places to change. -->
+    <DataTemplate x:Key="FeatureFaceTemplate" x:DataType="model:HomeFeatureCard">
+      <Grid>
+        <!-- ═══ what the plate stands on ═══
+             Three backgrounds, one over the other, and each is what the one under it falls back to: the
+             app's glass, the record's own cover blurred, and the photograph of the act. The blur is
+             ArtScaler.Wash, made on a worker and arriving as an ordinary picture, so no layer here is a
+             live effect. The photograph arrives later than the cover and only for the card in front. See
+             HomeView.LoadFaceAsync.
+
+             They are worn as backgrounds and not shown as Images: a background is fitted to the element's
+             bounds and centred in it, while an Image on Skia draws its scaled copy from the top left corner,
+             and a wide plate would lose the right of the picture instead of an even sliver off each end. -->
+        <!-- GLASS, like everything else on this screen. What is behind this screen is the window's
+             backdrop, which is a photograph of whoever is playing, and a card that lets it through shows
+             that one picture across all three cards at once, continuous from one to the next. This layer is
+             transparent so the backdrop shows. When nothing is playing, the black plate is what is seen.
+             Nothing here needs to be a colour for the card to be pressable: the plate that carries the
+             press sets Transparent itself (FeaturePlate). -->
+        <Border CornerRadius="12" Background="#1AFFFFFF"/>
+        <!-- ═══ the picture's own room ═══
+             The whole card: HomeBanner.PictureLeft is zero. The photograph covers the card with no fade,
+             because a band member standing at the left of a press shot would otherwise be drawn at part
+             strength over a blur and could not be made out. So there is no margin here and no fade in the
+             cut.
+
+             The crop is chosen for THIS width (HomeBanner.Aspect is the slot's shape, which is the
+             plate's), so what the models framed is what is drawn: UniformToFill has nothing left to cut.
+
+             Each layer is turned OFF where its picture is missing, and not left bound to nothing. Three
+             hosts draw five cards: the brush is the same object with a new binding on every step, and
+             bound to null it keeps the last card's picture. See HomeFeatureCard.GroundShown. -->
+        <!-- ═══ a generated list's own background ═══
+             A list the library wrote has no record behind it: no cover to blur, and no act to photograph.
+             It does have a picture of its own where one was found for it (GeneratedCoverService), and that
+             arrives as the background above like any other. This layer is what it stands on until then, and
+             what it stands on permanently where no picture was found: its own colour, the one its mark
+             wears in the tree, mixed into the plate's dark so that both ends of it cover. It is BEFORE the
+             background, so a picture that does arrive is drawn over it and not under it. -->
+        <Border CornerRadius="12" Background="{Binding Wash}" Visibility="{Binding WashShown}"/>
+
+        <!-- No artwork anywhere for this record: the generated picture it wears on every other shelf,
+             across the whole plate. It is under the wash and not instead of it, because the two are never
+             both present: a record has a cover or it has not. -->
+        <Border CornerRadius="12" IsHitTestVisible="False"
+                Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                Visibility="{Binding FigureShown}"/>
+
+        <!-- ═══ the background: the act's own photograph, blurred, across the whole card ═══
+             The blur is of the ACT's photograph, and it fills the whole card. There is no separate opaque
+             band beside it: what is behind the sharp picture is the same picture blurred, so the edge
+             between them is not a change of content at all, and nothing has to hide it.
+
+             The record's blurred cover is what a card wears until the photograph arrives, which takes a
+             second or two. See HomeFeatureCard.GroundIsPortrait, which stops the slower of the two answers
+             from overwriting the better one. A generated list keeps its own picture here, because it has no
+             act to photograph. -->
+        <Border CornerRadius="12" Visibility="{Binding GroundShown}">
+          <Border.Background>
+            <ImageBrush ImageSource="{Binding Ground}" Stretch="UniformToFill"
+                        AlignmentX="Center" AlignmentY="Center"/>
+          </Border.Background>
+        </Border>
+
+        <!-- ═══ and the room a list or a station is lit in ═══
+             The same figures Pegasus draws behind a record, in the card's own colour: the wash below with
+             the flat colour taken out of it. It is bound to null on a record's card, which hides the room
+             and does not leave the last list's colours painted. Every picture here follows that rule, for
+             the reason given on HomeFeatureCard.GroundShown.
+
+             THIS LAYER IS WHY A LIST'S CARD SETS NO GROUND. It is drawn OVER the ground, so a picture put
+             on the ground would be covered and invisible. The list's cover is for the SQUARE at the foot,
+             and its colours are what this room is repainted in (HomeView.LoadListFaceAsync).
+
+             It is ABOVE the ground and not below it, or it could not be seen. It is under the mark, the
+             text and the scrim, which are what the card says.
+
+             Live only on the card in front, and only while this screen is shown: see HomeView.ShowRooms. -->
+        <common:CardRoom CornerRadius="12" Palette="{Binding Room}" Live="{Binding RoomLive}"
+                         Shown="{Binding RoomShown}"/>
+
+        <!-- There is no large, faint copy of the list's mark across this plate. The plate is not empty:
+             the room above IS the list's picture, and the list's cover is in the square at the foot. -->
+
+        <!-- The opacity belongs to the CARD, not to this element: the photograph arrives seconds after
+             the plate was drawn, and it fades in and does not cut in. It is set on the card because three
+             hosts draw five cards. See HomeFeatureCard.PortraitOn. -->
+        <Border CornerRadius="12" Opacity="{Binding PortraitOn}"
+                Visibility="{Binding PortraitShown}">
+          <Border.Background>
+            <!-- Anchored RIGHT, for two reasons. The picture is cut for one plate width
+                 (HomeFeatureCard.CutFor) and drawn through UniformToFill, so a plate of another width crops
+                 it. If it were centred, the crop window would move in from both sides as the plate narrows,
+                 and the photograph would slide inside the card at its own rate while the card's edges move at
+                 theirs. Anchored, the picture is rigid against the box it stands in: it travels with the card
+                 and is revealed or cut off at the right, which is one motion instead of two.
+
+                 Pinned to the right and not the left because of where the subject is. The cut frames the
+                 subject about three quarters across, clear of the cover and the text on the left and short of
+                 the right-hand edge (HomeBanner.Scene). Pinning the LEFT edge would hold the cover and text
+                 side still and push the subject into the right corner as the plate narrows. Pinned right, the
+                 subject keeps its distance from the edge it was framed against. The right edge is also the STILL
+                 edge on this screen: the pane grows from the left, so the card's right edge does not move, and
+                 a picture anchored to it does not move on screen at all while the slide runs. -->
+            <ImageBrush ImageSource="{Binding Portrait}" Stretch="UniformToFill"
+                        AlignmentX="Right" AlignmentY="Center"/>
+          </Border.Background>
+        </Border>
+
+
+
+        <!-- ═══ THE PICTURE IS 20% DARK, EVERYWHERE ═══
+             One flat veil, 51/255 of black, over the whole card.
+
+             Calculation, so the next edit can keep it. A veil of alpha a leaves 1 - a of the light:
+                 1 - 51/255 = 0.80
+             There is one veil, so nothing multiplies and there is nothing to work out per corner. If a
+             second one is ever added, the rule is (1 - a1)(1 - a2), and this number has to come down to pay
+             for it.
+
+             Why a flat veil: the photograph is one exposure from end to end, with no gradient that could
+             look like a smudge down the left, and the text gains a little cover where it stands.
+
+             WHAT IT COSTS: the right of the picture, where the act is, is at four fifths of its full
+             strength and not untouched. -->
+        <Border CornerRadius="12" Background="#33000000"/>
+
+        <!-- The scrim under the text. It makes the kicker and the title readable over the photograph.
+
+             It runs from nothing at 0.38 of the card's height to 65% black at the foot, over the flat veil
+             above. Two layers multiply, so the light left at the bottom edge is
+                 0.80 x 0.35 = 0.28
+             and at the top of the ramp it is the veil's 0.80 alone. The stops are bunched towards the foot
+             and not spaced evenly: an even ramp over this distance looks like a band with an edge, and the
+             cover has to be there already at the point where the text starts.
+
+             Relative coordinates, not points, because the same template draws the plate at
+             HomeBanner.Height and the two neighbours at HomeBanner.PeekHeight.
+
+             Only where there is text at the foot. A station's card carries its mark in the middle of the
+             plate and nothing along the bottom, so a scrim there would darken the picture for no text. It
+             is under the stroke below, so the card's edge is still drawn over it. -->
+        <Border CornerRadius="12" IsHitTestVisible="False" Visibility="{Binding FootShown}">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0.5,0.38" EndPoint="0.5,1">
+              <GradientStop Offset="0.0" Color="#00000000"/>
+              <GradientStop Offset="0.45" Color="#1F000000"/>
+              <GradientStop Offset="0.75" Color="#4D000000"/>
+              <GradientStop Offset="1.0" Color="#A6000000"/>
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+        <Border CornerRadius="12" BorderBrush="#2EFFFFFF" BorderThickness="1"/>
+
+        <!-- A record's card while its picture is still being fetched: the plate is bare glass until the
+             blurred cover arrives. It has the same spinner and size as the screen's own loading spinner.
+             RecordSpinner collapses it whenever Spinning is false. See HomeFeatureCard.PlateWaiting. -->
+        <ctl:RecordSpinner Width="64" Height="64" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Spinning="{Binding PlateWaiting}"/>
+
+        <!-- The cover and the text are at the FOOT of the plate, not in the middle: at 352 the middle is
+             the middle of the picture, and a title across somebody's face cannot be read and hides the
+             photograph. The column stops short of the right so the act's name does not run under the two
+             keys, which are in that same bottom corner. -->
+        <Grid Margin="22,18,22,18" ColumnSpacing="20" VerticalAlignment="Bottom"
+              Visibility="{Binding FootShown}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- A record: its cover, the same square the rows draw and made the same way where there is no
+               artwork anywhere for it. The square is HomeBanner.Sleeve, which is what the cover is decoded
+               at. It is stated in both places because a size inside a template cannot read a constant. -->
+          <Grid Width="124" Height="124" VerticalAlignment="Center" Visibility="{Binding SleeveShown}">
+            <Border CornerRadius="8" Background="#4D000000"/>
+            <Border CornerRadius="8" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <Border CornerRadius="8">
+              <!-- Off until this card's own cover has arrived, for the reason given for the backgrounds: the
+                   cover is drawn by three hosts that stand in for five records. -->
+              <Image Source="{Binding Cover}" Stretch="UniformToFill" Opacity="0" Loaded="Sleeve_Loaded"
+                     Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+            </Border>
+            <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="26" Foreground="#4DFFFFFF"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <!-- The cover stands on a photograph and not on a flat plate, and an edge keeps a dark cover
+                 from blending into a dark picture behind it. -->
+            <Border CornerRadius="8" BorderBrush="#3DFFFFFF" BorderThickness="1"/>
+          </Grid>
+
+          <!-- A generated list: the cover that the list wears everywhere else, in the square where a
+               record's cover goes. The mark it wears in the playlist tree stands here until the cover is
+               composed and decoded, which takes a second or two. -->
+          <Grid Width="124" Height="124" VerticalAlignment="Center" CornerRadius="8"
+                Background="#1FFFFFFF" Visibility="{Binding MarkShown}">
+            <!-- The list's cover: the picture behind the window, the app's own drawing over it, and the
+                 list's name down the band (GeneratedCover). It is the same square the tree and the list's own
+                 page show, so one list is one picture wherever it is drawn. The mark stands in until it
+                 arrives, and permanently where nothing could be composed. -->
+            <Border CornerRadius="8">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill" Opacity="0" Loaded="Sleeve_Loaded"
+                     Visibility="{Binding MarkPictureShown}"/>
+            </Border>
+            <FontIcon Glyph="{Binding Glyph}" FontFamily="{StaticResource Fa}" FontSize="36"
+                      Foreground="{Binding Ink}" Visibility="{Binding MarkGlyphShown}"/>
+            <Border CornerRadius="8" BorderBrush="#3DFFFFFF" BorderThickness="1"/>
+          </Grid>
+
+          <!-- Every line has an empty Border in front of it in the markup and behind it on the screen:
+               that is the shadow. TextShade renders the line's own glyphs to a surface, blurs them and draws
+               the result under the text. The Border is declared FIRST because a shadow drawn after the text
+               would be a shadow over it. It has no size of its own and asks for none.
+
+               The blur is a share of each line's height, so one number covers all three sizes; the ink is
+               what that line's shadow is worth. See TextShade for both. -->
+          <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,96,0" Spacing="6">
+            <!-- Which of the screen's questions put this card here. These are the row headings themselves, so
+                 the banner and the row below it call the same thing by the same name. -->
+            <Grid>
+              <!-- The SAME weight as the title's. A blurred shadow does not close up the counters of small
+                   type as a hard offset copy would; it darkens what is around them. The kicker is the one line
+                   whose own ink is not full white, so it needs the most from what is behind it: against a
+                   photograph of a pale wall it measured 1.16:1 against its own background at #8C000000, which is
+                   text nobody can see. -->
+              <Border common:TextShade.Under="KickerFace" common:TextShade.Ink="#B3000000"
+                      common:TextShade.Blur="0.30" common:TextShade.Drop="1"/>
+              <TextBlock x:Name="KickerFace" Text="{Binding Kicker}"
+                         Style="{StaticResource FeatureKicker}"/>
+            </Grid>
+
+            <Grid>
+              <!-- The heaviest of the three and dropped furthest: the title is the one line that has to be
+                   readable from across a room, and at 24 point bold there is enough glyph to carry it. -->
+              <Border common:TextShade.Under="TitleFace" common:TextShade.Ink="#B3000000"
+                      common:TextShade.Blur="0.30" common:TextShade.Drop="1.5"/>
+              <TextBlock x:Name="TitleFace" Text="{Binding Title, Converter={StaticResource Censor}}"
+                         Style="{StaticResource FeatureTitle}"/>
+            </Grid>
+
+            <!-- The act, in whichever of the two ways the app has it: its own lettering where a catalogue
+                 holds it, or the name its tags spell where none does. Exactly one is shown at a time, because
+                 both would say the same act twice. The name is the one that starts visible, because most acts
+                 have no logo and the mark arrives seconds after the card does.
+
+                 It is Uniform and capped both ways, never stretched: a logo is drawn lettering, and lettering
+                 must not be squashed. It is left-aligned, which is where the text above it starts, and that
+                 only holds because the mark arrives already cut to its lettering (see ArtistLogos and
+                 ArtScaler.Trim). -->
+            <Grid Height="26">
+              <!-- What the encyclopedia says is worth knowing about this record, where it says anything. It
+                   is first of the three because it is the only one that gives a reason to press the card: the
+                   act's name is already implied by the photograph behind it. See HomeFeatureCard.HypeShown,
+                   where the order is decided once. -->
+              <!-- Two shadows for one line, because two lines take turns in this cell and only one of them is
+                   shown at a time. Each follows its own text's visibility. See TextShade.Measure, which takes a
+                   collapsed line's sprite out of the draw and does not leave its shadow on the card. -->
+              <Border common:TextShade.Under="HypeFace" common:TextShade.Ink="#99000000"
+                      common:TextShade.Blur="0.30" common:TextShade.Drop="1"/>
+              <Border common:TextShade.Under="ActFace" common:TextShade.Ink="#99000000"
+                      common:TextShade.Blur="0.30" common:TextShade.Drop="1"/>
+              <TextBlock x:Name="HypeFace" Text="{Binding Hype}" Style="{StaticResource FeatureLine}"
+                         Visibility="{Binding HypeShown}"/>
+              <TextBlock x:Name="ActFace" Text="{Binding Subtitle}" Style="{StaticResource FeatureLine}"
+                         VerticalAlignment="Center" Visibility="{Binding SubtitleShown}"/>
+              <Image Source="{Binding Logo}" Stretch="Uniform" MaxHeight="26" MaxWidth="260"
+                     HorizontalAlignment="Left" VerticalAlignment="Center"
+                     Visibility="{Binding LogoShown}"/>
+            </Grid>
+          </StackPanel>
+        </Grid>
+
+        <!-- ═══ a radio station ═══
+             The mark in the middle of the plate, and nothing along the foot. A station is not a record and
+             not a list: there is no cover to put on the left, no act to print under a title, and nothing a
+             photograph could show. What it has is the mark it broadcasts under, so the mark is the card.
+
+             What it stands in is the room: the same drifting figures a generated list's card stands in,
+             painted in the mark's own colours once it has arrived (HomeView.LoadStationFaceAsync). It is
+             drawn above, with the other backgrounds; only the text is here.
+
+             It is over the two scrims and not under them. The scrims are shaped for a photograph with a
+             title down its left, and this card has neither: the mark is in the middle, where the left scrim
+             is heaviest, and a mark held down by a gradient meant for a press shot looks like a logo that
+             has not finished loading. -->
+        <!-- No kicker in the corner. Every other card has one because a cover alone does not say which
+             of the screen's questions put it there; a station's mark says what it is without a word over
+             it. See HomeView.BuildFeatures, where the card is built without one. -->
+        <Grid Visibility="{Binding RadioShown}" Margin="22,18,22,18">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+            <!-- Uniform and capped both ways, never stretched, for the same reason as the act's lettering on
+                 a record's card: a logo is drawn lettering, and lettering must not be squashed. The row keeps
+                 its height whichever of the two is shown, so the name below it does not jump when the mark
+                 arrives. -->
+            <Grid Height="160">
+              <Image Source="{Binding StationLogo}" Stretch="Uniform" MaxHeight="160" MaxWidth="320"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Visibility="{Binding StationLogoShown}"/>
+              <!-- The same mark that the stations pane draws for a station that publishes no logo. It is shown
+                   only once the lookup has said there is none; while the lookup runs, the spinner below is shown
+                   here instead. -->
+              <FontIcon Glyph="&#xf8d7;" FontFamily="{StaticResource Fa}" FontSize="86"
+                        Foreground="#59FFFFFF" Visibility="{Binding StationMarkShown}"/>
+              <ctl:RecordSpinner Width="64" Height="64" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 Spinning="{Binding MarkWaiting}"/>
+            </Grid>
+
+            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold" Foreground="#FFFFFFFF"
+                       TextAlignment="Center" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+
+            <!-- What the station IS, wrapped over two lines.
+
+                 It wraps and is not trimmed with an ellipsis, because a trimmed description stops in the middle
+                 of a word. A description is a sentence and is meant to be read to its end, so the box wraps and
+                 the card is one line taller.
+
+                 The width is 300. At 440, a 79-character sentence put everything on the first line and one word
+                 alone on the second, which looks like a fault. At 300 the two lines are about the same length.
+
+                 THE WIDTH AND StationBlurb.Longest ARE SET AGAINST EACH OTHER. Two lines at this width are about
+                 eighty characters, and eighty is what that constant caps a description at, so the ellipsis
+                 should be the rare case. Change one and change the other, or trimming will start again. The
+                 whole text is in the tooltip for a line that does overrun. -->
+            <TextBlock Text="{Binding Blurb}" FontSize="13" Foreground="#D1FFFFFF" LineHeight="18"
+                       TextAlignment="Center" MaxWidth="300" MaxLines="2" TextWrapping="Wrap"
+                       TextTrimming="CharacterEllipsis" Visibility="{Binding BlurbShown}"
+                       ToolTipService.ToolTip="{Binding Blurb}"/>
+
+            <!-- What is on the station right now, where it is the station that is tuned. This line is
+                 usually empty, because the card shows the station played MOST, which is rarely the one playing.
+                 It fills in as soon as the card is pressed, because pressing it tunes the station.
+
+                 One line, not wrapped: a song title is not a sentence, and a second line here would move the
+                 whole block off the plate's centre every time a long title came round. -->
+            <TextBlock Text="{Binding NowPlaying}" FontSize="11.5" Foreground="#8CFFFFFF"
+                       TextAlignment="Center" MaxWidth="360" MaxLines="1"
+                       TextTrimming="CharacterEllipsis" Visibility="{Binding NowPlayingShown}"
+                       ToolTipService.ToolTip="{Binding NowPlaying}"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </DataTemplate>
+
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- The name of the place, in the same heading box, at the same inset and the same height as the
+         collection's, the artists wall's and the genres wall's: these are views of one panel, and their
+         first rows have to start on one line. There is no way out in the corner: home is not a page
+         opened over a view, it IS the view, and its own key on the deck is what closes it. -->
+    <Grid x:Name="HeadingBox" Grid.Row="0" Margin="16,12,16,0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="36"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Style="{StaticResource RpmPaneHeadingBox}">
+        <TextBlock Text="{loc:Str Key=Home_Heading}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+
+      <TextBlock x:Name="HomeSubtitle" Grid.Row="1" Style="{StaticResource RpmPaneSubheading}"/>
+    </Grid>
+
+    <!-- The inset is on the CONTENT and not on this grid, so the scroller itself runs the whole width
+         of the card and its bar sits at the card's own right edge. The rows start on the heading's left
+         edge, as the genres wall's do, and stop one gutter short of the right. Without that gutter, the
+         key at a row's end would sit in the scrollbar's lane, and reaching for the key would make the
+         bar appear over it. -->
+    <Grid Grid.Row="1">
+      <ScrollViewer x:Name="HomeScroller" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Disabled" ViewChanged="HomeScroller_ViewChanged">
+        <!-- Named because two things act on the whole screen at once: the scroll removes its hover while
+             it is moving (HomeView.HomeScroller_ViewChanged), and it starts at ZERO opacity and is faded up
+             when the first reading has filled it (HomeView.ShowScreen). -->
+        <StackPanel x:Name="HomeContent" Margin="16,0,18,18" Opacity="0">
+          <!-- ═══ the featured banner ═══
+               One card at a time out of the five that the screen's five questions answer (see HomeFeatures),
+               with the card before it and the card after it drawn behind it at each side. It steps with the
+               two keys, by pressing a neighbour, by a dot, and on its own every HomeBanner.DwellMs while the
+               screen is shown and the pointer is off the strip. The automatic step repaints the whole strip
+               every few seconds on a surface with no dirty rectangles. That cost is accepted, because
+               otherwise a user who never presses a key would never see the other four cards. See
+               HomeView.Rewind.
+
+               It is above the lists and the rows, and it is the one thing on this screen that offers a single
+               record: the rows are a collection to browse, and this is one answer to "what now". -->
+          <!-- The banner, in a ScaleBox: in Pegasus the whole strip is drawn at home's text scale (the
+               plates, the neighbours, the cover, the text, the keys and the dots together), while
+               HomeBanner's calculations work in their own unscaled points inside it. The box's Factor is
+               set by ApplyTextSizes; its Visibility by ShowFeatures. The 26 under it stays outside the box,
+               unscaled, like every other block's. -->
+          <common:ScaleBox x:Name="FeatureScale" Margin="0,0,0,26" Visibility="Collapsed">
+            <Grid x:Name="FeatureStrip">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <!-- The band's height is HomeBanner.Height, applied in the constructor and not written here: the
+                   neighbours' height is derived from it, and two numbers would give two answers. -->
+              <Grid x:Name="FeatureBand" SizeChanged="FeatureBand_SizeChanged">
+                <!-- What a step moves. The three plates swap their cards at once and the track carries them in
+                     from the side the step came from, so the user follows one movement of the strip and not three
+                     pictures changing at once. It uses a transform and a group opacity: no measure, no arrange, and
+                     the plates are not asked to draw themselves again.
+
+                     The track's resting value is its base value (X zero), because stopping a storyboard under Uno
+                     puts its property back to the base for a frame. A base that is not the resting value causes a
+                     flash on every step. Nothing here is faded: a group opacity would make all three cards
+                     translucent for the length of the step, and what is behind this screen is the window's
+                     backdrop. -->
+                <Grid x:Name="FeatureTrack">
+                  <Grid.RenderTransform>
+                    <TranslateTransform x:Name="FeatureSlide"/>
+                  </Grid.RenderTransform>
+                <!-- The card before this one and the card after it. Their width and their clip are set in code
+                     (see HomeBanner): each holds a whole plate, cut to the strip that is left beside the one in
+                     front. The left one is aligned left inside its cut and the right one right, so what shows of
+                     each is its outer half. The inner half is what the plate covers. -->
+                <!-- NOTHING DIMS A NEIGHBOUR. Each one is the card the plate would draw, at full strength, cut to
+                     the room beside the plate.
+
+                     Dimming does not work. Reduced opacity makes the card see-through, so the window's backdrop
+                     shows through it. A black veil over an opaque card fixes that but keeps the darkness, and on
+                     the LEFT neighbour it compounds: what shows there is the card's own left edge, where the text's
+                     scrim is already at 65%, so the card would come out at about a sixth of its brightness and look
+                     like a black slab.
+
+                     What puts a neighbour behind the plate is its height (HomeBanner.PeekDrop) and the plate's own
+                     edge standing over it, neither of which changes how bright it is.
+
+                     Transparent and not unset, because the press that steps the banner lands on this border and a
+                     panel with no background is not hit-tested. Rounded on the outer edge only, because the inner
+                     one runs under the plate. -->
+                <Border x:Name="PeekLeft" HorizontalAlignment="Left" VerticalAlignment="Center"
+                        Width="0" Visibility="Collapsed" CornerRadius="12,0,0,12"
+                        Background="Transparent" Tapped="PeekLeft_Tapped">
+                  <Grid>
+                    <!-- THE SAME BACKING THE PLATE HAS, and the same colour, for the same reason. A card is glass
+                         (#1AFFFFFF at the bottom of FeatureFaceTemplate). The plate puts an opaque #191B20 under it, and
+                         a neighbour must do the same, or the two would draw the same card in two different colours
+                         wherever the card's own layers do not cover it: the band left of the picture, and every card
+                         with no background at all. Change it here, in PeekRight and on FeaturePlate together. -->
+                    <Border CornerRadius="12,0,0,12" Background="#191B20" IsHitTestVisible="False"/>
+                    <!-- One host. The cards are swapped in the turn the slide starts, and nothing on this strip
+                         dissolves. -->
+                    <model:FeatureHost x:Name="PeekLeftHost" HorizontalAlignment="Left" IsTabStop="False"
+                                       ContentTemplate="{StaticResource FeatureFaceTemplate}"
+                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                  </Grid>
+                </Border>
+                <Border x:Name="PeekRight" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Width="0" Visibility="Collapsed" CornerRadius="0,12,12,0"
+                        Background="Transparent" Tapped="PeekRight_Tapped">
+                  <!-- The same, the other way round. See PeekLeft. -->
+                  <Grid>
+                    <Border CornerRadius="0,12,12,0" Background="#191B20" IsHitTestVisible="False"/>
+                    <model:FeatureHost x:Name="PeekRightHost" HorizontalAlignment="Right" IsTabStop="False"
+                                       ContentTemplate="{StaticResource FeatureFaceTemplate}"
+                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                  </Grid>
+                </Border>
+
+                <!-- The card in front. Transparent and not unset: a panel with no background is not hit-tested
+                     in WinUI, and the press on it is what opens the record. The two keys are buttons on top of it,
+                     and a button marks the press handled, so stepping the banner never opens what is under it. -->
+                <Grid x:Name="FeaturePlate" HorizontalAlignment="Center" Width="0"
+                      Background="Transparent" Tapped="Feature_Tapped">
+                  <!-- What the two cards fade OVER. It is opaque, and the same dark that the cards' own colours
+                       are mixed into (HomeFeatureCard.Tinted), so a step never shows the backdrop through it: two
+                       cards crossing at half strength each add up to less than one for part of the step, and without
+                       this the photograph behind the screen would show through the middle of every transition. It is
+                       behind the host and never seen at rest, where an opaque card covers it. -->
+                  <Border CornerRadius="12" Background="#191B20" IsHitTestVisible="False"/>
+                  <!-- Opacity 1 is the RESTING value and has to stay that way: a landed storyboard holds the
+                       property it animated, so a step reverts this to its base when it stops the last board. If the
+                       base is anything but 1, the plate comes back wrong for a frame. An empty host here would draw
+                       the template's placeholders through the card in front (see FeatureHost). -->
+                  <model:FeatureHost x:Name="PlateHost" IsTabStop="False" Opacity="1"
+                                     ContentTemplate="{StaticResource FeatureFaceTemplate}"
+                                     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+
+                </Grid>
+                </Grid>
+
+                <!-- The two keys, one on each outer side of the strip.
+
+                     OUTSIDE the track and not on the plate. Off the plate because a key drawn on the card is a
+                     control standing on somebody's photograph, and the card is the picture. Outside the track
+                     because the track is what slides on a step, and keys that travelled with it would leave the
+                     screen with the card they stepped away from.
+
+                     They are over the outer edge of the two neighbours, which is the one part of this strip that is
+                     not being read: what is written on a neighbour is behind the plate. -->
+                <Button x:Name="FeatureBack" Style="{StaticResource GlowKeyStyle}"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,0,0"
+                        Visibility="Collapsed" Click="FeaturePrevious_Click"
+                        ToolTipService.ToolTip="{loc:Str Key=Home_FeatureBack}"
+                        AutomationProperties.Name="{loc:Str Key=Home_FeatureBack}">
+                  <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}" FontSize="15"
+                            Foreground="#FFFFFFFF"/>
+                </Button>
+                <Button x:Name="FeatureOn" Style="{StaticResource GlowKeyStyle}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                        Visibility="Collapsed" Click="FeatureNext_Click"
+                        ToolTipService.ToolTip="{loc:Str Key=Home_FeatureOn}"
+                        AutomationProperties.Name="{loc:Str Key=Home_FeatureOn}">
+                  <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="15"
+                            Foreground="#FFFFFFFF"/>
+                </Button>
+              </Grid>
+
+              <!-- Which of the cards is shown, and a way straight to any of them. Created in code because how
+                   many there are depends on what the collection can answer. -->
+              <StackPanel x:Name="FeatureDots" Grid.Row="1" Orientation="Horizontal" Spacing="7"
+                          HorizontalAlignment="Center" Margin="0,12,0,0"/>
+            </Grid>
+          </common:ScaleBox>
+
+          <!-- ═══ the quick selection ═══
+               What this listener plays most, of all four kinds at once: songs, records, playlists and radio
+               stations. There are four panels of four, and the four most played go DOWN the first panel and
+               not across the top. See QuickPicks.InPanels, which is why these are four separate lists and not
+               one wrapping panel.
+
+               It is under the banner and above the row of lists: the banner offers one thing to play and this
+               offers sixteen, which is a shorter way back to what the user already likes than any row of
+               records.
+
+               The whole block is collapsed where nothing has been played (see HomeView.ShowQuickPicks). A
+               heading over an empty block would be a heading over a question the collection cannot answer
+               yet. -->
+          <StackPanel x:Name="QuickBlock" Spacing="8" Margin="0,0,0,26" Visibility="Collapsed">
+            <Grid>
+              <TextBlock x:Name="QuickHeading" Text="{loc:Str Key=Home_QuickPicks}"
+                         Style="{StaticResource SectionHeadingStyle}" VerticalAlignment="Center"/>
+              <!-- Only the SONGS, and the button says so. A record is a dozen songs and a station is not a set
+                   of songs at all, so anything wider would make a queue whose length depended on what happened to
+                   be in the selection. It is off where the selection holds no songs at all. -->
+              <Button x:Name="QuickPlayAll" Click="QuickPlayAll_Click"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Background="#14FFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                      CornerRadius="14" Padding="14,5" MinHeight="0">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <FontIcon x:Name="QuickPlayAllMark" Glyph="&#xf04b;" FontFamily="{StaticResource Fa}"
+                            Foreground="#F2FFFFFF" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="QuickPlayAllText" Text="{loc:Str Key=Home_PlayAllTracks}"
+                             FontWeight="SemiBold" Foreground="#F2FFFFFF" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <!-- The margin cancels an entry's own padding at the left, so the first SQUARE starts on the
+                 heading's line, the same as the rows below.
+
+                 The panels are as wide as the pane has room for and no narrower (PanelLeast), so a narrow pane
+                 shows fewer of them than there are. The ones that do not fit are PAST THE RIGHT END and are not
+                 removed: the selection scrolls sideways to them, faded at the ends and stepped by two keys,
+                 exactly as the rows of records below are. -->
+            <Grid Margin="-8,0,0,0">
+              <Grid x:Name="QuickCut">
+                <!-- Disabled, for the reason given on the record rows above. -->
+                <ScrollViewer x:Name="QuickScroller" HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled"
+                              HorizontalScrollMode="Disabled">
+                  <!-- A StackPanel and not a Grid of four star columns, for two reasons, and either one alone
+                       decides it. A scroller measures its content with no width limit, so a star column would take
+                       its own content's width. And a Grid adds its ColumnSpacing between every pair of columns
+                       whether or not one of them is empty, which on a selection of fewer than sixteen would leave
+                       trailing space that the faded ends would then show as more panels past the end. A StackPanel
+                       skips a collapsed child and the spacing that would have gone with it.
+
+                       Each panel's width is set in POINTS by HomeView.SizeQuickPanels. -->
+                  <!-- The four columns are not tab stops (IsTabStop="False" on each): an ItemsControl takes the
+                       keyboard focus itself by default, and the arrow keys then landed on a whole column of cards
+                       instead of on a card. This happens in Pegasus under a remote, and the same holds for tabbing in
+                       the main window. -->
+                  <StackPanel x:Name="QuickPanels" Orientation="Horizontal" Spacing="10"
+                              Background="Transparent">
+                    <ItemsControl x:Name="QuickPanel0" IsTabStop="False" ItemTemplate="{StaticResource HomeQuickTemplate}"/>
+                    <ItemsControl x:Name="QuickPanel1" IsTabStop="False" ItemTemplate="{StaticResource HomeQuickTemplate}"/>
+                    <ItemsControl x:Name="QuickPanel2" IsTabStop="False" ItemTemplate="{StaticResource HomeQuickTemplate}"/>
+                    <ItemsControl x:Name="QuickPanel3" IsTabStop="False" ItemTemplate="{StaticResource HomeQuickTemplate}"/>
+                  </StackPanel>
+                </ScrollViewer>
+              </Grid>
+
+              <Border x:Name="QuickHemHead" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False"/>
+              <Border x:Name="QuickHemFoot" HorizontalAlignment="Right" Width="0" IsHitTestVisible="False"/>
+
+              <!-- Centred on the block, with no bottom margin: an entry is a square with its text BESIDE it
+                   and not under it, so there is nothing below the panels for the key to be lifted clear of. -->
+              <Button x:Name="QuickKeyLeft" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Left"
+                      Margin="2,0,0,0" Click="QuickLeft_Click"
+                      AutomationProperties.Name="{loc:Str Key=Row_ScrollLeft}">
+                <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}"
+                          Foreground="#FFFFFFFF"/>
+              </Button>
+              <Button x:Name="QuickKeyRight" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Right"
+                      Margin="0,0,2,0" Click="QuickRight_Click"
+                      AutomationProperties.Name="{loc:Str Key=Row_ScrollRight}">
+                <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}"
+                          Foreground="#FFFFFFFF"/>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <!-- What the library wrote for itself, from what has actually been played. It is above the rows
+               of records and not under them: a user who comes home to put something on is offered an hour of
+               music before being offered one album, and these lists are the one thing on this screen that is
+               not a decision about which record. -->
+          <StackPanel x:Name="ListsBlock" Spacing="8" Margin="0,0,0,26" Visibility="Collapsed">
+            <!-- Named in the code-behind: what this row holds depends on whose shelf is shown, and the
+                 heading says which. See HomeView.ReadKeptLists. -->
+            <TextBlock x:Name="ListsHeading" Text="{loc:Str Key=Home_MadeForYou}"
+                       Style="{StaticResource SectionHeadingStyle}"/>
+            <!-- Faded at the ends in the same way as the rows of records below, and by the same ScrollHem:
+                 this row overflows on a wide collection too. It is named and not tagged because it is written
+                 out here and not in a template. -->
+            <Grid Margin="-8,0,0,0">
+              <Grid x:Name="ListCut">
+                <!-- Disabled, for the reason given on the record rows above. -->
+                <ScrollViewer x:Name="ListScroller" HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled"
+                              HorizontalScrollMode="Disabled">
+                  <ItemsControl x:Name="ListRow" IsTabStop="False" ItemTemplate="{StaticResource HomeListTemplate}"
+                                VerticalAlignment="Top" Background="Transparent">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6"/>
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Grid>
+
+              <Border x:Name="ListHemHead" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False"/>
+              <Border x:Name="ListHemFoot" HorizontalAlignment="Right" Width="0" IsHitTestVisible="False"/>
+
+              <!-- Margins set by HomeView.ApplyTextSizes, from the same HomeTextSizes figure the rows' keys
+                   bind: the text under a list's square scales with the text. -->
+              <Button x:Name="ListKeyLeft" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Left"
+                      Click="ListLeft_Click" AutomationProperties.Name="{loc:Str Key=Row_ScrollLeft}">
+                <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}"
+                          Foreground="#FFFFFFFF"/>
+              </Button>
+              <Button x:Name="ListKeyRight" Style="{StaticResource RowKeyStyle}" HorizontalAlignment="Right"
+                      Click="ListRight_Click" AutomationProperties.Name="{loc:Str Key=Row_ScrollRight}">
+                <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}"
+                          Foreground="#FFFFFFFF"/>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <ItemsControl x:Name="RowList" IsTabStop="False" ItemTemplate="{StaticResource HomeRowTemplate}"
+                        VerticalAlignment="Top"/>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- ═══ a re-read, held behind this until it is dressed ═══
+           The FIRST reading is not held here: it happens behind the splash, and what the user sees when
+           that clears is a finished screen. A LATER one is different: the screen is already shown, and
+           rebuilding it in place would empty the rows, show marks in place of pictures, and fill every
+           square again one at a time.
+
+           So the content is hidden, this stands in its place, and both go back the other way once the
+           pictures above the fold have arrived. That is the same count the first screen is judged dressed
+           by (HomeView.Dressed). A read that never dresses gives up after HomeView.DressWait and does not
+           hold the screen for ever. -->
+      <Grid x:Name="ReadingState" Visibility="Collapsed" Background="Transparent">
+        <ctl:RecordSpinner x:Name="ReadingSpinner" Width="64" Height="64"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+
+      <!-- The empty and locked panels, scaled as whole blocks: in Pegasus they are drawn at home's text
+           scale, the ring and the button with the words (see HomeView.ApplyTextSizes). -->
+      <common:ScaleBox x:Name="PanelScale">
+        <Grid>
+          <!-- A collection with nothing played and nothing on it. What is here, then how to fill it. -->
+          <StackPanel x:Name="EmptyState" Spacing="10" Visibility="Collapsed"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320">
+            <FontIcon Glyph="&#xf015;" FontFamily="{StaticResource Fa}" FontSize="26" Foreground="#59FFFFFF"/>
+            <TextBlock Text="{loc:Str Key=Home_Empty}" FontSize="12.5" Foreground="#8CFFFFFF"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
+          </StackPanel>
+
+          <!-- ═══ the gate ═══
+               The collection is too small for this screen to answer its own headings. Instead of drawing
+               five rows of the same few records under five different questions, the screen says what it is
+               waiting for and how far along the shelf is.
+
+               The DOOR IS NOT SHUT WITH IT. The deck's key still comes here and this panel is what it finds,
+               because a progress bar that cannot be reached cannot be read. See HomeGate.LeastAlbums for
+               where the number comes from. -->
+          <Grid x:Name="LockedState" Visibility="Collapsed" VerticalAlignment="Center"
+                HorizontalAlignment="Center" MaxWidth="860" Margin="24" ColumnSpacing="44">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- THE ONE INDICATOR ON THIS PANEL. A second, straight bar beside the heading would show the
+                 same number twice, and the record inside this ring would show nothing but its own label: the
+                 record is only a record once it has been pressed, and nothing has been. -->
+            <ctl:SparkRing x:Name="LockedRing" Grid.Column="0" Width="188" Height="188"
+                           Thickness="9" VerticalAlignment="Center"/>
+
+            <StackPanel Grid.Column="1" Spacing="17" VerticalAlignment="Center" MaxWidth="470">
+              <TextBlock Text="{loc:Str Key=HomeLock_Kicker}" FontSize="11" Foreground="#6BFFFFFF"
+                         CharacterSpacing="220"/>
+              <TextBlock x:Name="LockedHeading" FontFamily="{StaticResource RpmDisplayFontBold}"
+                         FontSize="31" Foreground="White" TextWrapping="Wrap"/>
+              <TextBlock Text="{loc:Str Key=HomeLock_Body}" FontSize="13.5" LineHeight="21"
+                         Foreground="#A3FFFFFF" TextWrapping="Wrap"/>
+              <TextBlock x:Name="LockedProgress" FontSize="12" Foreground="#6BFFFFFF"/>
+              <ctl:RpmPrimaryButton x:Name="LockedAddButton" Click="LockedAdd_Click"
+                                    HorizontalAlignment="Left" Padding="22,0" Margin="0,3,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                  <FontIcon Glyph="&#xF067;" FontFamily="{StaticResource Fa}" FontSize="12"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=HomeLock_AddMusic}" FontWeight="Bold"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
+              </ctl:RpmPrimaryButton>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </common:ScaleBox>
+    </Grid>
+  </Grid>
+</UserControl>

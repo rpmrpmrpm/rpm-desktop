@@ -1,0 +1,119 @@
+﻿<Project ToolsVersion="15.0">
+  <!--
+    To update the version of Uno, you should instead update the Sdk version in the global.json file.
+
+    See https://aka.platform.uno/using-uno-sdk for more information.
+    See https://aka.platform.uno/using-uno-sdk#implicit-packages for more information regarding the Implicit Packages.
+  -->
+  <ItemGroup>
+    <!-- Win2D, WinUI head only (RPM.Desktop). It carries the Direct2D effect wrappers the composition
+         effect factory takes; the app needs its Gaussian blur for GlassBrush. Uno's Skia head has the
+         effect built in and hand-rolls the interop instead, so this is not referenced there. -->
+    <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
+
+    <!-- Used by RPM.Fingerprint (LSH index + fingerprint blob storage) -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+
+    <!-- Pinned ahead of what Microsoft.Data.Sqlite's bundle asks for: its 2.1.11 native libraries carry
+         a SQLite with a known high-severity advisory (GHSA-2m69-gcr7-jv3q). These packages are the
+         native build alone, with no managed dependencies, so raising them swaps the SQLite and nothing
+         else. (The 2.1.12 bundle itself is not usable: SQLitePCLRaw.provider.internal has no
+         matching version.) -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3.ios" Version="2.1.12" />
+
+    <!-- Used by RPM.Core (audio tag read/write) -->
+    <PackageVersion Include="TagLibSharp" Version="2.3.0" />
+
+    <!-- In-place updating (RPM.Desktop). Pinned to the version of the vpk CLI the release scripts
+         install: vpk writes the feed and the packages, the library reads them, and a newer CLI emits a
+         manifest format an older library cannot parse. Raise both together or neither. -->
+    <PackageVersion Include="Velopack" Version="0.0.1298" />
+
+    <!-- Salient-object detection for the art display's backdrop crop (U²-Netp, Assets/Models), and
+         the beat and key models. The DirectML build is the same runtime with a provider that runs a
+         model on the graphics device; RPM.Desktop.csproj takes one or the other by RID, never both. -->
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.20.1" />
+    <!-- Windows ML, which the Windows App SDK brings in. Referenced by the WinUI head only to exclude
+         its files (RPM.Desktop.csproj), at the version that Windows App SDK 2.2.0
+         resolves. A Windows App SDK that needs a newer one fails restore with a downgrade, which is
+         the moment to raise this. -->
+    <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70" />
+
+    <!-- RPaMp audio output. rpm owns the pipeline: ffmpeg decodes, then the EQ biquads of rpm filter,
+         then OpenAL plays. LibVLC is not used because its native NuGet package has no arm64 build. -->
+    <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
+    <PackageVersion Include="Silk.NET.OpenGL" Version="2.22.0" />
+
+    <!-- Casting RPaMp to Google speakers: device discovery (it bundles Zeroconf) and the CASTV2
+         protocol. The audio still goes through the EQ; the receiver pulls the result from
+         CastServer. See CastSink.
+
+         Sharpcaster is not referenced as a package. RPM.Cast contains a copy of version 3.0.0, so that it
+         can carry a channel of its own and a heartbeat that cannot crash the app. These packages are
+         what that source needs. -->
+    <PackageVersion Include="Google.Protobuf" Version="3.32.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
+    <PackageVersion Include="Zeroconf" Version="3.7.16" />
+
+    <!-- Library sharing (RPM.Desktop): the mDNS responder that advertises this machine's library on
+         the local network. It is the maintained fork of Makaretu.Dns.Multicast. Zeroconf, above, is a
+         resolver only and cannot publish a service. -->
+    <PackageVersion Include="Makaretu.Dns.Multicast.New" Version="0.38.0" />
+
+    <!-- tools/RpmScope.Collector. The diagnostics IPC client and the event parser: they let a second
+         process attach to a running RPM and read what the runtime knows and the app cannot ask itself:
+         managed stacks for a thread that is not answering, the suspensions of the collector, lock
+         contention, and which handle a blocked thread is blocked on. It has to be a second process,
+         because .NET has no supported way to suspend one of its own threads and walk it. -->
+    <PackageVersion Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.731102" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.6" />
+
+    <!-- RPM.Lambda.Api -->
+    <!-- 1.10.0 for HostingOptions.RegisterResponseContentEncodingForContentType, which is the
+         only way to tell API Gateway a response is binary. Without it every image the API
+         serves is treated as UTF-8 text and any byte that is not a valid sequence comes out
+         as U+FFFD; 1.9.0 offers no way to say otherwise. See Program.cs. -->
+    <PackageVersion Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="1.10.0" />
+    <PackageVersion Include="Amazon.Lambda.Core" Version="3.3.0" />
+    <PackageVersion Include="Amazon.Lambda.RuntimeSupport" Version="2.2.0" />
+    <PackageVersion Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.4.4" />
+    <PackageVersion Include="AWSSDK.CloudFront" Version="4.0.102" />
+    <PackageVersion Include="AWSSDK.DynamoDBv2" Version="4.0.1.6" />
+    <PackageVersion Include="AWSSDK.Lambda" Version="4.0.105" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.7" />
+    <PackageVersion Include="AWSSDK.SecretsManager" Version="4.0.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.2" />
+
+    <!-- RPM.Grid. Pinned to what Uno's own packages resolve to (3.119.2), so the app carries one
+         SkiaSharp and not two: the grid draws into the same surface the rest of the Skia head
+         paints on, and two versions of the native library in one process do not
+         work. Raise these only together with the Uno SDK in global.json. -->
+    <PackageVersion Include="SkiaSharp" Version="3.119.2" />
+    <PackageVersion Include="SkiaSharp.HarfBuzz" Version="3.119.2" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.2" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.2" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
+    <!-- The cloud API cuts sized copies of covers (CoverSizes). Its Lambda runs on provided.al2023, which has no
+         fontconfig; this build of libSkiaSharp carries what it needs and asks the system for nothing. -->
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.2" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.macOS" Version="8.3.1.3" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.3" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
+
+    <!-- The repo's own compile-time rules: used by RPM.Analyzers -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+
+    <!-- Test framework: used by RPM.Fingerprint.Tests -->
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,69 @@
+﻿<!-- Skin for the cover-size slider. It is app-wide because two surfaces use it: the header of the
+     library, over the album wall, and the header of the playlists pane, over its wall of tiles.
+     Both control the same thing, how big the covers are, so the knob must look the same on both.
+
+     It uses the seek bar's skin (see SeekBar.xaml): a slim 3 px track, the stock slider fill
+     (SliderTrackFill) where the track is unfilled, a solid white run where it is filled, and a thin
+     white vertical bar as the knob. This is a horizontal-only ControlTemplate. It keeps WinUI's own
+     part names (SliderContainer, HorizontalTemplate, HorizontalTrackRect, HorizontalDecreaseRect,
+     HorizontalThumb), so the Slider's drag and click logic works without change. The now-playing
+     knob sits on the art foot and sticks up. This knob is centred on the line, so it lines up with
+     the two square size markers on either side. -->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Style x:Key="SeekSizeSliderStyle" TargetType="Slider">
+    <Setter Property="Background" Value="{ThemeResource SliderTrackFill}"/>
+    <Setter Property="Foreground" Value="#FFFFFFFF"/>
+    <Setter Property="ManipulationMode" Value="None"/>
+    <Setter Property="UseSystemFocusVisuals" Value="False"/>
+    <Setter Property="IsFocusEngagementEnabled" Value="True"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Slider">
+          <Grid Margin="{TemplateBinding Padding}">
+            <Grid.Resources>
+              <!-- The knob: a thin white vertical pill, matching the seek bar's 3x14 rounded bar. -->
+              <Style x:Key="SeekSizeThumbStyle" TargetType="Thumb">
+                <Setter Property="Background" Value="#FFFFFFFF"/>
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="{TemplateBinding Background}" CornerRadius="1.5"/>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </Grid.Resources>
+            <Grid x:Name="SliderContainer" Background="Transparent" Control.IsTemplateFocusTarget="True">
+              <Grid x:Name="HorizontalTemplate" MinHeight="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="HorizontalTrackRect" Fill="{TemplateBinding Background}"
+                           Height="3" RadiusX="1.5" RadiusY="1.5"
+                           Grid.Row="1" Grid.ColumnSpan="3" VerticalAlignment="Center"/>
+                <Rectangle x:Name="HorizontalDecreaseRect" Fill="{TemplateBinding Foreground}"
+                           Height="3" RadiusX="1.5" RadiusY="1.5"
+                           Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                <Thumb x:Name="HorizontalThumb" Style="{StaticResource SeekSizeThumbStyle}"
+                       DataContext="{TemplateBinding Value}" Width="3" Height="14"
+                       Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" VerticalAlignment="Center"
+                       AutomationProperties.AccessibilityView="Raw"/>
+              </Grid>
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+</ResourceDictionary>

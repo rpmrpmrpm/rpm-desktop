@@ -1,0 +1,34 @@
+﻿<Project>
+
+  <!--
+    The Uno Platform XAML LSP loads every referenced project with net9.0-desktop as the
+    TargetFramework so it can resolve types for XAML intellisense. For projects that use
+    Microsoft.NET.Sdk (not Uno.Sdk), the .NET SDK's _CheckForUnsupportedTargetPlatformIdentifier
+    target rejects 'desktop' because it only registers 'Windows' as a supported platform.
+
+    The target checks $(TargetPlatformSupported) at execution time. Setting it to true here
+    (during evaluation, before any target runs) satisfies the check without side-effects:
+    the PropertyGroup inside that target only mutates the property for 'Windows', so the
+    pre-set value is preserved when the target runs for 'desktop'.
+
+    Conditions:
+      UsingUnoSdk != true: Uno.Sdk projects already handle desktop registration themselves.
+      TargetFramework.Contains('-desktop'): only active for the net9.0-desktop TFM,
+                                            normal net9.0 builds are unaffected.
+  -->
+  <PropertyGroup Condition="'$(UsingUnoSdk)' != 'true' AND $(TargetFramework.Contains('-desktop'))">
+    <TargetPlatformSupported>true</TargetPlatformSupported>
+    <TargetPlatformVersion Condition="'$(TargetPlatformVersion)' == ''">1.0</TargetPlatformVersion>
+    <TargetPlatformVersionSupported>true</TargetPlatformVersionSupported>
+    <SupportedOSPlatformVersion Condition="'$(SupportedOSPlatformVersion)' == ''">1.0</SupportedOSPlatformVersion>
+    <!-- CA1418 fires on the auto-generated TargetPlatform("desktop1.0") attribute because
+         'desktop' is not in the .NET analyzer's known-platform list. Suppress it here
+         rather than globally since it only applies to non-Uno desktop TFM builds. -->
+    <NoWarn>$(NoWarn);CA1418</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UsingUnoSdk)' != 'true' AND $(TargetFramework.Contains('-desktop'))">
+    <SdkSupportedTargetPlatformVersion Include="1.0" />
+  </ItemGroup>
+
+</Project>

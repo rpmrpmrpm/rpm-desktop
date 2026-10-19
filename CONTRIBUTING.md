@@ -17,7 +17,7 @@ The repos:
 
 | Repo | Contains |
 | --- | --- |
-| [`rpm`](https://github.com/rpmrpmrpm/rpm) | Start here. Discussions, the API contract and the UI strings shared by all apps. |
+| [`rpm`](https://github.com/rpmrpmrpm/rpm) | Start here. Discussions, the UI strings and the generators shared by all apps. |
 | [`rpm-desktop`](https://github.com/rpmrpmrpm/rpm-desktop) | The desktop app (C#, .NET, Uno Platform) and the shared libraries `RPM.Core` and `RPM.Fingerprint`. |
 | [`rpm-apple`](https://github.com/rpmrpmrpm/rpm-apple) | The iPhone and Apple TV apps (Swift, SwiftUI). |
 | [`rpm-android`](https://github.com/rpmrpmrpm/rpm-android) | The Android phone and Android TV apps (Kotlin, Jetpack Compose). |

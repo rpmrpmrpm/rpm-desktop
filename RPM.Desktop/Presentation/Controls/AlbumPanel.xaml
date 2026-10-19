@@ -1,0 +1,183 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.AlbumPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.Library.Models"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark">
+
+  <!-- The album detail (cover, actions, tracklist, review) in a layout for a narrow pane: one vertical
+       column, not the side-by-side hero of the full page. Used by the Now Playing pane (fed from playback)
+       and by the full-screen AlbumPage. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+  </UserControl.Resources>
+
+  <Grid>
+    <!-- Content: shown once an album is loaded. -->
+    <ScrollViewer x:Name="ContentScroller" VerticalScrollBarVisibility="Auto" Padding="20,18,20,24">
+      <StackPanel Spacing="18">
+
+        <!-- Hero: cover centred, then title / artist / rating / actions beneath it. -->
+        <Grid x:Name="CoverBox" Width="184" Height="184" HorizontalAlignment="Center">
+          <Border CornerRadius="10" Background="#33000000"/>
+          <Border CornerRadius="10">
+            <Image x:Name="Cover" Stretch="UniformToFill"/>
+          </Border>
+          <FontIcon x:Name="CoverPlaceholder" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
+                    FontSize="46" Foreground="#40FFFFFF"/>
+        </Grid>
+
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="TitleText" FontSize="19" FontWeight="Bold" Foreground="#FFFFFFFF"
+                     TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="SubtitleText" FontSize="13" Foreground="#B8FFFFFF" TextWrapping="Wrap"/>
+
+          <!-- Star rating, read-only. It shows the stars from the saved review. -->
+          <StackPanel x:Name="RatingRow" Orientation="Horizontal" Spacing="3" Margin="0,2,0,0"/>
+
+          <!-- Actions: the play button is sized to its text. The other buttons are small icon buttons, so
+               the row fits a narrow pane. -->
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+            <ctl:RpmPrimaryButton x:Name="PlayButton" Click="Play_Click" Height="36" Padding="16,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="{loc:Str Key=AlbumMenu_Play}" FontWeight="Bold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ctl:RpmPrimaryButton>
+            <Button x:Name="ShuffleButton" Click="Shuffle_Click" Height="36" Padding="13,0"
+                    ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Shuffle}"
+                    AutomationProperties.Name="{loc:Str Key=AlbumMenu_Shuffle}">
+              <FontIcon Glyph="&#xf074;" FontFamily="{StaticResource Fa}" FontSize="13"/>
+            </Button>
+            <Button x:Name="FavoriteButton" Click="Favorite_Click" Height="36" Padding="13,0"
+                    ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Favorite}"
+                    AutomationProperties.Name="{loc:Str Key=AlbumMenu_Favorite}">
+              <FontIcon x:Name="FavoriteIcon" Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="13"/>
+            </Button>
+            <Button x:Name="DiscogsButton" Click="Discogs_Click" Height="36" Padding="13,0"
+                    ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_ShowInDiscogs}"
+                    AutomationProperties.Name="{loc:Str Key=AlbumMenu_ShowInDiscogs}" Visibility="Collapsed">
+              <ctl:DiscogsIcon Width="15" Height="15"/>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Tracklist (one column, for the narrow pane). -->
+        <StackPanel Spacing="6">
+          <TextBlock Text="{loc:Str Key=Album_Tracks}" FontSize="12" FontWeight="SemiBold"
+                     Foreground="#AAFFFFFF"/>
+          <ItemsControl x:Name="TrackList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="model:AlbumTrackItem">
+                <Grid>
+                  <!-- Disc divider on a multi-disc album: a thin line under the disc's caption. -->
+                  <StackPanel Spacing="5" Margin="0,10,0,4"
+                              Visibility="{Binding IsDiscHeader, Converter={StaticResource BoolToVisible}}">
+                    <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" FontWeight="SemiBold" Foreground="#99FFFFFF"
+                               TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                    <Rectangle Height="1" Fill="#26FFFFFF"/>
+                  </StackPanel>
+
+                  <!-- The heading for a work. A classical record is a list of works, and each work has its
+                       movements under it. The heading gives the piece once, with who wrote it and how long
+                       it runs. The movements are indented below it. There is no line under the heading,
+                       unlike a disc divider. A work is a group inside the record, not a break in it. -->
+                  <Grid Margin="8,9,8,3" ColumnSpacing="10"
+                        Visibility="{Binding IsWorkHeader, Converter={StaticResource BoolToVisible}}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="1">
+                      <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="12.5" FontWeight="SemiBold" Foreground="#EEFFFFFF"
+                                 TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                      <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#88FFFFFF"
+                                 TextTrimming="CharacterEllipsis" MaxLines="1"
+                                 Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                               VerticalAlignment="Center"/>
+                  </Grid>
+
+                  <Button HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
+                          Background="Transparent" BorderThickness="0" Padding="8,5" MinHeight="0"
+                          Click="Track_Click" Tag="{Binding}"
+                          Visibility="{Binding IsTrack, Converter={StaticResource BoolToVisible}}">
+                    <Button.Resources>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+                    </Button.Resources>
+                    <Grid ColumnSpacing="10" Margin="{Binding Indent}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                                 Visibility="{Binding NumberInColumn}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="{Binding TitleColumn}" Grid.ColumnSpan="{Binding TitleSpan}"
+                                  Spacing="1" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                                   Visibility="{Binding NumberInline}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="{Binding TitleSize}" Foreground="#EEFFFFFF"
+                                   FontWeight="{Binding TitleWeight}"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#88FFFFFF"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                                   Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
+                  </Button>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- Review. -->
+        <StackPanel Spacing="8">
+          <Grid>
+            <TextBlock Text="{loc:Str Key=Album_ReviewHeading}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="#AAFFFFFF" VerticalAlignment="Center"/>
+            <Button x:Name="WriteReviewButton" Click="WriteReview_Click" HorizontalAlignment="Right"
+                    Background="Transparent" BorderThickness="0" Padding="8,4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xf044;" FontFamily="{StaticResource Fa}" FontSize="11" Foreground="#CCFFFFFF"/>
+                <TextBlock Text="{loc:Str Key=AlbumMenu_WriteReview}" FontSize="11" Foreground="#CCFFFFFF"/>
+              </StackPanel>
+            </Button>
+          </Grid>
+          <Border Background="#14FFFFFF" CornerRadius="8" Padding="14">
+            <StackPanel>
+              <TextBlock x:Name="ReviewBody" Foreground="#EEFFFFFF" FontSize="12" TextWrapping="Wrap"/>
+              <TextBlock x:Name="ReviewEmpty" Text="{loc:Str Key=Album_ReviewEmpty}" FontSize="12"
+                         Foreground="#77FFFFFF" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Empty state, shown when there is no album to show (for example, Now Playing with nothing playing).
+         -->
+    <StackPanel x:Name="EmptyState" Spacing="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Visibility="Collapsed">
+      <FontIcon Glyph="&#xf001;" FontFamily="{StaticResource Fa}" FontSize="40" Foreground="#33FFFFFF"
+                HorizontalAlignment="Center"/>
+      <TextBlock x:Name="EmptyText" Text="{loc:Str Key=NowPlaying_Empty}" FontSize="13"
+                 Foreground="#77FFFFFF" HorizontalAlignment="Center" TextAlignment="Center"
+                 TextWrapping="Wrap" MaxWidth="240"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,7 @@
+# The desktop head is published Native AOT with reflection-based JSON turned off, so a serializer
+# call the trimmer cannot see builds fine and then throws in the shipped app. These two are errors
+# here so such a call fails the build instead. Only the C# compiler reads this file; the AOT compiler
+# at publish time takes its warning settings from the csproj and is unaffected.
+[*.cs]
+dotnet_diagnostic.IL2026.severity = error
+dotnet_diagnostic.IL3050.severity = error

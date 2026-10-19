@@ -1,0 +1,69 @@
+# Every version of the command-line tools rpm ships or runs, and of what is built into them.
+# This is the only place they are written. Read by:
+#   scripts/build-ffmpeg.sh                       builds ffmpeg from these sources
+#   scripts/fetch-tools.sh, scripts/fetch-tools.ps1   download the published ffmpeg and fpcalc
+#   scripts/fetch-angle.sh                        downloads the ANGLE pair for the Mac app
+#   RPM.Desktop/RPM.Desktop.csproj                checks the binaries a build or publish ships
+#   scripts/release-mac.sh, .github/workflows/release-rpm-desktop.yml   run the shipped binaries
+#   .github/workflows/build-rpm-ffmpeg.yml        builds win-x64 and linux-x64, publishes the release
+#   .github/workflows/deploy-rpm-cloud-api.yml    puts the linux-x64 ffmpeg in the transcoder
+#   scripts/gen_credits.py                        writes these versions into the About screen
+# Plain KEY=VALUE lines so bash can source it and PowerShell can split it.
+
+# ffmpeg, built by scripts/build-ffmpeg.sh. One version on every platform and in the transcoder.
+FFMPEG_VERSION=8.1.3
+FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
+LAME_VERSION=3.100
+LAME_SHA256=ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e
+ZLIB_VERSION=1.3.1
+ZLIB_SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
+
+# Counts rebuilds of the same sources with a different configuration. It is in the version string
+# the binary prints (8.1.3-rpm1) and in the release tag. Any change above or to the configure line
+# in scripts/build-ffmpeg.sh raises it, and every RID is rebuilt and published under the new tag.
+RPM_FFMPEG_BUILD=1
+
+# The GitHub release that holds the built ffmpeg: rpm-ffmpeg-<FFMPEG_VERSION>-<RPM_FFMPEG_BUILD>,
+# one asset per RID named ffmpeg-<rid>.gz.
+RPM_TOOLS_REPO=ChivanCOM/FOBO-Ai-Tools
+
+# fpcalc, from the official Chromaprint release archives.
+CHROMAPRINT_VERSION=1.6.0
+
+# SHA-256 of each binary as it ships: ffmpeg after gunzip, fpcalc as it comes out of Chromaprint's
+# archive. fetch-tools.{sh,ps1} do not install a download that differs, and a publish of RPM.Desktop
+# fails unless both binaries for its RID are present with these hashes (PublishRpmTools in
+# RPM.Desktop.csproj). The transcoder deploy checks the linux-x64 ffmpeg the same way. The values
+# are those of the release assets above. A new RPM_FFMPEG_BUILD or CHROMAPRINT_VERSION changes
+# them; the error of the fetch prints the line to write for each new binary.
+FFMPEG_BINARY_SHA256_OSX_ARM64=4a67dbb7b8c2c1405c1098c68baa0098ddc18e255fc42ad01f0c842ebf9969f6
+FFMPEG_BINARY_SHA256_OSX_X64=669cff35a589eca0e64f5ce4d12b5b9826814f067ef6ff24a8d6da6a9a941d8e
+FFMPEG_BINARY_SHA256_WIN_X64=f8d7ac5fb9707754991c6945bde6ab253cf29910a8d2d929a12234c152c88acf
+FFMPEG_BINARY_SHA256_LINUX_X64=4849db51021ee4b993df8a8f6257654ae4e640e1df2205989ef902df652f6d09
+FPCALC_BINARY_SHA256_OSX_ARM64=142731576281c0c70c3bd05166a0e490f945b5b91cfc2fa9fc841193f3ebeb0a
+FPCALC_BINARY_SHA256_OSX_X64=0f6e97860a1bf44201280e973b2afd0516ba202fa432faeb99dc5464481d15d7
+FPCALC_BINARY_SHA256_WIN_X64=b5545bdf655b50e368a1844a4c13baf444e405ea5d5662396ff0292eaf9bf9e9
+FPCALC_BINARY_SHA256_LINUX_X64=facf88b2eb2029356a3624f51e2f14cd3baed540538a6a8aae8052826aca49b6
+
+# The FFmpeg that Chromaprint links into the fpcalc it publishes, which rpm ships as published.
+# `fpcalc -version` prints the library versions it was built from, and 62.11.100 / 62.3.100 are
+# FFmpeg 8.0's. Chromaprint's build downloads it from acoustid/ffmpeg-build at tag v8.0-1 with no
+# --enable-gpl and no --enable-nonfree, so it is LGPL 2.1 or later like rpm's own build. Credited
+# separately from FFMPEG_VERSION: that one is rpm's build, this one is Chromaprint's.
+FPCALC_FFMPEG_VERSION=8.0
+
+# ANGLE (libEGL.dylib and libGLESv2.dylib), the OpenGL ES that Uno's GLCanvasElement and so every
+# visualizer runs on, Mac app only. Built from Chromium's ANGLE branch chromium/7151 by
+# kivy/angle-builder on GitHub Actions and published as release assets, one per architecture
+# (angle-macos-arm64.tar.gz, angle-macos-x64.tar.gz). The libraries report ANGLE 2.1.25345, git hash
+# df9c59dcacff, and run the OpenGL backend of ANGLE.
+# Shipped as published: the arm64 pair carries the linker's ad hoc signature and the x64 pair none,
+# and release-mac.sh signs both with the app. scripts/fetch-angle.sh downloads them and installs a
+# file only at its hash below; a Mac build fails without the pinned pair (FetchRpmAngle in
+# RPM.Desktop.csproj). The hashes are those of the release assets.
+ANGLE_REPO=kivy/angle-builder
+ANGLE_RELEASE=chromium-7151_rev1
+ANGLE_LIBEGL_SHA256_OSX_ARM64=30b79fc13ba4540c9d33ae47f4500f61980b3f862af4944cca44c5344186433d
+ANGLE_LIBGLESV2_SHA256_OSX_ARM64=07277138dd46df585a5dbbfcf922420b5cb8186f872be342f641b0c0ff7373dc
+ANGLE_LIBEGL_SHA256_OSX_X64=9bf12364e6f344986eb9c8a41813033c066516930b0bd9e71c87205fb0961edd
+ANGLE_LIBGLESV2_SHA256_OSX_X64=a0105d98d9f2550e251e2f814515cb4cc68fbf8311d3bbed12ea57bde1a1a4c4

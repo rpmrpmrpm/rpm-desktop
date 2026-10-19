@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Checkbox skin for the azure accent. The fill is the Melodrama azure gradient
+       (Assets/RpmPalette), with a white check or dash when the box is active and an azure rim.
+       Forms such as mass edit and track details use it.
+
+       This file must be merged again, after RpmAccentControls.xaml, on any screen that merges
+       both. RpmAccentControls paints every accent-filled control flat cyan. That suits a slider or
+       a progress bar. A checkbox is a filled area, though, and flat cyan turns it into a solid block.
+       Generic.xaml merges this file app-wide. A screen that also merges RpmAccentControls merges it
+       again, after, so that this skin takes effect. -->
+
+  <LinearGradientBrush x:Key="CheckBoxCheckBackgroundFillChecked" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#014680"/>
+    <GradientStop Offset="0.5" Color="#01396A"/>
+    <GradientStop Offset="1"   Color="#012D53"/>
+  </LinearGradientBrush>
+  <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" ResourceKey="CheckBoxCheckBackgroundFillChecked"/>
+  <StaticResource x:Key="CheckBoxCheckBackgroundFillCheckedPressed" ResourceKey="CheckBoxCheckBackgroundFillChecked"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="#FFFFFF"/>
+
+  <!-- Indeterminate (partial folder selection) also azure, white dash -->
+  <LinearGradientBrush x:Key="CheckBoxCheckBackgroundFillIndeterminate" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#014680"/>
+    <GradientStop Offset="0.5" Color="#01396A"/>
+    <GradientStop Offset="1"   Color="#012D53"/>
+  </LinearGradientBrush>
+  <StaticResource x:Key="CheckBoxCheckBackgroundFillIndeterminatePointerOver" ResourceKey="CheckBoxCheckBackgroundFillIndeterminate"/>
+  <StaticResource x:Key="CheckBoxCheckBackgroundFillIndeterminatePressed" ResourceKey="CheckBoxCheckBackgroundFillIndeterminate"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminate" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePointerOver" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePressed" Color="#0371D0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminate" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePressed" Color="#FFFFFF"/>
+
+</ResourceDictionary>

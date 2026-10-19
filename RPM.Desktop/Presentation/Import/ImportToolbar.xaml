@@ -1,0 +1,204 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Import.ImportToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:import="using:RPM.Desktop.Presentation.Import"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+    <Style x:Key="ToolGlyph" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <!-- The toolbar. It is ONE row, as the other tools for this kind of work are. What you do to the files
+       is on the left, and what you look at is on the right.
+
+       The tools come first, in the order the work happens: what this record is, what it is called, what
+       order it is in, whether one file should be many, and what to do with the files themselves. The
+       hairlines separate these five groups.
+
+       Every tool is an ICON, with its words shown on hover. The rail holds as many tools as the pane has
+       room for. A tool that does not fit goes into the ⋯ key at the end, which is hidden when it has
+       nothing to hold. The room is worked out with one label's width set aside, so a key can always show
+       its name without pushing the rail out of the pane (see WorkbenchLayout.RailFits).
+
+       The right-hand end is the VIEW: the search, the filters, which columns are shown, the tag panel and
+       the key to the marks. Nothing there changes a file. -->
+  <Grid Padding="12,5,12,5" ColumnSpacing="10">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="Auto"/>
+    </Grid.ColumnDefinitions>
+
+    <ScrollViewer x:Name="RailHost" Grid.Column="0" SizeChanged="Rail_SizeChanged"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                  HorizontalScrollMode="Auto" VerticalScrollMode="Disabled">
+      <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+
+        <!-- ── what is this record ── -->
+        <import:ToolKey x:Name="ActRecognize" Glyph="&#xf0d0;"
+                        Label="{loc:Str Key=Queue_ToolRecognize}"/>
+
+        <Border x:Name="DivTags" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── what is it called ──
+             Three sources for the same fields: the file's own name, the release it was matched to, or
+             the fields it already has. -->
+        <import:ToolKey x:Name="ActTagsFromFile" Glyph="&#xf15c;"
+                        Label="{loc:Str Key=Queue_ActionTagsFromFilename}"/>
+        <import:ToolKey x:Name="ActTagsFromRelease" Glyph="&#xf02d;"
+                        Label="{loc:Str Key=Queue_ToolTagsFromRelease}"/>
+        <import:ToolKey x:Name="ActTagsFromTags" Glyph="&#xf0ec;"
+                        Label="{loc:Str Key=Queue_ToolTagsFromTags}"/>
+
+        <Border x:Name="DivOrder" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── what order is it in ──
+             The tracks in the order they are shown; the discs from the folders they came out of. -->
+        <import:ToolKey x:Name="ActNumber" Glyph="&#xf162;"
+                        Label="{loc:Str Key=Queue_ActionNumberTracks}"/>
+        <import:ToolKey x:Name="ActNumberDiscs" Glyph="&#xf07b;"
+                        Label="{loc:Str Key=Queue_CtxNumberDiscs}"/>
+
+        <Border x:Name="DivSplit" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── one file that is a whole record ── -->
+        <import:ToolKey x:Name="ActSplitAlbum" Glyph="&#xf0c4;"
+                        Label="{loc:Str Key=Queue_ToolSplitAlbum}"/>
+
+        <Border x:Name="DivEdit" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── the fields, by hand ── -->
+        <import:ToolKey x:Name="ActEdit" Glyph="&#xf044;"
+                        Label="{loc:Str Key=Queue_ToolEdit}"/>
+
+        <Border x:Name="DivFiles" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── the files themselves ── -->
+        <import:ToolKey x:Name="ActDownload" Glyph="&#xf019;"
+                        Label="{loc:Str Key=Queue_CtxDownload}"/>
+        <import:ToolKey x:Name="ActShowInFinder" Glyph="&#xf07c;"
+                        Label="{loc:Str Key=Queue_CtxShowInFolder}"/>
+
+        <Border x:Name="DivRemove" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── getting rid of it ──
+             An X takes the row off the list; the bin takes the file off the disk. -->
+        <import:ToolKey x:Name="ActRemove" Glyph="&#xf00d;"
+                        Label="{loc:Str Key=Queue_CtxRemove}"/>
+        <import:ToolKey x:Name="ActTrash" Glyph="&#xf1f8;"
+                        Label="{loc:Str Key=Queue_CtxTrash}"/>
+
+        <Border x:Name="DivPlay" Style="{StaticResource ToolGroupDividerStyle}"/>
+
+        <!-- ── hearing it before filing it ── -->
+        <import:ToolKey x:Name="ActPlayNow" Glyph="&#xf04b;"
+                        Label="{loc:Str Key=Review_CtxPlayNow}"/>
+        <import:ToolKey x:Name="ActAddNowPlaying" Glyph="&#xf0fe;"
+                        Label="{loc:Str Key=Review_CtxAddNowPlaying}"/>
+
+        <!-- Tools that did not fit, plus the two clean-ups. The clean-ups are never on the rail, because each one
+             removes rows, and a press that removes rows should need a deliberate second press. The key is
+             hidden when it has nothing to hold. -->
+        <import:ToolKey x:Name="ActMore" Glyph="&#xf141;"
+                        Label="{loc:Str Key=Queue_ActionMore}">
+          <import:ToolKey.Flyout>
+            <MenuFlyout x:Name="MoreFlyout" Opening="MoreMenu_Opening"/>
+          </import:ToolKey.Flyout>
+        </import:ToolKey>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- ── the view end ─────────────────────────────────────────────────────────────────────────
+         Search, then the three switches that decide what is on screen. None of them touches a file,
+         which is why they are at the other end of the bar from the ones that do. -->
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+
+      <!-- Search for the import queue only: it filters THIS grid. The app's main search field searches the library. -->
+      <Border x:Name="SearchHost" VerticalAlignment="Center" Width="170" Height="28"
+              Background="{StaticResource ToolFieldFaceBrush}"
+              CornerRadius="4" Padding="9,0" BorderThickness="1"
+              BorderBrush="{StaticResource ToolFieldRimBrush}" Margin="0,0,4,0">
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="11" Foreground="#8AFFFFFF"
+                     VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
+          <TextBox Grid.Column="1" x:Name="SearchBox" FontSize="12"
+                   VerticalAlignment="Center" VerticalContentAlignment="Center"
+                   Background="Transparent" BorderThickness="0" Padding="0"
+                   MinHeight="0" Height="18"
+                   PlaceholderText="{loc:Str Key=Review_SearchPlaceholder}"
+                   Text="{Binding QueueSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+            <TextBox.Resources>
+              <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+              <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+              <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+            </TextBox.Resources>
+          </TextBox>
+        </Grid>
+      </Border>
+
+      <!-- The filter strip, on and off. The key shows how many filters are on. A filter left on while the strip
+           is hidden would make the queue look smaller than it is. -->
+      <ToggleButton x:Name="ViewFilter" Style="{StaticResource ToolToggleStyle}" Click="Filter_Click"
+                    ToolTipService.ToolTip="{loc:Str Key=Queue_FiltersLabel}">
+        <StackPanel Orientation="Horizontal" Spacing="7">
+          <TextBlock Text="&#xf0b0;" Style="{StaticResource ToolGlyph}" FontSize="11"/>
+          <TextBlock x:Name="FilterCount" Style="{StaticResource ToolKeyLabelStyle}"
+                     Visibility="Collapsed"/>
+        </StackPanel>
+      </ToggleButton>
+
+      <!-- Which columns are shown. The table is too wide to show every column, so the user chooses which to show. -->
+      <Button x:Name="ViewColumns" Style="{StaticResource ToolKeyStyle}"
+              ToolTipService.ToolTip="{loc:Str Key=Queue_Columns}"
+              AutomationProperties.Name="{loc:Str Key=Queue_Columns}">
+        <TextBlock Text="&#xf0db;" Style="{StaticResource ToolGlyph}"/>
+        <Button.Flyout>
+          <MenuFlyout x:Name="ColumnsFlyout" Opening="ColumnsMenu_Opening"/>
+        </Button.Flyout>
+      </Button>
+
+      <ToggleButton x:Name="ViewTags" Style="{StaticResource ToolToggleStyle}" Click="Tags_Click"
+                    ToolTipService.ToolTip="{loc:Str Key=Queue_TagPanelTitle}"
+                    AutomationProperties.Name="{loc:Str Key=Queue_TagPanelTitle}">
+        <TextBlock Text="&#xf02b;" Style="{StaticResource ToolGlyph}"/>
+      </ToggleButton>
+
+      <!-- The key to the marks in the first two columns. It is a reference, so it sits behind a button that the
+           user presses when needed. -->
+      <Button x:Name="ViewLegend" Style="{StaticResource ToolKeyStyle}"
+              ToolTipService.ToolTip="{loc:Str Key=QueueLegend_Title}"
+              AutomationProperties.Name="{loc:Str Key=QueueLegend_Title}">
+        <TextBlock Text="&#xf05a;" Style="{StaticResource ToolGlyph}"/>
+        <Button.Flyout>
+          <Flyout Placement="Bottom">
+            <Flyout.FlyoutPresenterStyle>
+              <Style TargetType="FlyoutPresenter">
+                <Setter Property="Padding" Value="16,14"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="MaxWidth" Value="360"/>
+                <Setter Property="RequestedTheme" Value="Dark"/>
+              </Style>
+            </Flyout.FlyoutPresenterStyle>
+            <import:QueueLegendPanel/>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+    </StackPanel>
+  </Grid>
+</UserControl>

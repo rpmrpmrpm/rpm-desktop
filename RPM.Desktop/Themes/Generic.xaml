@@ -1,0 +1,1198 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="using:RPM.Desktop.Presentation.Common"
+                    xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+                    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:not_win="http://uno.ui/not_win"
+                    mc:Ignorable="not_win"
+>
+
+  <ResourceDictionary.MergedDictionaries>
+    <!-- The app's checkbox skin: the Melodrama azure gradient. It is in its own file so that screens
+         which also merge RpmAccentControls.xaml (flat cyan on every accent-filled control) can merge
+         it again, after that file, so it wins. -->
+    <ResourceDictionary Source="ms-appx:///Themes/AzureCheckBox.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- ══ Shared resources ══ -->
+
+  <ImageBrush x:Key="AppBackgroundBrush"
+              ImageSource="ms-appx:///Assets/background-rpamp.jpg"
+              Stretch="UniformToFill"/>
+
+  <!-- What a repeater inside a recycled item template shows when its binding has nothing to resolve.
+       Every such ItemsSource sets FallbackValue={StaticResource NoItems}. Do not remove it: on that
+       path null is the one value Uno's ItemsRepeater cannot take. NoItems explains why. -->
+  <ui:NoItems x:Key="NoItems"/>
+
+  <!-- Placeholder text, app-wide. In its rest state Uno's template binds the placeholder to the
+       control's PlaceholderForeground property. It falls back to the TextControlPlaceholderForeground
+       theme key (a bright system default) only when that property is not set. So a theme override in
+       App.xaml alone does nothing at rest. The property must be set on the implicit styles to dim it.
+       The theme keys still cover the hover and focus states, and NumberBox, which has no such property. -->
+  <SolidColorBrush x:Key="PlaceholderInkBrush" Color="#40E6E6E6"/>
+  <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="PlaceholderForeground" Value="{StaticResource PlaceholderInkBrush}"/>
+    <!-- Right-click menu and Ctrl+V. The Win32 Skia host's TextBox does not provide them, although
+         macOS does. See TextBoxClipboard. -->
+    <Setter Property="ui:TextBoxClipboard.IsEnabled" Value="True"/>
+    <!-- A character that does not fit in one UTF-16 unit, such as an emoji or an italic 𝑒, arrives in
+         two halves. The host's TextBox writes and measures the first half alone, which ends the
+         process. See TextBoxSurrogates. -->
+    <Setter Property="ui:TextBoxSurrogates.IsEnabled" Value="True"/>
+    <!-- Spell checking is on by default in WinUI. Most boxes in this app hold an artist, an album,
+         a file name or a search term. A dictionary does not know these words, so the default would
+         mark nearly everything typed. Spell checking is off here and on only where prose is
+         written: the review editor, album comments and the report note. -->
+    <Setter Property="IsSpellCheckEnabled" Value="False"/>
+  </Style>
+  <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+    <Setter Property="PlaceholderForeground" Value="{StaticResource PlaceholderInkBrush}"/>
+  </Style>
+  <!-- This setter is for Uno only. WinUI's PasswordBox has no PlaceholderForeground property. Its
+       template reads TextControlPlaceholderForeground instead, which App.xaml sets to #40E6E6E6, the
+       same colour as this brush. The not_win prefix is listed in mc:Ignorable, so the WinUI markup
+       compiler drops the line and Uno's generator keeps it. -->
+  <Style TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}">
+    <not_win:Setter Property="PlaceholderForeground" Value="{StaticResource PlaceholderInkBrush}"/>
+  </Style>
+
+  <!-- Brand colours. -->
+  <Color x:Key="RpmCyanColor">#04C8FF</Color>
+  <Color x:Key="RpmGreenColor">#00F15E</Color>
+  <Color x:Key="RpmRedColor">#FF6B6B</Color>
+  <!-- The palette's Gold (Assets/RpmPalette, "Now 04"). It is the same tone as the edge of the
+       warning message band, so a warning has one colour wherever the app shows one. -->
+  <Color x:Key="RpmGoldColor">#EFAF12</Color>
+  <Color x:Key="RpmInkColor">#0E1520</Color>
+  <SolidColorBrush x:Key="RpmCyanBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RpmGreenBrush" Color="#00F15E"/>
+  <SolidColorBrush x:Key="RpmRedBrush" Color="#FF6B6B"/>
+  <SolidColorBrush x:Key="RpmGoldBrush" Color="#EFAF12"/>
+  <SolidColorBrush x:Key="RpmInkBrush" Color="#0E1520"/>
+
+  <!-- Every card, grid, player panel and art strip sits on the same ground: black at 10%. This is
+       not a colour of its own. It is a shade over whatever the page is, so nothing can disagree at
+       the seams. A gradient would disagree: its coordinates are relative to each element that uses
+       it, so a short wide strip and a tall wide grid never match along the edge they share. -->
+  <!-- The card fill matches the songs grid's surface (GridSurfaceBrush): the same 20% black veil,
+       so every card reads as one ground with the grids over the artwork. -->
+  <SolidColorBrush x:Key="DmCardBrush" Color="#33000000"/>
+  <!-- Glass edge: a faint white gradient that turns at the middle of the card, so light catches both
+       ends of the pane: a lit top, a dim middle and a brighter foot. A single gradient from top to
+       bottom would leave the top edge almost unlit. The foot is brighter than the top because light
+       falls from above, so the far rim of the glass catches more of it. The effect stays subtle. It
+       should look like a lit pane of glass, not a drawn line. -->
+  <LinearGradientBrush x:Key="DmCardBorderBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#1EFFFFFF"/>
+    <GradientStop Offset="0.5" Color="#0CFFFFFF"/>
+    <GradientStop Offset="1" Color="#24FFFFFF"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="DmCardItemBrush" Color="#59151C28"/>
+
+  <!-- FontAwesome icon style for menu items and similar. -->
+  <Style x:Key="FaIcon" TargetType="FontIcon">
+    <Setter Property="FontFamily" Value="ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid"/>
+  </Style>
+
+  <!-- The icon on a menu row. Use this style for every menu icon. A MenuFlyoutItem's template puts
+       its icon in a fixed 16x16 Viewbox that stretches whatever it holds. An unboxed FontIcon is
+       scaled until its glyph fills that square, so a tall narrow glyph grows to the full height, a
+       wide flat glyph only reaches the width, and the rows do not agree on a size. FontSize alone has
+       no effect, because the Viewbox undoes it.
+
+       Giving the icon a 16x16 box of its own makes the Viewbox a no-op (it scales 16 to 16). The
+       glyph then follows FontSize, which means the same size on every row. -->
+  <Style x:Key="FaMenuIcon" TargetType="FontIcon" BasedOn="{StaticResource FaIcon}">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <!-- The brand marks (Apple, Google) are in their own font. They are NOT in the solid one, so a
+       FontIcon that points at FaIcon shows a missing-glyph box.
+
+       Set this on a TextBlock, not a FontIcon. Several brand glyphs are taller than the em box
+       (Apple's leaf, Google's tail), and a FontIcon clips them to its own bounds. A TextBlock lays
+       them out on a normal line, so they keep their full height. -->
+  <FontFamily x:Key="FaBrandFont">ms-appx:///Assets/Fonts/fa-brands-400.ttf#Font Awesome 5 Brands Regular</FontFamily>
+
+  <!-- The artist mark: a head and shoulders with a microphone in front. Font Awesome has no such
+       glyph, so it is built from two glyphs it does have: the body of user-music, whose right shoulder
+       is cut back to leave room for the microphone, and the FA microphone, placed where the music
+       note was. Both outlines come from fa-solid-900.ttf at its native 512-unit scale, so the mark
+       has the same weight, corner radii and clear space as the other icons. See
+       Presentation/Controls/ArtistIcon.cs.
+
+       F1 = nonzero winding. The mini-language defaults to even-odd. Under even-odd the head and the
+       shoulder cancel where they overlap, and the microphone capsule cuts a hole through its own
+       cradle. Font outlines use nonzero, so this path must too. -->
+  <Style TargetType="ctl:ArtistIcon">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:ArtistIcon">
+          <Viewbox Stretch="Uniform">
+            <Path Stretch="Uniform"
+                  Fill="{TemplateBinding Foreground}"
+                  Data="F1 M254.8 225.6Q224.4 256 181.5 256Q138.5 256 108.2 225.6Q77.8 195.2 77.8 152.3Q77.8 109.4 108.2 79Q138.5 48.6 181.5 48.6Q224.4 48.6 254.8 79Q285.2 109.4 285.2 152.3Q285.2 195.2 254.8 225.6ZM233.3 398.6Q233.3 436.7 267.3 463.4H38.9Q22.7 463.4 11.3 452.1Q0 440.7 0 424.5V390.5Q0 345.9 32 313.9Q64 281.9 108.6 281.9H122.3Q150.7 294.9 181.5 294.9Q212.3 294.9 240.6 281.9H254.4Q294.9 281.9 325.7 309.5Q285.2 315.9 259.2 340.7Q233.3 365.4 233.3 398.6ZM353.3 303.5V210.2Q353.3 186.9 369.7 170.5Q386 154.2 409.3 154.2Q432.7 154.2 449 170.5Q465.3 186.9 465.3 210.2V303.5Q465.3 326.9 449 343.2Q432.7 359.5 409.3 359.5Q386 359.5 369.7 343.2Q353.3 326.9 353.3 303.5ZM502.7 266.2Q506.8 266.2 509.4 268.8Q512 271.5 512 275.5V303.5Q512 342 486.6 370.9Q461.3 399.8 423.3 405V424.9H456Q460.1 424.9 462.7 427.5Q465.3 430.1 465.3 434.2V443.5Q465.3 447.6 462.7 450.2Q460.1 452.9 456 452.9H362.7Q358.6 452.9 356 450.2Q353.3 447.6 353.3 443.5V434.2Q353.3 430.1 356 427.5Q358.6 424.9 362.7 424.9H395.3V405Q357.4 399.8 332.1 369.2Q306.7 338.5 306.7 298.9V275.5Q306.7 271.5 309.3 268.8Q311.9 266.2 316 266.2H325.3Q329.4 266.2 332.1 268.8Q334.7 271.5 334.7 275.5V300Q334.7 329.8 353.9 352.5Q373.2 375.3 401.8 377.6Q435 381.1 459.5 358.7Q484 336.2 484 303.5V275.5Q484 271.5 486.6 268.8Q489.3 266.2 493.3 266.2Z"/>
+          </Viewbox>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The explicit-lyrics mark: an E knocked out of a filled square, beside a song or record title.
+       It is muted, not loud. It states a fact about the track, not a warning, so it uses the weight
+       of the secondary text next to it and the title stays the main thing read.
+
+       The fill is Foreground. The letter is LetterBrush, which must match the SURFACE the badge sits
+       on, not the text beside it. The default is the dark used for the library's lists. A view over
+       a lighter surface sets its own. -->
+  <!-- StarRating builds its row of stars in code. The template only provides the presenter that the
+       row is placed in. Do not parse the template from a string with XamlReader.Load inside the
+       control. A Native AOT build cannot cast the result to ControlTemplate. The type initializer
+       throws, and the album page fails on its first star. Windows ships as Native AOT. -->
+  <Style TargetType="ctl:StarRating">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:StarRating">
+          <ContentPresenter x:Name="PART_Host"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ctl:ExplicitBadge">
+    <Setter Property="Width" Value="15"/>
+    <Setter Property="Height" Value="15"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Foreground" Value="#8CFFFFFF"/>
+    <Setter Property="LetterBrush" Value="#FF14161A"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:ExplicitBadge">
+          <Border Background="{TemplateBinding Foreground}" CornerRadius="2.5">
+            <!-- A Viewbox keeps the letter the same size as the badge. A tracklist uses 15 and a
+                 record heading uses 16. A fixed font size would look cramped at one size and too
+                 small at the other.
+
+                 The inset is thin on purpose. At a tracklist's size a padding that suits a large
+                 heading takes most of the glyph, and the E becomes a light square. -->
+            <Viewbox Stretch="Uniform" Margin="1.5,1">
+              <TextBlock Text="E" FontSize="10" FontWeight="Bold" LineHeight="10"
+                         Foreground="{TemplateBinding LetterBrush}"/>
+            </Viewbox>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The AD mark, shown beside the name of a station that carries advertising. It is drawn like the
+       E mark on purpose. The two appear in the same kind of place, and a list that drew them
+       differently would look like two unrelated marks, not two facts about the row.
+
+       It is wider than the E because it has two letters. The letters are set closer together than
+       the single E, so that at fifteen points the pair reads as one shape.
+
+       It is muted, at the weight of the secondary text next to it. A station with ads is a normal
+       fact about the station, not a warning. -->
+  <Style TargetType="ctl:AdsBadge">
+    <Setter Property="Width" Value="22"/>
+    <Setter Property="Height" Value="15"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Foreground" Value="#8CFFFFFF"/>
+    <Setter Property="LetterBrush" Value="#FF14161A"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:AdsBadge">
+          <Border Background="{TemplateBinding Foreground}" CornerRadius="2.5">
+            <Viewbox Stretch="Uniform" Margin="2,1">
+              <TextBlock Text="AD" FontSize="10" FontWeight="Bold" LineHeight="10"
+                         Foreground="{TemplateBinding LetterBrush}"/>
+            </Viewbox>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The Discogs mark. The path is copied from Assets/Svg/discogs.svg, so the mark scales cleanly
+       and takes the Foreground of the element it sits in. Font Awesome's brands font has no Discogs
+       glyph, so this path is needed.
+
+       F1 = nonzero winding. The mini-language defaults to even-odd. Under even-odd the concentric
+       arcs cancel each other and the record would draw as rings with holes in them. -->
+  <Style TargetType="ctl:DiscogsIcon">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:DiscogsIcon">
+          <Viewbox Stretch="Uniform">
+            <Path Stretch="Uniform"
+                  Fill="{TemplateBinding Foreground}"
+                  Data="F1 M1.7422 11.982c0-5.6682 4.61-10.2782 10.2758-10.2782 1.8238 0 3.5372.48 5.0251 1.3175l.8135-1.4879C16.1768.588 14.2474.036 12.1908.0024h-.1944C5.4091.0144.072 5.3107 0 11.886v.1152c.0072 3.4389 1.4567 6.5345 3.7748 8.7207l1.1855-1.2814c-1.9798-1.8743-3.218-4.526-3.218-7.4585zM20.362 3.4053l-1.1543 1.2406c1.903 1.867 3.0885 4.4636 3.0885 7.3361 0 5.6658-4.61 10.2758-10.2758 10.2758-1.783 0-3.4605-.456-4.922-1.2575l-.8542 1.5214c1.7086.9384 3.6692 1.4735 5.7546 1.4759C18.6245 23.9976 24 18.6246 24 11.9988c-.0048-3.3717-1.399-6.4146-3.638-8.5935zM1.963 11.982c0 2.8701 1.2119 5.4619 3.146 7.2953l1.1808-1.2767c-1.591-1.5166-2.587-3.6524-2.587-6.0186 0-4.586 3.7293-8.3152 8.3152-8.3152 1.483 0 2.875.3912 4.082 1.0751l.8351-1.5262C15.481 2.395 13.8034 1.927 12.018 1.927 6.4746 1.9246 1.963 6.4362 1.963 11.982zm18.3702 0c0 4.586-3.7293 8.3152-8.3152 8.3152-1.4327 0-2.7837-.3648-3.962-1.0055l-.852 1.5166c1.4303.7823 3.0718 1.2287 4.814 1.2287 5.5434 0 10.055-4.5116 10.055-10.055 0-2.8077-1.1567-5.3467-3.0165-7.1729l-1.183 1.2743c1.519 1.507 2.4597 3.5924 2.4597 5.8986zm-1.9486 0c0 3.5109-2.8558 6.3642-6.3642 6.3642a6.3286 6.3286 0 01-3.0069-.756l-.8471 1.507c1.147.624 2.4597.9768 3.854.9768 4.4636 0 8.0944-3.6308 8.0944-8.0944 0-2.239-.9143-4.2692-2.3902-5.7378l-1.1783 1.267c1.1351 1.152 1.8383 2.731 1.8383 4.4732zm-14.4586 0c0 2.3014.9671 4.382 2.515 5.8578l1.1734-1.2695c-1.207-1.159-1.9606-2.786-1.9606-4.5883 0-3.5108 2.8557-6.3642 6.3642-6.3642 1.1423 0 2.215.3048 3.1437.8352l.8303-1.5167c-1.1759-.6647-2.5317-1.0487-3.974-1.0487-4.4612 0-8.092 3.6308-8.092 8.0944zm12.5292 0c0 2.4502-1.987 4.4372-4.4372 4.4372a4.4192 4.4192 0 01-2.0614-.5088l-.8351 1.4879a6.1135 6.1135 0 002.8965.727c3.3885 0 6.1434-2.7548 6.1434-6.1433 0-1.6774-.6767-3.1989-1.7686-4.3076l-1.1615 1.2503c.7559.7967 1.2239 1.8718 1.2239 3.0573zm-10.5806 0c0 1.7374.7247 3.3069 1.8886 4.4252L8.92 15.1569l.0144.0144c-.8351-.8063-1.3559-1.9366-1.3559-3.1869 0-2.4502 1.9846-4.4372 4.4372-4.4372.8087 0 1.5646.2184 2.2174.5976l.8207-1.4975a6.097 6.097 0 00-3.0381-.8063c-3.3837-.0048-6.141 2.7525-6.141 6.141zm6.681 0c0 .2952-.2424.5351-.5376.5351-.2952 0-.5375-.24-.5375-.5351 0-.2976.24-.5375.5375-.5375.2952 0 .5375.24.5375.5375zm-3.9405 0c0-1.879 1.5239-3.4029 3.4005-3.4029 1.879 0 3.4005 1.5215 3.4005 3.4029 0 1.879-1.5239 3.4005-3.4005 3.4005S8.6151 13.861 8.6151 11.982zm.1488 0c.0048 1.7974 1.4567 3.2493 3.2517 3.2517 1.795 0 3.254-1.4567 3.254-3.2517-.0023-1.7974-1.4566-3.2517-3.254-3.254-1.795 0-3.2517 1.4566-3.2517 3.254Z"/>
+          </Viewbox>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ══ Glass dialog surfaces (RPM identity) ══ -->
+  <!-- The dialog card is live frosted glass (see ResizableDialogShell). It has a cool blue tint and a
+       soft colour glow, so it reads as light over the artwork and not as a dark slab. Body content
+       sits directly on the card, with no recessed well. -->
+
+  <!-- The RPM display face: Cabin Medium, a humanist face similar to Trebuchet. Dialog titles use it
+       in lower case, with extra letter spacing. -->
+  <FontFamily x:Key="RpmDisplayFont">ms-appx:///Assets/Fonts/Cabin-Medium.ttf#Cabin Medium</FontFamily>
+  <!-- Bold Cabin (instanced at wght 700). Dialog titles use it. It is a static weight because
+       Uno-Skia cannot make bold from a single-weight file. -->
+  <FontFamily x:Key="RpmDisplayFontBold">ms-appx:///Assets/Fonts/Cabin-Bold.ttf#Cabin Bold</FontFamily>
+  <!-- Thiamine RPM: an RPM cut of Thiamine with the tall stems compressed. Used for header titles. -->
+  <FontFamily x:Key="RpmHeaderFont">ms-appx:///Assets/Fonts/ThiamineRPM.otf#Thiamine RPM</FontFamily>
+
+  <!-- The foot of every setup wizard step: the three dots on the left and the step's own action on
+       the right, on one line. The host draws the dots and each step draws its own buttons. Four
+       elements in three files must land on the same line, so this is defined once here. -->
+  <x:Double x:Key="WizardFooterHeight">64</x:Double>
+
+  <!-- The rpm wordmark. Its outline is written here once, and all uses share it.
+
+       This is a Path, not an SVG Image. An Image decodes asynchronously and may not paint before the
+       splash screen closes. The style is a Style, not a Geometry resource, because a path string is
+       turned into a Geometry by a type converter. The converter runs on a Setter's value but not on
+       a StaticResource reference.
+
+       Each user sets its own fill, size and alignment. Only the outline is shared. Other copies of
+       the outline that still carry their own Data should be changed to use this style. -->
+  <Style x:Key="RpmWordmark" TargetType="Path">
+    <Setter Property="Stretch" Value="Uniform"/>
+    <Setter Property="Data" Value="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+  </Style>
+
+  <!-- The heading over a pane (library, import queue, Visualizations, Playlists, Radio). It is one
+       word in Thiamine, with nothing under it.
+
+       Thiamine is drawn small inside its em box: the x-height is 0.140em and the ascender is 0.247em.
+       A text face is about 0.52 and 0.70. So Thiamine needs four to five times the FontSize of a text
+       face to look the same size. At 72 the word is 10px of body and 17.8px of ascender. Its line box
+       (0.485em) is 35px, and the 36 px heading box below is cut to match.
+
+       The size is fixed and never scaled to fit. A Viewbox would give each pane's heading a different
+       size, and two panes side by side would show the same word at two sizes. Long text is clipped,
+       not given an ellipsis. The ellipsis of this face is a 0.57em glyph (three widely set dots,
+       nearly four characters wide), and it would take a third of a short heading. -->
+  <Style x:Key="RpmPaneHeading" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource RpmHeaderFont}"/>
+    <Setter Property="FontSize" Value="72"/>
+    <!-- The white of the rpm mark: ArtDisplay's RpmMark has Fill #8CFFFFFF and is drawn at Opacity 1.0
+         when shown at full height. The headings use the same white, so they match the mark. -->
+    <Setter Property="Foreground" Value="#8CFFFFFF"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="Clip"/>
+  </Style>
+
+  <!-- The box the heading sits in: 36 px high, the line box of the type above (0.485em x 72 = 35).
+       Every pane's content starts on the same line, whatever its heading says. -->
+  <Style x:Key="RpmPaneHeadingBox" TargetType="Grid">
+    <Setter Property="Height" Value="36"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- The line under a pane's heading. It shows what the pane adds up to (albums, songs and their
+       total time, or playlists and their running time), or what it is looking at (the folder being
+       imported).
+
+       The height is fixed and is reserved even when the pane has nothing to show. So all panes start
+       their content on the same line, and a pane with a subtitle agrees with a pane without one about
+       where the first row goes. The subtitle is in its own row BELOW the heading box, never inside
+       it. The 36 px box, the search field and the view switch stay where they are with or without a
+       subtitle. -->
+  <Style x:Key="RpmPaneSubheading" TargetType="TextBlock">
+    <Setter Property="Height" Value="15"/>
+    <!-- Close to the heading, with space below it. The heading's box is 36 px high around a 72 pt
+         line, and the word sits in the upper two thirds of that line. A subtitle at the foot of the
+         box would start about 8 points below the type it belongs to, and would look like a separate
+         line. So the subtitle is pulled up over that empty space. The space saved goes below it, to
+         separate the header from the content. -->
+    <Setter Property="Margin" Value="0,-4,0,12"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="#8CFFFFFF"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <!-- White glass: a neutral white frost over the live blur, with no colour cast. The scrim behind it
+       keeps the sampled artwork dim enough that white text can still be read on it. -->
+  <SolidColorBrush x:Key="GlassCardTintBrush" Color="#38FFFFFF"/>
+  <!-- A soft white sheen from the top down, which fades out. It gives the glass thickness, with no colour. -->
+  <LinearGradientBrush x:Key="GlassCardGlowBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"   Color="#26FFFFFF"/>
+    <GradientStop Offset="0.5" Color="#0AFFFFFF"/>
+    <GradientStop Offset="1"   Color="#00FFFFFF"/>
+  </LinearGradientBrush>
+
+  <!-- The app's accent: cyan, kept translucent so it reads as glass. It is still strong enough to see. -->
+  <Color           x:Key="AccentCyanColor" >#04C8FF</Color>
+  <SolidColorBrush x:Key="AccentWashBrush"  Color="#2404C8FF"/>
+
+  <!-- A raised glass section panel that sits directly on the card, and the all-caps kicker naming it. -->
+  <Style x:Key="DmSectionCardStyle" TargetType="Border">
+    <Setter Property="Background"      Value="#1FFFFFFF"/>
+    <Setter Property="BorderBrush"     Value="{StaticResource DmCardBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius"    Value="12"/>
+    <Setter Property="Padding"         Value="16,14"/>
+  </Style>
+  <Style x:Key="DmKickerStyle" TargetType="TextBlock">
+    <Setter Property="FontSize"         Value="11"/>
+    <Setter Property="FontWeight"       Value="SemiBold"/>
+    <Setter Property="Foreground"       Value="#88FFFFFF"/>
+    <Setter Property="CharacterSpacing" Value="80"/>
+  </Style>
+
+  <!-- ══ A radio button sized for a row of controls, not for a settings page ══
+
+       WinUI's radio button is made for touch: a 20 px ring inside a 32 px box. Next to a toolbar's
+       keys it is the loudest thing in the row. The ring here is 13 px and the dot is 6 px. The label
+       keeps its normal reading size. A Viewbox that shrinks the whole control would shrink the label
+       too, and the text would be unreadable.
+
+       The colours are the app's accent. They come from RpmAccentControls through the same resource
+       names that WinUI's template uses, so the radio stays cyan without naming a brush. -->
+  <Style x:Key="CompactRadioStyle" TargetType="RadioButton">
+    <Setter Property="Foreground"                 Value="{ThemeResource RadioButtonForeground}"/>
+    <!-- The colour of the ring, so each radio in a row can have its own tint. In the mix lab each
+         radio arms the pointer for one kind of mark, and each kind has its own colour: cue in cyan,
+         mix-out in amber, changeover in green, bar line in yellow. If all five used the accent, the
+         colours would not say which is which. The default is the accent. A radio that does not set
+         Background looks as it does by default. -->
+    <Setter Property="Background"                 Value="#04C8FF"/>
+    <Setter Property="BorderBrush"                Value="#66FFFFFF"/>
+    <Setter Property="Padding"                    Value="6,0,8,0"/>
+    <Setter Property="MinWidth"                   Value="0"/>
+    <Setter Property="MinHeight"                  Value="0"/>
+    <Setter Property="FontSize"                   Value="12"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
+    <Setter Property="UseSystemFocusVisuals"      Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Grid x:Name="Root" Background="Transparent" Padding="{TemplateBinding Padding}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center">
+              <Ellipse x:Name="Ring" Width="13" Height="13" StrokeThickness="1"
+                       Stroke="{TemplateBinding BorderBrush}" Fill="Transparent"/>
+              <Ellipse x:Name="Tint" Width="13" Height="13" Fill="{TemplateBinding Background}"
+                       Opacity="0"/>
+              <!-- The dot is cut out of the fill, so the page colour shows through it. A white dot on
+                   amber or green would look like two bright shapes touching. -->
+              <Ellipse x:Name="Dot" Width="6" Height="6" Fill="#FF0E1520" Opacity="0"/>
+            </Grid>
+
+            <ContentPresenter x:Name="Label" Grid.Column="1" Margin="6,0,0,0"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              VerticalAlignment="Center"
+                              AutomationProperties.AccessibilityView="Raw"/>
+
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters>
+                    <Setter Target="Ring.Stroke" Value="#AAFFFFFF"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters>
+                    <Setter Target="Ring.Stroke" Value="#04C8FF"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled">
+                  <VisualState.Setters>
+                    <Setter Target="Root.Opacity" Value="0.35"/>
+                  </VisualState.Setters>
+                </VisualState>
+              </VisualStateGroup>
+              <VisualStateGroup x:Name="CheckStates">
+                <VisualState x:Name="Unchecked"/>
+                <VisualState x:Name="Checked">
+                  <VisualState.Setters>
+                    <!-- Change only the opacity here. The colour belongs to the control. A state setter
+                         must not set the colour, or every radio goes back to the accent. -->
+                    <Setter Target="Tint.Opacity" Value="1"/>
+                    <Setter Target="Dot.Opacity"  Value="1"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Indeterminate"/>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ══ The rest of the condensed set: a box, a dropdown and a key, all the same height ══
+
+       These are setters, not templates. WinUI sizes these controls for touch, at 32 px tall with
+       matching padding. A workbench row needs them as tall as the text they hold. Nothing here
+       changes how the controls are drawn. Only the room they take changes, so they keep all their
+       visual states.
+
+       CompactHeight is the value the whole row uses. Change it here and the row stays level. -->
+  <x:Double x:Key="CompactHeight">26</x:Double>
+
+  <!-- The vertical offset is an optical correction, not a centring. The box centres the text
+       line, which leaves room under the baseline for descenders. A tempo is all digits and has no
+       descenders, so a line centred by the layout looks high. Two pixels down puts the digits in the
+       visual centre of the box. -->
+  <Style x:Key="CompactTextBoxStyle" TargetType="TextBox">
+    <!-- Repeated here because a keyed style replaces the implicit one completely. Without it, a
+         character typed in two halves into one of these narrow fields ends the app. See
+         TextBoxSurrogates. -->
+    <Setter Property="ui:TextBoxSurrogates.IsEnabled" Value="True"/>
+    <Setter Property="Height"    Value="{StaticResource CompactHeight}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth"  Value="0"/>
+    <Setter Property="FontSize"  Value="12"/>
+    <Setter Property="Padding"   Value="7,2,7,0"/>
+  </Style>
+
+  <Style x:Key="CompactComboStyle" TargetType="ComboBox">
+    <Setter Property="Height"    Value="{StaticResource CompactHeight}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth"  Value="0"/>
+    <Setter Property="FontSize"  Value="12"/>
+    <Setter Property="Padding"   Value="9,0,0,0"/>
+  </Style>
+
+  <!-- A button that draws nothing of its own. It has no plate, no border and no pressed or hover
+       state, and shows only the content placed in it. Use it for a control that already has its own
+       look and was only clickable with the pointer. It lets the keyboard and a screen reader reach
+       and press the control too, for example the deck's speaker mark or a hint's close disc. The
+       system draws the focus rectangle for the keyboard. Pegasus has its own style (PegasusPlainButton),
+       which draws no focus rectangle, because Pegasus draws its own ring. -->
+  <Style x:Key="BareButtonStyle" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <ContentPresenter Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="CompactButtonStyle" TargetType="Button">
+    <Setter Property="Height"    Value="{StaticResource CompactHeight}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth"  Value="0"/>
+    <Setter Property="FontSize"  Value="12"/>
+    <Setter Property="Padding"   Value="9,0,9,0"/>
+  </Style>
+
+  <!-- A dense, full-width list row: the rip dialog's track list is a form, not a selection list. -->
+  <!-- Rip rows are editable forms, not a selection list. This is the same stripped container the
+       split editor uses: a bare ContentPresenter with no visual states, so a row never lights up on
+       hover or selection. -->
+  <Style x:Key="RipTrackContainerStyle" TargetType="ListViewItem">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
+    <Setter Property="Padding"   Value="8,4"/>
+    <Setter Property="Margin"    Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListViewItem">
+          <ContentPresenter Padding="{TemplateBinding Padding}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A card's title bar or grid header: a flat fill, a little darker than the grid surface. It is
+       quiet over the artwork's colour and does not fight it. -->
+  <SolidColorBrush x:Key="CardTitleBarBrush" Color="#40000000"/>
+
+  <!-- The hairline edge of the drag grips, at rest and under the pointer. Both splitters use one
+       pill: a frosted-glass fill behind a hairline stroke. The pill lies flat over the artwork's foot
+       or on its side between the panels. Only the stroke changes. It is defined once, because two
+       handles that light differently would look like two different controls. -->
+  <SolidColorBrush x:Key="GripEdgeBrush" Color="#40FFFFFF"/>
+  <SolidColorBrush x:Key="GripEdgeHoverBrush" Color="#E6FFFFFF"/>
+
+  <!-- The grids' surface: a light 20% black veil over the full-window artwork. It is enough to settle
+       the text, and the album's colour still shows through. (The art strip fills its own ground with
+       the dominant colour.) -->
+  <SolidColorBrush x:Key="GridSurfaceBrush" Color="#33000000"/>
+
+  <!-- Every other row of a data table, so a long line of fields is easy to read across. The band
+       is kept faint on purpose: it helps the reader follow the row and does not draw attention. -->
+  <SolidColorBrush x:Key="GridRowBandBrush" Color="#0EFFFFFF"/>
+
+  <!-- The fill of a CARD that stands on the app's glass: a thin white veil and nothing else. A review,
+       a comment and a visualizer card are the same kind of object, a box of writing on a frosted
+       surface. They all use this one value, so they cannot drift apart.
+
+       The veil is thin on purpose. What is behind the card is already a veiled, blurred surface. A
+       card that needs a solid fill to hold its text is standing on the wrong ground. -->
+  <SolidColorBrush x:Key="RpmCardPlateBrush" Color="#14FFFFFF"/>
+
+  <!-- ══ The seam ══
+
+       A divider between two things in a window is TWO hairlines, not one flat grey. A light line
+       next to a dark one looks like an edge in glass, not a line drawn on it. Every other seam in the
+       app is made this way. Both lines fade out at their ends. A divider that stops abruptly at a
+       panel's padding looks like a drawn rule. A line that fades looks like light on a seam. The flat
+       middle is most of the length. The fade is only at the ends.
+
+       The dark line sits above the light line. That is how an edge catches light that is over the
+       window. The album list draws its record rules with these, and the album page draws the rules
+       for its facts. -->
+  <LinearGradientBrush x:Key="RpmSeamLight" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Offset="0" Color="#00FFFFFF"/>
+    <GradientStop Offset="0.18" Color="#2EFFFFFF"/>
+    <GradientStop Offset="0.82" Color="#2EFFFFFF"/>
+    <GradientStop Offset="1" Color="#00FFFFFF"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="RpmSeamShade" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Offset="0" Color="#00000000"/>
+    <GradientStop Offset="0.18" Color="#30000000"/>
+    <GradientStop Offset="0.82" Color="#30000000"/>
+    <GradientStop Offset="1" Color="#00000000"/>
+  </LinearGradientBrush>
+
+  <!-- The hairline that edges and rules a list: the box around the library's data table, and the line
+       under the album list. The colour is written out here. It is not taken from
+       CardStrokeColorDefaultBrush, because that key lives in the theme dictionaries that a control's
+       own style is resolved against. Asking for it from page or control XAML gives no brush, and
+       nothing is drawn. -->
+  <SolidColorBrush x:Key="ListEdgeBrush" Color="#19FFFFFF"/>
+
+  <!-- The height of one track line. It is fixed. The album list reserves the room a record's tracks
+       need before it has read them (AlbumListEntry.ReservedTrackHeight). If the reserve does not
+       match what is drawn, the block changes height when its tracks arrive, and the list shifts under
+       the pointer while it is scrolled. 22 px fits the 12 pt line and the 15.5 px playing mark. -->
+  <x:Double x:Key="AlbumTrackLineHeight">22</x:Double>
+
+  <!-- A tracklist line that is not a track: the divider that starts a disc on a multi-disc set, and
+       the header that starts a work on a classical record. It is exactly TWO track lines high. The
+       reserve above counts a record's lines in track lines. A header of any other height could not
+       be counted before the tracks were read. -->
+  <x:Double x:Key="AlbumHeaderLineHeight">44</x:Double>
+
+  <!-- The height of a record's tracklist in the ALBUM LIST: eight lines per column, which is sixteen
+       songs. Longer records scroll inside it.
+
+       The height is fixed, and that is the point. The list is virtualized by the platform's own
+       stack. That stack estimates the length of the whole list from the mean height of the blocks it
+       holds. If the blocks differ in height, the list changes length as the user scrolls, which moves
+       the scrollbar and the content with it. Records range from 280 to 1336 points, and 1336 is one
+       record of a hundred and twenty songs. With the tracks in their own scroller, every record has
+       the same height. The length of the list is then the block height times the count, which is
+       exact.
+
+       Eight lines of 22 px make 176 px. With the title and subtitle, that is the same height as the
+       sleeve beside it. So a record of sixteen songs or fewer is as tall as its sleeve. -->
+  <x:Double x:Key="AlbumListTrackAreaHeight">176</x:Double>
+
+  <!-- The favourite heart, wherever it is drawn: on a song's line, in the ink stamp on a favourite
+       record's drawer, and on the header button that shows only favourites.
+       The colour is the palette's Red (Assets/RpmPalette, "DAMN"), not the app's cyan. Cyan marks the
+       app's own controls, such as the brand, the cloud and the buttons. A favourite is a mark the
+       listener sets, so it has its own colour. Red stands out against a wall of cyan.
+       The colour is one resource and is not written into each view. The wall, the album list and the
+       album page all draw this mark, and one shared value keeps them the same. -->
+  <SolidColorBrush x:Key="FavoriteMarkBrush" Color="#FFEE0709"/>
+
+  <!-- The same heart before it is set: the empty one that appears under the pointer on a song that
+       is not yet a favourite. It is dim, because it is an invitation and not a state. -->
+  <SolidColorBrush x:Key="FavoriteMarkIdleBrush" Color="#66FFFFFF"/>
+
+  <!-- The card: a translucent panel fill, a hairline border that lifts it off the background, and an
+       8 px radius. -->
+  <Style x:Key="ContentBorderStyle" TargetType="Border">
+    <Setter Property="Background"      Value="{StaticResource DmCardBrush}"/>
+    <Setter Property="BorderBrush"     Value="{StaticResource DmCardBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius"    Value="8"/>
+  </Style>
+
+  <!-- The fill of a chip, pill or field that sits ON a frosted card.
+
+       It is not glass of its own. GlassBrush is a live backdrop blur. It reads the pixels already
+       drawn underneath and blurs them on every frame. A visual that uses it is excluded from the
+       renderer's picture cache (Uno's CompositionEffectBrush.RequiresRepaintOnEveryFrame). Under a
+       chip, the pixels are its host card, which is already blurred at 30 and veiled. A second blur
+       would return the same colour and cost a full backdrop read, so this fill does not use GlassBrush. -->
+  <SolidColorBrush x:Key="OnGlassBrush" Color="Transparent"/>
+
+  <!-- Rounded translucent pill used for the header badges/chips -->
+  <Style x:Key="RpmChipButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="Background"     Value="#22FFFFFF"/>
+    <Setter Property="Foreground"     Value="#CCFFFFFF"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius"   Value="12"/>
+    <Setter Property="Padding"        Value="12,6"/>
+    <Setter Property="MinHeight"      Value="0"/>
+    <Setter Property="Height"         Value="32"/>
+    <Setter Property="FontSize"       Value="13"/>
+  </Style>
+
+  <!-- ══ Liquid-glass buttons (RPM) ══
+       The style follows Apple's "Liquid Glass" look, not Aqua. The button is a capsule with fully
+       rounded ends. These parts make it look like glass:
+        · a soft ambient shadow under the capsule (two layers, slightly blurred),
+        · edge lensing: a hairline rim whose light wraps around the shape (a bright top, and a soft
+          bright bottom where light spills round the lens), not only a top bevel,
+        · a short, sharp specular streak near the top (a glint, not a gloss dome),
+        · a flat frosted fill, translucent so it stays glass.
+       On hover a faint sheen appears. On press the button sinks into its shadow and the glint dims. -->
+
+  <!-- A faint hairline all round, for definition. The bright light is not the whole rim. The
+       template adds two short specular glints, top-left in and bottom-right out. -->
+  <SolidColorBrush x:Key="GlassButtonRimBrush" Color="#2AFFFFFF"/>
+
+  <!-- Specular glints shaped like real reflected light. Each has a core at the corner, a sharp drop
+       over a short distance, then a long, gentle fade. This looks like thin glass, not a thick painted
+       edge. The peak is about 72%, so the glint is not blown out to white. -->
+  <!-- Top-left glint: core at the left (the corner), then a sharp drop, then a long tail to the right. -->
+  <LinearGradientBrush x:Key="GlassGlintTopBrush" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Offset="0"    Color="#52FFFFFF"/>
+    <GradientStop Offset="0.18" Color="#30FFFFFF"/>
+    <GradientStop Offset="0.5"  Color="#12FFFFFF"/>
+    <GradientStop Offset="1"    Color="#00FFFFFF"/>
+  </LinearGradientBrush>
+  <!-- Bottom-right glint: core at the right (the corner), then a sharp drop, then a long tail to the left. -->
+  <LinearGradientBrush x:Key="GlassGlintBottomBrush" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Offset="0"    Color="#00FFFFFF"/>
+    <GradientStop Offset="0.5"  Color="#12FFFFFF"/>
+    <GradientStop Offset="0.82" Color="#30FFFFFF"/>
+    <GradientStop Offset="1"    Color="#52FFFFFF"/>
+  </LinearGradientBrush>
+
+  <!-- The light also wraps round the corner onto the side edge, but weaker, because the curve of the
+       corner uses up some of it. This second arm is shorter and fainter. The top-left arm runs down
+       the left edge. The bottom-right arm runs up the right edge. -->
+  <LinearGradientBrush x:Key="GlassGlintTopWrapBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"    Color="#38FFFFFF"/>
+    <GradientStop Offset="0.22" Color="#1CFFFFFF"/>
+    <GradientStop Offset="0.6"  Color="#0CFFFFFF"/>
+    <GradientStop Offset="1"    Color="#00FFFFFF"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="GlassGlintBottomWrapBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0"    Color="#00FFFFFF"/>
+    <GradientStop Offset="0.4"  Color="#0CFFFFFF"/>
+    <GradientStop Offset="0.78" Color="#1CFFFFFF"/>
+    <GradientStop Offset="1"    Color="#38FFFFFF"/>
+  </LinearGradientBrush>
+
+  <!-- Frosted body. The app uses frosted glass, not clear glass: a milky translucent pane. It is more
+       solid than a thin clear pane, but it is not a plastic film. -->
+  <LinearGradientBrush x:Key="GlassButtonBaseFillBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Offset="0" Color="#38FFFFFF"/>
+    <GradientStop Offset="1" Color="#26FFFFFF"/>
+  </LinearGradientBrush>
+
+  <!-- The primary button has no colour of its own. It is told apart by how solid the glass is: the
+       primary is a brighter, fuller frost. The ghost and cancel buttons stay thin and see-through, so
+       they recede. Danger keeps red, because a destructive action is marked by meaning, not decoration. -->
+  <!-- No colour. The primary is only a brighter frost than the ghost button. -->
+  <SolidColorBrush x:Key="GlassPrimaryFaceBrush" Color="#33FFFFFF"/>
+  <SolidColorBrush x:Key="GlassGhostFaceBrush"   Color="#14FFFFFF"/>
+  <SolidColorBrush x:Key="GlassDangerFaceBrush"  Color="#26FF6B6B"/>
+
+  <ControlTemplate x:Key="GlassButton3DTemplate" TargetType="Button">
+    <Grid x:Name="Root" Background="Transparent">
+      <!-- Soft lift shadow: a gentle halo below. The pane floats just off the surface. -->
+      <Border x:Name="Shadow" CornerRadius="{TemplateBinding CornerRadius}" Background="#33000000" Margin="1,4,1,-3"/>
+      <!-- the light-glass pane -->
+      <!-- The whole pane lifts or sinks together, with its face and its border glints. -->
+      <Grid x:Name="Lift">
+        <Grid.RenderTransform>
+          <TranslateTransform x:Name="FaceShift"/>
+        </Grid.RenderTransform>
+        <Border x:Name="Face" CornerRadius="{TemplateBinding CornerRadius}"
+                Background="{StaticResource GlassButtonBaseFillBrush}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}">
+          <Grid>
+            <!-- Colour wash for the button variant. -->
+            <Border CornerRadius="{TemplateBinding CornerRadius}" Background="{TemplateBinding Background}"/>
+            <Border x:Name="Hover" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0">
+              <Border.Background>
+                <!-- The vector runs from bottom-left to top-right, so the bright centre band lies along
+                     the top-left to bottom-right diagonal, through both corner glints. -->
+                <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                  <GradientStop Offset="0"   Color="#03FFFFFF"/>
+                  <GradientStop Offset="0.5" Color="#12FFFFFF"/>
+                  <GradientStop Offset="1"   Color="#03FFFFFF"/>
+                </LinearGradientBrush>
+              </Border.Background>
+            </Border>
+            <Border x:Name="Press" CornerRadius="{TemplateBinding CornerRadius}" Background="#22000000" Opacity="0"/>
+            <ContentPresenter x:Name="CP"
+                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                              Padding="{TemplateBinding Padding}"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              AutomationProperties.AccessibilityView="Raw"/>
+          </Grid>
+        </Border>
+        <!-- Two short specular glints. They sit outside the face border, so they ride on the border
+             line and are not clipped. They are symmetric: light enters just past the top-left corner
+             and leaves just before the bottom-right. The -0.25 offset centres a 1.5 px glint on the
+             1 px border line. -->
+        <Rectangle x:Name="GlintTL" Height="1.5" Width="88" RadiusX="0.75" RadiusY="0.75"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6,-0.25,0,0"
+                   Fill="{StaticResource GlassGlintTopBrush}"/>
+        <Rectangle x:Name="GlintBR" Height="1.5" Width="88" RadiusX="0.75" RadiusY="0.75"
+                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,-0.25"
+                   Fill="{StaticResource GlassGlintBottomBrush}"/>
+        <!-- Wrap arms: the same light continues round the corner onto the side edge. They are shorter and fainter. -->
+        <Rectangle x:Name="GlintTLv" Width="1.5" Height="40" RadiusX="0.75" RadiusY="0.75"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-0.25,6,0,0"
+                   Fill="{StaticResource GlassGlintTopWrapBrush}"/>
+        <Rectangle x:Name="GlintBRv" Width="1.5" Height="40" RadiusX="0.75" RadiusY="0.75"
+                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-0.25,6"
+                   Fill="{StaticResource GlassGlintBottomWrapBrush}"/>
+        <!-- Corner arcs. They trace the rounded corner (radius 6), so the light bends round it and the
+             two arms join. Use a polyline, not an ArcSegment, because the polyline works on Uno. -->
+        <Polyline x:Name="ArcTL" Points="6,0.5 3.89,0.92 2.11,2.11 0.92,3.89 0.5,6"
+                  StrokeThickness="1.5" StrokeLineJoin="Round"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  HorizontalAlignment="Left" VerticalAlignment="Top">
+          <Polyline.Stroke>
+            <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+              <GradientStop Offset="0" Color="#52FFFFFF"/>
+              <GradientStop Offset="1" Color="#38FFFFFF"/>
+            </LinearGradientBrush>
+          </Polyline.Stroke>
+        </Polyline>
+        <Polyline x:Name="ArcBR" Points="6,0.5 3.89,0.92 2.11,2.11 0.92,3.89 0.5,6"
+                  StrokeThickness="1.5" StrokeLineJoin="Round"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  HorizontalAlignment="Right" VerticalAlignment="Bottom" RenderTransformOrigin="0.5,0.5">
+          <Polyline.RenderTransform>
+            <RotateTransform Angle="180"/>
+          </Polyline.RenderTransform>
+          <Polyline.Stroke>
+            <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+              <GradientStop Offset="0" Color="#52FFFFFF"/>
+              <GradientStop Offset="1" Color="#38FFFFFF"/>
+            </LinearGradientBrush>
+          </Polyline.Stroke>
+        </Polyline>
+      </Grid>
+      <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="CommonStates">
+          <VisualState x:Name="Normal"/>
+          <VisualState x:Name="PointerOver">
+            <VisualState.Setters>
+              <Setter Target="Hover.Opacity" Value="1"/>
+            </VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Pressed">
+            <VisualState.Setters>
+              <Setter Target="Press.Opacity" Value="1"/>
+              <Setter Target="Shadow.Opacity" Value="0"/>
+              <Setter Target="GlintTL.Opacity" Value="0.3"/>
+              <Setter Target="GlintBR.Opacity" Value="0.3"/>
+              <Setter Target="GlintTLv.Opacity" Value="0.3"/>
+              <Setter Target="GlintBRv.Opacity" Value="0.3"/>
+              <Setter Target="ArcTL.Opacity" Value="0.3"/>
+              <Setter Target="ArcBR.Opacity" Value="0.3"/>
+              <Setter Target="FaceShift.Y" Value="1.5"/>
+            </VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Disabled">
+            <VisualState.Setters>
+              <!-- glass stays lit; only the label greys out -->
+              <Setter Target="CP.Opacity" Value="0.35"/>
+            </VisualState.Setters>
+          </VisualState>
+        </VisualStateGroup>
+      </VisualStateManager.VisualStateGroups>
+    </Grid>
+  </ControlTemplate>
+
+  <!-- Transport-card button (the library's deck pills and the search field): a frosted face with a
+       #22FFFFFF hairline, so the card's glass shows through. This is the button used in dialogs. The
+       liquid-glass GlassButton3DTemplate above is kept for reuse. -->
+  <ControlTemplate x:Key="TransportButtonTemplate" TargetType="Button">
+    <Grid x:Name="Root" Background="Transparent">
+      <Border x:Name="Face" CornerRadius="{TemplateBinding CornerRadius}"
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}">
+        <Grid>
+          <Border x:Name="Hover" CornerRadius="{TemplateBinding CornerRadius}" Background="#18FFFFFF" Opacity="0"/>
+          <Border x:Name="Press" CornerRadius="{TemplateBinding CornerRadius}" Background="#28FFFFFF" Opacity="0"/>
+          <ContentPresenter x:Name="CP"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Padding="{TemplateBinding Padding}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            AutomationProperties.AccessibilityView="Raw"/>
+        </Grid>
+      </Border>
+      <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="CommonStates">
+          <VisualState x:Name="Normal"/>
+          <VisualState x:Name="PointerOver">
+            <VisualState.Setters><Setter Target="Hover.Opacity" Value="1"/></VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Pressed">
+            <VisualState.Setters><Setter Target="Press.Opacity" Value="1"/></VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Disabled">
+            <VisualState.Setters><Setter Target="CP.Opacity" Value="0.35"/></VisualState.Setters>
+          </VisualState>
+        </VisualStateGroup>
+      </VisualStateManager.VisualStateGroups>
+    </Grid>
+  </ControlTemplate>
+
+  <!-- Shared chrome; variants only swap the face fill. -->
+  <Style x:Key="GlassButtonBaseStyle" TargetType="Button">
+    <Setter Property="Foreground"                 Value="#F5FFFFFF"/>
+    <Setter Property="FontWeight"                 Value="SemiBold"/>
+    <Setter Property="FontSize"                   Value="13"/>
+    <Setter Property="BorderBrush"                Value="#22FFFFFF"/>
+    <Setter Property="BorderThickness"            Value="1"/>
+    <!-- Small radius, matching the library deck pills (Add music / menu = CornerRadius 6). -->
+    <Setter Property="CornerRadius"               Value="6"/>
+    <!-- A fixed height, with a matching MinHeight. A tall glyph, such as a large chevron, cannot
+         make one button shorter than its neighbour. -->
+    <Setter Property="Height"                      Value="32"/>
+    <Setter Property="MinHeight"                   Value="32"/>
+    <Setter Property="MinWidth"                    Value="80"/>
+    <Setter Property="Padding"                     Value="15,0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
+    <Setter Property="UseSystemFocusVisuals"       Value="False"/>
+    <Setter Property="Template"                    Value="{StaticResource TransportButtonTemplate}"/>
+  </Style>
+
+  <!-- Secondary or cancel: a frosted ghost pill. -->
+  <Style x:Key="GlassButtonStyle" TargetType="Button" BasedOn="{StaticResource GlassButtonBaseStyle}">
+    <Setter Property="Background" Value="{StaticResource GlassGhostFaceBrush}"/>
+    <Setter Property="Foreground" Value="#F0FFFFFF"/>
+  </Style>
+
+  <!-- Primary: a brighter frost with no colour, white text, and the hairline from the base style. -->
+  <Style x:Key="GlassPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource GlassButtonBaseStyle}">
+    <Setter Property="Background" Value="{StaticResource GlassPrimaryFaceBrush}"/>
+  </Style>
+
+  <!-- ══ The app's buttons ══
+       Three controls share one glass base and differ only in their face. The ghost button recedes.
+       The primary button is a brighter frost. The danger button has a red wash. The GlassButtonStyle
+       and GlassPrimaryButtonStyle keys above give the same looks as plain styles. Use them for a
+       button that cannot be one of these types, such as a template part or a Button that already has
+       its own chrome. -->
+  <Style TargetType="ctl:RpmButton"        BasedOn="{StaticResource GlassButtonBaseStyle}">
+    <Setter Property="Background" Value="{StaticResource GlassGhostFaceBrush}"/>
+    <Setter Property="Foreground" Value="#F0FFFFFF"/>
+  </Style>
+  <Style TargetType="ctl:RpmPrimaryButton" BasedOn="{StaticResource GlassButtonBaseStyle}">
+    <Setter Property="Background" Value="{StaticResource GlassPrimaryFaceBrush}"/>
+  </Style>
+  <Style TargetType="ctl:RpmDangerButton"  BasedOn="{StaticResource GlassButtonBaseStyle}">
+    <Setter Property="Background" Value="{StaticResource GlassDangerFaceBrush}"/>
+  </Style>
+
+  <!-- ══ A key with no chrome ══
+       A glyph key that stands directly on the page, with no fill and no outline. It shows that it
+       can be pressed with a glow. Under the pointer a soft halo fades in behind the mark, and the
+       mark brightens from 70% to full white. The home screen's banner and row keys use it, and so
+       does the album page's key that brings back the reviews column.
+
+       The halo is an ellipse with a radial fill, not a shadow. A shadow is a composition effect, and
+       this must draw the same on both heads.
+
+       The template's root is Transparent, not unset. WinUI does not hit-test a panel with no
+       background, so without it the key would answer only on the glyph itself.
+
+       The content is the glyph, normally a FontIcon with its own font, size and white foreground. The
+       dim resting state comes from the template, not from the glyph. -->
+  <Style x:Key="GlowKeyStyle" TargetType="Button">
+    <Setter Property="Width" Value="44"/>
+    <Setter Property="Height" Value="44"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid Background="Transparent">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="KeyGlow"
+                                     Storyboard.TargetProperty="Opacity"
+                                     To="1" Duration="0:0:0.15"/>
+                    <DoubleAnimation Storyboard.TargetName="KeyFace"
+                                     Storyboard.TargetProperty="Opacity"
+                                     To="1" Duration="0:0:0.15"/>
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="KeyGlow"
+                                     Storyboard.TargetProperty="Opacity"
+                                     To="0.75" Duration="0:0:0.08"/>
+                    <DoubleAnimation Storyboard.TargetName="KeyFace"
+                                     Storyboard.TargetProperty="Opacity"
+                                     To="1" Duration="0:0:0.08"/>
+                  </Storyboard>
+                </VisualState>
+                <VisualState x:Name="Disabled">
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="KeyFace"
+                                     Storyboard.TargetProperty="Opacity"
+                                     To="0.25" Duration="0"/>
+                  </Storyboard>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <Ellipse x:Name="KeyGlow" Opacity="0" IsHitTestVisible="False">
+              <Ellipse.Fill>
+                <RadialGradientBrush>
+                  <GradientStop Offset="0" Color="#66FFFFFF"/>
+                  <GradientStop Offset="0.55" Color="#1FFFFFFF"/>
+                  <GradientStop Offset="1" Color="#00FFFFFF"/>
+                </RadialGradientBrush>
+              </Ellipse.Fill>
+            </Ellipse>
+
+            <ContentPresenter x:Name="KeyFace" Opacity="0.7"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Content="{TemplateBinding Content}"/>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ══ A link ══
+       Used for "Show more", "Read on Wikipedia", or a jump to a section of a settings page. It is a
+       word in the text around it, not a control on the glass, so it has no box and no plate under
+       the pointer. When the pointer is over it, the cursor changes to a hand, as on every web link.
+       The type sets the cursor (ctl:RpmLink), because ProtectedCursor is protected.
+
+       The template is written out in full, not based on the stock one. A Button's default template
+       reads ButtonBackgroundPointerOver by key, so a transparent Background alone would leave the
+       hover wash in place. Press and disabled states are shown by dimming the ink.
+
+       The style is keyed, and the implicit styles below are based on it. An implicit style matches
+       its type exactly, so a subclass of RpmLink (CcBySaLink) gets no template and draws nothing. -->
+  <Style x:Key="RpmLinkStyle" TargetType="ctl:RpmLink">
+    <Setter Property="Background"                 Value="Transparent"/>
+    <Setter Property="BorderThickness"            Value="0"/>
+    <Setter Property="Padding"                    Value="0,2"/>
+    <Setter Property="MinWidth"                   Value="0"/>
+    <Setter Property="MinHeight"                  Value="0"/>
+    <Setter Property="HorizontalAlignment"        Value="Left"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment"   Value="Center"/>
+    <Setter Property="FontSize"                   Value="12"/>
+    <Setter Property="Foreground"                 Value="{StaticResource RpmCyanBrush}"/>
+    <Setter Property="UseSystemFocusVisuals"      Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ctl:RpmLink">
+          <!-- The Grid is the hit area and the state root. Background="Transparent" is needed, not unset.
+               Without it the pointer falls through the gaps between the letters. -->
+          <Grid x:Name="Face" Background="Transparent">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Padding="{TemplateBinding Padding}"
+                              Foreground="{TemplateBinding Foreground}"
+                              FontSize="{TemplateBinding FontSize}"
+                              FontFamily="{TemplateBinding FontFamily}"
+                              FontWeight="{TemplateBinding FontWeight}"
+                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver"/>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters>
+                    <Setter Target="Face.Opacity" Value="0.6"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled">
+                  <VisualState.Setters>
+                    <Setter Target="Face.Opacity" Value="0.4"/>
+                  </VisualState.Setters>
+                </VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="ctl:RpmLink" BasedOn="{StaticResource RpmLinkStyle}"/>
+  <Style TargetType="ctl:CcBySaLink" BasedOn="{StaticResource RpmLinkStyle}"/>
+
+  <!-- ══ Dense data-entry form ══
+       The parts around the inputs of a form-heavy window. The sizes match Themes/DenseForm.xaml.
+       Merge that file into the dialog to shrink the inputs themselves. The rhythm is the same
+       throughout: a 24 px row, 6 px between rows, and 16 px between groups. A column of fields then
+       reads as an even ladder, and a gap in it is visible at a glance.
+
+       Labels sit to the LEFT of their input and are right-aligned against it. This is the purpose of
+       the layout. Every input in a column starts on the same vertical line, so an empty or odd value
+       shows as a break in that line. The user does not have to read each value to find it. -->
+  <x:Double x:Key="DenseRowSpacing">6</x:Double>
+  <x:Double x:Key="DenseGroupSpacing">16</x:Double>
+  <x:Double x:Key="DenseColumnSpacing">24</x:Double>
+  <!-- These two values are Doubles, so they must go on an element's Width, never on a
+       ColumnDefinition's. A ColumnDefinition.Width is a GridLength. WinUI's XAML runtime does not
+       convert a Double to a GridLength, so the whole page fails to load. A menu item that opens the
+       page then does nothing. Set the column to Auto, and put the number on the label or on the value
+       inside it. -->
+  <!-- The label gutter. It is wide enough for "Album artist" at 11.5 pt. A longer label is trimmed
+       with an ellipsis, so the inputs in a column stay in line with each other. -->
+  <x:Double x:Key="DenseLabelWidth">82</x:Double>
+  <!-- Short values get short boxes. A year in a 200 px field invites a wrong entry. -->
+  <x:Double x:Key="DenseNarrowWidth">66</x:Double>
+  <x:Double x:Key="DenseTinyWidth">46</x:Double>
+
+  <SolidColorBrush x:Key="DenseLabelInkBrush" Color="#A6FFFFFF"/>
+  <SolidColorBrush x:Key="DenseRuleBrush"     Color="#1FFFFFFF"/>
+  <!-- A value the form shows but does not take input for, such as a measurement. It is brighter than
+       a label and dimmer than typed text. A row of these reads as content, and does not look like a
+       box the user can type in. -->
+  <SolidColorBrush x:Key="DenseValueInkBrush" Color="#D9FFFFFF"/>
+
+  <Style x:Key="DenseFieldLabelStyle" TargetType="TextBlock">
+    <Setter Property="FontSize"            Value="11.5"/>
+    <Setter Property="Foreground"          Value="{StaticResource DenseLabelInkBrush}"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="VerticalAlignment"   Value="Center"/>
+    <Setter Property="TextWrapping"        Value="NoWrap"/>
+    <Setter Property="TextTrimming"        Value="CharacterEllipsis"/>
+  </Style>
+
+  <!-- The group name above its hairline rule. It is the app's kicker style, one step quieter, because
+       in a dense form the headers only help the user find their way and the values are the content. -->
+  <Style x:Key="DenseGroupHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource DmKickerStyle}">
+    <Setter Property="FontSize"   Value="10.5"/>
+    <Setter Property="Foreground" Value="#73FFFFFF"/>
+  </Style>
+
+  <!-- A button on a field row, such as one that picks an image or looks one up. It shrinks to fit
+       the row so the ladder stays even. The window's own Cancel and Apply buttons keep the full 32 px. -->
+  <Style x:Key="DenseButtonStyle" TargetType="Button" BasedOn="{StaticResource GlassButtonStyle}">
+    <Setter Property="Height"       Value="24"/>
+    <Setter Property="MinHeight"    Value="24"/>
+    <Setter Property="MinWidth"     Value="0"/>
+    <Setter Property="FontSize"     Value="11.5"/>
+    <Setter Property="FontWeight"   Value="Normal"/>
+    <Setter Property="Padding"      Value="10,0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <!-- Slim slider, the skin used for the cover-size slider and the seek bar: a 3 px track, a white
+       filled run, and a thin white vertical bar as the knob. It keeps WinUI's part names, so the
+       drag and click logic works without change. -->
+  <Style x:Key="SlimSliderStyle" TargetType="Slider">
+    <Setter Property="Background" Value="{ThemeResource SliderTrackFill}"/>
+    <Setter Property="Foreground" Value="#FFFFFFFF"/>
+    <Setter Property="ManipulationMode" Value="None"/>
+    <Setter Property="UseSystemFocusVisuals" Value="False"/>
+    <Setter Property="IsFocusEngagementEnabled" Value="True"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Slider">
+          <Grid Margin="{TemplateBinding Padding}">
+            <Grid.Resources>
+              <Style x:Key="SlimSliderThumbStyle" TargetType="Thumb">
+                <Setter Property="Background" Value="#FFFFFFFF"/>
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Background="{TemplateBinding Background}" CornerRadius="1.5"/>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </Grid.Resources>
+            <Grid x:Name="SliderContainer" Background="Transparent" Control.IsTemplateFocusTarget="True">
+              <Grid x:Name="HorizontalTemplate" MinHeight="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="HorizontalTrackRect" Fill="{TemplateBinding Background}"
+                           Height="3" RadiusX="1.5" RadiusY="1.5"
+                           Grid.Row="1" Grid.ColumnSpan="3" VerticalAlignment="Center"/>
+                <Rectangle x:Name="HorizontalDecreaseRect" Fill="{TemplateBinding Foreground}"
+                           Height="3" RadiusX="1.5" RadiusY="1.5"
+                           Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                <Thumb x:Name="HorizontalThumb" Style="{StaticResource SlimSliderThumbStyle}"
+                       DataContext="{TemplateBinding Value}" Width="3" Height="14"
+                       Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" VerticalAlignment="Center"
+                       AutomationProperties.AccessibilityView="Raw"/>
+              </Grid>
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+</ResourceDictionary>

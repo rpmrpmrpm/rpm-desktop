@@ -1,0 +1,385 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.LeftPane.RadioView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.LeftPane.Controls"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- Plain text on the frosted slot. It looks the same as the text field in the library header and the
+         text in the import grid. It is based on the app's default text box style, so the field keeps the
+         app-wide clipboard menu. A style with its own key would replace the default style completely
+         instead of adding to it. -->
+    <Style x:Key="PaneTextBox" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+      <Setter Property="ui:TextBoxClipboard.IsEnabled" Value="True"/>
+      <!-- Set again here, because this style replaces the default one. Without it, a half-typed surrogate
+           pair can end the app. The app-wide setter that prevents this is on the default style. -->
+      <Setter Property="ui:TextBoxSurrogates.IsEnabled" Value="True"/>
+      <!-- Set again here, because this style replaces the default one. The app-wide setter that turns off
+           the red spelling underline under station names is on the default style. -->
+      <Setter Property="IsSpellCheckEnabled" Value="False"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Height" Value="18"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>   <!-- pane heading -->
+      <RowDefinition Height="Auto"/>   <!-- the dial -->
+      <RowDefinition Height="Auto"/>   <!-- search + filters -->
+      <RowDefinition Height="*"/>      <!-- the station list -->
+    </Grid.RowDefinitions>
+
+    <!-- Uses the same pane heading layout as every other view (16, 12, 16, 4 around a 36 high box), so the
+         dial below starts on the same line as the content of the other views. -->
+    <StackPanel Grid.Row="0" Margin="16,12,16,0">
+      <Grid Style="{StaticResource RpmPaneHeadingBox}">
+        <TextBlock Text="{loc:Str Key=Radio_Title}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+      <!-- How many stations the dial is carrying. Empty until the first search has an answer. The line is
+           kept either way, so the dial starts on the same line as the content of the other panes. -->
+      <TextBlock Text="{Binding Subheading, Mode=OneWay}" Style="{StaticResource RpmPaneSubheading}"/>
+    </StackPanel>
+
+    <!-- The tuning dial. It draws everything in code. Its width decides how many stations get a name. It is
+         given the listed stations and the station that is playing, and it reports when the needle lands on
+         another station. -->
+    <!-- No top margin: the dial starts on the line under the heading, as the first row of the album wall does. -->
+    <local:RadioDial x:Name="Dial" Grid.Row="1" Margin="16,0,16,0"/>
+
+    <!-- Search and country, in the form style used for data entry: the same 24 px box and drop-down that the
+         metadata windows use (Themes/DenseForm.xaml). It is merged into this row only, not app-wide, so
+         nothing else on the page changes size with it. -->
+    <Grid Grid.Row="2" Margin="16,12,16,8" ColumnSpacing="8">
+      <Grid.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+          </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+      </Grid.Resources>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- The search slot keeps the frosted look with a magnifier icon, so it reads as a search field. It has
+           no outline: the dense controls beside it have none, and an outline would make it the loudest item
+           on the row. Typing does not search on every key press. The model waits until the typing stops,
+           because the directory is run by volunteers.
+           The slot uses the same theme keys as the box beside it, so both keep matching when either one is
+           restyled. -->
+      <Border Grid.Column="0" Height="24" CornerRadius="4" Padding="9,0"
+              VerticalAlignment="Center"
+              Background="{ThemeResource TextControlBackground}"
+              BorderBrush="{ThemeResource TextControlBorderBrush}"
+              BorderThickness="{ThemeResource TextControlBorderThemeThickness}">
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="11" Foreground="#99FFFFFF"
+                     VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
+          <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource PaneTextBox}"
+                   PlaceholderText="{loc:Str Key=Radio_SearchPlaceholder}"
+                   Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+            <TextBox.Resources>
+              <!-- The slot is the box itself, so the template's own minimum height must go. The dense style
+                   above sets it to 24, and the border element reads it directly rather than through the
+                   control. That would push a 24 px frame inside a 24 px slot. -->
+              <x:Double x:Key="TextControlThemeMinHeight">0</x:Double>
+              <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+              <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+              <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+            </TextBox.Resources>
+          </TextBox>
+        </Grid>
+      </Border>
+
+      <!-- Where the dial is listening from. This button opens the same panel as the filter button beside it,
+           not a combo box. Both answer one kind of question: what the dial is narrowed by. A listener should
+           not have to learn two controls for it. The way back to every country is the panel's pinned button,
+           so no "all countries" row is needed here.
+
+           It shows the country in force, or the text for none of them (CountryLabel). The chevron shows that
+           the button opens something. It is the one part of a combo box worth keeping. -->
+      <Button Grid.Column="1" Width="132" Height="24" MinWidth="0" MinHeight="0"
+              Padding="9,0" VerticalAlignment="Center" HorizontalContentAlignment="Stretch"
+              Click="Country_Click"
+              ToolTipService.ToolTip="{loc:Str Key=Radio_AllCountries}">
+        <Grid ColumnSpacing="6">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="{Binding CountryLabel, Mode=OneWay}" FontSize="12"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          <TextBlock Grid.Column="1" Text="&#xf078;" FontFamily="{StaticResource Fa}" FontSize="8"
+                     Opacity="0.7" VerticalAlignment="Center"/>
+        </Grid>
+      </Button>
+
+      <!-- What order the stations are listed in. It sits beside the filter and looks the same, because the two
+           together answer one question a listener asks of a long list: which stations, and in what order. The
+           album wall uses the same sort icon for the same action.
+
+           The dot shows that the list is in an order the user chose, not the order the directory returned.
+           The filter's dot works the same way. -->
+      <Button Grid.Column="2" Width="30" Height="24" MinWidth="0" MinHeight="0"
+              Padding="0" VerticalAlignment="Center" Click="Sort_Click"
+              ToolTipService.ToolTip="{loc:Str Key=Radio_Sort}"
+              AutomationProperties.Name="{loc:Str Key=Radio_Sort}">
+        <Grid>
+          <TextBlock Text="&#xf160;" FontFamily="{StaticResource Fa}" FontSize="12"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Ellipse Width="5" Height="5" Fill="{StaticResource RpmCyanBrush}"
+                   HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-2,0"
+                   Visibility="{Binding OrderChosen, Mode=OneWay, Converter={StaticResource BoolToVisible}}"/>
+        </Grid>
+      </Button>
+
+      <!-- The filter state: a format, a kind of station, and whether it has ads. It is a menu, not three more
+           boxes on this row. The row already holds a search field and a country, and the answer to all three
+           filters is "no" almost every time. The questions themselves are defined by StationSieve. This
+           button only opens the menu that sets them.
+
+           The dot shows the whole filter state. A filter that is on but cannot be seen would make the pane look
+           as if it were missing stations. The dot uses the app's cyan, as everything else that means "in force"
+           does. -->
+      <Button Grid.Column="3" Width="30" Height="24" MinWidth="0" MinHeight="0"
+              Padding="0" VerticalAlignment="Center" Click="Filter_Click"
+              ToolTipService.ToolTip="{loc:Str Key=Radio_Filter}"
+              AutomationProperties.Name="{loc:Str Key=Radio_Filter}">
+        <Grid>
+          <TextBlock Text="&#xf0b0;" FontFamily="{StaticResource Fa}" FontSize="12"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Ellipse Width="5" Height="5" Fill="{StaticResource RpmCyanBrush}"
+                   HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-1,-2,0"
+                   Visibility="{Binding FiltersOn, Mode=OneWay, Converter={StaticResource BoolToVisible}}"/>
+        </Grid>
+      </Button>
+
+      <!-- The presets switch. It is a filter, not a place: the same list, showing only the saved stations. It is
+           the one view that works with no internet connection, which is why it is one click away. -->
+      <ToggleButton Grid.Column="4" Width="30" Height="24" MinWidth="0" MinHeight="0"
+                    Padding="0" VerticalAlignment="Center"
+                    IsChecked="{Binding FavoritesOnly, Mode=TwoWay}"
+                    ToolTipService.ToolTip="{loc:Str Key=Radio_ShowFavorites}"
+                    AutomationProperties.Name="{loc:Str Key=Radio_ShowFavorites}">
+        <ToggleButton.Resources>
+          <!-- The heart alone shows that the switch is on. The checked fill is replaced by the normal button
+               fill, so the switch looks like the sort and filter buttons beside it. -->
+          <StaticResource x:Key="ToggleButtonBackgroundChecked"             ResourceKey="ButtonBackground"/>
+          <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver"  ResourceKey="ButtonBackgroundPointerOver"/>
+          <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed"      ResourceKey="ButtonBackgroundPressed"/>
+          <StaticResource x:Key="ToggleButtonBorderBrushChecked"            ResourceKey="ButtonBorderBrush"/>
+          <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="ButtonBorderBrushPointerOver"/>
+          <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed"     ResourceKey="ButtonBorderBrushPressed"/>
+        </ToggleButton.Resources>
+        <!-- The face and colour are set in code (SetFavoritesToggle): the filled red heart while the switch is on,
+             and the dim outline while it is off. These are the same two states that a row's heart and the
+             library header's switch use. -->
+        <TextBlock x:Name="FavoritesIcon" Text="&#xf004;" FontSize="12"
+                   FontFamily="{StaticResource FaRegular}"
+                   Foreground="{StaticResource FavoriteMarkIdleBrush}"/>
+      </ToggleButton>
+    </Grid>
+
+    <!-- The list itself. One row per station: its logo, then its name (with the call sign the dial uses to mark
+         it) above the origin, genre and format line, then the two actions: save it and play it. Selecting a row
+         does not tune the radio. Only the button does, so a user can read down the list without the audio
+         following the highlight. -->
+    <Grid Grid.Row="3">
+      <ListView x:Name="StationList" ItemsSource="{Binding Stations}"
+                Background="Transparent" SelectionMode="None"
+                Padding="8,0,8,14"
+                ScrollViewer.HorizontalScrollMode="Disabled">
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="MinHeight" Value="0"/>
+          </Style>
+        </ListView.ItemContainerStyle>
+        <ListView.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnSpacing="10" Padding="0,5">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>   <!-- logo -->
+                <ColumnDefinition Width="*"/>      <!-- name over the detail line, then the call sign -->
+                <ColumnDefinition Width="Auto"/>   <!-- favourite -->
+                <ColumnDefinition Width="Auto"/>   <!-- play / stop -->
+              </Grid.ColumnDefinitions>
+
+              <!-- The station's logo, on a dark well so that a transparent PNG and a white square both show
+                   clearly. Most stations publish a logo. Those that do not, and those whose link is dead, get
+                   the antenna mark instead. Both are always in the tree, and only one is shown. -->
+              <Grid Grid.Column="0" Width="51" Height="51" VerticalAlignment="Center">
+                <Border Background="#22000000" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="6"/>
+                <!-- The background behind a transparent mark. It is the same figure the now playing square uses.
+                     The binding is empty for a solid logo, because that logo is its own background, so most rows
+                     keep the plain dark well. It is clipped by the same corner radius and is NOT inset, because
+                     it is the background. -->
+                <Border CornerRadius="6">
+                  <Image Source="{Binding LogoGround}" Stretch="UniformToFill" IsHitTestVisible="False"/>
+                </Border>
+                <!-- A solid logo fills the well and takes its rounding from it. A transparent mark is held off the
+                     edges, on its ground. The row decides which. See RadioStationItem.LogoStretch, and
+                     ArtDisplay.Cover's Frame, which apply the same two rules elsewhere in the app. -->
+                <Border CornerRadius="6" Padding="{Binding LogoPad}"
+                        Visibility="{Binding HasLogo, Converter={StaticResource BoolToVisible}}">
+                  <Image Source="{Binding Logo}" Stretch="{Binding LogoStretch}" ImageFailed="Logo_Failed"/>
+                </Border>
+                <TextBlock Text="&#xf519;" FontFamily="{StaticResource Fa}" FontSize="20"
+                           Foreground="#44FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding HasLogo, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              </Grid>
+
+              <!-- Name over the detail line. The call sign is beside the pair, not on the name line. It is a mark on
+                   the station, so it is centred on the row, like the heart and the play button beside it. The call
+                   sign is the same three or four letters printed on the dial, so a mark seen on the band can be found
+                   in the list. It is in the dial's own cyan, so it reads as a reference to the dial and not as part
+                   of the station's name. -->
+              <Grid Grid.Column="1" ColumnSpacing="5">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>       <!-- name over detail -->
+                  <ColumnDefinition Width="Auto"/>    <!-- call sign -->
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                  <!-- The name takes the room it needs and no more. The badge sits against the name, not at the far
+                       edge of the row, because a mark with a gap in front of it reads as part of the call sign.
+
+                       The name trims only when it runs out of room. There is no maximum width. A Grid measures an
+                       Auto column against the space left over, so the name trims against the whole row. A maximum
+                       width is needed only in a StackPanel, which measures its children at infinity. -->
+                  <Grid ColumnSpacing="5">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- The on-air lamp. It is lit while the station was answering when the directory last checked,
+                         and dark when it was not. It is the directory's own check, not a connection of ours. See
+                         RadioStationItem.OnAir for what a dark lamp does and does not mean.
+
+                         There are two rings. The outer ring is the glow that the lamp casts on the dark around it. On a
+                         dead station it is left out, not drawn in grey. The lamp keeps the same size either way, so a
+                         list of forty rows has one column of lamps. -->
+                    <Grid Grid.Column="0" Width="12" Height="12" VerticalAlignment="Center"
+                          ToolTipService.ToolTip="{loc:Str Key=Radio_OnAir}">
+                      <Ellipse Width="12" Height="12"
+                               Visibility="{Binding OnAir, Converter={StaticResource BoolToVisible}}">
+                        <Ellipse.Fill>
+                          <RadialGradientBrush Center="0.5,0.5"
+                                               RadiusX="0.5" RadiusY="0.5">
+                            <GradientStop Offset="0.0" Color="#B3FF3B30"/>
+                            <GradientStop Offset="0.45" Color="#59FF3B30"/>
+                            <GradientStop Offset="1.0" Color="#00FF3B30"/>
+                          </RadialGradientBrush>
+                        </Ellipse.Fill>
+                      </Ellipse>
+                      <Ellipse Width="6" Height="6" Fill="#FFFF4438"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{Binding OnAir, Converter={StaticResource BoolToVisible}}"/>
+                      <Ellipse Width="6" Height="6" Fill="#33FFFFFF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               ToolTipService.ToolTip="{loc:Str Key=Radio_OffAir}"
+                               Visibility="{Binding OffAir, Converter={StaticResource BoolToVisible}}"/>
+                    </Grid>
+
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" Foreground="#EEFFFFFF"
+                               TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                    <!-- The ads badge. It sits against the name, before the call sign, because it is a fact about the
+                         station. It takes no room on rows that do not carry the mark. The letters are cut out in the
+                         pane's own dark colour, which is the surface behind it. -->
+                    <ctl:AdsBadge Grid.Column="2" HasAds="{Binding HasAds}" Height="13" Width="19"
+                                  LetterBrush="#FF0B0D10" VerticalAlignment="Center"
+                                  ToolTipService.ToolTip="{loc:Str Key=Radio_CarriesAds}"/>
+                  </Grid>
+                  <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="#77FFFFFF"
+                             TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding Sign}" FontSize="10" CharacterSpacing="60"
+                           Foreground="#AA04C8FF" VerticalAlignment="Center"/>
+              </Grid>
+
+              <!-- Favourite and play sit together on the right. They are the two things a row does. If they were
+                   split across the row, a button would sit between the logo and the name it belongs to. The heart is
+                   the app's favourite mark everywhere else (albums): the red FavoriteMarkBrush when saved, and the dim
+                   outline when not. These are the same two faces that AlbumPanel uses. -->
+              <Button Grid.Column="2" Click="Favorite_Click" Tag="{Binding}"
+                      Background="Transparent" BorderThickness="0" Padding="0"
+                      Width="28" Height="26" MinWidth="0" MinHeight="0"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Radio_Save}"
+                      AutomationProperties.Name="{loc:Str Key=Radio_Save}">
+                <Grid>
+                  <TextBlock Text="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="13"
+                             Foreground="{StaticResource FavoriteMarkBrush}"
+                             Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                  <TextBlock Text="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="13"
+                             Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                             Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+                </Grid>
+              </Button>
+
+              <!-- A bigger key, not a bigger icon. The button is what is pressed, so it is worth enlarging. The play
+                   triangle keeps its normal size. -->
+              <Button Grid.Column="3" Click="Play_Click" Tag="{Binding}"
+                      Style="{StaticResource GlassPrimaryButtonStyle}"
+                      Width="45" Height="39" MinHeight="39" MinWidth="0" Padding="0"
+                      VerticalAlignment="Center" AutomationProperties.Name="{Binding PlayName}">
+                <FontIcon Glyph="{Binding PlayGlyph}" FontFamily="{StaticResource Fa}" FontSize="11"/>
+              </Button>
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+
+      <!-- The reason the list is empty, when it is: nothing matched, or nothing is saved. It is only set while the
+           list is empty, so it never sits on top of rows. A failure is NOT shown here. If the directory stops
+           answering, the saved stations stay listed, so the failure is shown in the pane's status band instead. -->
+      <TextBlock Text="{Binding EmptyNote}" Visibility="{Binding HasEmptyNote, Converter={StaticResource BoolToVisible}}"
+                 FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                 Margin="28,26,28,0" VerticalAlignment="Top" HorizontalAlignment="Center"
+                 IsHitTestVisible="False"/>
+
+      <!-- Waiting on the directory. The app's own mark is used, not the system ring: a record turning, drawn in the
+           pane's own glass. It shows and hides by itself through Spinning. So there is no second binding that could
+           leave it showing over a list that has already arrived. -->
+      <ctl:RecordSpinner Spinning="{Binding IsBusy}" Width="46" Height="46"
+                        VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+    </Grid>
+  </Grid>
+</UserControl>

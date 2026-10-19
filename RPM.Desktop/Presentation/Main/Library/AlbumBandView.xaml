@@ -1,0 +1,330 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Library.AlbumBandView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.Library.Models"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <!-- One line inside an open band: a track (number, title, length; the playing line turns green)
+         or, on a multi-disc album, the divider that opens a disc. Both are in one template, so the two
+         columns stay plain ItemsControls. -->
+    <DataTemplate x:Key="TrackTemplate" x:DataType="model:AlbumTrackItem">
+      <Grid>
+        <!-- Disc divider: a hairline with the disc's caption over it.
+             Not a button, because there is nothing to play. -->
+        <StackPanel Spacing="5" Margin="0,10,0,4"
+                    Visibility="{Binding IsDiscHeader, Converter={StaticResource BoolToVisible}}">
+          <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" FontWeight="SemiBold" Foreground="#99FFFFFF"
+                     TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          <Rectangle Height="1" Fill="#26FFFFFF"/>
+        </StackPanel>
+
+        <!-- The line that opens a work. A classical record is a list of works, each with its movements
+             under it. The piece is named once, with its composer and its length, and its movements sit
+             indented below. There is no rule under it, unlike a disc divider: a work is a group inside
+             the record, not a break in it. -->
+        <Grid Margin="6,9,6,3" ColumnSpacing="10"
+              Visibility="{Binding IsWorkHeader, Converter={StaticResource BoolToVisible}}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0" Spacing="1">
+            <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="12.5" FontWeight="SemiBold" Foreground="#EEFFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#88FFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"
+                       Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+          </StackPanel>
+          <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                     VerticalAlignment="Center"/>
+        </Grid>
+
+        <Button HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
+                Background="Transparent" BorderThickness="0" Padding="6,3" MinHeight="0"
+                Click="Track_Click" ContextRequested="Track_ContextRequested" Tag="{Binding}"
+                PointerEntered="Track_PointerEntered" PointerExited="Track_PointerExited"
+                Visibility="{Binding IsTrack, Converter={StaticResource BoolToVisible}}">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+          </Button.Resources>
+          <Grid ColumnSpacing="8" Margin="{Binding Indent}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="22"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+              <!-- The heart's own column. It is always held, whether or not a heart is in it, so a mark
+                   that appears under the pointer does not push the lengths along as the pointer moves
+                   down the list. -->
+              <ColumnDefinition Width="18"/>
+            </Grid.ColumnDefinitions>
+            <!-- The heart has a top and bottom margin of -4. That keeps its layout height (10) level
+                 with the text, so the line does not grow by a pixel or two when the heart appears on
+                 hover. It still draws and takes clicks at its full 18. -->
+            <TextBlock Grid.Column="0" Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                       Visibility="{Binding NumberInColumn}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            <!-- Playing row: the text keeps its colour. A three-bar equaliser in the SAME colour sits in
+                 front of it, so "now playing" shows without recolouring the title. -->
+            <!-- The badge belongs to the NAME, so it sits in the row directly behind it. In its own
+                 column it would sit against the duration on the far side of the row and read as another
+                 field, not as a mark on the title. TrimRow is used, not a horizontal StackPanel, so a
+                 long title ends in an ellipsis instead of being cut mid-letter. -->
+            <StackPanel Grid.Column="{Binding TitleColumn}" Grid.ColumnSpan="{Binding TitleSpan}"
+                        Spacing="1" VerticalAlignment="Center">
+              <ctl:TrimRow Spacing="6">
+                <!-- A piece's number sits in front of its name, not in the number column. The digit then
+                     starts on the work's own left edge, with a gap after it. -->
+                <TextBlock Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                           Visibility="{Binding NumberInline}" Margin="0,0,2,0"
+                           VerticalAlignment="Center"/>
+                <!-- No nudge: the mark has its own baseline offset, so centring it here is enough. -->
+                <ctl:PlayingBars Active="{Binding IsPlaying}" Foreground="#EEFFFFFF" VerticalAlignment="Center"/>
+                <!-- The track's own cloud badge, in the SAME slot the equaliser takes. A line that is
+                     playing shows the bars and nothing else. It is shown only where the record disagrees
+                     with itself. An album that is fully uploaded says so once, on its tile. -->
+                <ctl:CloudBadge Badge="{Binding CloudBadge}" Pulse="{Binding CloudPulse}"
+                                Visibility="{Binding ShowCloudBadge, Converter={StaticResource BoolToVisible}}"/>
+                <!-- Through ui:AsideInk: a live record repeats its venue on every line, and the song names
+                     are what the reader scans down the list. A featuring credit is not a note about the
+                     name. It says who is on the recording, so it keeps the name's own ink. -->
+                <TextBlock ui:AsideInk.Line="{Binding Title}" FontSize="{Binding TitleSize}" Foreground="#EEFFFFFF"
+                           FontWeight="{Binding TitleWeight}" ctl:TrimRow.Shrinks="True"
+                           TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                <!-- 13 on a track line, 15 on the band's heading. -->
+                <ctl:ExplicitBadge Width="13" Height="13"
+                                   Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                   ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+              </ctl:TrimRow>
+              <!-- Who wrote it. It is shown under a piece that is a work in its own right, the same second
+                   line a work heading has, because the line is the same kind of thing. -->
+              <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#88FFFFFF"
+                         TextTrimming="CharacterEllipsis" MaxLines="1"
+                         Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+            </StackPanel>
+            <TextBlock Grid.Column="2" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                       VerticalAlignment="Center"/>
+            <Button Grid.Column="3" Click="TrackFavorite_Click" Tag="{Binding}"
+                    Background="Transparent" BorderThickness="0" CornerRadius="4"
+                    Width="18" Height="18" MinWidth="0" MinHeight="0" Padding="0" Margin="0,-4"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ShowHeart, Converter={StaticResource BoolToVisible}}"
+                    ToolTipService.ToolTip="{loc:Str Key=Track_Favorite}"
+                    AutomationProperties.Name="{loc:Str Key=Track_Favorite}">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              </Button.Resources>
+              <Grid>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="11"
+                          Foreground="{StaticResource FavoriteMarkBrush}"
+                          Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="11"
+                          Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                          Visibility="{Binding IsNotFavorite, Converter={StaticResource BoolToVisible}}"/>
+              </Grid>
+            </Button>
+          </Grid>
+        </Button>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- The whole drawer hangs off one band. The DataContext is set here, not on the control. Everything
+       below is written as {Binding} against an AlbumBand, so this line is the only place that knows the
+       drawer is a UserControl. -->
+  <!-- The drawer stands on the record's own sleeve, the way the album page does. The colour is taken
+       from the sleeve, the sleeve is blurred over it, and a black veil inside the blur takes back the
+       exposure. SleeveGround does the reading, so the drawer and the page cannot drift apart.
+
+       The drawer opens on the app's own card plate: the frosted white that the visualizer cards, the
+       reviews and the comments all stand on (RpmCardPlateBrush). The record's ground is not ready on the
+       first frame, so the plate is shown meanwhile. It is what an empty box in this window looks like,
+       not a guess at the album colour that changes a moment later. The sleeve's ground is a layer over
+       it, and it fades in on GroundOn when the read finishes. -->
+  <Border x:Name="BandPlate" CornerRadius="8" Background="{StaticResource RpmCardPlateBrush}"
+          DataContext="{x:Bind Band, Mode=OneWay}">
+    <Grid>
+      <!-- Everything the sleeve makes, on one opacity: the colour, the blur over it, and the veil inside
+           the blur. It has its own CornerRadius, because a parent's radius does not clip what is drawn
+           inside it. -->
+      <Grid Opacity="{Binding GroundOn}" IsHitTestVisible="False">
+        <Border CornerRadius="8" Background="{Binding Ground}"/>
+
+        <!-- A Border with the blur as its BACKGROUND, not an Image. A background is painted inside the
+             element's own bounds, so a square sleeve in a wide drawer is cropped by the drawer and cannot
+             paint outside it. -->
+        <Border CornerRadius="8" Opacity="{Binding WashStrength}">
+          <Border.Background>
+            <ImageBrush ImageSource="{Binding Wash}" Stretch="UniformToFill"/>
+          </Border.Background>
+
+          <!-- Inside the wash, not over it, so a record with no cover gets neither. How strong it is
+               depends on the picture: see CoverColor.Veil. -->
+          <Border CornerRadius="8" Background="#FF000000" Opacity="{Binding Veil}"/>
+        </Border>
+      </Grid>
+
+      <!-- The cover size is dynamic (BandContent_SizeChanged). It scales with the drawer's width and
+           never grows taller than the tracklist. So it is not a tall block over a short album, and not
+           a giant on a narrow window. Below a minimum width it hides completely and the list takes the
+           full width. There is no ColumnSpacing: the gap is the cover's left margin, so the gap goes
+           away when the cover is hidden. -->
+      <Grid x:Name="BandContent" Padding="20,18" SizeChanged="BandContent_SizeChanged">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT: header + tracklist -->
+        <Grid x:Name="BandLeft" Grid.Column="0" RowSpacing="14">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <StackPanel Grid.Row="0" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <TextBlock ui:AsideInk.Line="{Binding Title}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFFFF"
+                           TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                <!-- After the name, not before it. The heading is the record's own line, and the E is a
+                     note about it, so the title still starts where every other heading does. -->
+                <ctl:ExplicitBadge Width="15" Height="15"
+                                   Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                   ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+              </StackPanel>
+              <Button Click="PlayAll_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+                      MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_PlayAll}"
+                      AutomationProperties.Name="{loc:Str Key=AlbumGrid_PlayAll}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                </Button.Resources>
+                <TextBlock Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="13" Foreground="#FFFFFFFF"/>
+              </Button>
+              <Button Click="Shuffle_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+                      MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_Shuffle}"
+                      AutomationProperties.Name="{loc:Str Key=AlbumGrid_Shuffle}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                </Button.Resources>
+                <TextBlock Text="&#xf074;" FontFamily="{StaticResource Fa}" FontSize="13" Foreground="#FFFFFFFF"/>
+              </Button>
+              <!-- A third button in the same set: play the record as it stands, play it shuffled, or hand
+                   it to the DJ. The headphones icon is the one the deck and the menus already use for a set. -->
+              <Button Click="Dj_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+                      MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Dj_Start}"
+                      AutomationProperties.Name="{loc:Str Key=Dj_Start}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                </Button.Resources>
+                <TextBlock Text="&#xf025;" FontFamily="{StaticResource Fa}" FontSize="13" Foreground="#FFFFFFFF"/>
+              </Button>
+            </StackPanel>
+            <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#B8FFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          </StackPanel>
+
+          <Grid Grid.Row="1" ColumnSpacing="28" VerticalAlignment="Top"
+                Visibility="{Binding Ready, Converter={StaticResource BoolToVisible}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <!-- Two columns while the drawer is wide enough. Below that, the left column spans both and
+                 the right one is hidden, so the list stacks (see SetColumns). -->
+            <ItemsControl x:Name="BandTrackLeft" IsTabStop="False" Grid.Column="0" ItemsSource="{Binding Left}"
+                          ItemTemplate="{StaticResource TrackTemplate}"/>
+            <ItemsControl x:Name="BandTrackRight" IsTabStop="False" Grid.Column="1" ItemsSource="{Binding Right}"
+                          ItemTemplate="{StaticResource TrackTemplate}"/>
+          </Grid>
+
+          <ctl:RecordSpinner Grid.Row="1" Spinning="{Binding Loading}" Width="28" Height="28"
+                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,4,0,0"/>
+
+        </Grid>
+
+        <!-- RIGHT: the cover, with the facts about the record that sit under it: where it is kept, and
+             whether it is a favourite. These are the same two marks the album list puts under its
+             sleeve. They are read the same way and clicked for the same thing.
+             The COLUMN carries the 20px gap and the show/hide (BandContent_SizeChanged collapses it as a
+             whole). The cover inside it carries the size. A drawer too narrow for a cover has no room for
+             its marks either, so neither may leave a gap behind. -->
+        <StackPanel x:Name="BandArtColumn" Grid.Column="1" Margin="20,0,0,0" Spacing="8"
+                    VerticalAlignment="Top">
+          <!-- Width/Height set in code (BandContent_SizeChanged). -->
+          <Grid x:Name="BandArt" Width="196" Height="196">
+            <Border CornerRadius="8" Background="#33000000"/>
+            <Border CornerRadius="8">
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                     Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+            </Border>
+            <!-- No cover: a made picture is shown instead of a music note. It is a soft shape, blurred
+                 until it is not recognisable as anything, in colours that the palette takes from the
+                 record's own folder (see SoftFigure). HasCover still says the record has no artwork, so
+                 everything that depends on that is unchanged. This is a placeholder, not a cover. -->
+            <Border CornerRadius="8" Background="{Binding Card.FigureSeed, Converter={StaticResource SleeveFigure}}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <!-- The disc goes over the figure. The figure on its own is a plain square that says nothing.
+                 The disc says at a glance that this sleeve is made, not photographed. It is the same disc
+                 the wall's tiles and the album page use in the same state. Over a picture, rather than over
+                 a bare plate, it reads as a mark on the sleeve and not as the whole of it, which is why it
+                 is drawn this faint. -->
+            <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="40" Foreground="#4DFFFFFF"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <ctl:CloudBadge GlyphSize="12" Badge="{Binding Card.CloudBadge}" Pulse="{Binding Card.CloudPulse}"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding Card.ShowCloudBadge, Converter={StaticResource BoolToVisible}}"/>
+            <!-- The heart marks the record as a favourite. It is filled and red when it is one, and an
+                 empty outline when it is not. Clicking it marks the record. It is 13 against the cloud
+                 badge's 12, chosen by eye, because a heart is the narrower letterform. -->
+            <!-- Not shown on another person's record. A favourite is a row in this library, and a
+                 borrowed record has none, so the mark cannot be written. The album menu leaves the entry
+                 out for the same reason. -->
+            <Button Click="BandFavorite_Click" Tag="{Binding}"
+                    Background="Transparent" BorderThickness="0" CornerRadius="4"
+                    Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding CanMark, Converter={StaticResource BoolToVisible}}"
+                    ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Favorite}"
+                    AutomationProperties.Name="{loc:Str Key=AlbumMenu_Favorite}">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              </Button.Resources>
+              <Grid>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="13"
+                          Foreground="{StaticResource FavoriteMarkBrush}"
+                          Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="13"
+                          Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                          Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              </Grid>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

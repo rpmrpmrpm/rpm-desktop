@@ -1,0 +1,62 @@
+﻿<Page x:Class="RPM.Desktop.Presentation.Setup.WizardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:common="using:RPM.Desktop.Presentation.Common"
+      xmlns:steps="using:RPM.Desktop.Presentation.Setup.Steps"
+      xmlns:utu="using:Uno.Toolkit.UI"
+      Background="Transparent">
+
+  <!-- The setup wizard's host: the ground, the step showing, and the three dots.
+       The shell already gives this page the whole window (ArtBandRow collapses to nought, and there is no
+       deck), so there is no chrome to hide here.
+
+       THE STEPS ARE CONTROLS, NOT FRAME PAGES. This is a deliberate difference from NavigationService's
+       model. The drifting room and the record are continuous across the three steps. A Frame navigation
+       rebuilds the page, so the room would restart its drift and the record would jump back to its resting
+       angle at every step. A Frame gives a back stack, but this wizard's Back is one field on the host. -->
+
+  <Grid>
+
+    <!-- The ground. Its palette is the app's own ink, not a record's, because no record exists yet. This is
+         the one screen in the app that runs before the collection exists. Drift is switched off in the
+         code-behind while the import press runs, because that press needs the processor cores. -->
+    <common:CardRoom x:Name="Room" Live="True" Shown="True"/>
+
+    <!-- Over it, so the text stays readable whatever the drift is doing underneath. -->
+    <Rectangle IsHitTestVisible="False">
+      <Rectangle.Fill>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Offset="0.0" Color="#57080C12"/>
+          <GradientStop Offset="1.0" Color="#C7080C12"/>
+        </LinearGradientBrush>
+      </Rectangle.Fill>
+    </Rectangle>
+
+    <Grid Margin="0,0,0,0" utu:SafeArea.Insets="VisibleBounds">
+
+      <!-- One of the three is visible. All three are built up front, because each is a few dozen
+           elements. Building the import step when Next is pressed would put its first layout inside the
+           transition. -->
+      <steps:WizardFolderStep x:Name="FolderStep"/>
+      <steps:WizardImportStep x:Name="ImportStep" Visibility="Collapsed"/>
+      <steps:WizardDoneStep   x:Name="DoneStep"   Visibility="Collapsed"/>
+
+      <!-- The three dots are owned by the host, and they sit in one place on every step.
+
+           The dots share a line with each step's action. Each step draws its buttons in a footer of the
+           same height, aligned to the same bottom edge. So the dots and the action sit on one line
+           across the foot of the window. The height is stored once, as WizardFooterHeight in
+           Generic.xaml, because four elements in three files must agree on it. -->
+      <Grid Height="{StaticResource WizardFooterHeight}" VerticalAlignment="Bottom"
+            IsHitTestVisible="False">
+        <StackPanel x:Name="Dots" Orientation="Horizontal" Spacing="9"
+                    HorizontalAlignment="Left" VerticalAlignment="Center" Margin="52,0,0,0">
+          <Ellipse x:Name="Dot1" Width="9" Height="9" Fill="{StaticResource RpmCyanBrush}"/>
+          <Ellipse x:Name="Dot2" Width="9" Height="9" Fill="#38FFFFFF"/>
+          <Ellipse x:Name="Dot3" Width="9" Height="9" Fill="#38FFFFFF"/>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Grid>
+</Page>

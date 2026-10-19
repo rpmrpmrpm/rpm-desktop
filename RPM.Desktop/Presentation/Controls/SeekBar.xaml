@@ -1,0 +1,33 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.SeekBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+  <!-- The slim now-playing seek bar. The unplayed part of the track uses the stock slider's own fill
+       (SliderTrackFill), so it looks like the size and volume sliders. The played part and the vertical
+       knob are white. The geometry is set in code (Layout). The marks follow a live fraction from 0 to 1,
+       and the knob's bottom lines up with the foot of the album art. The root holds the pointer gestures,
+       so the whole strip can be grabbed, not just the line. -->
+  <Grid x:Name="Root" Height="14" Background="Transparent"
+        PointerPressed="Root_PointerPressed" PointerMoved="Root_PointerMoved"
+        PointerReleased="Root_PointerReleased" PointerCaptureLost="Root_PointerReleased"
+        PointerEntered="Root_PointerEntered" PointerExited="Root_PointerExited">
+
+    <!-- The remaining time, lifted up off the line so it sits beside the album name, at the top right. The
+         host sets its right inset (SetRemainInset), so it clears the SHADOW of the spinning record at the
+         height where the time sits. The disc is wider up here than at the seek line, and both scale with
+         the band. It overflows the Root upward, because a Grid does not clip. -->
+    <TextBlock x:Name="RemainText" HorizontalAlignment="Right" VerticalAlignment="Top"
+               Margin="0,-24,16,0" FontSize="12" Foreground="#99FFFFFF"/>
+
+    <!-- The track and the knob. The width sets the fraction maths. The height puts the foot of the knob on
+         the foot of the art. -->
+    <Canvas x:Name="Bar" VerticalAlignment="Bottom" Height="14" SizeChanged="Bar_SizeChanged">
+      <Rectangle x:Name="TrackLine" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{ThemeResource SliderTrackFill}"/>
+      <Rectangle x:Name="ElapsedLine" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="#FFFFFFFF"/>
+      <Rectangle x:Name="Knob" Width="3" Height="14" RadiusX="1.5" RadiusY="1.5" Fill="#FFFFFFFF"/>
+    </Canvas>
+  </Grid>
+</UserControl>

@@ -1,0 +1,134 @@
+<Page x:Class="RPM.Desktop.Presentation.Settings.SoundSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      Background="Transparent"
+      mc:Ignorable="d">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+    <StackPanel Spacing="24" Margin="20,0,20,0">
+      <StackPanel.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+          </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+      </StackPanel.Resources>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="{loc:Str Key=Settings_Sound}"
+                   FontSize="22" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="{loc:Str Key=Settings_SoundIntro}"
+                   FontSize="13" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf028;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Output}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_OutputHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+
+          <ComboBox x:Name="DeviceCombo"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,4,0,0"
+                    SelectionChanged="OnDeviceSelected"/>
+
+          <!-- Shown only while the chosen speakers are not connected to this machine. The choice still
+               stands, and the music plays on the system's output until they are back. -->
+          <TextBlock x:Name="MissingText"
+                     Text="{loc:Str Key=Settings_OutputMissing}"
+                     FontSize="12" Foreground="#CCFFC46B" TextWrapping="Wrap"
+                     Visibility="Collapsed"/>
+
+          <TextBlock x:Name="CurrentText"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf24e;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Normalize}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_NormalizeHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+
+          <ComboBox x:Name="NormalizeCombo"
+                    HorizontalAlignment="Stretch"
+                    SelectionChanged="OnNormalizeModeSelected"/>
+
+          <!-- The classical exception. Under the mode rather than beside it: it is a rule about which
+               records the mode reaches, and it means nothing when the mode is off. -->
+          <StackPanel x:Name="ClassicalRow" Spacing="4">
+            <CheckBox x:Name="ClassicalCheck"
+                      Content="{loc:Str Key=Settings_NormalizeClassical}"
+                      Click="OnNormalizeClassicalToggled"/>
+            <TextBlock Text="{loc:Str Key=Settings_NormalizeClassicalHint}"
+                       FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"
+                       Margin="28,0,0,0"/>
+          </StackPanel>
+
+          <!-- How far the measuring pass has got. Shown only while there is something left to do. A
+               fully measured shelf has nothing to report. -->
+          <TextBlock x:Name="MeasuringText"
+                     FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"
+                     Visibility="Collapsed"/>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf1de;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Eq}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_EqHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+
+          <!-- Whose curve this is. The sliders move on their own when the music changes speakers.
+               Without this line, that would look like the app forgetting the settings. -->
+          <TextBlock x:Name="CurveForText" FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <ToggleSwitch x:Name="EqSwitch" Grid.Column="0"
+                          Header="{loc:Str Key=Settings_EqOn}"
+                          Toggled="OnEqToggled"
+                          OffContent="" OnContent=""
+                          VerticalAlignment="Center"/>
+
+            <ComboBox x:Name="PresetCombo" Grid.Column="1"
+                      PlaceholderText="{loc:Str Key=Settings_EqPreset}"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                      SelectionChanged="OnPresetSelected"/>
+
+            <Button Grid.Column="2" Content="{loc:Str Key=Settings_EqReset}" Click="OnEqReset"
+                    Style="{StaticResource GlassButtonStyle}" VerticalAlignment="Center"/>
+          </Grid>
+
+          <!-- The pre-amp, then the ten bands, one column each, in the player's own order. Built in
+               code. Eleven copies of the same slider written by hand would be eleven places for them to
+               drift apart. -->
+          <Grid x:Name="BandGrid" ColumnSpacing="4"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Page>

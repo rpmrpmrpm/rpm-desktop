@@ -32,6 +32,17 @@ dotnet run --project RPM.Desktop/RPM.Desktop.csproj -f net10.0-desktop
 
 The first build downloads the analysis models and tools (about 200 MB).
 
+Some tests read files that all apps share, such as `strings.json`. Clone the
+[`rpm`](https://github.com/rpmrpmrpm/rpm) repo next to this one for them:
+
+```
+git clone https://github.com/rpmrpmrpm/rpm
+git clone https://github.com/rpmrpmrpm/rpm-desktop
+```
+
+The icon font (Font Awesome 5 Pro) is licensed and cannot be published, so it is not in the repo.
+Without it the app works and some icons are blank; the build says so.
+
 Run the tests:
 
 ```

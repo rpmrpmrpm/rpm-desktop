@@ -1,0 +1,107 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.LeftPane.LeftRail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+  </UserControl.Resources>
+
+  <!-- Function rail: a frosted vertical stack of the pane's views, in the style of the left buttons
+       in Windows Media Player 7. The active view has an azure wash (SetActive, called by the pane).
+       The collapse button sits at the foot. Playlists is not here: it is a way of reading the
+       collection, so it is on the library's own rail on the other side of the window. -->
+  <Border Width="82" Background="#22000000"
+          BorderBrush="#18FFFFFF" BorderThickness="0,0,1,0" CornerRadius="7,0,0,7">
+    <Border.Resources>
+      <!-- Each button fills the rail's full width, edge to edge. A tab is a segment of the rail, so the
+           selected wash runs into the pane's edge and the label has the whole width. The buttons are
+           square for the same reason. The only round corner is the one the rail turns at the top, which
+           is set on the first button. -->
+      <Style x:Key="RailButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <!-- The height matches the pane header: 12 of margin, the 36-high title box (RpmPaneHeadingBox)
+             and the 23 for the reserved subtitle strip (RpmPaneSubheading, 15 high with -4 above and 12
+             below). So the bottom of the first button lines up with the line where every pane starts its
+             content, and the rail looks like part of the same grid. -->
+        <Setter Property="Height" Value="71"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="Foreground" Value="#CCFFFFFF"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+      </Style>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+    </Border.Resources>
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- No inset: the first tab starts on the rail's top edge, so a selected first tab closes the
+           corner. -->
+      <StackPanel Grid.Row="0" Spacing="0" Margin="0">
+        <!-- The only rounded corner in the stack. The rail is rounded at its top left, so the first tab
+             must be rounded there too, or its wash would be square at that corner. -->
+        <Button x:Name="RailTrackInfo" Style="{StaticResource RailButton}" CornerRadius="7,0,0,0"
+                Click="RailTrackInfo_Click">
+          <StackPanel Spacing="5">
+            <!-- circle-info: the view shows information about the track, not the track itself. A music
+                 note would suggest the music, and every other button here already does. -->
+            <FontIcon Glyph="&#xf05a;" FontFamily="{StaticResource Fa}" FontSize="16"/>
+            <TextBlock Text="{loc:Str Key=LeftNav_TrackInfo}" FontSize="10" TextAlignment="Center"
+                       TextWrapping="Wrap" LineHeight="12"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="RailViz" Style="{StaticResource RailButton}" Click="RailViz_Click">
+          <StackPanel Spacing="5">
+            <!-- waveform-path: a running wave line. Sliders would read as settings, which this view is
+                 not. -->
+            <FontIcon Glyph="&#xf8f2;" FontFamily="{StaticResource Fa}" FontSize="16"/>
+            <TextBlock Text="{loc:Str Key=LeftNav_Visualization}" FontSize="10" TextAlignment="Center"
+                       TextWrapping="Wrap" LineHeight="12"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="RailRadio" Style="{StaticResource RailButton}" Click="RailRadio_Click">
+          <StackPanel Spacing="5">
+            <FontIcon Glyph="&#xf8d7;" FontFamily="{StaticResource Fa}" FontSize="16"/>
+            <TextBlock Text="{loc:Str Key=LeftNav_Radio}" FontSize="10" TextAlignment="Center"
+                       TextWrapping="Wrap" LineHeight="12"/>
+          </StackPanel>
+        </Button>
+        <!-- Import is at the foot of the rail. It is where music comes in, not one of the ways to listen
+             to what is already in the library. -->
+        <Button x:Name="RailImport" Style="{StaticResource RailButton}" Click="RailImport_Click">
+          <StackPanel Spacing="5">
+            <FontIcon Glyph="&#xf310;" FontFamily="{StaticResource Fa}" FontSize="16"/>
+            <TextBlock Text="{loc:Str Key=Queue_Title}" FontSize="10" TextAlignment="Center"
+                       TextWrapping="Wrap" LineHeight="12"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+
+      <!-- The fold button. The chevron points where pressing it moves the pane: left, into the pane,
+           while the pane is shown. Once folded it turns right, which is the only sign left on the rail
+           that the view can be brought back. It turns instead of changing to a different chevron,
+           because both states are one control, and a spin shows that. -->
+      <Button x:Name="FoldButton" Grid.Row="1" Click="Close_Click" Background="Transparent"
+              BorderThickness="0" Width="34" Height="30" MinWidth="0" Padding="0"
+              Margin="0,6,0,8" HorizontalAlignment="Center"
+              ToolTipService.ToolTip="{loc:Str Key=Playlists_Close}"
+              AutomationProperties.Name="{loc:Str Key=Playlists_Close}">
+        <TextBlock x:Name="FoldChevron" Text="&#xf053;" FontFamily="{StaticResource Fa}" FontSize="12"
+                   Foreground="#AAFFFFFF" RenderTransformOrigin="0.5,0.5">
+          <TextBlock.RenderTransform>
+            <RotateTransform x:Name="FoldSpin"/>
+          </TextBlock.RenderTransform>
+        </TextBlock>
+      </Button>
+    </Grid>
+  </Border>
+</UserControl>

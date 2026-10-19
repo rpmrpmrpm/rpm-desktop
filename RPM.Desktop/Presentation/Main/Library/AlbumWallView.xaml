@@ -1,0 +1,275 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Library.AlbumWallView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lib="using:RPM.Desktop.Presentation.Main.Library"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.Library.Models"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             Background="{StaticResource GridSurfaceBrush}">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <DataTemplate x:Key="CardTemplate" x:DataType="model:AlbumCard">
+      <!-- No padding above the art. The space between rows comes from the wall layout's Spacing, so the top
+           row sits flush under the heading. -->
+      <Button Width="{Binding Metrics.Stride}" Padding="8,0,8,10" Background="Transparent" BorderThickness="0"
+              HorizontalContentAlignment="Stretch" Click="Card_Click" ContextRequested="Card_ContextRequested"
+              DataContextChanged="Card_DataContextChanged" Tag="{Binding}">
+        <!-- No hover or press background on a cover. The card is only its art. The one state it shows is
+             the open ring below. -->
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+        </Button.Resources>
+        <StackPanel Spacing="7">
+          <Grid Width="{Binding Metrics.Art}" Height="{Binding Metrics.Art}" HorizontalAlignment="Center"
+                PointerEntered="Art_PointerEntered" PointerExited="Art_PointerExited">
+            <!-- Two layers. The wall shows a small picture as soon as a tile exists, and a large one a
+                 moment later. Writing the large one over the small one in one assignment causes a visible
+                 pop. So the sharp picture is its OWN layer over the resident one, and it fades in from
+                 nothing. The small picture stays where it is, underneath. A viewer then sees one cover
+                 coming into focus, not two covers changing places. -->
+            <!-- The plate behind the pictures is this border's own Background, not a second border
+                 underneath. Both are the same rectangle with the same corner radius. A screenful holds
+                 about seventy cards, and each element is measured again whenever its card changes size. So
+                 one element per card is the cheaper choice. -->
+            <Border CornerRadius="6" Background="#22000000"
+                    BorderThickness="1" BorderBrush="#22FFFFFF" IsHitTestVisible="False">
+              <Grid>
+                <!-- No cover: a made picture is drawn instead of an empty plate. It is the same soft form
+                     that the album list, the drawer and the artist page draw for a record with no tagged
+                     art. The folder is the same, so a record looks the same wherever it is met. See
+                     SoftFigure.
+
+                     Bound to FigureSeed, not to the folder. The seed stays null until the loader has said
+                     that this record has no artwork anywhere. So the picture is made only for records that
+                     have no artwork. The Visibility below takes it away when a cover arrives. It does not
+                     decide whether the picture is drawn.
+
+                     It is inside the clipping border and UNDER both pictures. That keeps it out of the way
+                     of a cover that arrives late. The sharp layer fades in on its own clock, and a figure
+                     drawn over the pictures would have to be removed in time to let the cover through. -->
+                <Border Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+                <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                       Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+                <Image Source="{Binding Sharp}" Stretch="UniformToFill" Opacity="0"
+                       DataContextChanged="SharpCover_DataContextChanged"/>
+              </Grid>
+            </Border>
+            <!-- The same hairline as the visualizer cards and the radio dial (#22FFFFFF, 1 px). It is a lit
+                 glass edge that gives the square a rim of its own. So a dark or full-bleed sleeve still
+                 ends somewhere, and does not blend into the panel behind it. It is drawn over the art, not
+                 under it. A border under the art would be hidden by the picture that fills the clipping
+                 border. -->
+            <Border CornerRadius="6" BorderThickness="1" BorderBrush="#22FFFFFF" IsHitTestVisible="False"/>
+            <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="34" Foreground="#3AFFFFFF"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <!-- The open card wears a ring in its own drawer's colour. The drawer opens below its row. -->
+            <Border CornerRadius="6" BorderThickness="2" BorderBrush="{Binding Ring}"
+                    Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}"/>
+
+            <!-- The way into the record's own page. It sits on the art, bottom right, and shows only while
+                 the pointer is on the art. A tile is a picture first. A key drawn on every tile all the
+                 time would make a wall of keys. Pressing a tile opens its drawer, which is the quick look.
+                 This key is the long one.
+
+                 The style is the library's own chrome, a little larger. It is the slot and key that the
+                 sort picker uses (see MainPage's SortSlot). That one is 32 x 26, and this one is 38 x 30,
+                 because it sits on a photograph rather than in a toolbar. The glyph is the one the album
+                 menu uses for the same command. -->
+            <!-- Built on the first hover, not with the card (x:Load). This is a border around a button,
+                 which is a template of its own. It is about five elements on a card that has two dozen. A
+                 screenful of seventy cards draws it on at most one card. Asking for it by name is what
+                 builds it. So only the SHOW path in ShowOpenKey may do that. The hide path goes through the
+                 wall's own record of which key is up. -->
+            <Border x:Name="OpenSlot" x:Load="False"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,8,8" CornerRadius="7" BorderBrush="#22FFFFFF" BorderThickness="1"
+                    Background="{StaticResource OnGlassBrush}" Opacity="0" IsHitTestVisible="False">
+              <Button Click="OpenPage_Click" PointerPressed="OpenPage_PointerPressed" Tag="{Binding}"
+                      Background="Transparent" BorderThickness="0" CornerRadius="6"
+                      Width="38" Height="30" MinWidth="0" MinHeight="0" Padding="0"
+                      FontFamily="{StaticResource Fa}" FontSize="14" Content="&#xf51f;"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_AlbumPage}"
+                      AutomationProperties.Name="{loc:Str Key=AlbumMenu_AlbumPage}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                </Button.Resources>
+              </Button>
+            </Border>
+
+          </Grid>
+
+          <!-- The title and its badge, and nothing else. The record's cloud state is shown in its drawer
+               now, under the sleeve and beside its heart. The album list shows the same two things there.
+               The mark belongs to the record, not to the wall. -->
+          <!-- Both lines below keep their height when they have no text. A TextBlock with no text measures
+               as nothing. So a record with no artist would be a shorter card. A row is as tall as its
+               tallest card, and rows of different heights are the one thing a virtualizing StackLayout
+               cannot place correctly. It estimates the rows it has not realized from the ones it has. Each
+               odd row corrects that estimate and shifts everything below it. The result is the wall jumping
+               a line while it is scrolled. The visualizer's wall uses the same rule (see
+               PegasusChrome.xaml). -->
+          <!-- The name and its badge are centred as ONE group. If the badge had its own slot at the card's
+               right edge, the title would be centred across the full width. Then a stripe of empty card
+               would separate a short name from its own mark. On a large tile that gap is wide enough for
+               the two to look like separate marks.
+
+               The cost is real. When a badge is shown, the group's centre is the card's centre. So the
+               TITLE sits half a badge-width to the left of the card's centre line. A record with no badge
+               is not affected, and most records have none.
+
+               The title's own cap stops a long name from pushing the E off the card. The cap comes from the
+               metrics, because it changes with the size slider (see TitleRoom). A StackPanel measures its
+               children with unlimited width. So without that cap, nothing would ever be trimmed. -->
+          <Grid MinHeight="16">
+            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+              <!-- The name WITHOUT its edition. A tile has only two short lines under the sleeve, and the
+                   pressing is the least important of them. The drawer this tile opens shows the pressing,
+                   faded and in its place, where there is room for it. -->
+              <TextBlock Text="{Binding TitleName, Converter={StaticResource Censor}}" FontSize="12" FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                         TextTrimming="CharacterEllipsis" MaxLines="1"
+                         MaxWidth="{Binding Metrics.TitleRoom}" VerticalAlignment="Center"/>
+              <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Center"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#99FFFFFF" MinHeight="15"
+                     TextTrimming="CharacterEllipsis" MaxLines="1" TextAlignment="Center"/>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
+    <!-- The drawer that opens under a row: the tint from the cover, the large cover on the right, and the
+         tracks in two columns. -->
+    <DataTemplate x:Key="BandTemplate" x:DataType="model:AlbumBand">
+      <!-- The drawer syncs its unfold and snap from the band model on BOTH realize AND rebind.
+           DataContextChanged catches a re-seat into a RECYCLED container. Loaded does not fire again for
+           that, so without it the row stays reserved but blank after a resize. See ApplyBandVisual and
+           BandConductor. -->
+      <Grid Margin="0,2,0,8" RenderTransformOrigin="0.5,0"
+            Loaded="BandRoot_Loaded" DataContextChanged="BandRoot_DataContextChanged">
+        <Grid.RenderTransform>
+          <ScaleTransform ScaleY="1"/>
+        </Grid.RenderTransform>
+        <!-- The pointer triangle sits over the owning card, in the drawer's own colour (PointerBrush). It
+             fades to nothing at its point, so it rises out of the wall instead of standing on it as a hard
+             arrow. Its base runs 2 px PAST the top of the drawer (into the Border with the 10 px margin,
+             which draws over it). So the join has no sub-pixel gap. The ramp reaches full colour at that
+             join, not at the bottom of the shape. See BandPointer.Ramp. -->
+        <Polygon Points="0,12 10,0 20,12" Fill="{Binding PointerBrush}" Width="20" Height="12"
+                 HorizontalAlignment="Left" VerticalAlignment="Top"
+                 Margin="{Binding PointerMargin}"/>
+
+        <!-- The left and right inset matches the card's own padding. So the drawer's edges line up with the
+             cover block above it, and do not overhang it.
+
+             The drawer is a control now (see AlbumBandView). The wall decides WHEN a record opens, where
+             the pointer sits, and what its ground is read from. The control decides what an open record
+             looks like. That is why an artist's page shows the same drawer and not a copy of it. Its hooks
+             are wired on realize, in ApplyBandVisual. -->
+        <lib:AlbumBandView x:Name="BandView" Band="{Binding}" Margin="8,10,8,0"/>
+      </Grid>
+    </DataTemplate>
+
+    <!-- One grid row: its cards, then the drawer below them when one is open. -->
+    <DataTemplate x:Key="RowTemplate" x:DataType="model:AlbumRow">
+      <StackPanel Spacing="0">
+        <!-- ItemsRepeater, NOT ItemsControl, for the row's cards. A reflow re-chunks which cards sit in
+             which row. An ItemsControl answers every per-slot replace by inflating a new card template.
+             That is about a hundred inflations per column-count change, which is visible jank at the end of
+             every pane glide and window resize. The repeater RECYCLES the card element and rebinds its
+             DataContext instead. Card_DataContextChanged already guards against recycling. -->
+        <ItemsRepeater ItemsSource="{Binding Cards, FallbackValue={StaticResource NoItems}}"
+                       ItemTemplate="{StaticResource CardTemplate}"
+                       HorizontalAlignment="Left">
+          <ItemsRepeater.Layout>
+            <StackLayout Orientation="Horizontal"/>
+          </ItemsRepeater.Layout>
+        </ItemsRepeater>
+        <!-- The drawer's slot. The DataContext is set to the band OUTRIGHT, not left to follow the Content.
+             A ContentControl with null Content does not clear the context it inherited. It hands the
+             template the ROW. BandTemplate's {Binding} would then try to put an AlbumRow into
+             AlbumBandView.Band, which is a typed property. It would report that once per closed row in the
+             log. Set here, a row with nothing open gives the template null, which is what it means.
+
+             The visibility test needs the row, so it is moved to a wrapper that still has the row. -->
+        <Grid Visibility="{Binding HasBand, Converter={StaticResource BoolToVisible}}">
+          <ContentControl DataContext="{Binding Band}" Content="{Binding}"
+                          ContentTemplate="{StaticResource BandTemplate}"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"/>
+        </Grid>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- No header of its own. The panel's heading (name over path) and the cover-size controls are in
+       MainPage, above BOTH library views. So the tracklist and the wall share one header. -->
+  <Grid>
+    <!-- BringIntoViewOnFocusChange is OFF. Cards and track lines are Buttons, so one of them usually holds
+         focus. When its element is recycled away during a scroll, focus recovery lands on another realized
+         element. The ScrollViewer would then scroll there, and the wall would jump on its own after the
+         user stops scrolling. Focus must never scroll this wall. Only clicks and drawers do.
+
+         Scroll anchoring is OFF. VerticalAnchorRatio defaults to NaN, which is off. When anchoring was on,
+         a pass that changed the extent with no anchor named put the reader at the TOP of the wall. For
+         example, the offset went from 1110 to 0 on a 45,000 pt wall when a drawer was detached. No clamp or
+         heal was involved. The one thing anchoring was needed for, a drawer changing height above the
+         reader, is now handled where the change is made. AlbumWallView.ReshapeHoldingReader moves the
+         offset by exactly as far as the reader's own row moves. It uses the same arithmetic that places the
+         row. -->
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                  BringIntoViewOnFocusChange="False"
+                  Padding="14,0,14,20" SizeChanged="Scroller_SizeChanged"
+                  ViewChanged="Scroller_ViewChanged">
+      <!-- Half a screen of rows on each side of the row being read. The repeater's own default is two
+           screens, which is FIVE screens of tiles held live. That default is written for rows that cost one
+           line of text. A row here can hold up to twenty covers, each an Image with a decoded bitmap behind
+           it. At the small end of the size slider, a wide window fits twenty-odd columns. Five screens of
+           those would realize the whole collection at once, and this wall exists to avoid that. Half a
+           screen still has the next row ready before it is scrolled to. -->
+      <ItemsRepeater x:Name="RowsRepeater" ItemTemplate="{StaticResource RowTemplate}"
+                     VerticalCacheLength="0.5">
+        <ItemsRepeater.Layout>
+          <!-- Not a StackLayout. This is the one thing about the wall worth reading before changing it. A
+               StackLayout estimates the length of the collection from the MEAN of the row heights it has
+               measured. Every row here is the same height except one: the record with its drawer open. That
+               row is about fifteen times taller than the others. So the mean is wrong, in whichever
+               direction the open row is or is not realized. For example, a nine-row wall was 4164 pt long
+               while the open row was on screen, and 1942 pt when it was not. A scroller cannot stand past
+               its own end, so the reader was pulled off row 2 and back to the top. AlbumWallLayout keeps
+               the two heights instead of a mean, and places every row by arithmetic. See its own comment.
+
+               Spacing is 14, not 6. The card gives up its 8 points of top padding, so the first row can sit
+               flush under the heading. The space between rows is held here instead. Spacing falls BETWEEN
+               rows, so the top of the wall has none of it. -->
+          <lib:AlbumWallLayout x:Name="RowsLayout" Spacing="14"/>
+        </ItemsRepeater.Layout>
+      </ItemsRepeater>
+    </ScrollViewer>
+
+    <!-- Empty state: no albums to show. The icon and the line are set from the code-behind
+         (ShelfEmptyHint), because only the feed knows which case applies. One case is a collection with
+         nothing in it. The other is a search that matched nothing. -->
+    <StackPanel x:Name="EmptyHint" Spacing="14" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+      <FontIcon x:Name="EmptyIcon" Glyph="&#xf87d;" FontFamily="{StaticResource Fa}" FontSize="42" Foreground="#55FFFFFF"/>
+      <TextBlock x:Name="EmptyText" Text="{loc:Str Key=Library_Empty}" FontSize="13" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,201 @@
+﻿<Page x:Class="RPM.Desktop.Presentation.Setup.LibraryProblemPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:common="using:RPM.Desktop.Presentation.Common"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      xmlns:utu="using:Uno.Toolkit.UI"
+      Background="Transparent">
+
+  <!-- The screen for a collection that is set up but will not open. There are three cases: a missing
+       folder, a database from a newer build, and a database that cannot be read. This page must not
+       send the user to the wizard's first step, because choosing a folder there overwrites the saved
+       folder.
+
+       It is built like the wizard because it takes the wizard's place: the same ground, the same mark
+       in the same corner, and the same footer line. It shows the reason, the folder it is about, what
+       to try, and the two ways out. -->
+
+  <Grid>
+
+    <!-- The same ground the wizard uses. No record is open, so there is no artwork to draw. This screen
+         runs before the collection exists, as setup does. -->
+    <common:CardRoom x:Name="Room" Live="True" Shown="True"/>
+
+    <Rectangle IsHitTestVisible="False">
+      <Rectangle.Fill>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Offset="0.0" Color="#57080C12"/>
+          <GradientStop Offset="1.0" Color="#C7080C12"/>
+        </LinearGradientBrush>
+      </Rectangle.Fill>
+    </Rectangle>
+
+    <Grid utu:SafeArea.Insets="VisibleBounds">
+      <!-- Two rows, rather than the content and the footer stacked over each other. The text scrolls,
+           and the footer is always on screen under it. The footer's height comes from the
+           WizardFooterHeight resource, and it is set on the footer Grid. The row itself is Auto. A
+           RowDefinition needs a GridLength. WinUI refuses a double there with a XamlParseException, and
+           Uno converts it, so only Windows shows the fault (XamlResourceTypeTests checks for it). -->
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- The mark sits where the wizard and the finished app both keep it: 93 x 36, on a margin of 25,44.
+           Nothing moves when this screen is replaced by either of them. -->
+      <Path Grid.Row="0" Style="{StaticResource RpmWordmark}" Fill="#E8FFFFFF" Width="93" Height="36"
+            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="25,44,0,0"/>
+
+      <!-- Scrolls, because the three steps and the details line are taller than a short window. The
+           wizard can assume its own height. A problem screen is read, so a reader with a small window
+           must still reach the buttons. -->
+      <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                    Padding="52,104,52,16">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MaxWidth="720" Spacing="26">
+
+          <!-- What is wrong. -->
+          <Grid ColumnSpacing="18">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- A warning mark, in amber rather than the app's cyan. Cyan marks something to press. This is
+                 something to read. -->
+            <FontIcon Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xF071;"
+                      FontSize="30" Foreground="#FFC24B" VerticalAlignment="Top" Margin="0,8,0,0"/>
+
+            <StackPanel Grid.Column="1" Spacing="14">
+              <TextBlock x:Name="TitleText"
+                         FontFamily="{StaticResource RpmDisplayFontBold}"
+                         FontSize="34" LineHeight="40" Foreground="White" TextWrapping="Wrap"/>
+              <TextBlock x:Name="BodyText" FontSize="14" LineHeight="22"
+                         Foreground="#A8FFFFFF" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- The folder this is about. It is shown on screen because the next decision is about this
+               folder. Someone whose music is on a disk that is not connected often recognises the path
+               before they recognise the sentence. -->
+          <Border CornerRadius="12" Padding="16,14"
+                  Background="{StaticResource RpmCardPlateBrush}"
+                  BorderThickness="1" BorderBrush="#2BFFFFFF">
+            <Grid ColumnSpacing="14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <FontIcon Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xF07C;"
+                        FontSize="18" Foreground="{StaticResource RpmCyanBrush}"
+                        VerticalAlignment="Center"/>
+
+              <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                <TextBlock Text="{loc:Str Key=Settings_MusicFolder}" FontSize="11"
+                           Foreground="#7AFFFFFF" CharacterSpacing="80"/>
+                <TextBlock x:Name="FolderText" FontSize="14" Foreground="White"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                           IsTextSelectionEnabled="True"/>
+                <!-- Only the newer-collection case fills this: the two schema numbers. -->
+                <TextBlock x:Name="VersionsText" FontSize="12" Foreground="#99FFFFFF"
+                           TextWrapping="Wrap" Visibility="Collapsed"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- What to try. Three steps, in the order to work through them: the cheapest and most likely
+               cause first, and starting over last. -->
+          <StackPanel Spacing="12">
+            <TextBlock Text="{loc:Str Key=LibProblem_StepsHeading}" FontSize="11"
+                       Foreground="#8FFFFFFF" CharacterSpacing="120" FontWeight="SemiBold"/>
+
+            <StackPanel Spacing="10">
+              <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="22" Height="22" CornerRadius="11"
+                        Background="#2604C8FF" BorderThickness="1" BorderBrush="#4004C8FF"
+                        VerticalAlignment="Top">
+                  <TextBlock Text="1" FontSize="12" Foreground="{StaticResource RpmCyanBrush}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock x:Name="Step1Text" Grid.Column="1" FontSize="13.5" LineHeight="21"
+                           Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+              </Grid>
+
+              <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="22" Height="22" CornerRadius="11"
+                        Background="#2604C8FF" BorderThickness="1" BorderBrush="#4004C8FF"
+                        VerticalAlignment="Top">
+                  <TextBlock Text="2" FontSize="12" Foreground="{StaticResource RpmCyanBrush}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock x:Name="Step2Text" Grid.Column="1" FontSize="13.5" LineHeight="21"
+                           Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+              </Grid>
+
+              <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="22" Height="22" CornerRadius="11"
+                        Background="#2604C8FF" BorderThickness="1" BorderBrush="#4004C8FF"
+                        VerticalAlignment="Top">
+                  <TextBlock Text="3" FontSize="12" Foreground="{StaticResource RpmCyanBrush}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock x:Name="Step3Text" Grid.Column="1" FontSize="13.5" LineHeight="21"
+                           Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- The exception text. It is behind a link and can be selected. It is never the explanation:
+               the sentence at the top says what happened, in words. This is here so a report can
+               include the rest. Only the cases that carry a detail have one. -->
+          <StackPanel x:Name="DetailsBlock" Spacing="8" Visibility="Collapsed">
+            <ctl:RpmLink x:Name="DetailsToggle" Click="Details_Click" HorizontalAlignment="Left"
+                         Content="{loc:Str Key=LibProblem_Details}"/>
+            <TextBlock x:Name="DetailsText" FontSize="12" LineHeight="18" Foreground="#8FFFFFFF"
+                       TextWrapping="Wrap" Visibility="Collapsed" IsTextSelectionEnabled="True"/>
+          </StackPanel>
+
+          <!-- Shown once Try again has hit the same problem. Without it the screen redraws identically,
+               and the button looks as though it did nothing. -->
+          <TextBlock x:Name="StatusText" FontSize="13" Foreground="#FFC24B"
+                     TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- The footer line. It has the wizard's own band height, so this screen's buttons sit where the
+           wizard's Next button sits. The two screens do not shift when one replaces the other. -->
+      <Grid Grid.Row="1" Height="{StaticResource WizardFooterHeight}">
+        <StackPanel Orientation="Horizontal" Spacing="12"
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,52,0">
+          <ctl:RpmButton x:Name="ChooseButton" Click="Choose_Click" Padding="22,0"
+                         Content="{loc:Str Key=LibProblem_Choose}"/>
+          <ctl:RpmPrimaryButton x:Name="RetryButton" Click="Retry_Click" Padding="26,0">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <!-- fa-sync: two arrows round a circle. The same open, again. -->
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF021;" FontSize="12"
+                        VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=LibProblem_Retry}" FontWeight="Bold"
+                         VerticalAlignment="Center"/>
+            </StackPanel>
+          </ctl:RpmPrimaryButton>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Grid>
+</Page>

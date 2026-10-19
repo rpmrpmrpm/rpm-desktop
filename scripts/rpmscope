@@ -1,0 +1,33 @@
+#!/bin/sh
+# Runs rpmscope without the caller managing a virtualenv.
+#
+# The package installs a console script, but it lands inside tools/rpmscope/.venv/bin, which is not
+# on PATH. That is fine for a library but poor for a tool you need when the app is hanging. This
+# script creates the virtualenv if it is missing, installs the package if it is not installed yet,
+# installs the window's heavier dependencies only when the window is requested, and then runs rpmscope.
+#
+# To type `rpmscope` from anywhere:
+#   ln -s "$PWD/scripts/rpmscope" /usr/local/bin/rpmscope
+set -e
+
+here=$(cd "$(dirname "$0")/../tools/rpmscope" && pwd)
+venv="$here/.venv"
+
+if [ ! -x "$venv/bin/python" ]; then
+    echo "[rpmscope] making a virtualenv in $venv" >&2
+    python3 -m venv "$venv"
+fi
+
+if [ ! -x "$venv/bin/rpmscope" ]; then
+    echo "[rpmscope] installing" >&2
+    "$venv/bin/pip" install -q -e "$here"
+fi
+
+# Only the window needs Qt, which is about a hundred megabytes, so it is installed the first time the
+# window is requested and not for users who only read a stall in a terminal.
+if [ "$1" = "view" ] && ! "$venv/bin/python" -c "import PySide6, pyqtgraph" 2>/dev/null; then
+    echo "[rpmscope] the window needs PySide6 and pyqtgraph, fetching them once" >&2
+    "$venv/bin/pip" install -q -e "$here[view]"
+fi
+
+exec "$venv/bin/rpmscope" "$@"

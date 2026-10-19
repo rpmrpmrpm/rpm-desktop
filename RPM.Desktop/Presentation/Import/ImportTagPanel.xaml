@@ -1,0 +1,79 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Import.ImportTagPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- The dense form's sizes. They are merged here for the same reason the mass editor merges them:
+             this is the same form, and its inputs have to shrink the same way. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <!-- The tag panel: what is ticked, as fields you can type into. It edits the SELECTION. In this pane the
+       selection is the ticks. Nothing is written until Apply is pressed.
+
+       It sits on the bench surface, like the toolbar and the status bar. It is chrome around the work.
+       That surface lets a column of small labels stay readable over the pane's own background. The
+       hairline down its right edge is the seam with the grid. It uses the same rule as every other band
+       on the bench. -->
+  <Border Background="{StaticResource BenchSurfaceBrush}"
+          BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,0,1,0">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- heading -->
+        <RowDefinition Height="*"/>      <!-- the fields (the lookup is their first row), or the
+                                              invitation to tick something -->
+        <RowDefinition Height="Auto"/>   <!-- apply / revert -->
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Margin="14,10,10,8" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{loc:Str Key=Queue_TagPanelTitle}" Style="{StaticResource BenchKickerStyle}"/>
+        <!-- The close button is on the panel itself. If the panel could only be closed with a glyph at the far
+             end of the bottom bar, people would leave it open and work around it. -->
+        <Button Grid.Column="1" x:Name="CloseButton" Width="22" Height="22" MinWidth="0" MinHeight="0"
+                Padding="0" CornerRadius="4" BorderThickness="0" Background="Transparent"
+                Foreground="{StaticResource ToolKeyInkDimBrush}"
+                ToolTipService.ToolTip="{loc:Str Key=Queue_TagPanelHide}"
+                AutomationProperties.Name="{loc:Str Key=Queue_TagPanelHide}" Click="Close_Click">
+          <TextBlock Text="&#xf00d;" FontFamily="{StaticResource Fa}" FontSize="11"
+                     VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        </Button>
+    </Grid>
+
+    <!-- Nothing ticked: what the panel is for, in one line, rather than a form of dead boxes. -->
+    <TextBlock x:Name="EmptyHint" Grid.Row="1" Text="{loc:Str Key=Queue_TagPanelEmpty}"
+               FontSize="11.5" Foreground="#77FFFFFF" TextWrapping="Wrap"
+               Margin="14,0,14,0" VerticalAlignment="Top"/>
+
+    <ScrollViewer x:Name="FieldScroller" Grid.Row="1" Visibility="Collapsed"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                  Padding="14,0,14,8">
+      <StackPanel x:Name="FieldHost" Spacing="10"/>
+    </ScrollViewer>
+
+    <!-- Apply shows how many rows it changes, because that is the one thing worth checking before pressing
+         it. The buttons sit at the right-hand end. Revert comes first, then Apply. -->
+    <Border Grid.Row="2" BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,0,0"
+            Padding="14,10">
+      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+        <Button x:Name="RevertButton" Style="{StaticResource ToolKeyStyle}" IsEnabled="False"
+                Content="{loc:Str Key=Queue_TagPanelRevert}" Click="Revert_Click"/>
+        <!-- The second Apply button in the pane. It writes the fields onto the ticked rows, in the same way
+             that Import writes the ticked rows into the library. -->
+        <Button x:Name="ApplyButton" Style="{StaticResource GlassPrimaryButtonStyle}" IsEnabled="False"
+                Height="30" MinHeight="30" Padding="14,0" FontSize="12.5"
+                Click="Apply_Click"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+  </Border>
+</UserControl>

@@ -1,0 +1,990 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.RightPane.PlaylistView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.LeftPane.Models"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:common="using:RPM.Desktop.Presentation.Common"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+  <UserControl.Resources>
+    <!-- The song's name and the record's name, masked in the same way as the lyric sheet. See TitleCensor.
+         -->
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- The switch keys are lettered in the icon font directly (Content, not a FontIcon), as the library's
+         own switch letters its three. Each file names the icon face itself. Generic.xaml only has the
+         FaIcon style, which sets a FontIcon and not a Button. -->
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+    <!-- One tile in the icon view. It is a button rather than a bordered panel, so the pointer wash and the
+         press use the framework's own states. The grid recycles its containers. A hover painted by hand
+         would stay on whichever playlist that container is given next. -->
+    <Style x:Key="PlaylistTileButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Top"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <!-- The cell is what the pointer is over. The WASH is only the tile inside it. The grid
+                 stretches its tiles across the whole width of the pane. A wash painted on the button itself
+                 would be as wide as the cell, and eight points tall around the picture. That gives two
+                 different insets, depending on which edge you look at. The inset is one number on all four
+                 sides. The box it insets is the tile's own 96 points. The label is capped at the picture's
+                 width, so the block is that wide whatever the name is. -->
+            <Grid Background="Transparent">
+              <!-- TOP, not centre. A tile is a square and a name. Some names wrap onto two lines. If the
+                   block were centred, a block that grows would push the square up with it. Then a row of
+                   tiles would have its pictures at two different heights. The squares are the row. The
+                   names hang under them, and they are the part that grows downwards. -->
+              <Border x:Name="Hover" Background="Transparent" CornerRadius="8" Padding="8"
+                      HorizontalAlignment="Center" VerticalAlignment="Top">
+                <ContentPresenter HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"/>
+              </Border>
+              <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                  <VisualState x:Name="Normal"/>
+                  <VisualState x:Name="PointerOver">
+                    <VisualState.Setters><Setter Target="Hover.Background" Value="#14FFFFFF"/></VisualState.Setters>
+                  </VisualState>
+                  <VisualState x:Name="Pressed">
+                    <VisualState.Setters><Setter Target="Hover.Background" Value="#22FFFFFF"/></VisualState.Setters>
+                  </VisualState>
+                  <VisualState x:Name="Disabled"/>
+                </VisualStateGroup>
+              </VisualStateManager.VisualStateGroups>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  </UserControl.Resources>
+
+  <!-- Drill-in: two full-width views swap in place. One is the folder and playlist tree. The other is the
+       selected playlist's track list, in the iTunes style. It is reached by clicking a playlist, and left
+       by the back arrow. Both stand in the library pane, which is the wide half of the window, so the track
+       columns already have their room. -->
+  <Grid>
+
+    <!-- Tree view: the toolbar and the folder and playlist tree. -->
+    <Grid x:Name="TreeSide">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="TreeShift"/>
+      </Grid.RenderTransform>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- heading -->
+        <RowDefinition Height="Auto"/>   <!-- toolbar -->
+        <RowDefinition Height="*"/>      <!-- tree -->
+        <RowDefinition Height="Auto"/>   <!-- the lists that are not there yet -->
+      </Grid.RowDefinitions>
+
+      <!-- Heading, in the pane's shared type (Thiamine in a 36-high box, RpmPaneHeading). It is laid out
+           the same way as the library's heading. The name and the controls share the 36-high first row. The
+           subtitle is a row of its own, under both, so nothing the subtitle says can move them. -->
+      <Grid Grid.Row="0" Margin="16,12,16,0" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="36"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Grid.Column="0" Style="{StaticResource RpmPaneHeadingBox}">
+          <TextBlock Text="{loc:Str Key=Playlists_Title}" Style="{StaticResource RpmPaneHeading}"/>
+        </Grid>
+
+        <!-- How many playlists there are, and how long they run. -->
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                   Text="{Binding Subheading, Mode=OneWay}" Style="{StaticResource RpmPaneSubheading}"/>
+
+        <!-- The switch and the size slider, in the library header's own order, with the same twelve points
+             of air between them. The slider is the rightmost item on the line, here and in the library. The
+             switch is the library's list, wall and table switch with two keys instead of three. It has the
+             same box, the same 26 inside a hairline, the same square inner edges and the same lit wash
+             (SelectedSegment). Covers come first, then the list, as in the library. The slider is shown
+             only over the tiles, because on the list there is nothing for it to size. -->
+        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                    VerticalAlignment="Center">
+          <Border x:Name="PlaylistViewToggle" CornerRadius="6" Padding="0"
+                  VerticalAlignment="Center"
+                  Background="{StaticResource OnGlassBrush}"
+                  BorderBrush="#22FFFFFF" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="0">
+              <StackPanel.Resources>
+                <Style x:Key="PlaylistViewToggleButton" TargetType="Button">
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="BorderThickness" Value="0"/>
+                  <Setter Property="CornerRadius" Value="0"/>
+                  <Setter Property="Width" Value="32"/>
+                  <Setter Property="Height" Value="26"/>
+                  <Setter Property="MinWidth" Value="0"/>
+                  <Setter Property="MinHeight" Value="0"/>
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+                  <Setter Property="FontSize" Value="13"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                  <Setter Property="VerticalContentAlignment" Value="Center"/>
+                </Style>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+              </StackPanel.Resources>
+              <Button x:Name="ViewIconsButton" Style="{StaticResource PlaylistViewToggleButton}" Content="&#xf00a;"
+                      CornerRadius="5,0,0,5"
+                      Click="ViewIcons_Click" ToolTipService.ToolTip="{loc:Str Key=Playlists_ViewIcons}" AutomationProperties.Name="{loc:Str Key=Playlists_ViewIcons}"/>
+              <Button x:Name="ViewListButton" Style="{StaticResource PlaylistViewToggleButton}" Content="&#xf03a;"
+                      CornerRadius="0,5,5,0"
+                      Click="ViewList_Click" ToolTipService.ToolTip="{loc:Str Key=Playlists_ViewList}" AutomationProperties.Name="{loc:Str Key=Playlists_ViewList}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- A small square, the slider, and a big square. This is the album wall's own cluster, with the
+               same two marker sizes and the same seven points between them. The value is the TARGET art
+               edge. The grid snaps it to the nearest size that fills the row, as the wall does. The
+               arithmetic is in AlbumGridLayout and is not copied here. -->
+          <StackPanel x:Name="TileSizeCluster" Orientation="Horizontal" Spacing="7"
+                      VerticalAlignment="Center" Visibility="Collapsed"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_CoverSize}">
+            <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="7" Foreground="#88FFFFFF"
+                      VerticalAlignment="Center"/>
+            <Slider x:Name="TileSizeSlider" Style="{StaticResource SeekSizeSliderStyle}"
+                    Width="96" VerticalAlignment="Center" Minimum="96" Maximum="260"
+                    StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False"/>
+            <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#88FFFFFF"
+                      VerticalAlignment="Center"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+
+      <!-- What can be added: a playlist and a folder. There is no top margin. It starts on the line under
+           the heading, as the first row of the album wall does. The whole line is hidden while a borrowed
+           shelf is open, because the tree below then belongs to its owner, and nothing put here would go
+           into it. See PlaylistModel.Mine, which is the guard. This line is only the courtesy. -->
+      <StackPanel Grid.Row="1" Margin="16,0,16,8" Orientation="Horizontal" Spacing="6"
+                  VerticalAlignment="Center"
+                  Visibility="{Binding IsBorrowed, Mode=OneWay, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}">
+        <Button Click="NewPlaylist_Click" Background="#22ffffff" Foreground="#E6FFFFFF" BorderThickness="0"
+                Height="30" Padding="10,0" ToolTipService.ToolTip="{loc:Str Key=Playlists_NewPlaylist}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf067;" FontSize="12"/>
+            <TextBlock Text="{loc:Str Key=Playlists_NewPlaylist}" FontSize="12"/>
+          </StackPanel>
+        </Button>
+        <Button Click="NewMoodPlaylist_Click" Background="#22ffffff" Foreground="#E6FFFFFF" BorderThickness="0"
+                Height="30" Padding="10,0" ToolTipService.ToolTip="{loc:Str Key=MoodMaker_New}" AutomationProperties.Name="{loc:Str Key=MoodMaker_New}">
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0d0;" FontSize="12"/>
+        </Button>
+        <Button Click="NewFolder_Click" Background="#22ffffff" Foreground="#E6FFFFFF" BorderThickness="0"
+                Height="30" Padding="10,0" ToolTipService.ToolTip="{loc:Str Key=Playlists_NewFolder}" AutomationProperties.Name="{loc:Str Key=Playlists_NewFolder}">
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07b;" FontSize="12"/>
+        </Button>
+      </StackPanel>
+
+      <!-- Click a playlist or folder row to drill into its tracks. The chevron only expands and collapses
+           folders. -->
+      <!-- Padding is 10, and it is not an arbitrary number. The row template's own ContentPresenter already
+           insets 6, so 10 here puts a top-level row's first mark on 16. That is the column the pane's
+           heading stands in. The drop line is set to the same 16 from code (see MarkTreeDrop). A change to
+           either one must be made to both. -->
+      <ListView x:Name="Tree" Grid.Row="2"
+                ItemsSource="{Binding Visible}"
+                SelectionMode="Single"
+                SelectionChanged="Tree_SelectionChanged"
+                Background="Transparent"
+                Padding="10,0,16,10"
+                ScrollViewer.HorizontalScrollMode="Enabled"
+                ScrollViewer.HorizontalScrollBarVisibility="Auto">
+        <ListView.ItemContainerStyle>
+          <!-- A scoped template, so the selection matches the library grid exactly. Framework brush
+               overrides do not work on Uno. It is the same reason RPaMpView templates its playlist rows.
+               The selected row has a low-alpha azure fill (#240371D0), a 3px azure accent bar (#0371D0)
+               down its left edge, and hover and pressed washes. Rows are 22px high, the same as the grids'
+               rows. -->
+          <Style TargetType="ListViewItem">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                  <!-- On the template root, so that a row being carried takes its fill and its accent bar
+                       with it. The binding is to the ROW, and it is never written onto the container.
+                       Containers are recycled, and an offset left on one would land on somebody else's
+                       playlist.
+
+                       The row is reached through the container's Content, which IS the row. This is not
+                       decoration. A plain {Binding} reads the container's own DataContext. On WinUI that is
+                       the ListView's model, because WinUI hands the row to the container as Content, and
+                       sets a DataContext only on the presenter inside it. Uno sets one on the container
+                       too, which is why the short paths worked there. A path that does not resolve leaves
+                       the target at its default. The default for the drop outline below is Visible, so
+                       every row in the tree showed it on the WinUI head. -->
+                  <Grid RenderTransform="{Binding Content.Drop, RelativeSource={RelativeSource TemplatedParent}}">
+                    <Border x:Name="Fill" Background="Transparent" CornerRadius="4" Margin="2,2"/>
+                    <Border x:Name="Hover" Background="Transparent" CornerRadius="4" Margin="2,2"/>
+                    <!-- Lit while letting go would put the carried row INSIDE this folder. This is an
+                         outline, not a wash. A filled row reads as selected, and this is not a selection.
+                         It shows where the thing in the hand is going. -->
+                    <Border Background="#1A0371D0" BorderBrush="#0371D0" BorderThickness="1.5"
+                            CornerRadius="4" Margin="2,2"
+                            Visibility="{Binding Content.DropIntoVisibility, RelativeSource={RelativeSource TemplatedParent}}"/>
+                    <Border x:Name="Bar" Width="3" Height="14" Margin="2,0,0,0" CornerRadius="1.5"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="#0371D0" Visibility="Collapsed"/>
+                    <ContentPresenter HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
+                                      Margin="6,0"/>
+                    <VisualStateManager.VisualStateGroups>
+                      <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal"/>
+                        <VisualState x:Name="PointerOver">
+                          <VisualState.Setters><Setter Target="Hover.Background" Value="#14FFFFFF"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Pressed">
+                          <VisualState.Setters><Setter Target="Hover.Background" Value="#22FFFFFF"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Selected">
+                          <VisualState.Setters>
+                            <Setter Target="Fill.Background" Value="#240371D0"/>
+                            <Setter Target="Bar.Visibility" Value="Visible"/>
+                          </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="PointerOverSelected">
+                          <VisualState.Setters>
+                            <Setter Target="Fill.Background" Value="#300371D0"/>
+                            <Setter Target="Bar.Visibility" Value="Visible"/>
+                          </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="PressedSelected">
+                          <VisualState.Setters>
+                            <Setter Target="Fill.Background" Value="#300371D0"/>
+                            <Setter Target="Bar.Visibility" Value="Visible"/>
+                          </VisualState.Setters>
+                        </VisualState>
+                      </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                  </Grid>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListView.ItemContainerStyle>
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="model:PlaylistTreeItem">
+            <!-- Indent is OneWay, because rows outlive a reload. A playlist that is dragged into a folder
+                 keeps its row, and its inset has to follow it to the new depth. -->
+            <Grid Margin="{x:Bind Indent, Mode=OneWay}" Background="Transparent"
+                  ContextRequested="Row_ContextRequested" DataContextChanged="Row_DataContextChanged">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <!-- Chevron: it only expands and collapses, so it does not compete with the row's drill-in.
+                     -->
+                <Button Click="Chevron_Click" Tag="{x:Bind}" Background="Transparent" BorderThickness="0"
+                        Width="16" Height="16" Padding="0" MinWidth="0"
+                        IsHitTestVisible="{x:Bind CanExpand, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind ChevronName, Mode=OneWay}">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind ChevronGlyph, Mode=OneWay}"
+                            FontSize="9" Foreground="#88FFFFFF"/>
+                </Button>
+                <!-- A folder's own chosen picture, shown in front of the plain folder glyph. It is loaded
+                     lazily, from the row's DataContextChanged (see Row_DataContextChanged and
+                     PlaylistTreeItem.EnsureCoverLoaded). It is never fetched for every row in the tree. It
+                     is only shown on a folder. CoverImage stays null on every other kind, so the glyph is
+                     what every other kind of row shows. -->
+                <Grid Width="12" Height="12" VerticalAlignment="Center">
+                  <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}" FontSize="12"
+                            Foreground="{x:Bind GlyphBrush}"
+                            Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"/>
+                  <Border CornerRadius="2">
+                    <Image Source="{x:Bind CoverImage, Mode=OneWay}" Stretch="UniformToFill"
+                           Visibility="{x:Bind CoverVisibility, Mode=OneWay}"/>
+                  </Border>
+                </Grid>
+                <!-- No trimming. Long names run their full width, and the tree scrolls sideways to show
+                     them. -->
+                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="12.5" Foreground="#E6FFFFFF"
+                           VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                <!-- The list marks an explicit song. The mark comes after the name and before the cloud.
+                     That is the order the album list uses for the same two marks: first what the row IS,
+                     then where it is kept. The badge hides itself when the row is not marked, so it costs
+                     nothing on the rows that are not. -->
+                <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Center"
+                                   IsExplicit="{x:Bind IsExplicit, Mode=OneWay}"
+                                   ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+                <!-- A small cloud after the name, when the playlist is kept in the cloud. It is the same
+                     mark that the album wall gives a synced record. It gains an arrow while the tracks are
+                     going up, and a stroke while they are being taken out. It pulses for as long as either
+                     lasts. The tree's tick drives CloudPulse. -->
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind CloudGlyph, Mode=OneWay}" FontSize="10"
+                          Foreground="#88FFFFFF" VerticalAlignment="Center"
+                          Opacity="{x:Bind CloudPulse, Mode=OneWay}"
+                          Visibility="{x:Bind CloudBadgeVisibility, Mode=OneWay}"/>
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+
+      <!-- The wait mark that is shown while the generated lists are read (PlaylistView.ReflectReading). -->
+      <ctl:ShelfLoader x:Name="ListsLoading" Grid.Row="2"/>
+
+      <!-- Where letting go would put the carried row, when that is BETWEEN two rows and not inside one. It
+           is drawn over the list, not inside it. A line that was a row of its own would push the tree about
+           as it moved, and this line describes the gap, which has no row. Its left inset is written from
+           code, to the depth the row would land at. The same line at two different insets is the difference
+           between "in this folder" and "beside it". -->
+      <Border x:Name="TreeDropLine" Grid.Row="2" Height="2" CornerRadius="1"
+              Background="#0371D0" Visibility="Collapsed"
+              HorizontalAlignment="Stretch" VerticalAlignment="Top"
+              IsHitTestVisible="False">
+        <Border.RenderTransform>
+          <TranslateTransform x:Name="TreeDropLineShift"/>
+        </Border.RenderTransform>
+      </Border>
+
+      <!-- ═══ the icon view ═══ The same tree, read one folder at a time. It shows the covers of what is
+           inside the open folder, and the path back out above them. It takes the place of the tree's own
+           row, and the switch shows one of the two. See PlaylistIcons for why a grid cannot draw a tree's
+           shape.
+
+           There is no drag here. Filing a playlist somewhere else is a gesture for the list view, where a
+           row has a line above it, a line below it, and a depth to land at. The grid has tiles in reading
+           order and none of those three, so a drop here would have to guess what was meant. -->
+      <Grid x:Name="IconsSide" Grid.Row="2" Visibility="Collapsed">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>   <!-- path -->
+          <RowDefinition Height="*"/>      <!-- tiles -->
+        </Grid.RowDefinitions>
+
+        <!-- Only shown while a folder is open. At the top of the tree the pane's own heading already says
+             where this is, and a path that reads "Playlists" under a heading that reads "Playlists" tells
+             nobody anything. It is filled from code (see WritePath). -->
+        <StackPanel x:Name="IconPath" Grid.Row="0" Orientation="Horizontal" Spacing="4"
+                    Margin="16,0,16,8" VerticalAlignment="Center" Visibility="Collapsed"/>
+
+        <ScrollViewer x:Name="TilesScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                      BringIntoViewOnFocusChange="False"
+                      SizeChanged="TilesScroller_SizeChanged"
+                      Padding="16,0,16,16">
+          <!-- MinWidth must be a WHOLE TILE. The grid divides by the number of tiles that fit, and a
+               measure pass narrower than one tile would divide by zero. The reason is the same as in the
+               genre wall's own note. It is the SMALLEST tile: the slider's floor plus a card's chrome,
+               which is the narrowest a whole tile ever gets.
+
+               MinItemWidth and MinItemHeight are set from code on every resize and every drag of the slider
+               (see FitTiles). The numbers here are only what the grid opens at. They are the wall's default
+               card. ItemsStretch is None, not Fill. The stride is worked out so that the row already fills
+               edge to edge. A second stretch on top of it would undo the column arithmetic. -->
+          <ItemsRepeater x:Name="Tiles" MinWidth="112">
+            <ItemsRepeater.Layout>
+              <UniformGridLayout x:Name="TilesLayout" MinItemWidth="166" MinItemHeight="205"
+                                 MinColumnSpacing="0" MinRowSpacing="14"
+                                 ItemsStretch="None"/>
+            </ItemsRepeater.Layout>
+            <ItemsRepeater.ItemTemplate>
+              <DataTemplate x:DataType="model:PlaylistTreeItem">
+                <!-- The whole tile is the button. In a grid, the picture and the name under it are one
+                     thing to press. That is how every file browser works. What the press does depends on
+                     the row, and that is decided in one place. See Tile_Click. -->
+                <!-- The row that this tile draws is written onto the element when the repeater realises it
+                     (see Tile_ElementPrepared). The picture is requested there too. Neither is done here.
+                     This template uses x:Bind, and a repeater whose template has compiled bindings does not
+                     set a DataContext on WinUI. So a handler on this element that reads one would read the
+                     pane's model. -->
+                <Button Style="{StaticResource PlaylistTileButton}"
+                        Click="Tile_Click"
+                        ContextRequested="Row_ContextRequested"
+                        Width="{x:Bind Metrics.Stride, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}">
+                  <!-- The album wall's card, with the same measurements: eight points of padding on each
+                       side, which is the gutter between covers, then the ten under it, then the seven
+                       between the square and the writing. The square itself is sized from the one live
+                       AlbumTileMetrics that every tile here shares with the wall's own cards. A playlist
+                       and a record are two pictures in a grid of pictures, so there is no reason for them
+                       to be two sizes. See PlaylistView.FitTiles, which is AlbumWallView.RecomputeLayout
+                       asked about this scroller.
+
+                       It differs only in the writing, because there is less of it. A record has a title
+                       over an artist. A playlist has a name. So the name uses BOTH lines of room: 16, then
+                       7, then 15, which is what the card's caption block measures. The name wraps into as
+                       much of that room as it needs. The tile is the same height either way, and that is
+                       what keeps a row of tiles on one line. -->
+                  <StackPanel Spacing="7">
+                    <Grid Width="{x:Bind Metrics.Art, Mode=OneWay}" Height="{x:Bind Metrics.Art, Mode=OneWay}"
+                          HorizontalAlignment="Center">
+                      <Border CornerRadius="6" Background="#22000000"/>
+                      <!-- What the row is, until it has a picture of its own. These are not the tree's
+                           colours, and not the tree's one font size. On a wall of squares they are
+                           placeholders for a sleeve. They read as one set only if they are one size and one
+                           colour. The size is measured per glyph (PlaylistIcons.TileGlyphSize), because a
+                           font size is the em and not the mark. The colour is the faint white that the
+                           library's records wear where an album has no cover. The list view keeps its own
+                           colours.
+
+                           It is drawn at the size that the measurement gives, inside a box of
+                           PlaylistIcons.ArtEdge. Then it is SCALED to whatever the square currently is. The
+                           equalisation is a ratio, so scaling the finished glyph keeps it. Working it out
+                           again against a moving box would repeat the same arithmetic for every tile on
+                           every frame of a drag. -->
+                      <Viewbox Stretch="Uniform">
+                        <Grid Width="96" Height="96">
+                          <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}"
+                                    FontSize="{x:Bind TileGlyphSize}" Foreground="#3AFFFFFF"
+                                    Visibility="{x:Bind TileGlyphVisibility, Mode=OneWay}"/>
+                        </Grid>
+                      </Viewbox>
+                      <Border CornerRadius="6">
+                        <Image Source="{x:Bind TileImage, Mode=OneWay}" Stretch="UniformToFill"
+                               Visibility="{x:Bind TileImageVisibility, Mode=OneWay}"/>
+                      </Border>
+                      <!-- The hairline that the wall draws round every cover, over both layers. -->
+                      <Border CornerRadius="6" BorderThickness="1" BorderBrush="#22FFFFFF"
+                              IsHitTestVisible="False"/>
+                      <!-- The same cloud that the tree's rows wear. It is in the corner of the square, not
+                           after the name. A tile's name is centred and can be two lines long. A mark hung
+                           off the end of it would sit somewhere different on every tile. -->
+                      <Border CornerRadius="4" Background="#66000000" Padding="4,2"
+                              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
+                              Visibility="{x:Bind CloudBadgeVisibility, Mode=OneWay}">
+                        <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind CloudGlyph, Mode=OneWay}"
+                                  FontSize="10" Foreground="#DDFFFFFF"
+                                  Opacity="{x:Bind CloudPulse, Mode=OneWay}"/>
+                      </Border>
+                    </Grid>
+                    <!-- Up to two lines, then an ellipsis, centred under the square, in the card's own
+                         title colour. Long names are normal for a playlist. A single line would leave most
+                         of them ending in a dot. The text stands at the TOP of its room. So a one-line name
+                         sits under its picture, and does not float in the middle. -->
+                    <Grid MinHeight="38">
+                      <!-- The name and its badge are centred as ONE thing. This is the album card's own
+                           arrangement, and it has its own cost. With a badge showing, the group's centre is
+                           the centre, so the NAME sits half a badge-width to the left of the tile's centre
+                           line. A list with no badge is not affected, and most lists have none.
+
+                           The name's cap is Metrics.TitleRoom, not Metrics.Art. Metrics.Art is the art less
+                           the badge and the gap in front of it. The cap stops a long name from pushing the
+                           E off the tile. It also lets the name WRAP at all. A horizontal StackPanel
+                           measures its children with unlimited width. Without a cap, the text would run on
+                           one line for ever. -->
+                      <StackPanel Orientation="Horizontal" Spacing="4"
+                                  HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="#F2FFFFFF" MaxWidth="{x:Bind Metrics.TitleRoom, Mode=OneWay}"
+                                   TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Top"/>
+                        <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Top" Margin="0,2,0,0"
+                                           IsExplicit="{x:Bind IsExplicit, Mode=OneWay}"
+                                           ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+                      </StackPanel>
+                    </Grid>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsRepeater.ItemTemplate>
+          </ItemsRepeater>
+        </ScrollViewer>
+
+        <!-- A folder that somebody made and has not filled yet. It says what is here, and then how to fill
+             it. -->
+        <TextBlock x:Name="IconsEmpty" Grid.Row="1" Visibility="Collapsed"
+                   Text="{loc:Str Key=Playlists_FolderEmpty}" FontSize="12.5" Foreground="#88FFFFFF"
+                   TextWrapping="Wrap" TextAlignment="Center" MaxWidth="300"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+
+      <!-- ═══ the lists that are not there yet ═══ rpm writes these lists from the collection. A collection
+           that cannot answer one of them does not get the row. Without this card, a short tree says nothing
+           about which of two things is true. Either the app can do everything, or this shelf can answer
+           only some of it. The home screen's locked panel has the same idea and the same parts: the spark
+           ring, a kicker, a heading, and the number it counts towards. This one is sized for a pane, rather
+           than for a screen with nothing else on it.
+
+           It is UNDER BOTH VIEWS, in a row of its own. The list draws the whole tree at once, and the grid
+           draws one folder. The card is about neither of those. It is about the shelf. Its rows are written
+           from code (ShowLockedLists). There are at most three of them, and each one is a name and a
+           sentence, chosen by what is holding that list up. -->
+      <Border x:Name="LockedCard" Grid.Row="3" Visibility="Collapsed"
+              Margin="16,12,16,16" Padding="16,14" CornerRadius="10"
+              Background="#0EFFFFFF" BorderBrush="#1AFFFFFF" BorderThickness="1">
+        <Grid ColumnSpacing="18">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- The closest list's share of what it needs. The rows below open with that list. Live is set
+               from code. It animates on a timer, and on the Skia head every frame of it repaints the whole
+               window. -->
+          <ctl:SparkRing x:Name="LockedRing" Grid.Column="0" Width="78" Height="78" Thickness="5"
+                         VerticalAlignment="Center"/>
+
+          <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{loc:Str Key=ListLock_Kicker}" FontSize="10" Foreground="#6BFFFFFF"
+                       CharacterSpacing="220"/>
+            <TextBlock Text="{loc:Str Key=ListLock_Heading}" FontFamily="{StaticResource RpmDisplayFontBold}"
+                       FontSize="17" Foreground="White" TextWrapping="Wrap"/>
+            <TextBlock Text="{loc:Str Key=ListLock_Body}" FontSize="12" LineHeight="18"
+                       Foreground="#8CFFFFFF" TextWrapping="Wrap"/>
+            <StackPanel x:Name="LockedRows" Spacing="4" Margin="0,3,0,0"/>
+          </StackPanel>
+
+          <!-- Close. It is pulled into the card's padding, so it sits in the corner. Only the kicker, which
+               is short, shares its line. It is the same × as the left pane's message band. -->
+          <Button Grid.Column="0" Grid.ColumnSpan="2" Click="LockedHide_Click"
+                  HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0"
+                  Background="Transparent" BorderThickness="0" Padding="0"
+                  Width="26" Height="24" MinWidth="0" MinHeight="0"
+                  ToolTipService.ToolTip="{loc:Str Key=ListLock_Hide}"
+                  AutomationProperties.Name="{loc:Str Key=ListLock_Hide}">
+            <TextBlock Text="&#xf00d;" FontFamily="{StaticResource Fa}" FontSize="12"
+                       Foreground="#88FFFFFF"/>
+          </Button>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Detail view: the selected playlist's tracks, in the iTunes style. There is a back arrow, the cover,
+         the name, and a header line "N songs · length" with play and shuffle buttons. Then the tracks in
+         aligned columns: art, title, artist, album and time. It fills the pane. ShowDetail shows it, and
+         the back arrow leaves it. -->
+    <Grid x:Name="Detail" Visibility="Collapsed" Opacity="0">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="DetailShift"/>
+      </Grid.RenderTransform>
+      <Grid.RowDefinitions>
+        <!-- The banner is 252 points tall on every pane width. It has 28 of air, the 196-point cover
+             square, then 28 of air again. This row IS the banner. The room fills it, and the heading is
+             inset in it. The height is stated here, and not left to add up from the square and the air. An
+             Auto height would be whatever the heading asked for at that width, and the square was worked
+             out from the pane's width. So the banner would be a different height on every window size.
+             Change the square below, and change this number with it. -->
+        <RowDefinition Height="252"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- ═══ the page's colour ═══ The list's own ground, blurred until it is not a picture. It sits
+           behind everything on the page. The arrangement is the same as the artist page's, and the reasons
+           are written out there (see its PageWash). What is left is not a picture, and it is not meant to
+           be one. It is the light and dark of the list's own colours, moving behind the writing. That stops
+           a tracklist from being a table on a flat rectangle.
+
+           The RECORDS are not in it. The cover at the head of the page shows them, inset. Repeated ten
+           times at this size, behind the words, they would be a second picture competing with every line on
+           top of them. Only the ground goes here. See PlaylistArt.Drawn.Wash.
+
+           It is a Border that holds the picture as its BACKGROUND, not an Image. A background is painted
+           within the element's own bounds, so it cannot spill out of them. The picture is blurred once, off
+           the thread, when it is drawn, and never here. Both points match the artist page.
+
+           It stays down until there is something in it. A list whose records have no artwork keeps the
+           pane's own surface. This element stands in for that surface. It does not cover it. -->
+      <Border x:Name="DetailWash" Grid.Row="0" Grid.RowSpan="2" Opacity="0.55"
+              Visibility="Collapsed" IsHitTestVisible="False">
+        <Border.Background>
+          <ImageBrush x:Name="DetailWashArt" Stretch="UniformToFill"
+                      AlignmentX="Center" AlignmentY="Center"/>
+        </Border.Background>
+      </Border>
+
+      <!-- The weight over it. A ground at full strength is the colour of a record at the exposure it was
+           shot at. A table of five hundred lines laid on top of that would be unreadable. -->
+      <Rectangle x:Name="DetailWeight" Grid.Row="0" Grid.RowSpan="2" Fill="#6B000000"
+                 Visibility="Collapsed" IsHitTestVisible="False"/>
+
+      <!-- ═══ the room ═══ The list's own colours, shown as the flat room from Pegasus, drifting behind the
+           heading. It is the same element that the home screen's cards and the setup wizard use, on the
+           same shared clock. It runs at about thirty-two frames a second on the WinUI head, and it is one
+           frame, still, on Skia.
+
+           It is not a raymarched volume that is drawn once. A raymarched volume would cost about
+           185 ms a frame over eight pool workers. That can be afforded once per list opened, and never
+           again. There is no resolution at which it can be drawn between two ticks and still look like
+           itself. The flat room is 15 figures on a warped plane, with no march. That is the only reason one
+           frame of it fits inside a tick.
+
+           Most is a ceiling on the pixel count, and this element is the reason that property exists. The
+           banner is as wide as the pane. So a tenth of it on a wide monitor is a frame that does not fit in
+           the tick. See PlaylistView.RoomBudget.
+
+           THE ROW'S OWN CHILD, NOT THE HEADING'S. The room is not inside DetailHeader with the heading's
+           margins negated. That works only while the heading's content fits. WinUI clips an element whose
+           arranged content is wider than its slot, and that clip takes the room's negative margins with it.
+           On a 360-point pane, where the square, the writing and the buttons do not fit across, the room
+           painted only 224 of the row's 252 points. It stopped at the foot of the cover square, so the
+           banner's bottom edge was the square's own. Here the room is a sibling of the heading in the same
+           row, and it is the row. What the heading does with its own width cannot reach it. It is placed
+           ahead of the heading in document order, so it stays behind it.
+
+           It ignores the pointer. It is a picture, not a way to anyone in it. -->
+      <Grid x:Name="DetailRoom" Grid.Row="0"
+            SizeChanged="DetailRoom_SizeChanged"
+            Visibility="Collapsed" IsHitTestVisible="False">
+
+        <common:CardRoom x:Name="DetailRoomArt"/>
+
+        <!-- The scrim under the writing. It is clear at the middle of the banner, and darkest at its foot.
+             White text on it stays legible whatever the room does behind it. That is its whole purpose. The
+             scrim is a rectangle over the room. It starts at 0.38 of the height, and it reaches an alpha
+             of 170.
+
+             StrokeThickness is 0 here, on purpose. It defaults to 1, and a Shape stretched to Fill lays its
+             geometry out INSIDE the stroke. With the default, the fill stops a row short at the top and at
+             the bottom, even with no Stroke brush set. Two rows of the room would then never be scrimmed,
+             and a bright line would show along the bottom of the header. -->
+        <Rectangle IsHitTestVisible="False" StrokeThickness="0">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Offset="0.38" Color="#00000000"/>
+              <GradientStop Offset="1.0"  Color="#AA000000"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+      </Grid>
+
+      <!-- The corner is 28 in and 28 down. The artist page, the album page and the genre page all keep
+           their way out at this corner. A reader goes from list to record to artist and back out again. A
+           key that moves between those pages is one they would have to look for each time.
+
+           The bottom is the same as the top. That is what makes the cover square sit in the middle of the
+           header, and not low in it. The square is top-aligned and the header is as tall as the square. So
+           those two numbers ARE the air above and below it. A bottom that was ten points different would
+           make the heading look as if it rests on the list below. -->
+      <Grid x:Name="DetailHeader" Grid.Row="0" Margin="28,28,12,28" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>   <!-- back -->
+          <ColumnDefinition Width="Auto"/>   <!-- cover -->
+          <!-- What is left after the square and the buttons. It is capped at 520 in the panel below, so
+               that a wide pane does not stretch three short lines across the header. The column is Star. It
+               gives way first, and the writing trims. Auto would ask for the writing's full width before
+               anything else is measured. On a pane too narrow for all of it, the buttons would be pushed
+               past the right edge, and the last line of writing would be cut off there. -->
+          <ColumnDefinition Width="*"/>      <!-- name, featuring and count -->
+          <!-- The ways to play the list, at the foot of the row. Auto, so the buttons are on screen at
+               every pane width. -->
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The same key that the other three detail pages carry: a 32 x 28 outline with the long arrow in
+             it. It is transparent until the pointer is on it. See ArtistDetailView's HeroChip, where the
+             outline and the two pointer colours are written out. A bare chevron reads as a hint, not as the
+             way out, so this key has an outline.
+
+             It is top-aligned, so the key sits on the line the cover starts on, and not centred against a
+             square four times its height. The 18 after it, plus the grid's own 10 of column spacing, is the
+             28 that the genre page keeps between its key and the name beside it. -->
+        <Button Grid.Column="0" Click="DetailBack_Click"
+                VerticalAlignment="Top" Margin="0,0,18,0"
+                Width="32" Height="28" Padding="0" MinWidth="0" MinHeight="0"
+                CornerRadius="6" Background="Transparent"
+                BorderBrush="#8CFFFFFF" BorderThickness="1"
+                ToolTipService.ToolTip="{loc:Str Key=Album_Back}"
+                AutomationProperties.Name="{loc:Str Key=Album_Back}">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
+          </Button.Resources>
+          <TextBlock Text="&#xf060;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
+        </Button>
+
+        <!-- 196 points, on every pane width. A fixed size keeps the header the same height at every window
+             width, so the framing does not change as the window is dragged. The artist page draws a
+             playlist card at ArtistPageLayout.Sleeve, which runs from 150 to 260 points. 196 is that
+             arithmetic's value on a maximized window, so one list shows the same square in both places.
+
+             It is top-aligned, like the back button beside it. So the two share the line the header starts
+             on, and the words to the right are centred against the whole square. -->
+        <Grid x:Name="DetailCoverBox" Grid.Column="1" Width="196" Height="196" VerticalAlignment="Top">
+          <Border CornerRadius="8" Background="#33000000"/>
+          <Border CornerRadius="8">
+            <Image x:Name="DetailCover" Stretch="UniformToFill"/>
+          </Border>
+          <FontIcon x:Name="DetailCoverGlyph" Style="{StaticResource FaIcon}" Glyph="&#xf8c9;"
+                    FontSize="40" Foreground="#40FFFFFF"/>
+        </Grid>
+
+        <!-- On the FOOT of the cover, rather than centred against it. A name that floats in the middle of a
+             two-hundred-point square reads as two things side by side. Standing on its base line, the
+             square and the words read as one heading. That is how a record sleeve and its title sit, and
+             how the artist page sets a name over its own band. -->
+        <StackPanel x:Name="DetailWords" Grid.Column="2" VerticalAlignment="Bottom" Spacing="3"
+                    MaxWidth="520" HorizontalAlignment="Left">
+          <!-- The name, and after it the E where anything on the list carries one. The mark comes after the
+               name, not before it. The name is the list's own line, and the mark is a note about it. So
+               every heading still starts in the same place. The name takes the room that is left, and not
+               its own full width. Otherwise a long name would push the mark off the end. -->
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <TextBlock x:Name="DetailName" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap"/>
+            <ctl:ExplicitBadge x:Name="DetailExplicit" Width="15" Height="15"
+                               VerticalAlignment="Center"
+                               ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+          </StackPanel>
+          <!-- Who is on the list. It goes under the name and above the count, where a description goes. The
+               name says which list this is. This says what is in it. The count says how much. It is counted
+               by ACT, not by credit, so the artist that a list is actually built around is named, and not
+               each of the dozen ways that a tagger spelled them. See PlaylistFeatures, where the one cost
+               is written down. The whole line is hidden for a list whose songs name nobody. A heading that
+               says "Featuring" with nothing after it is worse than no line. -->
+          <TextBlock x:Name="DetailFeaturing" FontSize="11.5" Foreground="#AEFFFFFF"
+                     TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxLines="1"
+                     Visibility="Collapsed"/>
+          <TextBlock x:Name="DetailSubtitle" FontSize="11.5" Foreground="#99FFFFFF"
+                     TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <!-- The same base line as the writing, at the other end of the row. Three buttons centred against
+             the cover, while the name sits at its foot, would put one row at two heights. -->
+        <StackPanel x:Name="DetailActions" Grid.Column="3" Orientation="Horizontal" Spacing="6"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom">
+          <StackPanel.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+          </StackPanel.Resources>
+          <!-- ═══ the two a GENERATED list gets ═══ Both are hidden for every other kind of list. They are
+               set by Populate, not bound. A stored playlist is already kept, and it cannot be asked for
+               again. The queue is not a list at all. These are placed to the left of the three ways to
+               play. So the row reads as what this list IS on the left, and what to do with it on the right.
+
+               Save comes first. It is the one that cannot be undone by pressing the other. A list generated
+               over the top of a good one is gone. So the way to keep it stands before the way to replace
+               it. -->
+          <Button x:Name="DetailSaveButton" Click="DetailSave_Click" Background="Transparent"
+                  BorderThickness="0" Visibility="Collapsed"
+                  Width="34" Height="34" Padding="0" MinWidth="0" CornerRadius="17"
+                  ToolTipService.ToolTip="{loc:Str Key=Playlists_SaveAsPlaylist}"
+                  AutomationProperties.Name="{loc:Str Key=Playlists_SaveAsPlaylist}">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0c7;" FontSize="14" Foreground="#E6FFFFFF"/>
+          </Button>
+          <!-- Shown only where a second reading would honestly be a different list. See
+               LibraryDatabase.SmartPlaylistCanRegenerate, which defines what "honestly" means here. -->
+          <Button x:Name="DetailNewListButton" Click="DetailNewList_Click" Background="Transparent"
+                  BorderThickness="0" Visibility="Collapsed"
+                  Width="34" Height="34" Padding="0" MinWidth="0" CornerRadius="17"
+                  ToolTipService.ToolTip="{loc:Str Key=Playlists_GenerateNew}"
+                  AutomationProperties.Name="{loc:Str Key=Playlists_GenerateNew}">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf021;" FontSize="14" Foreground="#E6FFFFFF"/>
+          </Button>
+          <Button Click="DetailPlay_Click" Background="Transparent" BorderThickness="0"
+                  Width="34" Height="34" Padding="0" MinWidth="0" CornerRadius="17"
+                  ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Play}"
+                  AutomationProperties.Name="{loc:Str Key=AlbumMenu_Play}">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf04b;" FontSize="14" Foreground="#E6FFFFFF"/>
+          </Button>
+          <Button Click="DetailShuffle_Click" Background="Transparent" BorderThickness="0"
+                  Width="34" Height="34" Padding="0" MinWidth="0" CornerRadius="17"
+                  ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Shuffle}"
+                  AutomationProperties.Name="{loc:Str Key=AlbumMenu_Shuffle}">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf074;" FontSize="14" Foreground="#E6FFFFFF"/>
+          </Button>
+          <!-- The whole auto-mix, on one button. The DJ takes this playlist, orders it by tempo, key and
+               energy, and plays it as a single beat-matched mix instead of a queue. -->
+          <Button Click="DetailAutoMix_Click" Background="Transparent" BorderThickness="0"
+                  Width="34" Height="34" Padding="0" MinWidth="0" CornerRadius="17"
+                  ToolTipService.ToolTip="{loc:Str Key=Playlists_AutoMix}"
+                  AutomationProperties.Name="{loc:Str Key=Playlists_AutoMix}">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf025;" FontSize="14" Foreground="#E6FFFFFF"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <!-- The horizontal inset belongs to the ROW, not the list. The highlight is a plate. It has to stand
+           clear of both pane edges by the same amount. That is not possible while one of those edges is the
+           list's padding and the other is the row's margin. So the padding is vertical only, and the two
+           horizontal numbers live in the template below. The time column still lands 22 in from the pane
+           edge. That is level with the shuffle glyph above it (header margin 12, plus the button's 10 of
+           slack).
+
+           The TOP of that padding is the row plate's own 12. So the first row stands as far below the
+           header as every row stands in from the pane's sides. Without it, the list would start hard
+           against the header, and the first plate would read as part of the header. -->
+      <ListView x:Name="DetailList" Grid.Row="1"
+                SelectionMode="Extended"
+                KeyDown="DetailList_KeyDown"
+                Background="Transparent"
+                Padding="0,12,0,10"
+                ScrollViewer.HorizontalScrollMode="Disabled"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListViewItem">
+            <Setter Property="MinHeight" Value="0"/>
+            <!-- The row is as deep as the sleeve in it, plus the four points of air that it always had. The
+                 height is fixed, not measured. A virtualised list that has to measure every row cannot tell
+                 the scrollbar how long it is without realising all of them. Change the square in the
+                 template, and change this number too. -->
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                  <!-- On the template root, so that a row dragged to a new place takes its fill and its
+                       hover with it. The binding is to the ROW, and it is not written onto the container.
+                       Containers are recycled, and an offset left on one would land on another track. The
+                       row is reached through Content, for the reason that the tree's own container template
+                       gives. -->
+                  <Grid RenderTransform="{Binding Content.Drop, RelativeSource={RelativeSource TemplatedParent}}">
+                    <!-- The plate that a row lights up as. It is 12 points clear of each pane edge, with
+                         the app's own plate radius (the same 6 that the back key and the cards on the genre
+                         page are drawn with). The writing is 10 points inside it. These three numbers are
+                         one arrangement. The content margin is the plate's inset plus its own air, so
+                         moving the plate without moving the writing would put a sleeve outside its own
+                         highlight. -->
+                    <Border x:Name="Fill" Background="Transparent" CornerRadius="6" Margin="12,2"/>
+                    <Border x:Name="Hover" Background="Transparent" CornerRadius="6" Margin="12,2"/>
+                    <ContentPresenter HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
+                                      Margin="22,0"/>
+                    <VisualStateManager.VisualStateGroups>
+                      <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal"/>
+                        <VisualState x:Name="PointerOver">
+                          <VisualState.Setters><Setter Target="Hover.Background" Value="#12FFFFFF"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Pressed">
+                          <VisualState.Setters><Setter Target="Hover.Background" Value="#1EFFFFFF"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Selected">
+                          <VisualState.Setters><Setter Target="Fill.Background" Value="#240371D0"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="PointerOverSelected">
+                          <VisualState.Setters><Setter Target="Fill.Background" Value="#300371D0"/></VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="PressedSelected">
+                          <VisualState.Setters><Setter Target="Fill.Background" Value="#300371D0"/></VisualState.Setters>
+                        </VisualState>
+                      </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                  </Grid>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListView.ItemContainerStyle>
+        <ListView.ItemTemplate>
+          <!-- ═══ every face field is OneWay, and that is required ═══ A drag does not move these rows. It
+               hands their FACES along (see PlaylistTrackRow.Show and CarriedReorder). The row objects and
+               their containers stay where they are. A PropertyChanged is the only signal that the song on
+               this line is now a different one. x:Bind is OneTime unless it is told otherwise. A field left
+               at the default reads its song once, when the container is prepared, and it never hears about
+               the exchange. Then the list freezes in the middle of a drag, while the offsets carry on
+               underneath it. The row that follows the pointer is then the one being dragged OVER, and not
+               the one that was picked up.
+
+               Position is the exception, and it stays OneTime. It is where the SLOT stands in the list. It
+               is not a fact about the song, so it must not travel with the face. -->
+          <DataTemplate x:DataType="model:PlaylistTrackRow">
+            <!-- There is no Tapped or ContextRequested here. Both are on DetailList, because this Grid does
+                 not cover the row. The container's presenter insets the row 22 on each side, and centres it
+                 at 56 in a row of 64. So a press near an end or along an edge lands on the container's own
+                 Hover border. It never reaches a handler written on this element. -->
+            <Grid Background="Transparent" ColumnSpacing="10" VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <!-- ═══ the number column, and why it is 26 ═══ A row's sleeve has to land on the same line
+                     as the playlist's own cover above it. Otherwise the head of the page and the list under
+                     it read as two panels that happen to be stacked. The cover starts 46 points from the
+                     pane's edge. That is the header grid's own 6, the back button's 30, and the 10 between
+                     them. A row's content starts at 10 (the container template's ContentPresenter margin).
+                     So 36 is left to make up. That is this column, and the 10 of spacing after it. If any
+                     of those four numbers changes, change this one too. -->
+                <ColumnDefinition Width="26"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- The place of the song in THIS list, not on the record it came from. It is centred in its
+                   own column, not pushed against the sleeve. So the numbers read as a column that stands in
+                   the space left of the covers, and they are not a label hung off each one. The column ends
+                   where the back button above it ends. That puts the two on one line. The number is quiet.
+                   It is a place marker, not a fact that anybody came to read.
+
+                   On the song that is playing, the three playing bars stand in this place instead. It is
+                   the same mark that the album list, the album page, the open record and an artist's page
+                   show on a playing line, in the same place.
+
+                   The mark is in the number's own column, not beside it. So no row changes width, and the
+                   sleeves below stay on one line. The number goes down while the bars are up. Two things
+                   saying where the song is would be one too many. -->
+              <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{x:Bind Position}" FontSize="11.5" Foreground="#7AFFFFFF"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                           Visibility="{x:Bind NumberShown, Mode=OneWay}"/>
+                <!-- The mark puts itself up and takes itself down from Active. It animates only while it is
+                     up. See PlayingBars, which also says why it is not driven by the render tick. -->
+                <ctl:PlayingBars Active="{x:Bind IsPlaying, Mode=OneWay}" Foreground="#EEFFFFFF"
+                                 VerticalAlignment="Center" HorizontalAlignment="Center"/>
+              </Grid>
+
+              <!-- The sleeve is large enough to recognise the record. At a small size it would be a colour
+                   beside the name. The picture behind it is already fetched at the row's edge, so nothing
+                   more is read for it. -->
+              <Grid Grid.Column="1" Width="56" Height="56" VerticalAlignment="Center">
+                <Border CornerRadius="5" Background="#33000000"/>
+                <Border CornerRadius="5">
+                  <Image Source="{x:Bind ArtImage, Mode=OneWay}" Stretch="UniformToFill"
+                         Visibility="{x:Bind HasArt, Mode=OneWay}"/>
+                </Border>
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf51f;" FontSize="20" Foreground="#40FFFFFF"
+                          Visibility="{x:Bind NoArt, Mode=OneWay}"/>
+              </Grid>
+
+              <!-- The song, and after it the E where the file says so. The badge binds to IsExplicit, not
+                   to its own Visibility. That matters in a virtualised list. See the note on ExplicitBadge,
+                   where a row that was realised before its data arrived could show a badge it should not.
+                   -->
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="{x:Bind Title, Mode=OneWay, Converter={StaticResource Censor}}" FontSize="12.5"
+                           Foreground="#EEFFFFFF" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                <ctl:ExplicitBadge Width="13" Height="13" VerticalAlignment="Center"
+                                   IsExplicit="{x:Bind IsExplicit, Mode=OneWay}"
+                                   ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+              </StackPanel>
+              <TextBlock Grid.Column="3" Text="{x:Bind Artist, Mode=OneWay}" FontSize="12" Foreground="#AEFFFFFF"
+                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              <TextBlock Grid.Column="4" Text="{x:Bind Album, Mode=OneWay, Converter={StaticResource Censor}}" FontSize="12" Foreground="#8CFFFFFF"
+                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              <TextBlock Grid.Column="5" Text="{x:Bind Duration, Mode=OneWay}" FontSize="12" Foreground="#8CFFFFFF"
+                         VerticalAlignment="Center" HorizontalAlignment="Right"/>
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+
+      <!-- ═══ the wait, while a new list is being generated ═══ It covers the TRACKS, not the header. The
+           heading is still true while the songs under it are being worked out: same list, same cover, same
+           name. Covering it would blank the one part of the page that has not changed. The veil also stops
+           the old rows from being played or dragged while the list they belong to is being replaced.
+
+           It stays down until the read is actually slow (see PlaylistView.GenerateVeilAfterMs). A generated
+           list is a SQLite query, and it usually answers before the pointer has left the button. A wait
+           mark that flashes up for one frame reads as a fault, and not as work. -->
+      <Grid x:Name="DetailBusy" Grid.Row="1" Background="#99000000" Visibility="Collapsed">
+        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="320">
+          <ctl:RecordSpinner x:Name="DetailBusySpinner" Width="64" Height="64"
+                             HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Str Key=Playlists_Generating}" FontSize="12" Foreground="#DDFFFFFF"
+                     TextAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,386 @@
+﻿<Page x:Class="RPM.Desktop.Presentation.Shell.ShellPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:np="using:RPM.Desktop.Presentation.NowPlaying"
+      xmlns:shell="using:RPM.Desktop.Presentation.Shell"
+      xmlns:ui="using:RPM.Desktop.Presentation.Common"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:viz="using:RPM.Desktop.Presentation.Viz"
+      xmlns:peg="using:RPM.Desktop.Presentation.Pegasus"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      Background="#0e1520">
+
+  <Page.Resources>
+    <FontFamily x:Key="ShellFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <!-- The hamburger uses the artwork's own chrome-button look: the round dark disc that the backdrop
+         refresh and navigation buttons use. It sits on the artwork, at the record's edge. -->
+    <Style x:Key="ArtChromeButton" TargetType="Button">
+      <Setter Property="Background" Value="#66000000"/>
+      <Setter Property="Foreground" Value="#EEFFFFFF"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="FontFamily" Value="{StaticResource ShellFa}"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- Frosted-glass window buttons (Windows and Linux, where the native title bar is removed). They
+         sit top-left, where the macOS traffic lights are, above the rpm mark. The glyph is invisible at
+         rest and fades in on hover. The button chrome is removed, so only the disc and glyph show.
+
+         The disc is the live glass frost (the same backdrop blur the art grip uses) UNDER a 50% black
+         veil. The frost on its own is a blurred copy of whatever is behind it. Over the header's dark
+         picture it came out the same colour as the picture, so the button looked like a bare ring with
+         nothing in it. The three buttons need a background, black at 50%. The veil is the same idiom
+         the dialog card and the grids use (GlassBrush and GridSurfaceBrush, at 20% there). It is darker
+         here because these three sit over the artwork itself, not over a card. -->
+    <Style x:Key="WinCaptionButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Width" Value="15"/>
+      <Setter Property="Height" Value="15"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+  </Page.Resources>
+
+  <Grid>
+    <!-- The background picture and the artwork over it, in a layer of their own. The frosted cards
+         frost everything in this layer, and nothing else is in it. The record, the seek bars and the
+         cards are drawn on top of it. This lets the frost be taken once and kept, because FrostPlate
+         takes its picture of THIS element (see Frost.Blur on the cards). The layer has its own fill,
+         so the plate is never read back with transparent pixels in it. -->
+    <Grid x:Name="BackdropLayer" Background="#0e1520">
+      <!-- The ground: the app's own backdrop, or the colours of the record or artist whose page is
+           open. ONE control decides which. The backdrop is one of the things it can show, not the floor
+           that the other layers sit on. See ShellGround for why.
+
+           The ground is BELOW the artwork. This rule outranks the rest: while something plays, the
+           window is painted with its own blurred artwork, which is a picture of what is being played.
+           The ground wins by z-order as well as by the answer PageBackdrop gives, so the two never
+           compete in the same frame. -->
+      <shell:ShellGround x:Name="Ground"/>
+
+      <!-- No safe-area inset here. The artwork runs to the top of the window, under the macOS traffic
+           lights. The setup page has its own inset. -->
+
+      <!-- The artwork fills the whole window, behind the content. The now-playing chrome and the backdrop
+           stay in the top header zone (ChromeHeight, set from ArtBandRow). The record spins at full height,
+           and the album's dominant colour fills the rest, so the content floats over it. -->
+      <np:ArtDisplay x:Name="ShellArt"/>
+    </Grid>
+
+    <Grid x:Name="ShellBody" Background="Transparent">
+      <Grid.RowDefinitions>
+        <!-- The header zone: how far down the chrome and backdrop reach. Drag the grip to resize it. The
+             content and player below follow. The height is 0 on the setup page, which has no library. -->
+        <RowDefinition x:Name="ArtBandRow" Height="200"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <!-- A right-click catcher for the artwork header. The artwork (ShellArt) sits BEHIND this content
+           grid, so its own ContextFlyout never sees the click. This transparent band, filling the
+           header row, passes a right-click on to the artwork's flip and refresh menu. It is the FIRST
+           child of the row, so the title strip, splitter, hamburger and record all draw above it and
+           keep their own gestures. -->
+      <Border x:Name="ArtHeaderCatcher" Grid.Row="0" Background="Transparent"
+              RightTapped="ArtHeader_RightTapped"/>
+
+      <!-- The title bar strip is the top edge of the window (under the macOS traffic lights).
+           Double-click it to maximize or restore, as a native title bar does. It sits BENEATH the
+           hamburger, the drag grip and the record disc, so those keep their own gestures. Only the bare
+           top edge toggles. -->
+      <Border x:Name="TitleBarStrip" Grid.Row="0" VerticalAlignment="Top" Height="34"
+              Background="Transparent" DoubleTapped="TitleBar_DoubleTapped"
+              PointerPressed="TitleBar_PointerPressed" PointerMoved="TitleBar_PointerMoved"
+              PointerReleased="TitleBar_PointerReleased" PointerCaptureLost="TitleBar_PointerReleased"/>
+
+      <!-- The header is transparent, so the artwork shows through it. Only the drag grip lives here,
+           floating on the artwork's foot, bright white when grabbed. The splitter straddles the header
+           and content boundary. It is lifted above the content (Canvas.ZIndex), so the transparent grid
+           below cannot take its pointer events. A plain negative margin does not do this. The pill is
+           bottom-aligned in its band, so it sits a few pixels above the grid's top edge, the same short
+           gap the album cover keeps. -->
+      <ctl:RowSplitter Grid.Row="0" x:Name="ShellArtSplitter" Height="14" VerticalAlignment="Bottom"
+              Margin="0,0,0,-25" Canvas.ZIndex="10" HorizontalAlignment="Stretch" Background="Transparent"
+              PointerPressed="ArtSplitter_PointerPressed" PointerMoved="ArtSplitter_PointerMoved"
+              PointerReleased="ArtSplitter_PointerReleased" PointerCaptureLost="ArtSplitter_PointerReleased"
+              PointerEntered="ArtSplitter_PointerEntered" PointerExited="ArtSplitter_PointerExited">
+        <!-- 4px foot breathing: the same gap the vertical panel splitter's grip keeps left and right,
+             so the two drag handles are spaced alike. It clears the seek bar sitting just above the
+             band foot. -->
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4"
+              IsHitTestVisible="False">
+          <!-- The grab pill, and nothing else. It is shown only while the pointer is on the strip
+               (ApplyArtGripBrush collapses it otherwise). It has one face for both the open and the parked
+               drawer. The press behaviour is on the splitter, not on this control (see
+               ArtSplitter_PointerPressed), so there is one handle doing one job. Two faces would make the
+               drawer look as though it had modes. -->
+          <Rectangle x:Name="ArtGrip" Height="7" Width="54" RadiusX="3.5" RadiusY="3.5"
+                     Stroke="{StaticResource GripEdgeBrush}" StrokeThickness="1" Visibility="Collapsed"
+                     HorizontalAlignment="Center" VerticalAlignment="Bottom">
+            <Rectangle.Fill>
+              <ui:GlassBrush BlurAmount="16"/>
+            </Rectangle.Fill>
+          </Rectangle>
+        </Grid>
+      </ctl:RowSplitter>
+
+      <!-- The content floats over the artwork. It is transparent, so the record and the album colour
+           show around the grids' own translucent cards. The player has no place of its own here. It is
+           one of the app's three views, opened by double-clicking the record. -->
+      <Grid Grid.Row="1" Background="Transparent">
+        <Frame x:Name="RootFrame"/>
+      </Grid>
+
+      <!-- The hamburger uses the artwork's chrome-button look. It hangs on the record's left edge. Its
+           position is set in code, so it clears the disc and never sits on it. It holds the list and
+           grid switch on the library page, and the account, settings and help items everywhere. -->
+      <Button x:Name="HamburgerButton" Grid.Row="0" Grid.RowSpan="2"
+              Style="{StaticResource ArtChromeButton}"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,16,0"
+              AutomationProperties.Name="{loc:Str Key=Shell_Menu}">
+        <TextBlock Text="&#xf0c9;" FontFamily="{StaticResource ShellFa}" FontSize="13"/>
+        <Button.Flyout>
+          <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="Menu_Opening">
+            <!-- The views are not listed here. Choosing between the app's three views is done by the
+                 deck's own view menu, next to the hamburger. A second choice in this menu would give a
+                 second answer about which view is up. The list and wall switch is in the library
+                 panel's own header. -->
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Settings_Title}" Click="Settings_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf013;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Login_SignIn}" x:Name="SignInItem" Click="SignIn_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf2f6;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator/>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Help}" Click="Help_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf059;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Privacy}" Click="Privacy_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf3ed;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Terms}" Click="Terms_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf15c;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=About_Title}" Click="About_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf05a;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator x:Name="SignOutSeparator"/>
+            <MenuFlyoutItem FontSize="12" x:Name="SignOutItem" Text="{loc:Str Key=Login_SignOut}" Click="SignOut_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf2f5;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+
+    </Grid>
+
+    <!-- Now-playing seek bar, lifted ABOVE the content so it can receive pointer input (the artwork,
+         with its own copy of the chrome, is behind the content grid). ArtDisplay positions it in layout
+         under the album name. It hides and stops taking clicks when nothing can be sought. -->
+    <ctl:SeekBar x:Name="TopSeek"/>
+
+    <!-- The SAME bar, for the parked drawer. This is a second control, not the first one reshaped. One
+         bar would have to change width, position and readout whenever the drawer opened or closed, and that
+         would show as a bar growing or snapping across the top of the window. Two bars each keep one
+         geometry for the whole run, and fade with the view they belong to. A crossfade between two still
+         objects cannot flash. Both read the same transport, so they agree without talking to each other.
+         -->
+    <ctl:SeekBar x:Name="ParkSeek" Opacity="0" IsHitTestVisible="False"/>
+
+    <!-- The spinning record, lifted ABOVE the content so its lower arc laps over the grids, on top of
+         the frosted glass. ArtDisplay owns and drives it (attached in code). It fills the same window
+         bounds, so the disc lands in the band. Double-click the disc to open the player popout. Only the
+         drawn disc takes hit tests. The transparent rest of the overlay lets clicks fall through to the
+         grids beneath. -->
+    <ctl:RecordDisc x:Name="TopRecord" DoubleTapped="Record_DoubleTapped"/>
+
+    <!-- The problem screen. It sits over the running library, not in place of it, for a read of the
+         open collection that failed. It is over the content, the seek bars and the record, and under the
+         window buttons, which must stay usable. It is opaque in the shell's own dark, so no library content
+         shows while the page behind the text draws its first frame. ShellPage.LibraryTrouble.cs shows and
+         hides it. -->
+    <Frame x:Name="ProblemFrame" Background="#0e1520" Visibility="Collapsed"/>
+
+    <!-- Declared AFTER the record. The disc is an overlay that laps over everything below it, and it
+         grows with the window. Past a certain size its upper right arc reaches the corner where these
+         buttons are, and it would cover them and take their clicks. Only the drawn disc takes hit tests,
+         and the drawn disc is on top. The caption buttons must never sit behind anything. -->
+    <!-- Window buttons: frosted-glass minimize, maximize or restore, and close. On Windows, where the
+         native title bar is removed, they sit top-RIGHT in the native Windows corner, in Windows order:
+         minimize, maximize, close. The edge hamburger on the welcome window moves aside for them on Windows
+         (see PositionHamburger). They are hidden on macOS (real traffic lights) and on Linux (native chrome
+         for now). They are collapsed by default. The shell shows them on Windows. -->
+    <StackPanel x:Name="WinCaptionButtons" Orientation="Horizontal"
+                Spacing="9" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,11,12,0"
+                Visibility="Collapsed">
+      <!-- Minimize -->
+      <Button x:Name="MinCaptionButton" Style="{StaticResource WinCaptionButton}" Click="Caption_Minimize_Click"
+              Tag="{Binding ElementName=MinGlyph}" ToolTipService.ToolTip="{loc:Str Key=Window_Minimize}"
+              AutomationProperties.Name="{loc:Str Key=Window_Minimize}"
+              PointerEntered="Caption_Enter" PointerExited="Caption_Exit">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+        </Button.Resources>
+        <Grid Width="15" Height="15">
+          <Ellipse Width="15" Height="15">
+            <Ellipse.Fill>
+              <ui:GlassBrush BlurAmount="14"/>
+            </Ellipse.Fill>
+          </Ellipse>
+          <Ellipse Width="15" Height="15" Fill="#80000000"/>
+          <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+          <Rectangle x:Name="MinGlyph" Opacity="0" Width="7" Height="1.4" Fill="#EAF0F3"
+                     RadiusX="0.7" RadiusY="0.7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+      </Button>
+      <!-- Maximize / restore -->
+      <Button x:Name="MaxCaptionButton" Style="{StaticResource WinCaptionButton}" Click="Caption_MaxRestore_Click"
+              Tag="{Binding ElementName=MaxGlyph}" ToolTipService.ToolTip="{loc:Str Key=Window_Maximize}"
+              AutomationProperties.Name="{loc:Str Key=Window_Maximize}"
+              PointerEntered="Caption_Enter" PointerExited="Caption_Exit">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+        </Button.Resources>
+        <Grid Width="15" Height="15">
+          <Ellipse Width="15" Height="15">
+            <Ellipse.Fill>
+              <ui:GlassBrush BlurAmount="14"/>
+            </Ellipse.Fill>
+          </Ellipse>
+          <Ellipse Width="15" Height="15" Fill="#80000000"/>
+          <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+          <Grid x:Name="MaxGlyph" Opacity="0" Width="15" Height="15">
+            <!-- Not maximized: a single square (maximize). -->
+            <Rectangle x:Name="MaxIcon" Width="7" Height="7" Stroke="#EAF0F3" StrokeThickness="1.2"
+                       RadiusX="1" RadiusY="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- Maximized: two offset squares (restore). -->
+            <Grid x:Name="RestoreIcon" Width="9" Height="9" Visibility="Collapsed"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Rectangle Width="6" Height="6" Stroke="#EAF0F3" StrokeThickness="1.1" RadiusX="1" RadiusY="1"
+                         HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+              <Rectangle Width="6" Height="6" Stroke="#EAF0F3" StrokeThickness="1.1" RadiusX="1" RadiusY="1"
+                         HorizontalAlignment="Right" VerticalAlignment="Top"/>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Button>
+      <!-- Close -->
+      <Button x:Name="CloseCaptionButton" Style="{StaticResource WinCaptionButton}" Click="Caption_Close_Click"
+              Tag="{Binding ElementName=CloseGlyph}" ToolTipService.ToolTip="{loc:Str Key=Window_Close}"
+              AutomationProperties.Name="{loc:Str Key=Window_Close}"
+              PointerEntered="Caption_Enter" PointerExited="Caption_Exit">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+        </Button.Resources>
+        <Grid Width="15" Height="15">
+          <Ellipse Width="15" Height="15">
+            <Ellipse.Fill>
+              <ui:GlassBrush BlurAmount="14"/>
+            </Ellipse.Fill>
+          </Ellipse>
+          <Ellipse Width="15" Height="15" Fill="#80000000"/>
+          <Ellipse Width="15" Height="15" Stroke="#4DFFFFFF" StrokeThickness="1"/>
+          <Path x:Name="CloseGlyph" Opacity="0" Data="M0,0 L7,7 M7,0 L0,7"
+                Stroke="#EAF0F3" StrokeThickness="1.3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+      </Button>
+    </StackPanel>
+
+    <!-- The full-screen visualizer. It sits at the top of the shell, over the artwork, the content and
+         the record. While it is up it covers the whole window, and it has its own now-playing chrome along
+         its foot. It is opened from the Visualizations pane. Escape, or its close button, leaves it. -->
+    <viz:VizFullScreen x:Name="VizOverlay"/>
+
+    <!-- Pegasus: the full-screen player, one of the app's three views. The deck's view menu chooses
+         between them. It is declared AFTER the gallery's host, so that a visualizer left standing would not
+         sit over the view. The two are never up together, because the view-mode service takes one away
+         before it brings the other up. -->
+    <peg:PegasusPlayer x:Name="PegasusOverlay"/>
+
+    <!-- The skin view, in the app's own window, over everything else. This is the third view.
+
+         This grid is a host for the skin, not the skin itself. The skin's casing has see-through gaps
+         between its panels, so the library must not show through those gaps. Everything else in the shell
+         is collapsed while the skin is up, not just covered. The window itself goes see-through for this
+         view (SkinWindow), so whatever is left standing behind the gaps would show through.
+
+         The skin is mounted here by ShowAmp and taken out again when the view closes. A view nobody has
+         asked for costs nothing but an empty grid. -->
+    <Grid x:Name="AmpHost" Background="Transparent" Visibility="Collapsed"/>
+
+    <!-- The first-run hints. The overlay sits over everything except the splash, so an arrow can point
+         at a control in the library page, at the artwork's grip, or at the deck. All of them are drawn from
+         one canvas.
+
+         NO BACKGROUND, on purpose: every pointer event falls straight through to the app. The only hit-
+         testable thing here is a hint's own close button. The overlay is never collapsed either. A
+         collapsed overlay measures zero, and the bubble clamp would then put the next hint in the top-left
+         corner. Instead it fades to nothing and its canvas is cleared. See CoachmarkPainter. -->
+    <Grid x:Name="CoachOverlay" Opacity="0">
+      <Canvas x:Name="CoachCanvas"/>
+    </Grid>
+
+    <!-- The splash overlay: solid black, with the rpm wordmark centred. It covers the whole window
+         while the app initializes, so the startup flicker of binding and first layout is not seen. It is
+         dismissed from code-behind.
+
+         On the WinUI head the user does not see this overlay. There, the startup is a window of its own
+         (Startup.SplashWindow), and this window is cloaked until the app is ready. What is here is black
+         behind that cloak. It is kept because every other head still shows it. It is also what shows if
+         that window cannot be raised. The shell skips its own reveal only while the splash window is
+         actually up. -->
+    <Grid x:Name="SplashOverlay" Background="Black">
+      <!-- The rpm wordmark is a vector Path, not an SVG Image. The Image decodes asynchronously and
+           did not reliably paint before the splash cleared. It has the same geometry as the top-left
+           RpmMark.
+
+           The resting values are the ones in the markup: half opacity, no scaling. The entrance animates
+           FROM other values TO these. That direction is deliberate. If the animation is never run, the mark
+           stays where the markup put it, which is on screen. The other way round, a head that dropped the
+           storyboard would show a black rectangle for the whole startup, with nothing to say why. -->
+      <Path x:Name="SplashLogo"
+            Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"
+            Fill="#FFFFFFFF" Opacity="0.5" Stretch="Uniform" Width="220"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            RenderTransformOrigin="0.5,0.5">
+        <Path.RenderTransform>
+          <ScaleTransform x:Name="SplashLogoScale" ScaleX="1" ScaleY="1"/>
+        </Path.RenderTransform>
+      </Path>
+
+    </Grid>
+  </Grid>
+</Page>

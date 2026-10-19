@@ -1,0 +1,141 @@
+<Page x:Class="RPM.Desktop.Presentation.Settings.CatalogSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      Background="Transparent"
+      mc:Ignorable="d">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+    <StackPanel Spacing="24" Margin="20,0,20,0">
+      <StackPanel.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+          </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+      </StackPanel.Resources>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="{loc:Str Key=Catalog_Heading}"
+                   FontSize="22" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="{loc:Str Key=Catalog_Intro}"
+                   FontSize="13" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <!-- rpm: the app's own catalogue. It needs no connection of its own. It is still reached through
+           the rpm API on this user's session, so the mark follows the account, as the Discogs mark
+           does. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon x:Name="RpmIcon" Style="{StaticResource FaIcon}" Glyph="&#xf111;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="rpm" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock x:Name="RpmStatusText"
+                     FontSize="12" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- Discogs: the user's own account, because the rate limit that is used is theirs. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon x:Name="DiscogsIcon" Style="{StaticResource FaIcon}" Glyph="&#xf111;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="Discogs" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                       VerticalAlignment="Center" />
+            <TextBlock x:Name="DiscogsStatusText" FontSize="12" Foreground="#99FFFFFF"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+
+          <TextBlock Text="{loc:Str Key=Catalog_DiscogsWhy}"
+                     FontSize="12" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ctl:RpmPrimaryButton x:Name="ConnectButton" Click="OnConnect">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0c1;" FontSize="11"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Catalog_DiscogsConnect}" VerticalAlignment="Center" />
+              </StackPanel>
+            </ctl:RpmPrimaryButton>
+            <Button x:Name="DisconnectButton" Click="OnDisconnect"
+                    Style="{StaticResource GlassButtonStyle}"
+                    Visibility="Collapsed">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf127;" FontSize="11"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Catalog_DiscogsDisconnect}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="RecheckButton" Click="OnRecheck"
+                    Style="{StaticResource GlassButtonStyle}"
+                    Visibility="Collapsed">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf021;" FontSize="11"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Catalog_DiscogsRecheck}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <!-- Shown while the browser is open. The app cannot know that the user has finished until
+               it checks. -->
+          <TextBlock x:Name="PendingText" Text="{loc:Str Key=Catalog_DiscogsPending}"
+                     FontSize="12" Foreground="#FFD466" TextWrapping="Wrap" Visibility="Collapsed" />
+          <TextBlock x:Name="ErrorText" FontSize="12" Foreground="#FF6B6B"
+                     TextWrapping="Wrap" Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
+      <!-- fanart.tv: the user's personal key. It is saved to their rpm account and sent by the API
+           as client_key. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon x:Name="FanartIcon" Style="{StaticResource FaIcon}" Glyph="&#xf111;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="fanart.tv" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                       VerticalAlignment="Center" />
+            <TextBlock x:Name="FanartStatusText" FontSize="12" Foreground="#99FFFFFF"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+
+          <TextBlock Text="{loc:Str Key=Catalog_FanartWhy}"
+                     FontSize="12" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+
+          <TextBox x:Name="FanartKeyBox"
+                   PlaceholderText="{loc:Str Key=Catalog_FanartKeyPlaceholder}" />
+
+          <TextBlock x:Name="FanartNoteText" FontSize="12" Foreground="#99FFFFFF"
+                     TextWrapping="Wrap" Visibility="Collapsed" />
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ctl:RpmPrimaryButton x:Name="FanartSaveButton" Click="OnSaveFanart">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0c7;" FontSize="11"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Catalog_FanartSave}" VerticalAlignment="Center" />
+              </StackPanel>
+            </ctl:RpmPrimaryButton>
+            <Button x:Name="FanartClearButton" Click="OnClearFanart"
+                    Style="{StaticResource GlassButtonStyle}"
+                    Visibility="Collapsed">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf1f8;" FontSize="10"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Catalog_FanartClear}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

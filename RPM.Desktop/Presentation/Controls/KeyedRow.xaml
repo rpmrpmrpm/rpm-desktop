@@ -1,0 +1,49 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.KeyedRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             Loaded="Row_Loaded">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+  </UserControl.Resources>
+
+  <!-- A row of cards that scrolls sideways only by its two keys. This is the home screen's row as one
+       control. There is no bar, no mouse wheel and no trackpad swipe.
+
+       The shape ScrollHem needs: the cut holds only the scroller, and the two bands are drawn over it. The
+       keys sit over both, at the two ends of the row. -->
+  <Grid>
+    <Grid x:Name="Cut">
+      <!-- HorizontalScrollMode DISABLED is what keeps the wheel and the trackpad off the row. Marking the
+           notch as handled does not work. A ScrollViewer scrolls on the wheel through its own input
+           processing, not through the routed event. The keys still move the row, because ChangeView is not
+           user input. The bar is Hidden and not Disabled. A Disabled bar measures the content at the
+           viewport's width, so the row could not scroll at all. -->
+      <ScrollViewer x:Name="Scroller"
+                    HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Disabled"
+                    VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled"
+                    BringIntoViewOnFocusChange="False"
+                    SizeChanged="Scroller_SizeChanged" ViewChanged="Scroller_ViewChanged"/>
+    </Grid>
+
+    <!-- Width zero until there are cards past that end. A row whose cards all fit shows neither band nor
+         key. -->
+    <Border x:Name="Head" HorizontalAlignment="Left" Width="0" IsHitTestVisible="False"/>
+    <Border x:Name="Foot" HorizontalAlignment="Right" Width="0" IsHitTestVisible="False"/>
+
+    <!-- The keys match the home row: the shared glow key at 36 x 44, with a 15-point chevron. Their top and
+         bottom margins come from KeyBand, which is set in code. So the keys centre on the picture, not on
+         the picture and its text together. -->
+    <Button x:Name="BackKey" Style="{StaticResource GlowKeyStyle}" Width="36" Height="44"
+            HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="Collapsed"
+            Click="BackKey_Click" AutomationProperties.Name="{loc:Str Key=Row_ScrollLeft}">
+      <FontIcon Glyph="&#xf053;" FontFamily="{StaticResource Fa}" FontSize="15" Foreground="#FFFFFFFF"/>
+    </Button>
+    <Button x:Name="OnKey" Style="{StaticResource GlowKeyStyle}" Width="36" Height="44"
+            HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed"
+            Click="OnKey_Click" AutomationProperties.Name="{loc:Str Key=Row_ScrollRight}">
+      <FontIcon Glyph="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="15" Foreground="#FFFFFFFF"/>
+    </Button>
+  </Grid>
+</UserControl>

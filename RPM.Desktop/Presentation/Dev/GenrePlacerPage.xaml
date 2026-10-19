@@ -1,0 +1,294 @@
+<Page x:Class="RPM.Desktop.Presentation.Dev.GenrePlacerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#0E1116">
+
+  <Page.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- The house data-entry sizing: 24 px inputs and 12 pt text. Everything else (the slim slider, the
+             dense labels and the content border) is app-wide in Generic.xaml. -->
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Page.Resources>
+
+  <Grid Margin="14" RowSpacing="10">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>   <!-- which shelf, and how far through -->
+      <RowDefinition Height="*"/>      <!-- the head, to scale, with the picture in it -->
+      <RowDefinition Height="Auto"/>   <!-- the same three numbers as figures -->
+      <RowDefinition Height="Auto"/>   <!-- the way through, and the save -->
+    </Grid.RowDefinitions>
+
+    <!-- ═══ which shelf ═══ -->
+    <Grid Grid.Row="0" ColumnSpacing="12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <TextBlock Grid.Column="0" x:Name="ShelfName" FontSize="17" FontWeight="SemiBold"
+                 Foreground="#E8E8EA" VerticalAlignment="Center"/>
+      <TextBlock Grid.Column="1" x:Name="ShelfNote" FontSize="11.5"
+                 Foreground="{StaticResource DenseLabelInkBrush}"
+                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      <TextBlock Grid.Column="2" x:Name="ShelfCount" FontSize="11.5"
+                 Foreground="{StaticResource DenseValueInkBrush}" VerticalAlignment="Center"/>
+    </Grid>
+
+    <!-- ═══ the head, to scale ═══ Every rectangle in here is one of the genre page's own measurements
+         (GenreDetailView.BandShare, ScrimReach and NameEdge), multiplied by a single factor. Every brush
+         comes from GenreWordmarks, the same door the page itself goes through. So what is arranged here is
+         the head at another size, not a drawing of it.
+
+         Under the band is the 6:1 CUT: what the generator will actually write to Assets. The head is wider
+         than six to one on nearly every window, so it shows less of that cut than there is. The shaded ends
+         of the strip are the height held back for narrower panes. There is no other way to see that you are
+         giving it away.
+
+         Everything is positioned from code (Stage_SizeChanged, then Model). The Canvas holds them, and the
+         named parts are here so the code has something to place. -->
+    <Border Grid.Row="1" Style="{StaticResource ContentBorderStyle}" Padding="14">
+      <Grid x:Name="Stage" Background="Transparent"
+            PointerPressed="Stage_PointerPressed"
+            PointerMoved="Stage_PointerMoved"
+            PointerReleased="Stage_PointerReleased"
+            PointerCaptureLost="Stage_PointerReleased"
+            PointerWheelChanged="Stage_PointerWheelChanged"
+            SizeChanged="Stage_SizeChanged">
+
+        <Canvas x:Name="Model" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Canvas.Clip>
+            <RectangleGeometry x:Name="ModelClip"/>
+          </Canvas.Clip>
+
+          <!-- The page under the head, so the foot has something to dissolve into. -->
+          <Rectangle x:Name="PageStrip" Fill="#141A22"/>
+
+          <!-- The genre's colour, flat. It is what the whole head is where no photograph arrives. -->
+          <Rectangle x:Name="BandGround"/>
+
+          <!-- The photograph, across the whole band. The zone clips to the window that the frame asks for.
+               The whole picture is laid out behind it and slid into place. So what shows is exactly what
+               the head will show, and not a point more. -->
+          <Grid x:Name="PictureZone">
+            <Grid.Clip>
+              <RectangleGeometry x:Name="PictureClip"/>
+            </Grid.Clip>
+            <!-- What is behind the photograph where it does not reach: the tone the head's own ground holds
+                 under the picture (GenreWordmarks.Deep). The generator pads the cut with the same tone. So
+                 a gap on the left looks here exactly as it will look on the page. -->
+            <Rectangle x:Name="PadPlate" IsHitTestVisible="False"/>
+            <Image x:Name="Photo" Stretch="Fill"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
+              <Image.RenderTransform>
+                <ScaleTransform x:Name="PhotoFlip" ScaleX="1"/>
+              </Image.RenderTransform>
+            </Image>
+          </Grid>
+
+          <!-- The three layers that make it the head of a shelf, and not a stock photograph with a word on
+               it: the colour over the left where the name stands, and the card's two falls across the whole
+               width. -->
+          <Rectangle x:Name="BandScrim" IsHitTestVisible="False"/>
+          <Rectangle x:Name="BandDrop" Opacity="0.55" IsHitTestVisible="False"/>
+          <Rectangle x:Name="BandFinish" Opacity="0.7" IsHitTestVisible="False"/>
+
+          <!-- Where the head lets go. On the page, its own pixels are taken away and the page runs up under
+               it. Here there is one flat page colour behind, so the same effect is made by fading INTO that
+               colour. This is one simpler surface, and the only thing in this model that does not happen
+               exactly that way in the app. -->
+          <Rectangle x:Name="FootFade" IsHitTestVisible="False">
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Offset="0" Color="#00141A22"/>
+                <GradientStop Offset="1" Color="#FF141A22"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+
+          <!-- The way out, and the name, at the head's own corner: 28 in and 28 down, a 32 x 28 key, and
+               then the same 28 again before the lettering. -->
+          <Border x:Name="BackKey" CornerRadius="6" BorderBrush="#8CFFFFFF" BorderThickness="1"
+                  IsHitTestVisible="False"/>
+          <Image x:Name="TitleMark" Stretch="Fill" IsHitTestVisible="False"/>
+          <Rectangle x:Name="SubtitleBar" RadiusX="1.5" RadiusY="1.5" IsHitTestVisible="False"/>
+
+          <!-- The window's own edge, over everything. -->
+          <Rectangle x:Name="PlateEdge" Stroke="#38FFFFFF" StrokeThickness="1"
+                     RadiusX="4" RadiusY="4" IsHitTestVisible="False"/>
+
+          <!-- The cut that is shipped, at the same width. -->
+          <Grid x:Name="CutZone" IsHitTestVisible="False">
+            <Grid.Clip>
+              <RectangleGeometry x:Name="CutClip"/>
+            </Grid.Clip>
+            <Rectangle x:Name="CutPad"/>
+            <Image x:Name="CutPhoto" Stretch="Fill"
+                   HorizontalAlignment="Left" VerticalAlignment="Top">
+              <Image.RenderTransform>
+                <ScaleTransform x:Name="CutFlip" ScaleX="1"/>
+              </Image.RenderTransform>
+            </Image>
+          </Grid>
+          <Rectangle x:Name="CutTop" Fill="#A60E1116" IsHitTestVisible="False"/>
+          <Rectangle x:Name="CutFoot" Fill="#A60E1116" IsHitTestVisible="False"/>
+          <Rectangle x:Name="CutEdge" Stroke="#38FFFFFF" StrokeThickness="1" IsHitTestVisible="False"/>
+          <TextBlock x:Name="CutLabel" FontSize="10.5" Foreground="{StaticResource DenseLabelInkBrush}"/>
+        </Canvas>
+
+        <!-- Shown instead of the model while the photograph is being fetched, and if it will not open. -->
+        <TextBlock x:Name="StatusText" FontSize="12" Foreground="{StaticResource DenseLabelInkBrush}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"/>
+      </Grid>
+    </Border>
+
+    <!-- ═══ the same three numbers as figures ═══ Everything the drag does, said exactly. This is for the
+         times a drag will not do: matching two shelves, or nudging a horizon a percent off level. -->
+    <Border Grid.Row="2" Style="{StaticResource ContentBorderStyle}" Padding="12,10">
+      <Grid RowSpacing="{StaticResource DenseRowSpacing}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="{StaticResource DenseColumnSpacing}"
+              RowSpacing="{StaticResource DenseRowSpacing}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0" Grid.Column="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Zoom" Width="{StaticResource DenseLabelWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"/>
+            <Slider Grid.Column="1" x:Name="ZoomSlider" Style="{StaticResource SlimSliderStyle}"
+                    Minimum="0" Maximum="1000" StepFrequency="1"
+                    VerticalAlignment="Center" ValueChanged="Zoom_ValueChanged"/>
+            <TextBlock Grid.Column="2" x:Name="ZoomValue" Width="{StaticResource DenseNarrowWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"
+                       Foreground="{StaticResource DenseValueInkBrush}"/>
+          </Grid>
+
+          <!-- Not part of the placement. This is how wide the page is imagined to be. The head is a share
+               of that width, so its SHAPE changes with it. The shape decides how much of the six-to-one cut
+               the reader ever sees. -->
+          <Grid Grid.Row="0" Grid.Column="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Page" Width="{StaticResource DenseLabelWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"/>
+            <Slider Grid.Column="1" x:Name="PageSlider" Style="{StaticResource SlimSliderStyle}"
+                    Minimum="900" Maximum="2560" StepFrequency="10"
+                    VerticalAlignment="Center" ValueChanged="Page_ValueChanged"/>
+            <TextBlock Grid.Column="2" x:Name="PageValue" Width="{StaticResource DenseNarrowWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"
+                       Foreground="{StaticResource DenseValueInkBrush}"/>
+          </Grid>
+
+          <Grid Grid.Row="1" Grid.Column="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Across" Width="{StaticResource DenseLabelWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"/>
+            <Slider Grid.Column="1" x:Name="AcrossSlider" Style="{StaticResource SlimSliderStyle}"
+                    Minimum="0" Maximum="1000" StepFrequency="1"
+                    VerticalAlignment="Center" ValueChanged="Across_ValueChanged"/>
+            <TextBlock Grid.Column="2" x:Name="AcrossValue" Width="{StaticResource DenseNarrowWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"
+                       Foreground="{StaticResource DenseValueInkBrush}"/>
+          </Grid>
+
+          <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Down" Width="{StaticResource DenseLabelWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"/>
+            <Slider Grid.Column="1" x:Name="DownSlider" Style="{StaticResource SlimSliderStyle}"
+                    Minimum="0" Maximum="1000" StepFrequency="1"
+                    VerticalAlignment="Center" ValueChanged="Down_ValueChanged"/>
+            <TextBlock Grid.Column="2" x:Name="DownValue" Width="{StaticResource DenseNarrowWidth}"
+                         Style="{StaticResource DenseFieldLabelStyle}"
+                       Foreground="{StaticResource DenseValueInkBrush}"/>
+          </Grid>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="{StaticResource DenseRuleBrush}" BorderThickness="0,1,0,0"
+                Margin="0,4,0,0"/>
+
+        <Grid Grid.Row="2" ColumnSpacing="10" Margin="0,4,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Button Grid.Column="0" x:Name="ResetButton" Style="{StaticResource DenseButtonStyle}"
+                  Click="Reset_Click" Content="Back to focus"/>
+          <Button Grid.Column="1" x:Name="WidestButton" Style="{StaticResource DenseButtonStyle}"
+                  Click="Widest_Click" Content="Full width"/>
+          <CheckBox Grid.Column="2" x:Name="FlipBox" Content="Mirror" MinWidth="0"
+                    VerticalAlignment="Center" Margin="6,0,0,0"
+                    Checked="Flip_Toggled" Unchecked="Flip_Toggled"/>
+          <TextBlock Grid.Column="3" x:Name="HintText" FontSize="11.5"
+                     Foreground="{StaticResource DenseLabelInkBrush}"
+                     VerticalAlignment="Center" Margin="8,0,0,0"
+                     TextTrimming="CharacterEllipsis"
+                     Text="Drag to move the picture, scroll to zoom."/>
+          <TextBlock Grid.Column="4" x:Name="GapText" FontSize="11.5"
+                     Foreground="{StaticResource DenseValueInkBrush}"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- ═══ the way through, and the save ═══ -->
+    <Grid Grid.Row="3" ColumnSpacing="10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="220"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <Button Grid.Column="0" x:Name="PrevButton" Style="{StaticResource DenseButtonStyle}"
+              Click="Prev_Click" Content="Previous"/>
+      <ComboBox Grid.Column="1" x:Name="ShelfPicker" HorizontalAlignment="Stretch"
+                SelectionChanged="Shelf_SelectionChanged"/>
+      <Button Grid.Column="2" x:Name="NextButton" Style="{StaticResource DenseButtonStyle}"
+              Click="Next_Click" Content="Next"/>
+
+      <TextBlock Grid.Column="3" x:Name="SaveNote" FontSize="11.5"
+                 Foreground="{StaticResource DenseLabelInkBrush}"
+                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+      <Button Grid.Column="4" x:Name="SaveButton" Style="{StaticResource DenseButtonStyle}"
+              Click="Save_Click" Content="Save to genre-photos.json"/>
+    </Grid>
+  </Grid>
+</Page>

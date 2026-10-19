@@ -1,0 +1,224 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.Controls.LibraryPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.Transport.Controls"
+             RequestedTheme="Dark">
+
+  <!-- The collections this computer can be standing in: its own, and each shelf from a person who
+       shares with it. One control is shown in two places: the deck's share button and the player's
+       library pane. Both lists offer the same places, so they are one object shown twice.
+
+       The control has two looks, and the host chooses which one. The rows are the same either way.
+       What differs is how much room they get, and that is a property of the window they sit in.
+       See LibraryPicker.Look. A host must state its look.
+
+       * ROOMY is for the main window. It has a 38-point tile with the app's gradient lit on the row
+         you are standing in, the name at 13.5 semibold, and the state on its own line under it.
+         Each row is a card with rounded corners, not a table row.
+
+       * COMPACT is for the player. It is drawn the way the data grid draws its rows: one column, no
+         header, the same alternating row fills, the same selection wash, the same cyan bar on the
+         left of the row you are standing in, and a 24-point row height. Every colour comes from the
+         keys that the grid's own palette reads (GridTheme), so the two stay in step.
+
+       A look that suits one window does not suit the other, so neither host should get a look by
+       accident. -->
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- The fill for a selected row. It is merged here, because the app does not declare these
+             resources app-wide. The grid's painter reads the same keys through GridTheme and uses the
+             same fallback values. This file merges them, so a selected row has one colour in the table
+             and in this list. -->
+        <ResourceDictionary Source="ms-appx:///Themes/GridSelection.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+      <!-- Every other row, over the surface. GridRowBandBrush, which is what the painter lays down. -->
+      <conv:BoolToBrushConverter x:Key="RowBandBrush"
+                                 TrueBrush="{StaticResource GridRowBandBrush}" FalseBrush="Transparent"/>
+
+      <!-- The app's two blues, used for everything that is lit in rpm (RpmPalette). The tile of the row you
+           are standing in uses them. In the roomy look this marks the current row without a tick. -->
+      <LinearGradientBrush x:Key="LibraryTileLit" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#FF0371D0"/>
+        <GradientStop Offset="1" Color="#FF04C8FF"/>
+      </LinearGradientBrush>
+
+      <!-- The surface each look stands on, as a Style. The code-behind does not reach for two brushes.
+           GridSurfaceBrush and ListEdgeBrush are declared app-wide in Themes/Generic.xaml, but a
+           UserControl's own Resources do not look up to the app. Reading them from code throws a
+           KeyNotFoundException when the compact list is dressed. A StaticResource in markup is resolved
+           by the parser, which does look up. -->
+      <Style x:Key="CompactSurface" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource GridSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource ListEdgeBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+      </Style>
+
+      <!-- No surface. The roomy look is a stack of cards on the flyout's own ground. A card list on a table
+           surface would be a panel inside a panel. It is declared, not left out, so both looks state
+           their ground in the same place. -->
+      <Style x:Key="RoomySurface" TargetType="Border"/>
+
+      <!-- COMPACT: no chrome of its own, because the fills behind it come from the grid. It is flush with
+           its neighbours, as data grid rows are: no gaps and no rounded corners. -->
+      <Style x:Key="CompactRow" TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+
+      <!-- ROOMY: a card. It keeps its own padding and its own corner, and takes its height from what
+           is in it rather than from the grid's row. -->
+      <Style x:Key="RoomyRow" TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="10,9"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+
+      <!-- ═══ the compact row: one line of a table ═══ -->
+      <DataTemplate x:Key="CompactTemplate" x:DataType="local:SharedLibraryRow">
+        <Button Style="{StaticResource CompactRow}" Click="Row_Click" Tag="{x:Bind DeviceId}">
+          <Grid>
+            <!-- The two fills, in the painter's order: the band for every other row, then the
+                 selection wash over it for the row on screen. -->
+            <Border Background="{x:Bind IsBanded, Converter={StaticResource RowBandBrush}}"/>
+            <Border Background="{StaticResource TableViewRowBackgroundSelected}"
+                    Visibility="{x:Bind OpenVisibility}"/>
+
+            <!-- The bar down the left of a selected row: 3 points of cyan, the width the grid
+                 draws it at (GridMetrics.SelectionBarWidth). -->
+            <Rectangle Width="3" HorizontalAlignment="Left"
+                       Fill="{StaticResource TableViewRowSelectionIndicatorBrush}"
+                       Visibility="{x:Bind OpenVisibility}"/>
+
+            <!-- The cell. Inset by the grid's own cell padding, past the bar. -->
+            <Grid Margin="11,0,8,0" ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- Three tiles in one slot: a photograph when the account behind the computer has
+                   one, the letter their name starts with when it does not, and the machine glyph
+                   when there is no account to draw at all. Row-height sized, so the line reads as
+                   a row of a table rather than as a card. -->
+              <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
+                <Border CornerRadius="3" Background="#14FFFFFF"/>
+                <TextBlock Text="{x:Bind Glyph}" FontFamily="{StaticResource Fa}" FontSize="8"
+                           Foreground="#F2FFFFFF" Visibility="{x:Bind GlyphVisibility}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Bind Initial}" FontSize="9" FontWeight="SemiBold"
+                           Foreground="#F2FFFFFF" Visibility="{x:Bind InitialVisibility}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <ctl:AvatarPicture CornerRadius="3" Source="{x:Bind Avatar}"
+                                   Visibility="{x:Bind PhotoVisibility}"/>
+              </Grid>
+
+              <!-- The name, at the grid's cell size and in its text colour. It is what gives way
+                   when the row is narrow; the badge and the state keep their width. -->
+              <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="12"
+                         Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
+                         VerticalAlignment="Center"/>
+
+              <ctl:SupporterBadge Grid.Column="2" VerticalAlignment="Center"
+                                  ReadsAccount="False" IsSupporter="{x:Bind IsSupporter}"/>
+
+              <!-- Whether that computer is on the network, on the same line: a row of a table is
+                   one line, and this is the second column that column-less list does not have. -->
+              <TextBlock Grid.Column="3" Text="{x:Bind Status}" Visibility="{x:Bind StatusVisibility}"
+                         FontSize="11" Foreground="#8CFFFFFF" VerticalAlignment="Center"/>
+            </Grid>
+          </Grid>
+        </Button>
+      </DataTemplate>
+
+      <!-- ═══ the roomy row: a card, which is what the main window's flyout had ═══ -->
+      <DataTemplate x:Key="RoomyTemplate" x:DataType="local:SharedLibraryRow">
+        <Button Style="{StaticResource RoomyRow}" Click="Row_Click" Tag="{x:Bind DeviceId}">
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Three tiles in one slot: a photograph when the account behind the computer has one, the letter
+                 their name starts with when it does not, and the machine glyph when there is no
+                 account to draw at all. The lit tile is filled, except under a photograph, where it
+                 is a ring. A fill would cover the photograph. See SharedLibraryRow.LitFillVisibility. -->
+            <Grid Grid.Column="0" Width="38" Height="38">
+              <Border CornerRadius="7" Background="#14FFFFFF"/>
+              <Border CornerRadius="7" Background="{StaticResource LibraryTileLit}"
+                      Visibility="{x:Bind LitFillVisibility}"/>
+              <TextBlock Text="{x:Bind Glyph}" FontFamily="{StaticResource Fa}" FontSize="15"
+                         Foreground="#F2FFFFFF" Visibility="{x:Bind GlyphVisibility}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Bind Initial}" FontSize="16" FontWeight="SemiBold"
+                         Foreground="#F2FFFFFF" Visibility="{x:Bind InitialVisibility}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <ctl:AvatarPicture CornerRadius="7" Source="{x:Bind Avatar}"
+                                 Visibility="{x:Bind PhotoVisibility}"/>
+              <Border CornerRadius="7" BorderThickness="2"
+                      BorderBrush="{StaticResource LibraryTileLit}"
+                      Visibility="{x:Bind LitRingVisibility}"/>
+            </Grid>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <!-- The whole badge, the same one the profile pages use. A Grid rather than a StackPanel, so the NAME
+                   is what gives way: in a stack both children get all the width they ask for and the
+                   trimming never fires, which would push the badge off the row instead of shortening
+                   the name. -->
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+                <ctl:SupporterBadge Grid.Column="1" Margin="6,0,0,0"
+                                    ReadsAccount="False" IsSupporter="{x:Bind IsSupporter}"/>
+              </Grid>
+              <TextBlock Text="{x:Bind Status}" Visibility="{x:Bind StatusVisibility}"
+                         FontSize="11" Foreground="#88FFFFFF"
+                         TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+          </Grid>
+        </Button>
+      </DataTemplate>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <!-- The surface the rows sit on, styled by Look: see the two styles above. -->
+  <Border x:Name="Surface">
+    <ItemsControl x:Name="Rows">
+      <ItemsControl.Resources>
+        <!-- The hover, which is the painter's RowHover and RowSelectedHover. On the button rather
+             than in the template because the button is what knows where the pointer is. Shared by
+             both looks: a row lights the same way whichever size it is drawn at. -->
+        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#0AFFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#14FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+      </ItemsControl.Resources>
+    </ItemsControl>
+  </Border>
+</UserControl>

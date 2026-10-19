@@ -1,0 +1,107 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- The rpm accent for the framework's accent-filled controls: a ToggleSwitch when on, the filled
+       track and thumb of a Slider, a ProgressBar's bar, a ProgressRing, a CheckBox's tick, a
+       RadioButton's dot, the border of a focused input, and a HyperlinkButton's text. The stock
+       templates read these values with {ThemeResource}. On Uno-Skia that lookup only reaches an
+       override in the control's own ancestor Resources. An override in the ThemeDictionaries of
+       App.xaml never applies. So this dictionary is the one source of these values, and it is merged
+       into the root of each screen that has these controls.
+
+       The colour is the app's cyan #04C8FF at full strength, the same tone on every ground. Grid and
+       list selection washes and tab selection keep their own colours. They are backgrounds behind
+       text, so they are not part of this accent. -->
+
+  <!-- ══ The framework's own accent. Anything bound to it through a template also gets the rpm accent. ══ -->
+  <Color x:Key="SystemAccentColor">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorLight1">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorLight2">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorLight3">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorDark1">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorDark2">#04C8FF</Color>
+  <Color x:Key="SystemAccentColorDark3">#04C8FF</Color>
+  <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentFillColorDefaultBrush"       Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentFillColorSecondaryBrush"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentFillColorTertiaryBrush"      Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentFillColorDisabledBrush"      Color="#026480"/>
+  <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush"   Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentTextFillColorTertiaryBrush"  Color="#04C8FF"/>
+  <SolidColorBrush x:Key="AccentTextFillColorDisabledBrush"  Color="#026480"/>
+  <SolidColorBrush x:Key="ControlAccentDefaultBrush"         Color="#04C8FF"/>
+
+  <!-- The focus ring, which is the accent on every focusable control the app has. -->
+  <SolidColorBrush x:Key="FocusStrokeColorOuterBrush"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="FocusStrokeColorInnerBrush"            Color="Transparent"/>
+  <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush"  Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent"/>
+
+  <!-- ══ ToggleSwitch ══ -->
+  <SolidColorBrush x:Key="ToggleSwitchFillOn"              Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver"   Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOnPressed"       Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed"     Color="#04C8FF"/>
+
+  <!-- ══ Slider: filled track and thumb ══ -->
+  <SolidColorBrush x:Key="SliderTrackValueFill"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPressed"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SliderThumbBackground"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="SliderThumbBackgroundPressed"     Color="#04C8FF"/>
+
+  <!-- ══ ProgressBar / ProgressRing ══ -->
+  <SolidColorBrush x:Key="ProgressBarForeground"  Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ProgressRingForeground" Color="#04C8FF"/>
+
+  <!-- ══ CheckBox ══ -->
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed"     Color="#04C8FF"/>
+  <!-- An indeterminate box uses the same fill. A partly ticked folder is still a ticked item. -->
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminate"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePressed"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminate"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeIndeterminatePressed"     Color="#04C8FF"/>
+
+  <!-- ══ RadioButton: the ring when selected. The dot inside stays white, so it can be seen at 6 px. ══ -->
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill"              Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver"   Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed"       Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFill"            Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPressed"     Color="#FFFFFF"/>
+
+  <!-- ══ ToggleButton, checked ══ -->
+  <SolidColorBrush x:Key="ToggleButtonBackgroundChecked"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed"     Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed"     Color="#04C8FF"/>
+
+  <!-- ══ Inputs: only the focused edge uses the accent, so the resting glass keeps its design. The
+       text selection highlight is not changed. It follows the accent above and needs no key of its own. ══ -->
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused"          Color="#04C8FF"/>
+  <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushFocused"             Color="#04C8FF"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed"             Color="#04C8FF"/>
+
+  <!-- ══ HyperlinkButton ══ -->
+  <SolidColorBrush x:Key="HyperlinkButtonForeground"            Color="#04C8FF"/>
+  <SolidColorBrush x:Key="HyperlinkButtonForegroundPointerOver" Color="#04C8FF"/>
+  <SolidColorBrush x:Key="HyperlinkButtonForegroundPressed"     Color="#04C8FF"/>
+
+</ResourceDictionary>

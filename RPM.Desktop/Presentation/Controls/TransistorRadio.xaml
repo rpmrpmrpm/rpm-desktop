@@ -1,0 +1,113 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.TransistorRadio"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False">
+
+  <!-- A pocket set with its needle running across the band. It is the RecordSpinner's sibling, for the pane
+       where the thing being waited for is a station, not a record. The same rules apply, for the same
+       reasons. It is drawn at 100 in a Viewbox, so a caller sets Width and Height and nothing here changes.
+       The glass is made by DRAWING, not by GlassBrush. A GlassBrush is a live backdrop blur. It is left out
+       of the renderer's picture cache, and it reads everything under it again on every frame it is shown
+       (see RenderTuning). That cost would be added to the wait it is meant to cover. Translucent whites
+       over whatever is behind read as frosted at this size, and they cost only a gradient.
+
+       It is laid out on a Canvas, not in centred rings. A radio is a set of parts in their own places.
+       Every coordinate below is the one the drawing was designed on. -->
+  <Viewbox Stretch="Uniform">
+    <Canvas Width="100" Height="100">
+
+      <!-- The aerial. It is drawn FIRST, so the case covers where the aerial enters. It reads as pulled out
+           of the case, not stuck on the front of it. It is bright at the tip and dim at the root, as a
+           chrome rod looks under a light that is up and to the left. -->
+      <Line X1="82" Y1="30" X2="94" Y2="8" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+        <Line.Stroke>
+          <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+            <GradientStop Offset="0" Color="#4DFFFFFF"/>
+            <GradientStop Offset="1" Color="#B3FFFFFF"/>
+          </LinearGradientBrush>
+        </Line.Stroke>
+      </Line>
+      <Ellipse Canvas.Left="92.2" Canvas.Top="6.2" Width="3.6" Height="3.6" Fill="#8CFFFFFF"/>
+
+      <!-- The case. The light comes from the top left, as everywhere else in the window. -->
+      <Rectangle Canvas.Left="5" Canvas.Top="24" Width="90" Height="71" RadiusX="12" RadiusY="12">
+        <Rectangle.Fill>
+          <LinearGradientBrush StartPoint="0.15,0" EndPoint="0.85,1">
+            <GradientStop Offset="0" Color="#3DFFFFFF"/>
+            <GradientStop Offset="0.45" Color="#1FFFFFFF"/>
+            <GradientStop Offset="1" Color="#14FFFFFF"/>
+          </LinearGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
+
+      <!-- The edge. It is lit where the light falls and dark where it does not. It is the same hairline
+           that every frosted card in the window uses, bent round a box instead of a disc. -->
+      <Rectangle Canvas.Left="5.5" Canvas.Top="24.5" Width="89" Height="70" RadiusX="11.5" RadiusY="11.5"
+                 StrokeThickness="1">
+        <Rectangle.Stroke>
+          <LinearGradientBrush StartPoint="0.1,0" EndPoint="0.9,1">
+            <GradientStop Offset="0" Color="#8CFFFFFF"/>
+            <GradientStop Offset="0.5" Color="#26FFFFFF"/>
+            <GradientStop Offset="1" Color="#5EFFFFFF"/>
+          </LinearGradientBrush>
+        </Rectangle.Stroke>
+      </Rectangle>
+
+      <!-- The band, sunk into the front. This is the window the needle moves behind. -->
+      <Rectangle Canvas.Left="12" Canvas.Top="31" Width="76" Height="14" RadiusX="3" RadiusY="3"
+                 Fill="#12FFFFFF" Stroke="#29FFFFFF" StrokeThickness="0.75"/>
+
+      <!-- The scale: thirteen marks, with every third one long, as printed dials are ruled. It is held
+           still. Only the needle moves, as only the label turns on the record. -->
+      <Path Stretch="None" Stroke="#47FFFFFF" StrokeThickness="0.75"
+            Data="M15.5,43.5V37.7 M21.25,43.5V40.35 M27,43.5V40.35 M32.75,43.5V37.7 M38.5,43.5V40.35 M44.25,43.5V40.35 M50,43.5V37.7 M55.75,43.5V40.35 M61.5,43.5V40.35 M67.25,43.5V37.7 M73,43.5V40.35 M78.75,43.5V40.35 M84.5,43.5V37.7"/>
+
+      <!-- What moves, part one: the needle, and the glow it drags through the glass. At the size a pane
+           draws it, this is the whole of what reads as tuning. It is the only part of the drawing with
+           colour: the same cyan the pane's own dial uses to mark a station. The needle starts on the left
+           edge. The transform below carries it across. -->
+      <Grid x:Name="Needle" Canvas.Left="0" Canvas.Top="31" Width="5" Height="14">
+        <Grid.RenderTransform>
+          <TranslateTransform x:Name="NeedleAt"/>
+        </Grid.RenderTransform>
+        <Rectangle Width="5" Height="14">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+              <GradientStop Offset="0" Color="#0004C8FF"/>
+              <GradientStop Offset="0.5" Color="#5904C8FF"/>
+              <GradientStop Offset="1" Color="#0004C8FF"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle Width="1.2" Height="13" Fill="#F204C8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+
+      <!-- The speaker: a punched grille on a well. The holes are filled in by the code-behind, not written
+           out here. Forty-five arcs of path data is not a drawing anyone can read. The holes are one Path
+           either way, which keeps them cheap. -->
+      <Ellipse Canvas.Left="14" Canvas.Top="55" Width="34" Height="34" Fill="#0DFFFFFF"
+               Stroke="#33FFFFFF" StrokeThickness="0.75"/>
+      <Path x:Name="Grille" Stretch="None" Fill="#33FFFFFF"/>
+
+      <!-- What moves, part two: the tuning knob. It is turned by the same hand that carries the needle, so
+           the two agree. A knob that stayed still while the band swept would look like a picture with an
+           animation pasted on it. -->
+      <Grid Canvas.Left="62" Canvas.Top="61" Width="22" Height="22" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+          <RotateTransform x:Name="Knob"/>
+        </Grid.RenderTransform>
+        <Ellipse Width="22" Height="22" Stroke="#4DFFFFFF" StrokeThickness="1">
+          <Ellipse.Fill>
+            <LinearGradientBrush StartPoint="0.2,0" EndPoint="0.8,1">
+              <GradientStop Offset="0" Color="#4DFFFFFF"/>
+              <GradientStop Offset="1" Color="#1AFFFFFF"/>
+            </LinearGradientBrush>
+          </Ellipse.Fill>
+        </Ellipse>
+        <!-- The pointer notch. It is off-centre, so the turning shows. -->
+        <Rectangle Width="1.3" Height="8.5" Fill="#99FFFFFF" RadiusX="0.65" RadiusY="0.65"
+                   HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2.5,0,0"/>
+      </Grid>
+    </Canvas>
+  </Viewbox>
+</UserControl>

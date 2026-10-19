@@ -1,0 +1,104 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.RecordDisc"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:RPM.Desktop.Presentation.Controls"
+             mc:Ignorable="d">
+
+  <!-- The spinning record. It is split out of ArtDisplay so that the shell can host it above the content.
+       It reads as a real disc sitting on top of the grids, with its lower arc lapping over them. The rest
+       of the artwork (the colour, the photo, and the glass that the grids frost over) stays behind.
+       ArtDisplay still owns it. It sets the size, the position and the turning, through the parts exposed
+       in the code-behind. -->
+  <Grid>
+    <!-- The shadow: a soft halo just outside the disc's edge, concentric with the disc. It is the same
+         width along the top of the strip as along the bottom. The shadow is a sibling of the record, not a
+         child. A child would turn with the record, and a turning shadow would look wrong. The size is set
+         in code. -->
+    <Grid x:Name="RecordShadow" HorizontalAlignment="Right" VerticalAlignment="Center"
+          IsHitTestVisible="False">
+      <Ellipse>
+        <Ellipse.Fill>
+          <RadialGradientBrush Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+            <GradientStop Offset="0.86" Color="#B3000000"/>
+            <GradientStop Offset="0.94" Color="#59000000"/>
+            <GradientStop Offset="1.0" Color="#00000000"/>
+          </RadialGradientBrush>
+        </Ellipse.Fill>
+      </Ellipse>
+    </Grid>
+
+    <!-- The record. It is drawn at 200 x 200 in a Viewbox. The Viewbox is sized (and pushed half off the
+         right edge) in code, so the proportions hold at any display height. Only the label turns (see the
+         rotating layer below). The vinyl ring is held still. Real grooves are concentric, so their rotation
+         cannot be seen anyway. A still ring also keeps the glossy highlight in place under the light while
+         the record turns, as on a real turntable. -->
+    <Viewbox x:Name="RecordBox" Stretch="Uniform"
+             HorizontalAlignment="Right" VerticalAlignment="Center">
+      <Grid Width="200" Height="200">
+
+        <!-- The vinyl itself. It is the same pressing that the background is made of.
+             scripts/make_vinyl_table.py renders it into Assets/vinyl-record.png. It has real grooves, a
+             lead-in, its own run-out, and a rolled rim. It is black, and it is tinted with the album art's
+             own colour when the sleeve has one. That is why there is no Source here: ArtDisplay sets the
+             picture once the cover has loaded. A sleeve with no colour stays black. See VinylPressing.
+
+             The render's own label is 100 mm on a 302 mm disc. That is what an LP really has. So LabelHost is 66, a
+             third of the disc, and the app's label lands exactly on it. -->
+        <Image x:Name="Vinyl" Width="200" Height="200" Stretch="Fill"/>
+
+        <!-- The rotating layer. Only the label, and any full disc art, actually turn. These are the
+             off-centre parts that make the spin visible. The rings above them stay still. -->
+        <Grid x:Name="RotatingLayer" RenderTransformOrigin="0.5,0.5">
+          <Grid.RenderTransform>
+            <RotateTransform x:Name="RecordRotate"/>
+          </Grid.RenderTransform>
+
+          <!-- The album's disc art, when it has any. The record you are listening to is the one that turns
+               on the strip. It is clipped to the disc's circle (a round Border), so a square scan never
+               shows its corners past the record's edge. -->
+          <Border Width="200" Height="200" CornerRadius="100" IsHitTestVisible="False"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Image x:Name="DiscArt" Stretch="UniformToFill" Opacity="0"/>
+          </Border>
+
+          <!-- The label. It is black, with the rpm mark alone on it in white. A track's own album art fades
+               in over it when it has some. The mark is drawn, not an image, so it stays sharp at every size
+               the Viewbox takes the disc to. It uses the same letterforms as the header's mark. The
+               lpcenter-cut.png image is a blue "A MUSIC COLLECTION" label, which the phone's disc still
+               uses. -->
+          <Border x:Name="LabelHost" Width="66" Height="66" CornerRadius="33" Background="#0A0A0A"
+                  BorderBrush="#59000000" BorderThickness="1"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid>
+              <!-- The mark sits above the spindle, as on the background image's records. Its size and
+                   position come from scripts/make_vinyl_table.py. LABEL_WIDTH is 0.52 of the label's width,
+                   and LABEL_RISE is 0.34 of its radius above the centre. On this 66-point label, that is a
+                   34.3-point mark centred 11.2 points up. Only the width comes from the script. The mark is
+                   read here at a fraction of the size it has there. -->
+              <!-- The mark's dim strength, the same one the header uses while a track is playing. Its brush
+                   is 0x8C white at Opacity 0.46, which gives 0x40. So the mark looks pressed into the
+                   label, not printed on it, as it does on the background image's records. -->
+              <Path Stretch="Uniform" Width="28.6" Height="11" Fill="#40FFFFFF"
+                    HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,16.3,0,0"
+                    Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+              <Image x:Name="LabelArt" Stretch="UniformToFill" Opacity="0"/>
+            </Grid>
+          </Border>
+
+          <!-- A whole CD only: the even rim, the rpm hub and the player's spindle. They sit in the rotating
+               layer, so they turn with the disc. They are shown and hidden together with the disc art, by
+               PutOn and Standing.ShowCd, never on their own. -->
+          <local:CdOverlay x:Name="CdDress" Width="200" Height="200" Opacity="0"/>
+        </Grid>
+
+        <!-- The spindle hole: at the centre and still, as on a real record. Its size matches the real one.
+             The background image's records are pressed with SPINDLE_MM 3.62 on a 50 mm label radius
+             (scripts/make_vinyl_table.py). That is 7.2% of the label, which is 4.8 on this 66-point label.
+             A larger hole would crowd the wordmark off its label. -->
+        <Ellipse Width="4.8" Height="4.8" Fill="#0B111A" Stroke="#22FFFFFF" StrokeThickness="0.5"/>
+      </Grid>
+    </Viewbox>
+  </Grid>
+</UserControl>

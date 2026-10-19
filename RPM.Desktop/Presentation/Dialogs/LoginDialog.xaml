@@ -1,0 +1,192 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.LoginDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0"
+               DefaultButton="None"
+               TabNavigation="Cycle">
+
+  <!-- The sign-in dialog uses the same card as the other dialogs: the vinyl header band with the
+       title in it, and the body on live frosted glass below.
+
+       Apple is offered first. App Store guideline 4.8 requires Sign in with Apple wherever another
+       social provider is offered. It must be shown as an equal option. The phone app uses the same
+       account.
+
+       Microsoft is not offered. The rpm pool signs in with Apple and Google only. A button for a
+       provider the pool does not know fails silently, with a session that has no token. -->
+
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <!-- A lighter modal scrim than the framework default. The dialog card is live glass, so
+               the artwork behind it shows through the dim. -->
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <ctl:ResizableDialogShell x:Name="Shell"
+                                 Title="{loc:Str Key=Login_Title}"
+                                 TitleGlyph="&#xf007;">
+
+    <StackPanel Spacing="14">
+
+      <!-- The reason the user sees this sign-in. The cloud library is the usual reason for signing
+           in from the menu, but it is the wrong sentence for every other entry point. A user who
+           pressed "Look up release" is not signing in for the cloud library. Saying so would look
+           as if the app did not know which button was pressed. So there is one general line here.
+           The caller replaces it when sign-in is needed for something specific. -->
+      <TextBlock x:Name="SubtitleText" Text="{loc:Str Key=Login_Subtitle}"
+                 FontSize="13" Foreground="#CCFFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"
+                 HorizontalAlignment="Center" MaxWidth="360"/>
+
+      <StackPanel Spacing="8">
+        <TextBlock Text="{loc:Str Key=Login_ContinueWith}"
+                   FontFamily="{StaticResource RpmDisplayFont}"
+                   FontSize="11" CharacterSpacing="85" Foreground="#77FFFFFF"
+                   HorizontalAlignment="Center"/>
+
+        <!-- The provider marks come from the brands icon font. Apple and Google are not in the
+             solid font. They are set as text, because FontIcon clips what it draws to its own box,
+             and these two glyphs extend past it. -->
+        <!-- The two buttons sit side by side. Stacked at this width, they would leave a column of
+             half-empty buttons. The two providers are equals, which guideline 4.8 requires. -->
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <Button x:Name="AppleButton" Grid.Column="0" Click="AppleButton_Click"
+                  Style="{StaticResource GlassButtonStyle}"
+                  HorizontalAlignment="Stretch" Height="44" MinHeight="44">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+              <TextBlock Text="&#xf179;" FontFamily="{StaticResource FaBrandFont}" FontSize="16"
+                         VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Login_Apple}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+
+          <Button x:Name="GoogleButton" Grid.Column="1" Click="GoogleButton_Click"
+                  Style="{StaticResource GlassButtonStyle}"
+                  HorizontalAlignment="Stretch" Height="44" MinHeight="44">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+              <TextBlock Text="&#xf1a0;" FontFamily="{StaticResource FaBrandFont}" FontSize="16"
+                         VerticalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Login_Google}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <TextBlock x:Name="SocialStatusText"
+                   Foreground="#E6FFFFFF" FontSize="13"
+                   TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
+                   Visibility="Collapsed"/>
+      </StackPanel>
+
+      <Grid Margin="0,2">
+        <Rectangle Height="1" Fill="#26FFFFFF" VerticalAlignment="Center"/>
+        <!-- The label sits on the card's glass, so it has padding and no fill. A solid background
+             would be a rectangle of the wrong colour over the live blur. -->
+        <Border Background="#33101820" CornerRadius="8" HorizontalAlignment="Center" Padding="10,1">
+          <TextBlock Text="{loc:Str Key=Login_Or}" FontSize="12" Foreground="#88FFFFFF"/>
+        </Border>
+      </Grid>
+
+      <TextBox x:Name="EmailBox"
+               PlaceholderText="{loc:Str Key=Login_Email}"
+               HeaderTemplate="{x:Null}"
+               FontSize="14"
+               KeyDown="OnKeyDown"/>
+
+      <PasswordBox x:Name="PasswordBox"
+                   PlaceholderText="{loc:Str Key=Login_Password}"
+                   HeaderTemplate="{x:Null}"
+                   FontSize="14"
+                   KeyDown="OnKeyDown"/>
+
+      <!-- Opens rpmrpmrpm.com/forgot-password, which emails a link for choosing a new password. The
+           link sits under the field it belongs to. -->
+      <HyperlinkButton x:Name="ForgotButton" Click="ForgotButton_Click"
+                       Content="{loc:Str Key=Login_Forgot}"
+                       FontSize="12" Padding="2,0" Margin="0,-8,0,0"
+                       HorizontalAlignment="Right"/>
+
+      <TextBlock x:Name="ErrorText"
+                 Foreground="#FF8B96" FontSize="13"
+                 TextWrapping="Wrap"
+                 Visibility="Collapsed"/>
+
+      <!-- No register link. Continuing with Apple or Google creates the account at once. The pool's
+           pre-signup trigger confirms the account and links it to any existing account with the
+           same address. -->
+      <TextBlock Text="{loc:Str Key=Login_NewHere}"
+                 FontSize="12" Foreground="#77FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"
+                 HorizontalAlignment="Center" MaxWidth="320"/>
+
+    </StackPanel>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button x:Name="CancelButton" Click="CloseButton_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Common_Cancel}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+
+        <ctl:RpmPrimaryButton x:Name="SignInButton" Click="SignInButton_Click" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf007;" FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Login_SignIn}" FontWeight="Bold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+  </ctl:ResizableDialogShell>
+</ContentDialog>

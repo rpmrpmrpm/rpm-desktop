@@ -1,0 +1,88 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Controls.RecordSpinner"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False">
+
+  <!-- A record turning, drawn in the app's own glass. The thing being waited for is a record, so the mark
+       is a record. It is drawn at 100 in a Viewbox. A caller sets Width and Height, and nothing here
+       changes.
+
+       The glass is made by DRAWING, not by GlassBrush. A GlassBrush is a live backdrop blur. It is left out
+       of the renderer's picture cache, and it reads everything under it again on every frame it is shown
+       (see RenderTuning). This mark turns, and it is shown only for the frames the scroll needs. A blur on
+       it would add cost to the very wait it is there to cover. Translucent whites over whatever is behind
+       read as frosted at this size, and they cost only a gradient. -->
+  <Viewbox Stretch="Uniform">
+    <Grid Width="100" Height="100">
+
+      <!-- The disc. The light comes from the top left, as everywhere else in the window. -->
+      <Ellipse Width="100" Height="100">
+        <Ellipse.Fill>
+          <LinearGradientBrush StartPoint="0.15,0" EndPoint="0.85,1">
+            <GradientStop Offset="0" Color="#3DFFFFFF"/>
+            <GradientStop Offset="0.45" Color="#1FFFFFFF"/>
+            <GradientStop Offset="1" Color="#14FFFFFF"/>
+          </LinearGradientBrush>
+        </Ellipse.Fill>
+      </Ellipse>
+
+      <!-- The edge. It is lit where the light falls and dark where it does not. It is the same hairline
+           that every frosted card in the window uses, bent round. -->
+      <Ellipse Width="100" Height="100" StrokeThickness="1">
+        <Ellipse.Stroke>
+          <LinearGradientBrush StartPoint="0.1,0" EndPoint="0.9,1">
+            <GradientStop Offset="0" Color="#8CFFFFFF"/>
+            <GradientStop Offset="0.5" Color="#26FFFFFF"/>
+            <GradientStop Offset="1" Color="#5EFFFFFF"/>
+          </LinearGradientBrush>
+        </Ellipse.Stroke>
+      </Ellipse>
+
+      <!-- Grooves. These are held still. Real grooves are concentric, so their turning cannot be seen.
+           Drawn on the spinning layer they would cost the same and show nothing. -->
+      <Ellipse Width="89" Height="89" Stroke="#1FFFFFFF" StrokeThickness="0.75"/>
+      <Ellipse Width="80" Height="80" Stroke="#14FFFFFF" StrokeThickness="0.75"/>
+      <Ellipse Width="71" Height="71" Stroke="#1FFFFFFF" StrokeThickness="0.75"/>
+      <Ellipse Width="62" Height="62" Stroke="#14FFFFFF" StrokeThickness="0.75"/>
+      <Ellipse Width="53" Height="53" Stroke="#1FFFFFFF" StrokeThickness="0.75"/>
+
+      <!-- What turns: two elements and no more. These are the light on the rim and the label. Everything
+           else is either round and unchanging, or at the centre, where a rotation cannot be seen. -->
+      <Grid RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+          <RotateTransform x:Name="Spin"/>
+        </Grid.RenderTransform>
+
+        <!-- The light on the glass: a bright patch of rim that moves round as the record turns. At the size
+             this mark is drawn, this is the whole of what reads as motion. So it is wide and soft, not a
+             sharp mark. -->
+        <Ellipse Width="94" Height="94" StrokeThickness="6">
+          <Ellipse.Stroke>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Offset="0" Color="#00FFFFFF"/>
+              <GradientStop Offset="0.34" Color="#00FFFFFF"/>
+              <GradientStop Offset="0.54" Color="#5EFFFFFF"/>
+              <GradientStop Offset="0.74" Color="#00FFFFFF"/>
+              <GradientStop Offset="1" Color="#00FFFFFF"/>
+            </LinearGradientBrush>
+          </Ellipse.Stroke>
+        </Ellipse>
+
+        <!-- The label. Off-centre light on it, so it turns visibly too, and does not look like a still disc
+             in the middle. There is no wordmark. At the size the list draws it, the label is only about
+             four points across, and four points of letterform is a smudge. -->
+        <Ellipse Width="35" Height="35" Stroke="#4DFFFFFF" StrokeThickness="1">
+          <Ellipse.Fill>
+            <LinearGradientBrush StartPoint="0.2,0" EndPoint="0.8,1">
+              <GradientStop Offset="0" Color="#4DFFFFFF"/>
+              <GradientStop Offset="1" Color="#1FFFFFFF"/>
+            </LinearGradientBrush>
+          </Ellipse.Fill>
+        </Ellipse>
+      </Grid>
+
+      <!-- Spindle hole: at the centre and still, as on a real record. -->
+      <Ellipse Width="4" Height="4" Fill="#660B111A" Stroke="#33FFFFFF" StrokeThickness="0.5"/>
+    </Grid>
+  </Viewbox>
+</UserControl>

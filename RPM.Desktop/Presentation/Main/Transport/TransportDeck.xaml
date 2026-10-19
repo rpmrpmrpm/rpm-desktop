@@ -1,0 +1,385 @@
+﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.TransportDeck"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:local="using:RPM.Desktop.Presentation.Main.Transport.Controls"
+             xmlns:rpamp="using:RPM.Desktop.Presentation.RPaMp"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <!-- The cast pill lights cyan while audio is being sent to another speaker. Otherwise it uses the rest colour of the deck pills. -->
+    <conv:BoolToBrushConverter x:Key="CastBrush" TrueBrush="#04C8FF" FalseBrush="#DDFFFFFF"/>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+
+    <!-- The volume slider lights cyan when the volume is no longer the app's own. On a Bluetooth speaker or in a
+         cast room the knob belongs to the speaker. The same cyan that marks a live cast marks it here. It is fed
+         IsVolumeLocal, so true means the plain colour. -->
+    <conv:BoolToBrushConverter x:Key="VolumeBrush" TrueBrush="#B8FFFFFF" FalseBrush="#04C8FF"/>
+
+    <!-- Transport slider: a thin track with a small round handle. This is the deck's own look, not the
+         framework's, which is built for a settings page and is half the height of the deck. -->
+    <Style x:Key="DeckSlider" TargetType="Slider">
+      <Setter Property="Background" Value="#2EFFFFFF"/>
+      <Setter Property="Foreground" Value="#B8FFFFFF"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid x:Name="SliderContainer" Background="Transparent">
+              <Grid x:Name="HorizontalTemplate" MinHeight="20">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Rectangle x:Name="HorizontalTrackRect" Grid.Row="1" Grid.ColumnSpan="3"
+                           Fill="{TemplateBinding Background}" Height="3" RadiusX="1.5" RadiusY="1.5"/>
+                <Rectangle x:Name="HorizontalDecreaseRect" Grid.Row="1"
+                           Fill="{TemplateBinding Foreground}" Height="3" RadiusX="1.5" RadiusY="1.5"/>
+                <!-- The handle uses the slider's own ink, so it turns cyan with the track when the knob belongs to another
+                     device. The colour is set on the Thumb's Foreground, because the Thumb's template can only bind
+                     to the Thumb itself. -->
+                <Thumb x:Name="HorizontalThumb" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                       Width="11" Height="11" Background="Transparent"
+                       Foreground="{TemplateBinding Foreground}"
+                       AutomationProperties.AccessibilityView="Raw">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Ellipse Fill="{TemplateBinding Foreground}"/>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Grid>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Transport keys: the smaller keys are flat glyphs with transparent chrome. The play orb below is the
+         one lit control. The keys are sized to sit either side of the 62 px play button. -->
+    <Style x:Key="TransportButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="#B8FFFFFF"/>
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Width" Value="34"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="CornerRadius" Value="17"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <!-- Glass in place of the ContentBorderStyle's solid fill, so the deck sits on the identical ground
+       as the grids: the same frost at the same radius, cut from the window's cached plate
+       (ui:Frost.Blur, see FrostPlate), under the same 20% black veil (GridSurfaceBrush). -->
+  <!-- The edge uses the shared DmCardBorderBrush that the style already has. It is lit at both ends, so the
+       deck catches the light from the top without a flipped copy of its own. This keeps one edge style for
+       every card in the window. -->
+  <Border Style="{StaticResource ContentBorderStyle}" Padding="0" ui:Frost.Blur="30">
+    <Grid>
+      <!-- The veil over the frost. It is the grids' surface tint, so the deck and the grids look like one ground. -->
+      <Border Background="{StaticResource GridSurfaceBrush}" CornerRadius="8"/>
+      <Grid x:Name="DeckRow" Padding="16,12" SizeChanged="DeckRow_SizeChanged">
+      <!-- The pill style, shared by both edges of the deck. The transport in the middle has its own look (flat
+           glyph keys, no edge), and it overrides these in its own Resources. -->
+      <Grid.Resources>
+        <Style x:Key="DeckPill" TargetType="Button">
+          <Setter Property="VerticalAlignment" Value="Stretch"/>
+          <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+          <Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="CornerRadius" Value="6"/>
+          <Setter Property="Foreground" Value="#DDFFFFFF"/>
+          <Setter Property="Padding" Value="14,0"/>
+          <Setter Property="MinHeight" Value="0"/>
+          <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+      </Grid.Resources>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>     <!-- the pane pill (left) -->
+        <ColumnDefinition Width="Auto"/>  <!-- transport (centred) -->
+        <ColumnDefinition Width="*"/>     <!-- deck chrome (right) -->
+      </Grid.ColumnDefinitions>
+
+      <!-- Transport keys. Flat glyph keys sit either side of a bigger play/pause key, which is still transparent.
+           The group shares one subtle hover highlight. DataContext is the shared RPaMp model (set in code), so
+           every button drives the same player. -->
+      <!-- DataContext is null on purpose. The bar's Commands are on RPaMpModel, which arrives in AttachTransport
+           after the page has loaded. Until then an inherited DataContext would be whatever the page or the shell
+           carries, and every {Binding} here would resolve against the wrong model. A local null is not an
+           inherited value, so nothing resolves until the player is handed over. -->
+      <StackPanel x:Name="TransportBar" Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                  DataContext="{x:Null}"
+                  HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+          <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+        </StackPanel.Resources>
+
+        <!-- ═══ The listener's verdict ═══ Left of the transport, because these are about the RECORD, and everything
+             to their right is about the deck. They are removed entirely for a file that no collection here holds,
+             such as a radio stream or a file dragged in from the desktop. That is the difference between a key that
+             is off and a key that cannot be pressed. They are lit by opacity, not by colour. The bar is a row of flat
+             glyphs sharing one wash, and a red key in the middle of it would read as a warning, not as an opinion.
+             See RPaMpModel.Verdict. -->
+        <Button Style="{StaticResource TransportButton}" Content="&#xf164;"
+                Command="{Binding LikeCommand}" Opacity="{Binding LikeOpacity}"
+                Visibility="{Binding IsVerdictShown, Converter={StaticResource BoolToVisible}}"
+                ToolTipService.ToolTip="{loc:Str Key=Player_Like}"
+                AutomationProperties.Name="{loc:Str Key=Player_Like}"/>
+        <Button Style="{StaticResource TransportButton}" Content="&#xf165;"
+                Command="{Binding DislikeCommand}" Opacity="{Binding DislikeOpacity}"
+                Visibility="{Binding IsVerdictShown, Converter={StaticResource BoolToVisible}}"
+                ToolTipService.ToolTip="{loc:Str Key=Player_Dislike}"
+                AutomationProperties.Name="{loc:Str Key=Player_Dislike}"/>
+
+        <Button Style="{StaticResource TransportButton}" Content="&#xf04d;"
+                Command="{Binding StopCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_Stop}"
+                AutomationProperties.Name="{loc:Str Key=Transport_Stop}"/>
+        <Button Style="{StaticResource TransportButton}" Content="&#xf04a;"
+                Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
+                ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+
+        <!-- Bigger play/pause key. It is transparent like the rest. The glyph changes with the model. -->
+        <Button x:Name="TransportPlay" Background="Transparent" BorderThickness="0"
+                Foreground="#FFFFFFFF" FontFamily="{StaticResource Fa}" FontSize="26"
+                Width="50" Height="50" CornerRadius="25" Padding="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Content="{Binding PlayPauseGlyph}" Command="{Binding PlayPauseCommand}"
+                ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
+                AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
+
+        <Button x:Name="TransportNext" Style="{StaticResource TransportButton}" Content="&#xf04e;"
+                Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                ToolTipService.ToolTip="{Binding NextToolTip}"
+                AutomationProperties.Name="{Binding NextToolTip}"/>
+
+        <Rectangle x:Name="VolumeRule" Width="1" Height="18" Fill="#26FFFFFF"
+                   VerticalAlignment="Center" Margin="4,0"/>
+
+        <!-- ═══ Volume ═══ The mark, then the two keys with the slider between them, then the number.
+             The keys stay. They are the coarse control (five at a time, and they can be clicked without aiming).
+             The slider is the fine control, and the readout shows where it is now.
+
+             The mark is the one thing here that is not decoration. On wired speakers this slider is the app's own
+             gain, and the number is the app's business. On a Bluetooth speaker it is the speaker's own volume. The
+             computer's output volume is passed to the speaker as AVRCP absolute volume, so this knob and the one on
+             the speaker are the same knob. That also means it controls the volume of everything else the machine is
+             playing. When casting, it is the room's knob. These are three different things to turn, and the listener
+             should know which one this is. Only one of the three shows at a time. -->
+        <!-- The mark is also the mute. Clicking it sets the level to zero, and clicking again restores the level it
+             had (ToggleMute). It is a button with no look of its own (BareButtonStyle). It is the label of the
+             group it sits in. A frame around it would make it look like a fourth key in a row of three. The
+             keyboard and a screen reader must still be able to reach it. It does not take focus on a click, so
+             the space bar after a click still pauses, and does not press the mute again. The speaker icon is
+             crossed out while the level is zero, whether that came from this click or from the slider. -->
+        <Button x:Name="VolumeMark" Style="{StaticResource BareButtonStyle}" VerticalAlignment="Center"
+                Width="16" Height="16" Margin="2,0" AllowFocusOnInteraction="False"
+                Click="VolumeMark_Click"
+                ToolTipService.ToolTip="{Binding VolumeMarkName}"
+                AutomationProperties.Name="{Binding VolumeMarkName}">
+          <Grid>
+            <TextBlock Text="{Binding VolumeMarkGlyph}" FontFamily="{StaticResource Fa}" FontSize="13"
+                       Foreground="#88FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="{Binding IsVolumeLocal, Converter={StaticResource BoolToVisible}}"/>
+            <TextBlock Text="&#xf294;" FontFamily="{StaticResource FaBrandFont}" FontSize="13"
+                       Foreground="#04C8FF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="{Binding IsVolumeOnBluetooth, Converter={StaticResource BoolToVisible}}"/>
+            <!-- Google's own cast mark, connected: the screen with the three arcs. See the deck's cast
+                 pill for where the outline it fills in comes from. -->
+            <Path Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                  Fill="#04C8FF" Stretch="Uniform" Width="15" Height="15"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                  Visibility="{Binding IsVolumeOnCast, Converter={StaticResource BoolToVisible}}"/>
+          </Grid>
+        </Button>
+
+        <Button x:Name="VolumeDown" Style="{StaticResource TransportButton}" Content="&#xf068;" Width="26"
+                Command="{Binding VolumeDownCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_VolumeDown}"
+                AutomationProperties.Name="{loc:Str Key=Transport_VolumeDown}"/>
+        <Slider x:Name="VolumeSlider" Style="{StaticResource DeckSlider}" Width="92" Minimum="0" Maximum="100"
+                SmallChange="1" LargeChange="5" VerticalAlignment="Center"
+                Value="{Binding Volume, Mode=TwoWay}"
+                Foreground="{Binding IsVolumeLocal, Converter={StaticResource VolumeBrush}}"
+                IsThumbToolTipEnabled="False" ToolTipService.ToolTip="{loc:Str Key=Viz_Volume}"/>
+        <Button x:Name="VolumeUp" Style="{StaticResource TransportButton}" Content="&#xf067;" Width="26"
+                Command="{Binding VolumeUpCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_VolumeUp}"
+                AutomationProperties.Name="{loc:Str Key=Transport_VolumeUp}"/>
+
+        <!-- Fixed width and right-aligned: the number is three characters at 100% and two below it. A readout that
+             changes width would push the whole transport sideways while it is being dragged. -->
+        <TextBlock x:Name="VolumeReadout" Text="{Binding VolumeText}" FontSize="11" Width="30" TextAlignment="Right"
+                   Foreground="#77FFFFFF" VerticalAlignment="Center"/>
+      </StackPanel>
+
+      <!-- The pane pill, alone on the LEFT. It is the deck's one control over what the window SHOWS. It sits at
+           the outer edge. One pill covers both the library and the playlists. Add music is in the Import view, not
+           on the deck. Everything that is a state rather than a view (the rip, the cloud, the cast and the
+           menu) sits on the right. -->
+      <StackPanel x:Name="DeckLeft" Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Left" VerticalAlignment="Stretch">
+
+        <!-- The pane pill sits at the outer left edge. Its mark shows what it does: a little window with a drawer
+             that slides out of the left edge and back in, clipped by the frame. So the button plays the same move
+             the pane makes. Hovering peeks the drawer out. Clicking commits it. -->
+        <Button x:Name="PanePill" Style="{StaticResource DeckPill}" Click="PanePill_Click"
+                Background="{StaticResource OnGlassBrush}"
+                ToolTipService.ToolTip="{loc:Str Key=Deck_PaneTip}"
+                PointerEntered="PanePill_PointerEntered" PointerExited="PanePill_PointerExited">
+          <!-- The live frame on its own. It already shows a pane sliding out of a window. A static columns glyph beside
+               it would say the same thing twice. -->
+          <Border Width="26" Height="16" CornerRadius="4" Background="#12FFFFFF"
+                  BorderBrush="#66FFFFFF" BorderThickness="1" VerticalAlignment="Center">
+            <!-- The clip is set in code, on SizeChanged. The drawer slides into the frame's edge until only a sliver
+                 shows. A geometry needs the measured size. -->
+            <Grid x:Name="PaneIconClip">
+              <Border x:Name="PaneDrawer" Width="10" HorizontalAlignment="Left"
+                      CornerRadius="3,0,0,3">
+                <!-- Frost, not colour: a lit white sheet against the frame's dimmer fill, so the drawer
+                     reads by brightness alone. -->
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#A6FFFFFF"/>
+                    <GradientStop Offset="1" Color="#59FFFFFF"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Border.RenderTransform>
+                  <TranslateTransform x:Name="PaneDrawerShift" X="-7"/>
+                </Border.RenderTransform>
+              </Border>
+            </Grid>
+          </Border>
+        </Button>
+
+        <!-- Home, beside the pane pill and nowhere else. It is the one door into a view that is not the collection:
+             what has been listened to, and what the shelf suggests from that. It is not on the library's own rail,
+             because it is not one more way to file the records. It asks the records a different question. The house
+             icon is the usual mark for the place you start. -->
+        <Button x:Name="HomePill" Style="{StaticResource DeckPill}" Click="HomePill_Click"
+                Background="{StaticResource OnGlassBrush}"
+                ToolTipService.ToolTip="{loc:Str Key=Deck_HomeTip}"
+                AutomationProperties.Name="{loc:Str Key=Deck_HomeTip}">
+          <FontIcon x:Name="HomeGlyph" Glyph="&#xf015;" FontFamily="{StaticResource Fa}" FontSize="13"
+                    Foreground="#E6FFFFFF"/>
+        </Button>
+
+      </StackPanel>
+
+      <!-- Deck chrome on the RIGHT. The search field is not on the deck. It is in the library's own header, above
+           the list and the wall it filters. Read outward from the transport: the two chips that appear only while
+           something is happening, then cast, then the menu on the outer edge. So the pills that come and go never
+           move the two that are always there. -->
+      <StackPanel x:Name="DeckChrome" Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                  HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                  SizeChanged="DeckChrome_SizeChanged">
+
+        <!-- The rip, minimised. It is shown only while a disc is being ripped, or just after a rip has failed. The
+             Add-music popup can be closed during a rip, and the job carries on, so the job needs a place on the
+             deck. The flyout is a small version of the popup's rip step. -->
+        <local:RipChip x:Name="DeckRipChip"/>
+
+        <!-- Another computer running rpm on this network, asking to share or being asked. It works like the rip chip,
+             for the same reason: something turned up by itself and needs one answer. -->
+        <local:ShareChip x:Name="DeckShareChip"/>
+
+        <!-- The cloud work, minimised. It works like the rip. Adding an album to the cloud starts from a right-click
+             menu and takes minutes, so it gets its own chip here, not only a badge on a tile. -->
+        <local:CloudChip x:Name="DeckCloudChip"/>
+
+        <!-- Send the audio to a Google speaker. Its picker is the same one the player popout has. It opens upwards
+             from the deck. DataContext is set in code to the shared RPaMp model. The deck chrome would otherwise
+             inherit the MainModel. -->
+        <!-- The cast mark is the Material Icons cast symbol (Apache 2.0), drawn here rather than taken from a font.
+             Font Awesome has no cast icon. The broadcast tower it would need is a transmitter mast, a different
+             idea. The outline is "cast" and the filled screen is "cast_connected". Every player uses this pair,
+             and it shows at a glance whether a room is listening. -->
+        <!-- Also null until AttachTransport: this pill's siblings inherit the page model, and it
+             must not. -->
+        <Button x:Name="DeckCastButton" Style="{StaticResource DeckPill}"
+                DataContext="{x:Null}"
+                Background="{StaticResource OnGlassBrush}"
+                ToolTipService.ToolTip="{Binding CastTooltip}"
+                AutomationProperties.Name="{Binding CastTooltip}">
+          <Grid Width="16" Height="16">
+            <Path Data="M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"
+                  Fill="{Binding IsCasting, Converter={StaticResource CastBrush}}"
+                  Stretch="Uniform" Width="16" Height="16"
+                  Visibility="{Binding IsCasting, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <Path Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                  Fill="{Binding IsCasting, Converter={StaticResource CastBrush}}"
+                  Stretch="Uniform" Width="16" Height="16"
+                  Visibility="{Binding IsCasting, Converter={StaticResource BoolToVisible}}"/>
+          </Grid>
+          <Button.Flyout>
+            <Flyout x:Name="DeckCastFlyout" Placement="Top" Opening="DeckCast_Opening">
+              <Flyout.FlyoutPresenterStyle>
+                <Style TargetType="FlyoutPresenter">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="CornerRadius" Value="8"/>
+                </Style>
+              </Flyout.FlyoutPresenterStyle>
+              <rpamp:CastFlyoutContent x:Name="DeckCastContent"/>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+
+        <!-- ═══ The view ═══ Which of the three ways RPM shows itself is up: the library, the RPaMp skin on its own, or
+             the record turning full screen. It sits beside the hamburger, because it is at the same height. It is a
+             choice about the whole app, not about the music. It has its own key, because it is the one control here
+             that changes the shape of the window. Burying it in a menu about accounts and settings would hide the
+             app's own shape among its settings.
+
+             It is a picker of its own, not a MenuFlyout. A menu is a list of actions to DO. This is a choice between
+             three places to BE. The one you are in is as much of the answer as the two you are not, and a menu has
+             nowhere to show that beyond a greyed line. Cards have room to show what each view is, and the current one
+             can be lit rather than dimmed. (A menu would also reserve 28 px of empty gutter for the check mark, which
+             is why the shell's own menus use plain items with glyphs.) -->
+        <Button x:Name="ViewButton" Style="{StaticResource DeckPill}"
+                Background="{StaticResource OnGlassBrush}"
+                ToolTipService.ToolTip="{loc:Str Key=Deck_ViewTip}"
+                AutomationProperties.Name="{loc:Str Key=Deck_ViewTip}">
+          <TextBlock Text="&#xf06e;" FontFamily="{StaticResource Fa}" FontSize="14"/>
+          <Button.Flyout>
+            <Flyout x:Name="ViewFlyout" Placement="Top" Opening="ViewFlyout_Opening">
+              <Flyout.FlyoutPresenterStyle>
+                <Style TargetType="FlyoutPresenter">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="CornerRadius" Value="8"/>
+                </Style>
+              </Flyout.FlyoutPresenterStyle>
+              <local:ViewPicker x:Name="ViewPickerContent"/>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+
+        <!-- The menu on the outermost edge, the far corner of the window: the one control here that is
+             about the app rather than about the music. -->
+        <Button x:Name="MenuPill" Style="{StaticResource DeckPill}" Click="Menu_Click" ToolTipService.ToolTip="{loc:Str Key=Deck_MenuTip}"
+                AutomationProperties.Name="{loc:Str Key=Deck_MenuTip}"
+                Background="{StaticResource OnGlassBrush}">
+          <TextBlock Text="&#xf0c9;" FontFamily="{StaticResource Fa}" FontSize="14"/>
+        </Button>
+      </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

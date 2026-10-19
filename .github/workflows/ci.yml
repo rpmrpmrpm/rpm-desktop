@@ -17,12 +17,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: rpm-desktop
+      # Some tests read the shared files (strings.json and others) from the rpm repo next to this one.
+      - uses: actions/checkout@v4
+        with:
+          repository: rpmrpmrpm/rpm
+          path: rpm
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
       - run: dotnet test RPM.Core.Tests
+        working-directory: rpm-desktop
       - run: dotnet test RPM.Fingerprint.Tests
+        working-directory: rpm-desktop
       - run: dotnet test RPM.DataGrid.Tests
+        working-directory: rpm-desktop
 
   build:
     name: Build (${{ matrix.os }})

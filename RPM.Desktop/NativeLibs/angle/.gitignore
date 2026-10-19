@@ -1,0 +1,4 @@
+# ANGLE natives are sourced locally per dev (see README.md); do not commit the binaries.
+*.dylib
+*.dll
+*.so

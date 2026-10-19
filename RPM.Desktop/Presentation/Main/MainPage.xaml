@@ -1,0 +1,859 @@
+﻿<Page x:Class="RPM.Desktop.Presentation.Main.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:deck="using:RPM.Desktop.Presentation.Main.Transport"
+      xmlns:lib="using:RPM.Desktop.Presentation.Main.Library"
+      xmlns:home="using:RPM.Desktop.Presentation.Main.Home"
+      xmlns:pane="using:RPM.Desktop.Presentation.Main.LeftPane"
+      xmlns:right="using:RPM.Desktop.Presentation.Main.RightPane"
+      xmlns:artists="using:RPM.Desktop.Presentation.Main.Artists"
+      xmlns:genres="using:RPM.Desktop.Presentation.Main.Genres"
+      xmlns:import="using:RPM.Desktop.Presentation.Import"
+      xmlns:ui="using:RPM.Desktop.Presentation.Common"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:local="using:RPM.Desktop.Presentation.Main.Controls"
+      xmlns:grids="using:RPM.Desktop.Presentation.Grids"
+      xmlns:conv="using:RPM.Desktop.Converters"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      Background="Transparent">
+
+  <Page.Resources>
+
+    <!-- The data table's row menu. A resource because the grid that shows it is built in code. -->
+    <MenuFlyout x:Key="LibraryRowMenu">
+      <MenuFlyoutSubItem x:Name="CtxLibAddPlaylist" FontSize="12" Text="{loc:Str Key=Playlists_AddToPlaylist}">
+        <MenuFlyoutSubItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8c9;"/></MenuFlyoutSubItem.Icon>
+      </MenuFlyoutSubItem>
+
+      <MenuFlyoutSeparator/>
+
+      <!-- Soonest first: now, next, and at the end of the queue. -->
+      <MenuFlyoutItem x:Name="CtxPlayNow" FontSize="12" Text="{loc:Str Key=Review_CtxPlayNow}" Click="PlayNow_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf04b;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxPlayNext" FontSize="12" Text="{loc:Str Key=AlbumMenu_PlayNext}" Click="CtxPlayNext_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf051;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxAddNowPlaying" FontSize="12" Text="{loc:Str Key=Review_CtxAddNowPlaying}" Click="AddToNowPlaying_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8c9;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <!-- The fourth way to start what is under the cursor, so it sits with the other three:
+           one row hands the DJ that record and the rest of its album, several hand him the
+           selection, and either way he opens on what was clicked. -->
+      <MenuFlyoutItem x:Name="CtxStartDj" FontSize="12" Text="{loc:Str Key=Dj_StartHere}" Click="CtxStartDj_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf025;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <!-- Starts from the right-clicked row, whatever else is selected: a radio has one song to start from. -->
+      <MenuFlyoutItem x:Name="CtxStartRadio" FontSize="12" Text="{loc:Str Key=Track_StartRadio}" Click="CtxStartRadio_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8d7;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+
+      <MenuFlyoutSeparator/>
+
+      <!-- Three entries, shown by what the selection IS, see
+           LibraryTable_RowContextFlyoutOpening. One track is its own per-file editor; several
+           is the mass edit; and when the selection holds every track of one record, the album
+           editor as well, because at that point the user has a record in their hands and not a
+           list of files. Each is named for the window it opens: "Edit selected" opening a
+           per-field editor for one row would be the menu saying it will do something it will
+           not. Last, together: they are the entries here that change the files. -->
+      <MenuFlyoutItem x:Name="CtxLibEditTrack" FontSize="12" Text="{loc:Str Key=Review_CtxEditTrack}" Click="CtxLibEditTrack_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf044;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxLibEdit" FontSize="12" Text="{loc:Str Key=MassEdit_MenuEdit}" Click="CtxLibEdit_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf044;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxLibEditAlbum" FontSize="12" Text="{loc:Str Key=AlbumEdit_MenuEdit}" Click="CtxLibEditAlbum_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf51f;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+
+      <MenuFlyoutSeparator x:Name="CtxLibRepairSeparator"/>
+
+      <!-- The three the import queue has always had, on files that are already filed. Same
+           windows, same work; only where the answer is written differs, which is
+           MainPage.LibraryActions' whole subject. A group of their own below the editors:
+           an editor is the user saying what a track is, these are the app being asked to
+           work it out, and the cut is the only entry in this menu that makes new files. -->
+      <MenuFlyoutItem x:Name="CtxLibRecognize" FontSize="12" Text="{loc:Str Key=Review_CtxRecognize}" Click="CtxLibRecognize_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf577;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxLibNameTracks" FontSize="12" Text="{loc:Str Key=Queue_CtxNameTracks}" Click="CtxLibNameTracks_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf02b;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+      <MenuFlyoutItem x:Name="CtxLibSplitAlbum" FontSize="12" Text="{loc:Str Key=Review_CtxSplitAlbum}" Click="CtxLibSplitAlbum_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf51f;"/></MenuFlyoutItem.Icon>
+      </MenuFlyoutItem>
+
+      <MenuFlyoutSeparator x:Name="CtxLibDeleteSeparator"/>
+
+      <!-- Last, alone, where the record's own menu keeps its Delete: the one thing here that
+           takes something away. Empty in markup and filled when the menu opens (DeleteMenu.Fill,
+           from ShowLibraryContextMenu), both its wording and which of its three entries are
+           live depend on what is selected and on where those rows' copies actually are, and the
+           three are built in one place so the table, the record's menu and the song's menu
+           cannot end up offering three different deletes. Delete on the keyboard takes the
+           local files, which is the recoverable one (LibraryTable_KeyDown). -->
+      <MenuFlyoutSubItem x:Name="CtxLibDelete" FontSize="12"/>
+    </MenuFlyout>
+
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <!-- The outline face, for the one glyph on this page that has two states: the favourites heart in
+         the library's header, empty until the filter is switched on. -->
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <!-- A song's name and a record's, masked the way the lyric sheet is, see TitleCensor. -->
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <!-- the cast pill lights cyan while the audio is leaving the building, else the deck pills' rest ink -->
+    <conv:BoolToBrushConverter x:Key="CastBrush" TrueBrush="#04C8FF" FalseBrush="#DDFFFFFF"/>
+
+    <!-- The message band's colours (LeftPaneBand at the foot of the pane) are in
+         Themes/MessageBand.xaml. They are app-wide, because the mass-edit window raises the same
+         band, so a caution looks the same wherever it appears. -->
+    <!-- The cover-size slider's skin is in Themes/SizeSlider.xaml. Both headers raise the same
+         control, so neither file owns it. It is merged app-wide in App.xaml. -->
+
+    <!-- Transport: the smaller keys are flat glyphs in transparent chrome (the play orb below is
+         the one lit focal control), sized to sit either side of the 62px play button. -->
+    <Style x:Key="TransportButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="#B8FFFFFF"/>
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Width" Value="34"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="CornerRadius" Value="17"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+  </Page.Resources>
+
+  <!-- Overall app content inset: 24 all round. -->
+  <!-- Music dropped from Finder or Explorer lands anywhere on the page, not on a target of its own:
+       a folder dragged onto the app is the same request as Add music, and the whole window is the
+       obvious place to let go of it. See Page_Drop. -->
+  <Grid Margin="24" RowSpacing="12"
+        AllowDrop="True" DragOver="Page_DragOver" Drop="Page_Drop">
+    <!-- The rpm accent on the framework's accent-filled controls, for this page and everything mounted
+         inside it (the library grids, the left pane, the deck). On Uno-Skia the {ThemeResource}
+         lookup only reaches an ancestor's Resources, so it is merged here rather than in App.xaml.
+         Anything that opens in a POPUP (the chips' flyouts, dialogs) is outside this tree and merges
+         the dictionary itself. -->
+    <Grid.Resources>
+      <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+          <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
+      </ResourceDictionary>
+    </Grid.Resources>
+
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <Grid Grid.Row="0" x:Name="PanelsGrid">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition x:Name="LeftCol" Width="*"/>
+        <ColumnDefinition x:Name="SplitterCol" Width="Auto"/>
+        <ColumnDefinition x:Name="RightCol" Width="1.4*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- LEFT PANEL: the Playlists tree and the Import queue share this column, one at a time. A
+           segmented header switches between them (Import enabled only while something is queued), and a
+           close button collapses the column so the library takes the full width. Visibility + collapse
+           are driven from the code-behind (SyncLeftPanel), not bound. -->
+      <!-- Frosted on the CACHED plate, not on a live blur (ui:Frost.Blur, see FrostPlate): the same
+           Gaussian over the same pixels, taken once when the artwork behind it settles instead of
+           sixty times a second for a picture that has not moved. It falls back to the live glass
+           for as long as anything behind it IS moving. -->
+      <Border x:Name="LeftPanel" Grid.Column="0" Style="{StaticResource ContentBorderStyle}" Padding="0"
+              ui:Frost.Blur="30">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>   <!-- WMP7-style vertical function rail -->
+            <ColumnDefinition Width="*"/>      <!-- the selected function's view -->
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>       <!-- the view -->
+            <RowDefinition Height="Auto"/>    <!-- the message band, when there is one to say -->
+          </Grid.RowDefinitions>
+
+          <!-- Function rail: the pane's four views, and the button that folds the pane away.
+               It reports clicks and paints whatever the conductor says is current.
+
+               Full height of the column, past the message band: the rail is the pane's furniture and
+               the band is something one view has to say, so the band belongs beside the rail rather
+               than across it. -->
+          <pane:LeftRail x:Name="Rail" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"/>
+
+        <!-- The four views, and only the four: the rail beside them stays whatever this is doing. The
+             chevron at the foot of the rail folds THIS away and leaves the tabs standing, so the way
+             back is one press on the function you want rather than a search for the way back. The whole
+             column, rail and all, goes only from the deck's own pane pill. -->
+        <Grid x:Name="LeftViews" Grid.Row="0" Grid.Column="1">
+
+          <!-- View: Track info: everything known about the record playing, from its own tags, from the
+               library's memory of it, and from the free encyclopedias (fed from playback in code-behind).
+               -->
+          <pane:TrackInfoView x:Name="TrackInfoPanel"/>
+
+          <!-- View: the Import queue. It is always reachable: with something queued it shows the source
+               caption, the grid and the action chin. With nothing queued it shows an invitation to add
+               music. Both of its buttons open the Add-music popup. -->
+          <!-- View: the Import queue, the workbench. It is its own control (Presentation/Import): a tree,
+               the bar over it, the tag panel beside it, and the handlers behind them. None of that is the
+               window's business. The page still owns the way IN: Add music, the disc and vinyl windows,
+               and a folder dragged from Finder. Those open windows of their own. -->
+          <import:ImportWorkbenchView x:Name="ImportWorkbench"/>
+
+          <!-- No background of its own: the left panel's frosted card (LeftPanel's GlassBrush) is the
+               ground here, the same as every other view in this column. -->
+          <!-- Header OUT of the scroller, on the pane's shared geometry (16,14,16,4 + an 8px top pad on the
+               list): the cards then start on exactly the line the library's grid and album wall start on,
+               and the heading stays put while the gallery scrolls. -->
+          <!-- View: Visualizations, the gallery. The visualizers themselves do not run here:
+               each card is a still of one, and its launch button hands the id to the shell, which
+               runs it full screen (see ShellPage.ShowVisualizer / VizFullScreen). No background of
+               its own; the left pane's frosted card is the ground, as it is for every view here. -->
+          <pane:VizGalleryView x:Name="VizBody" Visibility="Collapsed"/>
+
+          <!-- View: Internet Radio: the tuning dial over the station directory (Radio Browser), with
+               the user's presets. Its model is built and attached in the code-behind, the same way the
+               playlist panel's is. DataContext is null until then, not inherited: EnsureRadioPanel runs
+               when the pane is first put up, and until it does every {Binding} inside would otherwise
+               resolve against MainModel. -->
+          <pane:RadioView x:Name="RadioBody" Visibility="Collapsed" DataContext="{x:Null}"/>
+        </Grid>
+
+          <!-- The pane's message band: what went wrong, said once, across the foot of the CONTENT column
+               and no further. It is one view's news, so it stops where that view stops. Running it under
+               the rail as well would make a failure in one view look like a failure of the window. A view
+               with bad news hands it here. The radio pane does, when the station directory goes quiet,
+               and the import view does, when a folder held no music. The close button dismisses it. Two
+               looks, swapped from the code-behind (SyncLeftPaneBand): a FAILURE wears the palette's Red
+               ramp (DAMN), a WARNING its Gold (Now 04). Neither is a hand-picked colour. -->
+          <Border x:Name="LeftPaneBand" Grid.Row="1" Grid.Column="1" Visibility="Collapsed"
+                  CornerRadius="0,0,8,0" BorderThickness="0,1,0,0"
+                  BorderBrush="{StaticResource BandErrorEdge}"
+                  Background="{StaticResource BandErrorFill}"
+                  Padding="14,9,8,9">
+            <Grid ColumnSpacing="10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>   <!-- the mark -->
+                <ColumnDefinition Width="*"/>      <!-- what happened -->
+                <ColumnDefinition Width="Auto"/>   <!-- close it -->
+              </Grid.ColumnDefinitions>
+
+              <TextBlock x:Name="LeftPaneBandMark" Grid.Column="0" Text="&#xf071;"
+                         FontFamily="{StaticResource Fa}" FontSize="12"
+                         Foreground="{StaticResource BandErrorMark}" VerticalAlignment="Center"/>
+
+              <TextBlock x:Name="LeftPaneBandText" Grid.Column="1" FontSize="12"
+                         Foreground="{StaticResource BandErrorInk}"
+                         TextWrapping="Wrap" VerticalAlignment="Center"/>
+
+              <Button Grid.Column="2" Click="LeftPaneBand_Dismiss"
+                      Background="Transparent" BorderThickness="0" Padding="0"
+                      Width="26" Height="24" MinWidth="0" MinHeight="0" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Pane_Dismiss}"
+                      AutomationProperties.Name="{loc:Str Key=Pane_Dismiss}">
+                <TextBlock Text="&#xf00d;" FontFamily="{StaticResource Fa}" FontSize="12"
+                           Foreground="#CCFFFFFF"/>
+              </Button>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+
+      <!-- Drag splitter: a green grab bar on a narrow grip, so the panels keep their width
+           (pointer-driven resize; see code-behind). -->
+      <!-- Visibility is driven from the code-behind (SyncQueueColumns), not bound: there is nothing
+           to drag between when the import panel is off in a window of its own. -->
+      <ctl:PanelSplitter x:Name="Splitter" Grid.Column="1" Width="8" Margin="4,0" Background="Transparent"
+              HorizontalAlignment="Stretch"
+              PointerPressed="Splitter_PointerPressed" PointerMoved="Splitter_PointerMoved"
+              PointerReleased="Splitter_PointerReleased" PointerCaptureLost="Splitter_PointerReleased"
+              PointerEntered="Splitter_PointerEntered" PointerExited="Splitter_PointerExited">
+        <!-- Grip: a frosted-glass pill, the same treatment as the art splitter. Live backdrop blur sits
+             behind a hairline edge, laid on its side. The edge brightens under the pointer and stays
+             bright for the length of a drag (see Splitter_PointerEntered). Both handles respond in the
+             same way. -->
+        <Rectangle x:Name="SplitterGrip" Width="7" Height="46" RadiusX="3.5" RadiusY="3.5"
+                   Stroke="{StaticResource GripEdgeBrush}" StrokeThickness="1" Visibility="Collapsed"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+          <Rectangle.Fill>
+            <ui:GlassBrush BlurAmount="16"/>
+          </Rectangle.Fill>
+        </Rectangle>
+      </ctl:PanelSplitter>
+
+      <!-- CENTRAL MUSIC FOLDER (the library, mirrored in SQLite). A function rail down its right edge,
+           mirroring the left pane's, and the chosen view beside it: the records themselves, the
+           collection by artist, by genre, and the playlists. -->
+      <!-- Glass: the frost of the artwork behind this card, cut from the window's cached plate
+           (ui:Frost.Blur, see FrostPlate) and re-taken whenever that artwork changes. The grid's own thin
+           veil sits on top as the tint.
+
+           The frost stays. Removing it did not make the frames that prepare no rows any faster, so it is
+           not the cause of the slow frames, and the look costs nothing measurable. -->
+      <Border x:Name="LibraryPanel" Grid.Column="2" Style="{StaticResource ContentBorderStyle}" Padding="0"
+              ui:Frost.Blur="30">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>      <!-- the selected function's view -->
+            <ColumnDefinition Width="Auto"/>   <!-- the rail, mirroring the left pane's -->
+          </Grid.ColumnDefinitions>
+
+        <!-- The pane's four views, one at a time, in a host of their own, the same arrangement LeftViews
+             has on the other side, and for the same reason: a switch fades the CONTENT out and back and
+             the rail beside it stays lit throughout, so the opacity has to belong to something that is
+             not the whole card. -->
+        <Grid x:Name="RightViews" Grid.Column="0">
+
+        <!-- View: Albums, the collection as records. The three ways of reading it (the wall, the album
+             list, the data table) are one view as far as the rail is concerned: which of them is up is
+             the library header's own switch, and all three answer the same question. -->
+        <Grid x:Name="LibraryBody">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- panel heading -->
+            <RowDefinition Height="*"/>      <!-- the tracklist / the album wall -->
+            <RowDefinition Height="Auto"/>   <!-- what is worth saying about the shelf on screen -->
+          </Grid.RowDefinitions>
+
+          <!-- The library's chrome band: the search field, the three-way view switch, and (on the wall)
+               the cover-size slider and sort picker. It has no caption of its own. The panel is the
+               library, and a word saying so would be a line of type in the way of the collection. It has
+               the same padding as the import heading (16,12,16,0). Its MinHeight of 36 keeps the import
+               pane's heading and the two grids below on exactly the same line, which is also where the
+               Visualizations gallery and the album wall start their first row. -->
+          <Grid x:Name="LibraryHeading" Grid.Row="0" Margin="16,12,16,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!-- The heading row is a fixed 36 high. The subtitle is a row of its OWN below it, so the name,
+                 the search field and the view switch cannot be moved by anything the subtitle says. -->
+            <Grid.RowDefinitions>
+              <RowDefinition Height="36"/>
+              <RowDefinition Height="Auto"/>
+              <!-- Empty until the panel is too narrow to hold the heading and the chrome on one line, and
+                   the chrome comes down onto a line of its own under the subtitle (ApplyHeaderDensity). -->
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- The panel's own name, in the pane heading type the left pane wears (Thiamine in a 36-high
+                 box), over all three views (whichever way the collection is being read), the panel is
+                 named the same as every other pane in the window. It says one thing and never changes:
+                 which artist's shelf the album list is standing in is the LIST's to say, on the shelf
+                 heading in the list itself. -->
+            <Grid x:Name="LibraryTitleBox" Grid.Row="0" Grid.Column="0" Style="{StaticResource RpmPaneHeadingBox}">
+              <TextBlock x:Name="LibraryTitleText" Text="{loc:Str Key=Library_Title}"
+                         Style="{StaticResource RpmPaneHeading}"/>
+            </Grid>
+
+            <!-- What the collection adds up to: records, songs, and how long it plays. Re-read whenever
+                 the shelf is (a library change, a search keystroke), since a search narrows what is being
+                 counted as much as what is being shown. -->
+            <TextBlock x:Name="LibrarySubheading" Grid.Row="1" Grid.ColumnSpan="2"
+                       Style="{StaticResource RpmPaneSubheading}"/>
+
+            <!-- The library's own chrome, right-aligned: the search field, the list/wall switch and (on
+                 the wall) the cover-size slider. The switch sits next to the thing it changes. Switching
+                 to the list slides the slider out to the right (fading) and carries the switch into its
+                 place. The slot is collapsed at the end of that slide (SlideSizeSlot), so the list gets
+                 the slider's width back for the heading's type, and holds no column for a control it does
+                 not have. -->
+            <!-- One group, one avoidance shift: the spinning record slides the WHOLE chrome left (switch
+                 and slider together, LibraryChromeShift, animated by AlbumWallView). Shifting the slider
+                 alone would slide it under the switch. -->
+            <Grid x:Name="LibraryChrome" Grid.Column="1" VerticalAlignment="Center" ColumnSpacing="12">
+              <!-- Centred in the 36-high heading row and nothing more: 28 high in 36 puts the tallest
+                   control's top at 4, and the heading's tallest letters (247/1000 em of a 72pt face, on a
+                   baseline 21.6 down its 34.9 line box) top out at 4.4, half a pixel apart, which is the
+                   alignment. X is the avoidance shift and is the only axis touched. -->
+              <Grid.RenderTransform>
+                <TranslateTransform x:Name="LibraryChromeShift"/>
+              </Grid.RenderTransform>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>   <!-- search + list / wall switch -->
+                <ColumnDefinition Width="Auto"/>   <!-- cover size (wall only) -->
+              </Grid.ColumnDefinitions>
+
+              <!-- Search and the switch travel together on ViewToggleShift: leaving the wall slides the
+                   pair right into the size slider's place, so the gap the slider leaves closes instead of
+                   opening between the field and the switch. -->
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <StackPanel.RenderTransform>
+                  <TranslateTransform x:Name="ViewToggleShift"/>
+                </StackPanel.RenderTransform>
+
+                <!-- The library's search, in the header over the thing it filters (the list AND the
+                     wall), which is why it sits above both rather than in either. Same field the import
+                     grid wears in its own header: frosted glass, magnifier, every default TextBox chrome
+                     stripped so it reads as bare text on the glass. -->
+                <Border x:Name="SearchSlot" Width="150" Height="28" CornerRadius="6" Padding="9,0"
+                        Background="{StaticResource OnGlassBrush}"
+                        VerticalAlignment="Center" BorderBrush="#22FFFFFF" BorderThickness="1">
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="12" Foreground="#99ffffff"
+                               VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
+                    <!-- The TextBox centres itself rather than stretching: stretched, its template keeps
+                         the text (and the placeholder) pinned to the top of the box. -->
+                    <TextBox Grid.Column="1" x:Name="SearchBox" FontSize="12"
+                             VerticalAlignment="Center" VerticalContentAlignment="Center"
+                             Background="Transparent" BorderThickness="0" Padding="0"
+                             MinHeight="0" Height="18"
+                             PlaceholderText="{loc:Str Key=Review_SearchPlaceholder}"
+                             Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                      <!-- Strip ALL the default TextBox chrome: the template paints a filled box + a
+                           rounded border, and on FOCUS an accent-blue bottom line
+                           (TextControlBorderBrushFocused × ...ThicknessFocused 0,0,0,2) that the
+                           control's own BorderThickness=0 can't override. Zero every state's background,
+                           border brush and the focused border thickness. Text carets/selection stay. -->
+                      <TextBox.Resources>
+                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                        <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                        <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                        <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                      </TextBox.Resources>
+                    </TextBox>
+                  </Grid>
+                </Border>
+
+                <!-- The favourites heart: it narrows both album views to the records the listener has
+                     marked, and nothing else about them changes: the same shelf, fewer records on it.
+                     A toggle rather than a menu entry, because it is switched on to look for something
+                     and straight off again, which is not a preference. Beside the grouping and the
+                     search because all three ask the same question: what is on this shelf. -->
+                <!-- No inset: the key fills its frame, the same as the view switch's three do, so the lit
+                     state is the whole box rather than a smaller box inside it. -->
+                <Border x:Name="FavoritesSlot" CornerRadius="6" Padding="0" Visibility="Collapsed"
+                        Background="{StaticResource OnGlassBrush}"
+                        BorderBrush="#22FFFFFF" BorderThickness="1" VerticalAlignment="Center">
+                  <Button x:Name="FavoritesButton" Click="FavoritesOnly_Click"
+                          Background="Transparent" BorderThickness="0" CornerRadius="5"
+                          Width="32" Height="26" MinWidth="0" MinHeight="0" Padding="0"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTipService.ToolTip="{loc:Str Key=Library_FavoritesOnly}"
+                          AutomationProperties.Name="{loc:Str Key=Library_FavoritesOnly}">
+                    <Button.Resources>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                    </Button.Resources>
+                    <!-- Face and colour are set in code (SetFavoritesToggle): filled and lit while the
+                         filter is on, an outline while it is off: the same pair a song's own line and
+                         the sleeve sticker use. -->
+                    <FontIcon x:Name="FavoritesIcon" Glyph="&#xf004;" FontSize="12"
+                              FontFamily="{StaticResource FaRegular}"
+                              Foreground="{StaticResource FavoriteMarkIdleBrush}"/>
+                  </Button>
+                </Border>
+
+                <!-- Grouping: the album list only. It sits with the search and the switch rather than in
+                     the wall's slot, because it comes and goes with the OTHER view: collapsed, its width
+                     simply leaves the row, and the pair beside it closes up. -->
+                <Border x:Name="GroupSlot" CornerRadius="6" Padding="0" Visibility="Collapsed"
+                        Background="{StaticResource OnGlassBrush}"
+                        BorderBrush="#22FFFFFF" BorderThickness="1" VerticalAlignment="Center">
+                  <!-- 26 high inside the hairline, the same as the view switch's keys and the wall's sort
+                       button: that puts the box at 28, the height of the search field beside it. -->
+                  <Button x:Name="GroupButton" Click="Group_Click"
+                          Background="Transparent" BorderThickness="0" CornerRadius="5"
+                          Width="32" Height="26" MinWidth="0" MinHeight="0" Padding="0"
+                          FontFamily="{StaticResource Fa}" FontSize="12" Content="&#xf5fd;"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTipService.ToolTip="{loc:Str Key=AlbumGroup_Tooltip}"
+                          AutomationProperties.Name="{loc:Str Key=AlbumGroup_Tooltip}">
+                    <Button.Resources>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                    </Button.Resources>
+                  </Button>
+                </Border>
+
+                <!-- No inset and no gaps: the three keys are segments of one switch, edge to edge, so the
+                     lit one runs into the switch's own border. The two on the ends carry its corner (5,
+                     the 6 it is cut to, less its hairline); the inner edges are square, or the lit wash
+                     would be notched by its neighbour's corner. -->
+                <Border x:Name="ViewToggle" CornerRadius="6" Padding="0"
+                        Background="{StaticResource OnGlassBrush}"
+                        BorderBrush="#22FFFFFF" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="0">
+                    <StackPanel.Resources>
+                      <Style x:Key="ViewToggleButton" TargetType="Button">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <!-- Square by default; the outer two are rounded where they meet the switch's
+                             own corner (set on the buttons themselves). -->
+                        <Setter Property="CornerRadius" Value="0"/>
+                        <Setter Property="Width" Value="32"/>
+                        <!-- 26 inside the switch's hairline gives the 28 that the search field beside it
+                             stands at. The keys take the 4 that the old padding and gaps used. -->
+                        <Setter Property="Height" Value="26"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+                        <Setter Property="FontSize" Value="13"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                      </Style>
+                      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                    </StackPanel.Resources>
+                    <!-- Three ways to read one collection, in the order they go from picture to data:
+                         the wall of covers, the album list, and the data table. -->
+                    <Button x:Name="ViewWallButton" Style="{StaticResource ViewToggleButton}" Content="&#xf00a;"
+                            CornerRadius="5,0,0,5"
+                            Click="ViewWall_Click" ToolTipService.ToolTip="{loc:Str Key=Library_ViewGrid}" AutomationProperties.Name="{loc:Str Key=Library_ViewGrid}"/>
+                    <Button x:Name="ViewAlbumsButton" Style="{StaticResource ViewToggleButton}" Content="&#xf03a;"
+                            Click="ViewAlbums_Click" ToolTipService.ToolTip="{loc:Str Key=Library_ViewAlbums}" AutomationProperties.Name="{loc:Str Key=Library_ViewAlbums}"/>
+                    <Button x:Name="ViewTableButton" Style="{StaticResource ViewToggleButton}" Content="&#xf0ce;"
+                            CornerRadius="0,5,5,0"
+                            Click="ViewTable_Click" ToolTipService.ToolTip="{loc:Str Key=Library_ViewTable}" AutomationProperties.Name="{loc:Str Key=Library_ViewTable}"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <!-- Cover-size slider: a small square, the slider, a big square. The value is the TARGET art
+                   edge; the wall snaps it to the nearest size that fills the row (AlbumGridLayout). -->
+              <!-- Starts measured but invisible: its column's width is what the switch slides across, and
+                   that width has to be read once before the slot can be collapsed. On the list it ends up
+                   collapsed, giving the heading the room (see SlideSizeSlot). -->
+              <Grid x:Name="SizeSlot" Grid.Column="1" Opacity="0">
+                <Grid.RenderTransform>
+                  <TranslateTransform x:Name="SizeSlotShift"/>
+                </Grid.RenderTransform>
+                <!-- The sort picker sits in the wall-only slot with the size slider, so it comes and
+                     goes with the wall and needs no show/hide machinery of its own; the slide is
+                     measured off this slot's width and simply picks the wider box up. -->
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                  <Border x:Name="SortSlot" CornerRadius="6" Padding="0" BorderBrush="#22FFFFFF" BorderThickness="1"
+                          Background="{StaticResource OnGlassBrush}"
+                          VerticalAlignment="Center">
+                    <!-- 26 high inside the hairline, the same as the list/wall toggle's keys: that puts
+                         this box at 28, the height of the search field it stands beside. -->
+                    <Button x:Name="SortButton" Click="Sort_Click"
+                            Background="Transparent" BorderThickness="0" CornerRadius="5"
+                            Width="32" Height="26" MinWidth="0" MinHeight="0" Padding="0"
+                            FontFamily="{StaticResource Fa}" FontSize="12" Content="&#xf160;"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            ToolTipService.ToolTip="{loc:Str Key=AlbumSort_Tooltip}"
+                            AutomationProperties.Name="{loc:Str Key=AlbumSort_Tooltip}">
+                      <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                      </Button.Resources>
+                    </Button>
+                  </Border>
+
+                  <StackPanel x:Name="SizeCluster" Orientation="Horizontal" Spacing="7"
+                              VerticalAlignment="Center"
+                              ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_CoverSize}">
+                    <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="7" Foreground="#88FFFFFF"
+                              VerticalAlignment="Center"/>
+                    <Slider x:Name="SizeSlider" Style="{StaticResource SeekSizeSliderStyle}"
+                            Width="96" VerticalAlignment="Center" Minimum="96" Maximum="260"
+                            StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False"/>
+                    <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#88FFFFFF"
+                              VerticalAlignment="Center"/>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Grid>
+
+          <!-- The top corners are square. The panel's rounded edge belongs to the heading above it, as it
+               does for the import grid, which sits square under its own caption. -->
+          <!-- Flush to the card on both sides, exactly as the import grid sits in its own: the heading
+               above keeps its 16 inset, the grid does not; a table reads as the panel's floor, and a
+               side margin leaves it floating in a gutter the import grid doesn't have. -->
+          <!-- The DATA table: one flat row per track, every field the mirror holds, sorted and
+               filtered by the database. No tree and no covers: browsing a collection by artist and
+               record is the album list's job now, and this view answers the other question: does
+               everything in here have a year, a genre, an album artist, a cover's worth of tags. A
+               question asked of a COLUMN, which is why every track has to be on one list. -->
+          <Border x:Name="LibraryTableView" Grid.Row="1"
+                  BorderThickness="1" BorderBrush="{StaticResource ListEdgeBrush}">
+          <Grid>
+          <!-- The data table. Its columns are declared in code (LibraryGrid.Columns); the sort and
+               the filters are still the DATABASE's, keyed by each column's id, which is its name in
+               the mirror. -->
+          <grids:RpmGrid x:Name="LibraryGridView"
+                         Background="{StaticResource GridSurfaceBrush}"/>
+          </Grid>
+          </Border>
+
+          <!-- Empty-library hint for the LIST view. The wall (AlbumWall) carries its own empty hint, so
+               this one is shown only in list mode (driven in code: RefreshLibraryEmptyHint); otherwise
+               the two stack up as a double icon on the empty wall. Collapsed by default. -->
+          <StackPanel x:Name="LibraryEmptyHint" Grid.Row="1" Spacing="14" Visibility="Collapsed"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+            <!-- Headphones with a plus in the corner: the empty library is not a fault, it is an
+                 invitation to add something. Same colour as the glyph it sits on, no badge. -->
+            <Grid HorizontalAlignment="Center">
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf025;" FontSize="44"
+                        Foreground="#55ffffff"/>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf067;" FontSize="14"
+                        Foreground="#55ffffff"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-8,-2"/>
+            </Grid>
+            <TextBlock Text="{loc:Str Key=Library_Empty}" FontSize="13" Foreground="#88ffffff"
+                       TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+          </StackPanel>
+
+          <!-- Album list: the same collection read as records. Every artist's name is over their albums,
+               and each album has its sleeve beside its tracks. This is the browsing view. It is fed its
+               albums and loaders from the code-behind, like the wall. -->
+          <lib:AlbumListView x:Name="AlbumList" Grid.Row="1" Visibility="Collapsed"/>
+
+          <!-- Album grid (iTunes browse): the same collection as a wall of covers. Last in the row so
+               its opaque surface covers the other views and the table-mode empty hint when it is
+               switched on; it carries its own empty state. -->
+          <lib:AlbumWallView x:Name="AlbumWall" Grid.Row="1" Visibility="Collapsed"/>
+
+          <!-- The wall's and the list's wait mark while the shelf is read (MainPage.Loading). -->
+          <ctl:ShelfLoader x:Name="AlbumsLoading" Grid.Row="1"/>
+
+          <!-- One album, opened out of the wall or the list. It takes the library card whole, heading
+               row included, because the search box and the list/wall switch belong to the collection
+               and mean nothing over a single record. What it does NOT take is the artwork band above
+               it or the deck below: those are the app's, so opening an album never takes the
+               transport off the screen. -->
+          <lib:AlbumDetailView x:Name="AlbumDetail" Grid.Row="0" Grid.RowSpan="2"
+                              Visibility="Collapsed" Opacity="0"
+                              BackRequested="AlbumDetail_BackRequested"/>
+
+          <!-- The library's own message band, the left pane's in two of its three voices (see the
+               Band* brushes, which the code-behind applies). In blue, the one thing a borrowed shelf
+               cannot show by drawing: the computer whose records these are is not on this network, so
+               the records that are only on its disk are not here to play. Their cloud albums still
+               are, and the shelf above has narrowed itself to those. In red, the harder news: the
+               music stopped mid-record and there is no route left to it, neither the network nor the
+               cloud. -->
+          <Border x:Name="LibraryBand" Grid.Row="2" Visibility="Collapsed"
+                  CornerRadius="0,0,0,8" BorderThickness="0,1,0,0"
+                  BorderBrush="{StaticResource BandInfoEdge}"
+                  Background="{StaticResource BandInfoFill}"
+                  Padding="14,9,8,9">
+            <Grid ColumnSpacing="10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock x:Name="LibraryBandMark" Grid.Column="0" Text="&#xf05a;"
+                         FontFamily="{StaticResource Fa}" FontSize="12"
+                         Foreground="{StaticResource BandInfoMark}" VerticalAlignment="Center"/>
+
+              <TextBlock x:Name="LibraryBandText" Grid.Column="1" FontSize="12"
+                         Foreground="{StaticResource BandInfoInk}"
+                         TextWrapping="Wrap" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+        </Grid>
+
+        <!-- View: Artists, the collection read by who made it. A wall of boxes, one per act rather than
+             one per credit, and one artist's page opened over it. Genres is a separate view, named on the
+             rail. -->
+        <Grid x:Name="ArtistsBody" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- panel heading -->
+            <RowDefinition Height="*"/>      <!-- the wall of artists -->
+          </Grid.RowDefinitions>
+
+          <!-- The same heading box, inset and height, the library's chrome band stands in: the two views
+               are the same panel read two ways, and their first rows have to start on one line. -->
+          <Grid x:Name="ArtistsHeading" Grid.Row="0" Margin="16,12,16,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>   <!-- the search field -->
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="36"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Grid.Column="0" Style="{StaticResource RpmPaneHeadingBox}">
+              <TextBlock Text="{loc:Str Key=Artists_Title}" Style="{StaticResource RpmPaneHeading}"/>
+            </Grid>
+            <TextBlock x:Name="ArtistsSubheading" Grid.Row="1" Grid.ColumnSpan="2"
+                       Style="{StaticResource RpmPaneSubheading}"/>
+
+            <!-- The wall's own search, and its OWN: the library's field narrows the collection (which
+                 records are on the shelf at all), and this narrows the wall to the names you are looking
+                 through, which is a different question asked of the same shelf. The same frosted slot the
+                 library's field and the import grid's wear, so it reads as one interface. -->
+            <Border x:Name="ArtistSearchSlot" Grid.Row="0" Grid.Column="1"
+                    Width="180" Height="28" CornerRadius="6" Padding="9,0"
+                    Background="{StaticResource OnGlassBrush}"
+                    VerticalAlignment="Center" BorderBrush="#22FFFFFF" BorderThickness="1">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="12" Foreground="#99ffffff"
+                           VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
+                <!-- The TextBox centres itself rather than stretching: stretched, its template keeps the
+                     text (and the placeholder) pinned to the top of the box. -->
+                <TextBox Grid.Column="1" x:Name="ArtistSearchBox" FontSize="12"
+                         VerticalAlignment="Center" VerticalContentAlignment="Center"
+                         Background="Transparent" BorderThickness="0" Padding="0"
+                         MinHeight="0" Height="18"
+                         PlaceholderText="{loc:Str Key=Artists_SearchPlaceholder}"
+                         TextChanged="ArtistSearch_TextChanged"
+                         KeyDown="ArtistSearch_KeyDown">
+                  <!-- Strip ALL the default TextBox chrome, exactly as the library's field does: the
+                       template paints a filled box, a rounded border, and on FOCUS an accent-blue bottom
+                       line that the control's own BorderThickness=0 cannot override. -->
+                  <TextBox.Resources>
+                    <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                    <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+                    <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                  </TextBox.Resources>
+                </TextBox>
+
+                <!-- The way back out, and only while there is something to come out of. A search you
+                     cannot clear without selecting the text and deleting it is a search you leave on. -->
+                <Button x:Name="ArtistSearchClear" Grid.Column="2" Click="ArtistSearchClear_Click"
+                        Visibility="Collapsed"
+                        Background="Transparent" BorderThickness="0" CornerRadius="4"
+                        Width="16" Height="16" MinWidth="0" MinHeight="0" Padding="0"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=Artists_SearchClear}"
+                        AutomationProperties.Name="{loc:Str Key=Artists_SearchClear}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                  </Button.Resources>
+                  <TextBlock Text="&#xf00d;" FontSize="10" Foreground="#99FFFFFF"
+                             FontFamily="{StaticResource Fa}"/>
+                </Button>
+              </Grid>
+            </Border>
+          </Grid>
+
+          <artists:ArtistWallView x:Name="ArtistsWall" Grid.Row="1"/>
+          <ctl:ShelfLoader x:Name="ArtistsLoading" Grid.Row="1"/>
+
+          <!-- One artist, opened out of a box. It takes the panel whole, heading included, because the
+               heading names the collection and means nothing over one person. What it does NOT take is
+               the artwork band above it or the deck below: those are the app's. -->
+          <artists:ArtistDetailView x:Name="ArtistDetail" Grid.Row="0" Grid.RowSpan="2"
+                                    Visibility="Collapsed" Opacity="0"
+                                    BackRequested="ArtistDetail_BackRequested"/>
+        </Grid>
+
+        <!-- View: Genres, the collection read by what kind of music it is. The artists wall's own
+             wall, card for card, with one of the genre's artists behind each name: see GenreWall for
+             which genres are on it and MainPage.Genres for whose picture a card ends up wearing. -->
+        <Grid x:Name="GenresBody" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- panel heading -->
+            <RowDefinition Height="*"/>      <!-- the wall of genres -->
+          </Grid.RowDefinitions>
+
+          <!-- The same heading box, inset and height the library's chrome band and the artists wall's
+               heading stand in: the three views are one panel read three ways, and their first rows have
+               to start on one line. No search field beside it, unlike the artists wall: that one narrows
+               two thousand names, and this wall is eighteen cards that fit on a screen. -->
+          <Grid x:Name="GenresHeading" Grid.Row="0" Margin="16,12,16,0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="36"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Style="{StaticResource RpmPaneHeadingBox}">
+              <TextBlock Text="{loc:Str Key=Genres_Title}" Style="{StaticResource RpmPaneHeading}"/>
+            </Grid>
+            <TextBlock x:Name="GenresSubheading" Grid.Row="1"
+                       Style="{StaticResource RpmPaneSubheading}"/>
+          </Grid>
+
+          <genres:GenreWallView x:Name="GenresWall" Grid.Row="1"/>
+          <ctl:ShelfLoader x:Name="GenresLoading" Grid.Row="1"/>
+
+          <!-- One genre, opened out of a row. It takes the panel whole, heading included, because the
+               heading names the collection and means nothing over one kind of music. The same
+               arrangement one artist's page stands in above, and for the same reasons. -->
+          <genres:GenreDetailView x:Name="GenreDetail" Grid.Row="0" Grid.RowSpan="2"
+                                  Visibility="Collapsed" Opacity="0"
+                                  BackRequested="GenreDetail_BackRequested"/>
+        </Grid>
+
+        <!-- View: the Playlists tree. It lives on this side of the window because it is a way of reading
+             the collection, like the three above it, rather than one of the things the left pane does to
+             a record. It carries its own heading, so the library's chrome goes with the Albums view.
+             DataContext is null until EnsurePlaylistPanel attaches the model, for the same reason the
+             radio pane's is. -->
+        <right:PlaylistView x:Name="PlaylistPanel" Visibility="Collapsed" DataContext="{x:Null}"/>
+
+        <!-- View: Home. It is a view in its own right, standing here beside the four the rail names. It
+             is not on the rail, because it is not a fifth way of filing the same records. It shows what
+             has been played. Its tab is the deck's own home key, which wears the rail's mark while this
+             is shown. While it is shown, this card's rail is lit for nothing. The left pane sits beside
+             this card rather than in it, so it stays open or folded as its own chevron says, and home
+             does not change it. See PaneStage. Last in the host, so it draws over the four. -->
+        <home:HomeView x:Name="Home" Visibility="Collapsed"
+                       AlbumRequested="Home_AlbumRequested"
+                       PlaylistRequested="Home_PlaylistRequested"
+                       StoredPlaylistRequested="Home_StoredPlaylistRequested"
+                       StationRequested="Home_StationRequested"
+                       AddMusicRequested="Home_AddMusicRequested"/>
+        </Grid>
+
+        <!-- The rail: the four views, and the button that folds this pane away for the import
+             workbench. Last, so it draws over anything a view lets run to the card's edge. -->
+        <right:RightRail x:Name="LibraryRail" Grid.Column="1"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- What just happened, along the foot of the window: the same pill the full-screen player uses to
+         answer a press (see PegasusPlayer's Flash), because it is the same job and a window that
+         answered in a second voice would be two apps.
+
+         In the panels' row rather than the deck's, so it sits just ABOVE the player bar instead of over
+         the transport. Last in the row, so it draws over the panes. Never hit-testable: it lies across
+         the middle of the window and a sentence that swallowed a click would be a hole in the page for
+         as long as it was up. -->
+    <Border x:Name="Flash" Grid.Row="0" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,20"
+            Background="#D8000000" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="16"
+            Padding="18,9,18,9" MaxWidth="640">
+      <TextBlock x:Name="FlashText" FontSize="14" Foreground="#F2FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </Border>
+
+    <!-- Player bar. The pane pill holds the left edge and the deck's chrome the right. The transport
+         floats dead-centre of the card (the two star columns either side hold it there). -->
+    <!-- The deck along the foot: the pane pill on the left edge, the transport dead-centre, and
+         the chips, the cast pill and the menu on the right. -->
+    <deck:TransportDeck x:Name="Deck" Grid.Row="1"/>
+  </Grid>
+</Page>

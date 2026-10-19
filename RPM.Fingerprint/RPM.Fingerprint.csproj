@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- FpcalcRunner.Classify decides whether a failed run gets remembered against a file for good.
+         Worth pinning down in tests without making it part of the assembly's face. -->
+    <InternalsVisibleTo Include="RPM.Core.Tests" />
+  </ItemGroup>
+
+</Project>

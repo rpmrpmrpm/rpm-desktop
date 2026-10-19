@@ -1,0 +1,181 @@
+<UserControl x:Class="RPM.Desktop.Presentation.RPaMp.CastFlyoutContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark">
+
+  <!-- The cast destination picker. It lists this computer and every Google speaker on the network.
+       The player popout and the deck bar both use it, so both show the same list, ticks and options.
+       The host flyouts set their presenter padding to zero, so the header band sits flush to the edge. -->
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <!-- the rpm cyan checkbox tick, shared with the library grid -->
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+      <!-- The speaker icon beside the destination that is playing. It has the same blue as the folder
+           colour in the library grid. -->
+      <conv:BoolToBrushConverter x:Key="CastTickBrush" TrueBrush="#B004C8FF" FalseBrush="Transparent"/>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <!-- The height is capped in code (see Refresh), so a long device list scrolls inside the menu
+       instead of running off the top of the screen. -->
+  <ScrollViewer x:Name="CastScroll" VerticalScrollBarVisibility="Auto"
+                HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel Width="270">
+
+    <!-- Header. It has the same style as the count header of the album wall: the CardTitleBarBrush band,
+         32 px high, SemiBold text, and a thin divider under it. -->
+    <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
+            Height="32" Padding="16,0" RequestedTheme="Dark"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+      <Grid>
+        <TextBlock Text="{loc:Str Key=Rpm_Cast_Title}" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
+                   Foreground="#CCFFFFFF"/>
+
+        <!-- The scan state is shown here in the header, not only in the list. The empty text in the list
+             is replaced by the first speaker that answers, so a scan still running would have nowhere to
+             show. The spinner is 16 points. It keeps the same place whether the network is empty or full.
+             It turns while the scan runs and stops by itself when the scan ends (see
+             RecordSpinner.Spinning). Nothing
+             here needs to be kept in step. -->
+        <ctl:RecordSpinner Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Spinning="{Binding ScanRecordInHeader}"/>
+      </Grid>
+    </Border>
+
+    <StackPanel Padding="10,8,10,12" Spacing="2">
+
+      <!-- This computer: always offered, always reachable. -->
+      <Button Click="CastLocal_Click" HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch" Background="Transparent"
+              BorderThickness="0" Padding="8,7" CornerRadius="4">
+        <Grid ColumnSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="&#xf028;" FontFamily="{StaticResource Fa}" FontSize="11"
+                     VerticalAlignment="Center"
+                     Foreground="{Binding IsPlayingLocally, Converter={StaticResource CastTickBrush}}"/>
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="{loc:Str Key=Cast_ThisComputer}" FontSize="13" Foreground="#FFFFFF"/>
+            <TextBlock Text="{loc:Str Key=Cast_SoundCard}" FontSize="11" Foreground="#99FFFFFF"/>
+          </StackPanel>
+        </Grid>
+      </Button>
+
+      <ItemsControl ItemsSource="{Binding CastTargets}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Button Click="CastDevice_Click" Tag="{Binding}" HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch" Background="Transparent"
+                    BorderThickness="0" Padding="8,7" CornerRadius="4">
+              <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="16"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xf028;" FontFamily="{StaticResource Fa}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{Binding IsCurrent, Converter={StaticResource CastTickBrush}}"/>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Name}" FontSize="13" Foreground="#FFFFFF"/>
+                  <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="#99FFFFFF"/>
+                </StackPanel>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Shown in place of the list while there is no list. It is the same record spinner, at a size that
+           fits this space, with the status text under it. One value decides which spinner turns
+           (RPaMpModel.ScanMark), so two bindings cannot disagree. When the scan ends with no speaker found,
+           the spinner stops and the text under it gives the result. -->
+      <StackPanel Spacing="10" Margin="8,12,8,8" HorizontalAlignment="Center"
+                  Visibility="{Binding ShowCastEmptyText, Converter={StaticResource BoolToVisible}}">
+        <ctl:RecordSpinner Width="48" Height="48" HorizontalAlignment="Center"
+                           Spinning="{Binding ScanRecordInList}"/>
+        <TextBlock Text="{Binding CastEmptyText}" FontSize="12" Foreground="#9AA4AC"
+                   TextWrapping="Wrap" TextAlignment="Center"/>
+      </StackPanel>
+
+      <TextBlock Text="{Binding CastError}" FontSize="11" Foreground="#FF6B6B"
+                 Margin="8,4" TextWrapping="Wrap"
+                 Visibility="{Binding HasCastError, Converter={StaticResource BoolToVisible}}"/>
+
+      <!-- Shown when Windows Firewall blocks rpm on this network. The state is read each time the menu
+           opens. This is Windows only. A blocked firewall also keeps speakers out of the scan, so this shows
+           whether or not any speakers were found. The button asks Windows for the rule, or opens Windows
+           Security. -->
+      <StackPanel Spacing="8" Margin="8,4"
+                  Visibility="{Binding HasFirewallText, Converter={StaticResource BoolToVisible}}">
+        <TextBlock Text="{Binding FirewallText}" FontSize="11" Foreground="#FFB4A8" TextWrapping="Wrap"/>
+        <Button Click="Firewall_Click" Style="{StaticResource GlassButtonStyle}"
+                HorizontalAlignment="Center" Content="{Binding FirewallButtonText}"/>
+      </StackPanel>
+
+      <!-- Rescan. This uses the standard glass button at its normal size. A thin full-width bar would look
+           like a list row, not a button. -->
+      <Button Click="CastRescan_Click" Style="{StaticResource GlassButtonStyle}"
+              HorizontalAlignment="Center" Margin="0,10,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="&#xf021;" FontFamily="{StaticResource Fa}" FontSize="12"
+                     VerticalAlignment="Center"/>
+          <TextBlock Text="{loc:Str Key=Rpm_Cast_LookAgain}" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <!-- A divider. It is the same seam as the one between two records in the album list (see Generic.xaml):
+           a dark line with a lit line under it, both fading out at the ends. -->
+      <Grid Height="2" Margin="0,6">
+        <Rectangle Height="1" VerticalAlignment="Top" Fill="{StaticResource RpmSeamShade}"/>
+        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource RpmSeamLight}"/>
+      </Grid>
+
+      <!-- FLAC in a live Matroska stream. Google lists FLAC as a supported codec but does not document a live
+           MIME type for it. So this is opt-in until it has been tested on the speaker. -->
+      <CheckBox IsChecked="{Binding CastLossless, Mode=TwoWay}" IsEnabled="{Binding CanCastLossless}"
+                MinWidth="0" Padding="8,0,0,0">
+        <StackPanel>
+          <TextBlock Text="{loc:Str Key=Cast_Lossless}" FontSize="13" Foreground="#FFFFFF"/>
+          <TextBlock Text="{loc:Str Key=Cast_LosslessHint}"
+                     FontSize="11" Foreground="#99FFFFFF" TextWrapping="Wrap"/>
+        </StackPanel>
+      </CheckBox>
+
+      <!-- AC-3 5.1 for a surround source. This skips the stereo EQ and re-encodes the file as Dolby Digital,
+           so that a Shield and an amplifier can pass it through. Whether the speaker plays it as 5.1 or mixes
+           it down to stereo depends on the hardware. -->
+      <CheckBox IsChecked="{Binding CastSurround, Mode=TwoWay}" IsEnabled="{Binding CanCastSurround}"
+                Visibility="{Binding ShowCastSurround, Converter={StaticResource BoolToVisible}}"
+                MinWidth="0" Padding="8,0,0,0" Margin="0,4,0,0">
+        <StackPanel>
+          <TextBlock Text="{loc:Str Key=Cast_Surround}" FontSize="13" Foreground="#FFFFFF"/>
+          <TextBlock Text="{loc:Str Key=Cast_SurroundHint}"
+                     FontSize="11" Foreground="#99FFFFFF" TextWrapping="Wrap"/>
+        </StackPanel>
+      </CheckBox>
+
+      <!-- Turns the picture off and keeps the music on. For a television that nobody is watching. A record is
+           about forty minutes of one still image, and a panel that shows one still image for that long can
+           keep a faint copy of it. The audio does not change, so this option sits below the two format
+           switches, not among them. -->
+      <CheckBox IsChecked="{Binding CastScreenOff, Mode=TwoWay}" IsEnabled="{Binding CanTurnOffScreen}"
+                MinWidth="0" Padding="8,0,0,0" Margin="0,4,0,0">
+        <StackPanel>
+          <TextBlock Text="{loc:Str Key=Cast_ScreenOff}" FontSize="13" Foreground="#FFFFFF"/>
+          <TextBlock Text="{loc:Str Key=Cast_ScreenOffHint}"
+                     FontSize="11" Foreground="#99FFFFFF" TextWrapping="Wrap"/>
+        </StackPanel>
+      </CheckBox>
+    </StackPanel>
+  </StackPanel>
+  </ScrollViewer>
+</UserControl>

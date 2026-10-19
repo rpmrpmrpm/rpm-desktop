@@ -1,0 +1,601 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Library.AlbumListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lib="using:RPM.Desktop.Presentation.Main.Library"
+             xmlns:model="using:RPM.Desktop.Presentation.Main.Library.Models"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             Background="{StaticResource GridSurfaceBrush}">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <conv:TitleCensorConverter x:Key="Censor"/>
+    <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
+
+    <!-- The rule between two records is the app's own seam: RpmSeamShade over RpmSeamLight, in
+         Generic.xaml, which the album page also uses. This view has its own, harder-lit version. A group
+         boundary is bigger than the gap between two records by the same artist, and the heading over it
+         already says so. -->
+    <LinearGradientBrush x:Key="GroupRuleLight" StartPoint="0,0" EndPoint="1,0">
+      <GradientStop Offset="0" Color="#00FFFFFF"/>
+      <GradientStop Offset="0.18" Color="#59FFFFFF"/>
+      <GradientStop Offset="0.82" Color="#59FFFFFF"/>
+      <GradientStop Offset="1" Color="#00FFFFFF"/>
+    </LinearGradientBrush>
+
+    <!-- One line of a record. There are THREE templates, not one, and the line itself chooses which one
+         (see AlbumLineTemplateSelector).
+
+         One template with the three layouts stacked, and two of them collapsed, is the wrong shape for a
+         record. A collapsed element is still built, still measured and still held. Nearly every line in the
+         collection is a plain track. With one template, each track would carry a disc divider and a work
+         header that it never shows, eight elements each. A screen of the list is a few hundred lines. Chosen
+         per line, a track builds a track and a divider builds a divider. The wrapper Grid goes too: each
+         template's root is the line itself. -->
+    <DataTemplate x:Key="ListDiscHeaderTemplate" x:DataType="model:AlbumTrackItem">
+      <!-- Two track lines tall, exactly. The work header below is the same height. The list works out how much
+           room a record needs from its line count (see AlbumListEntry), so a line that is not a track must be a
+           whole number of track lines. The space inside the 44 is the gap between the disc above and the one
+           this line opens. -->
+      <Grid Height="{StaticResource AlbumHeaderLineHeight}">
+        <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" FontWeight="SemiBold" Foreground="#99FFFFFF"
+                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                   VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+        <Rectangle Height="1" Fill="#26FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+      </Grid>
+    </DataTemplate>
+
+    <!-- The line that opens a work. A classical record is a list of works. Each work is named once, with its
+         composer and its length, and its movements sit indented below it. There is no rule under it, unlike a
+         disc divider. A work is a group inside the record, not a break in it. -->
+    <DataTemplate x:Key="ListWorkHeaderTemplate" x:DataType="model:AlbumTrackItem">
+      <Grid Margin="6,0,6,0" ColumnSpacing="10" Height="{StaticResource AlbumHeaderLineHeight}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="12.5" FontWeight="SemiBold" Foreground="#EEFFFFFF"
+                     TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#88FFFFFF"
+                     TextTrimming="CharacterEllipsis" MaxLines="1"
+                     Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisible}}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                   VerticalAlignment="Center"/>
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ListTrackTemplate" x:DataType="model:AlbumTrackItem">
+        <Button HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
+                Background="Transparent" BorderThickness="0" Padding="6,0" MinHeight="0"
+                Height="{StaticResource AlbumTrackLineHeight}"
+                Click="Track_Click" ContextRequested="Track_ContextRequested" Tag="{Binding}"
+                PointerEntered="Track_PointerEntered" PointerExited="Track_PointerExited">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+          </Button.Resources>
+          <Grid ColumnSpacing="8" Margin="{Binding Indent}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="22"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+              <!-- The heart's column is always reserved, so the title lines up whether or not a heart is shown.
+                   The wall's tracklist uses the same layout. -->
+              <ColumnDefinition Width="18"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                       Visibility="{Binding NumberInColumn}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            <!-- The title sits in the same row as the number, the playing bars and the badges. It is one row, not
+                 two. An outer row with a single child is a wasted element, and a line is repeated a few hundred
+                 times on a screen. This is a TrimRow, not a StackPanel, so a long title ends in an ellipsis instead
+                 of being cut mid-letter. -->
+            <ctl:TrimRow Grid.Column="{Binding TitleColumn}" Grid.ColumnSpan="{Binding TitleSpan}"
+                         Spacing="6" VerticalAlignment="Center">
+              <!-- A piece's number is placed in front of its name, not in the number column. The digit then starts on
+                   the work's own left edge, with a gap after it, as a movement does. -->
+              <TextBlock Text="{Binding Number}" FontSize="12" Foreground="#88FFFFFF"
+                         Visibility="{Binding NumberInline}" Margin="0,0,2,0"
+                         VerticalAlignment="Center"/>
+              <ctl:PlayingBars Active="{Binding IsPlaying}" Foreground="#EEFFFFFF" VerticalAlignment="Center"/>
+              <!-- The track's own cloud badge. It uses the same slot as the playing bars. The wall's tracklist uses
+                   the same slot. -->
+              <ctl:CloudBadge Badge="{Binding CloudBadge}" Pulse="{Binding CloudPulse}"
+                              Visibility="{Binding ShowCloudBadge, Converter={StaticResource BoolToVisible}}"/>
+              <!-- Uses ui:AsideInk. The wall's tracklist uses the same setting. -->
+              <TextBlock ui:AsideInk.Line="{Binding Title}" FontSize="{Binding TitleSize}" Foreground="#EEFFFFFF"
+                         FontWeight="{Binding TitleWeight}" ctl:TrimRow.Shrinks="True"
+                         TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+              <!-- 13 on a track line, 14 on the album heading below. -->
+              <ctl:ExplicitBadge Width="13" Height="13"
+                                 Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                 ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+            </ctl:TrimRow>
+            <TextBlock Grid.Column="2" Text="{Binding Duration}" FontSize="12" Foreground="#88FFFFFF"
+                       VerticalAlignment="Center"/>
+            <Button Grid.Column="3" Click="TrackFavorite_Click" Tag="{Binding}"
+                    Background="Transparent" BorderThickness="0" CornerRadius="4"
+                    Width="18" Height="18" MinWidth="0" MinHeight="0" Padding="0"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ShowHeart, Converter={StaticResource BoolToVisible}}"
+                    ToolTipService.ToolTip="{loc:Str Key=Track_Favorite}"
+                    AutomationProperties.Name="{loc:Str Key=Track_Favorite}">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              </Button.Resources>
+              <Grid>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="11"
+                          Foreground="{StaticResource FavoriteMarkBrush}"
+                          Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="11"
+                          Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                          Visibility="{Binding IsNotFavorite, Converter={StaticResource BoolToVisible}}"/>
+              </Grid>
+            </Button>
+          </Grid>
+        </Button>
+    </DataTemplate>
+
+    <!-- Chooses which of the three templates a line gets. It is declared after them, because a StaticResource
+         looks up the dictionary above it, not below it. -->
+    <lib:AlbumLineTemplateSelector x:Key="ListLineTemplates"
+                                   Track="{StaticResource ListTrackTemplate}"
+                                   DiscHeader="{StaticResource ListDiscHeaderTemplate}"
+                                   WorkHeader="{StaticResource ListWorkHeaderTemplate}"/>
+
+    <!-- One entry: one RECORD. There is no artist heading over a shelf. The artist is on the record's own line,
+         under its name. So every entry in the list is the same kind of thing and about the same height (see
+         AlbumListEntry, which explains why virtualization needs that). -->
+    <DataTemplate x:Key="EntryTemplate" x:DataType="model:AlbumListEntry">
+      <Grid DataContextChanged="Entry_DataContextChanged">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- GROUP: the name of the shelf this record opens (its artist, genre or year), over the same glass seam
+             that divides the records. The seam is drawn heavier because it divides more. This is a row of the
+             record, not an item of its own. An item would be a block of about 50 points among records of about
+             270 points, and the layout estimates unrealized heights from the mean of the realized ones. -->
+        <StackPanel Grid.Row="0" Spacing="9" Margin="0,0,0,20"
+                    Visibility="{Binding HasGroupHeading, Converter={StaticResource BoolToVisible}}">
+          <!-- Right-aligned, not left-aligned. The records under it all start at their sleeve on the left edge. A
+               heading on the left would be one more thing in that same column. Against the right edge, it is clearly
+               a label on the run of records, not the first line of one. -->
+          <TextBlock Text="{Binding GroupHeading}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFFFF"
+                     HorizontalAlignment="Right" TextAlignment="Right"
+                     TextTrimming="CharacterEllipsis" MaxLines="1"/>
+          <Grid Height="2">
+            <Rectangle Height="1" VerticalAlignment="Top" Fill="{StaticResource RpmSeamShade}"/>
+            <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource GroupRuleLight}"/>
+          </Grid>
+        </StackPanel>
+
+        <!-- The sleeve on the left, with the record's summary under it, and the tracks on the right. This row has no
+             padding of its own. All the air is in the seam below, which every record has, whether or not it draws a
+             line. -->
+        <Grid Grid.Row="1" ColumnSpacing="24"
+              ContextRequested="Album_ContextRequested" Tag="{Binding}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- LEFT: the sleeve and the record's summary. -->
+          <StackPanel Grid.Column="0" Width="188" Spacing="10">
+            <Grid Width="188" Height="188"
+                  PointerEntered="Art_PointerEntered" PointerExited="Art_PointerExited">
+              <Border Background="#22000000"/>
+              <Border BorderThickness="1" BorderBrush="#22FFFFFF" IsHitTestVisible="False">
+                <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                       Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}}"/>
+              </Border>
+              <!-- No cover: a drawn placeholder instead of a music note. It is a soft shape, blurred until it is not
+                   recognisable as anything. Its colours come from the record's own folder (see SoftFigure). It is the
+                   SAME square in both states, so a shelf where some records have artwork does not look like a shelf
+                   with holes in it.
+
+                   It does not pretend to be a cover. HasCover still says this record has no artwork. So everything
+                   that depends on that (the prompt to add artwork, the editor, the importer) is unchanged. This is a
+                   placeholder, not a cover.
+
+                   It is bound to FigureSeed. FigureSeed is null until the sleeve read has come back empty. So the
+                   picture is made only for records that have no artwork. The Visibility below hides it again when
+                   there is a cover.
+
+                   The figure sits under the hairline below, which is drawn over the art on purpose. A figure drawn
+                   over the rim would hide the edge that stops a square from blending into the panel. -->
+              <Border Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              <!-- The disc over the figure. On its own, the figure is a plain square that says nothing. The disc shows at
+                   a glance that the sleeve is made, not photographed. The album page and the wall's tiles use the same
+                   disc in the same state. Over a picture, the disc reads as a mark on the sleeve rather than as the whole
+                   sleeve, so it is drawn faintly. -->
+              <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="38" Foreground="#4DFFFFFF"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              <!-- The same 1px hairline as the viz cards, the radio dial and the wall's covers (#22FFFFFF). It is a lit
+                   glass edge, so a dark or full-bleed sleeve still has an edge and does not blend into the panel behind
+                   it. It is drawn OVER the square and has no Visibility binding of its own. So it is the sleeve's edge in
+                   both states: the picture fills the border it is inside, and the empty square has no picture at all. -->
+              <Border BorderThickness="1" BorderBrush="#22FFFFFF" IsHitTestVisible="False"/>
+              <!-- ── the way into the record's own page ──
+
+                   On the sleeve, bottom right. It shows only while the pointer is on the sleeve. The list is read as a
+                   shelf of covers, and a key on every cover all the time would be a column of keys. The slot and key
+                   have the library's own style, the same as the sort picker slot (see MainPage's SortSlot). This one is
+                   larger, 38 x 30 rather than 32 x 26, because it stands on a photograph and not in a toolbar. It uses
+                   the record glyph that the album menu uses for the same command. -->
+              <Border x:Name="OpenSlot" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                      Margin="0,0,8,8" CornerRadius="7" BorderBrush="#22FFFFFF" BorderThickness="1"
+                      Background="{StaticResource OnGlassBrush}" Opacity="0" IsHitTestVisible="False">
+                <Button Click="OpenPage_Click" PointerPressed="OpenPage_PointerPressed" Tag="{Binding}"
+                        Background="Transparent" BorderThickness="0" CornerRadius="6"
+                        Width="38" Height="30" MinWidth="0" MinHeight="0" Padding="0"
+                        FontFamily="{StaticResource Fa}" FontSize="14" Content="&#xf51f;"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_AlbumPage}"
+                        AutomationProperties.Name="{loc:Str Key=AlbumMenu_AlbumPage}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                  </Button.Resources>
+                </Button>
+              </Border>
+            </Grid>
+            <!-- The record's own colour, taken from its sleeve. It is a trace of the album under the block, not the same
+                 grey line under every block.
+
+                 It keeps its 2px height whether or not a colour is known yet. It hides by having nothing to paint (a null
+                 Fill), not by collapsing. A collapsed rule costs the block 12 points: the rule itself, plus the 10 points
+                 of StackPanel.Spacing that a collapsed child does not use. When the sleeve colour arrives, that space
+                 comes back. This column sets the block's height (188 points of sleeve is more than any tracklist). So each
+                 record grew by 12 points as its cover arrived, which happened while the record was being scrolled past. -->
+            <Rectangle Height="2" Fill="{Binding Ring}"/>
+            <!-- The summary is on the left. What is true ABOUT the record is on the right: where it is kept, and whether
+                 it is a favourite. The ways to HEAR it are beside its name, where the wall's drawer keeps them too. There
+                 is one set of controls per record.
+
+                 The two marks are under the sleeve, not beside the title. They are notes on the object, and this is the
+                 line that describes the object. -->
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="{Binding Summary}" FontSize="11" Foreground="#88FFFFFF"
+                         TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"
+                         MinHeight="15"/>
+              <ctl:CloudBadge Grid.Column="1" GlyphSize="12" Badge="{Binding CloudBadge}"
+                              Pulse="{Binding CloudPulse}" VerticalAlignment="Center"
+                              Visibility="{Binding ShowCloudBadge, Converter={StaticResource BoolToVisible}}"/>
+              <!-- The heart is a control, not a sticker. It is on EVERY record. It is filled and red when the record is a
+                   favourite, and an empty outline when it is not. Clicking it marks the record. It uses the same pair of
+                   icons and the same two brushes as the heart on a song's line, one size smaller. The click goes through
+                   the album menu's ToggleFavorite, so there is one write path for the mark, however it was made. -->
+              <Button Grid.Column="2" Click="AlbumFavorite_Click" Tag="{Binding}"
+                      Background="Transparent" BorderThickness="0" CornerRadius="4"
+                      Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=AlbumMenu_Favorite}"
+                      AutomationProperties.Name="{loc:Str Key=AlbumMenu_Favorite}">
+                <Button.Resources>
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                </Button.Resources>
+                <!-- 13 here, against 12 for the cloud. At the same point size a heart is narrower and shorter than a
+                     cloud, so it is set 1 point larger. The size was matched by eye. -->
+                <Grid>
+                  <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource Fa}" FontSize="13"
+                            Foreground="{StaticResource FavoriteMarkBrush}"
+                            Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}}"/>
+                  <FontIcon Glyph="&#xf004;" FontFamily="{StaticResource FaRegular}" FontSize="13"
+                            Foreground="{StaticResource FavoriteMarkIdleBrush}"
+                            Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+                </Grid>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <!-- RIGHT: the record's name, what it is, and its tracks in two columns. -->
+          <Grid Grid.Column="1" RowSpacing="12">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="3">
+              <!-- A Grid, not a horizontal StackPanel. A StackPanel measures its children with infinite width. So the
+                   title never trims: it draws itself at its full length and pushes the two buttons past the right edge
+                   of the column, where they are clipped away. A record with a long name would then have a play button
+                   that cannot be seen or clicked.
+                   The title column is Auto with a maximum width, not a star. A star column takes the whole width of the
+                   panel and carries the buttons to the far right, away from the name they belong to. Auto keeps the
+                   buttons next to the title. The maximum width is where a long name stops and gets an ellipsis, instead
+                   of pushing the buttons out of reach. The last star column takes whatever is left. -->
+              <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" MaxWidth="460"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                  <TextBlock ui:AsideInk.Line="{Binding Title}" FontSize="16" FontWeight="Bold"
+                             Foreground="#FFFFFFFF"
+                             TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center"/>
+                  <ctl:ExplicitBadge Width="14" Height="14"
+                                     Visibility="{Binding IsExplicit, Converter={StaticResource BoolToVisible}}"
+                                     ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+                </StackPanel>
+                <Button Grid.Column="1" Click="PlayAll_Click" Tag="{Binding}"
+                        Background="Transparent" BorderThickness="0"
+                        MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_PlayAll}"
+                        AutomationProperties.Name="{loc:Str Key=AlbumGrid_PlayAll}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                  </Button.Resources>
+                  <TextBlock Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#FFFFFFFF"/>
+                </Button>
+                <!-- The same three actions as the wall's drawer, in the same order: play the record, play it in shuffled
+                     order, or send it to the DJ. -->
+                <Button Grid.Column="2" Click="Shuffle_Click" Tag="{Binding}"
+                        Background="Transparent" BorderThickness="0"
+                        MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_Shuffle}"
+                        AutomationProperties.Name="{loc:Str Key=AlbumGrid_Shuffle}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                  </Button.Resources>
+                  <TextBlock Text="&#xf074;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#FFFFFFFF"/>
+                </Button>
+                <Button Grid.Column="3" Click="Dj_Click" Tag="{Binding}"
+                        Background="Transparent" BorderThickness="0"
+                        MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=Dj_Start}"
+                        AutomationProperties.Name="{loc:Str Key=Dj_Start}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                  </Button.Resources>
+                  <TextBlock Text="&#xf025;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#FFFFFFFF"/>
+                </Button>
+                <Button Grid.Column="4" Click="Menu_Click" Tag="{Binding}"
+                        Background="Transparent" BorderThickness="0"
+                        MinWidth="0" Padding="6,2" VerticalAlignment="Center"
+                        AutomationProperties.Name="{loc:Str Key=Common_MoreOptions}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                  </Button.Resources>
+                  <TextBlock Text="&#xf141;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#B8FFFFFF"/>
+                </Button>
+              </Grid>
+              <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#99FFFFFF"
+                         TextTrimming="CharacterEllipsis" MaxLines="1" MinHeight="16"/>
+            </StackPanel>
+
+            <!-- The tracks sit in a scroller of their own, at a FIXED height (see AlbumListTrackAreaHeight). This is how
+                 the list stops its scrollbar from jumping. Sixteen songs fit in it. A longer record scrolls inside it.
+                 Every record's block has the same height, whatever its track count.
+
+                 One wheel notch moves one scroller, and the pointer decides which. Over a tracklist that can scroll, the
+                 notch belongs to the tracklist, at both of its ends. Only a record whose songs all fit passes the notch
+                 to the shelf. The wheel part of this is in code (Tracks_PointerWheel). Uno lets the notch that moves a
+                 tracklist past its last song reach the shelf as well. Scroll chaining is turned off on the ScrollViewer
+                 below (IsVerticalScrollChainingEnabled). That covers the other part: a finger or a trackpad panning the
+                 tracklist. -->
+            <Grid Grid.Row="1" Height="{StaticResource AlbumListTrackAreaHeight}">
+            <!-- The wrapper that the two hems are cut out of. Each hem paints a live copy of the scroller's own rendering.
+                 A clip set on the visual being copied is part of that rendering, and is copied with it. So the cut is
+                 placed here, one level up, where the copy does not see it. See ShowTrackHems. -->
+            <Grid Tag="cut">
+            <ScrollViewer VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
+                          IsVerticalScrollChainingEnabled="False"
+                          BringIntoViewOnFocusChange="False"
+                          Loaded="Tracks_Loaded">
+            <Grid ColumnSpacing="28" VerticalAlignment="Top">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <!-- Repeaters, not ItemsControls. This is the difference between a list that flicks and one that does not.
+                   An ItemsControl builds every item it is given. A record of 120 songs was 1700 elements in the tree,
+                   measured and arranged on EVERY layout pass for as long as its block was realized. Six blocks with one
+                   of those among them took about 30 ms per pass, against the 16 ms that a frame allows. Nothing was
+                   loading at the time. The figures come from ListDiag.
+
+                   A repeater realizes only what the viewport can see. Uno passes the effective viewport up to the
+                   nearest scroll port (FrameworkElement.RequestViewportUpdates). So these two repeaters see the list's
+                   own scroller through the block they are in, even though neither one scrolls. They keep half a screen of
+                   slack either side, the same figure the album wall uses. -->
+              <ItemsRepeater Grid.Column="0" Grid.ColumnSpan="{Binding LeftSpan, FallbackValue=1}"
+                             ItemsSource="{Binding Left, FallbackValue={StaticResource NoItems}}"
+                             ItemTemplate="{StaticResource ListLineTemplates}"
+                             VerticalCacheLength="0.5">
+                <ItemsRepeater.Layout>
+                  <StackLayout Orientation="Vertical"/>
+                </ItemsRepeater.Layout>
+              </ItemsRepeater>
+              <ItemsRepeater Grid.Column="1" ItemsSource="{Binding Right, FallbackValue={StaticResource NoItems}}"
+                             ItemTemplate="{StaticResource ListLineTemplates}"
+                             VerticalCacheLength="0.5">
+                <ItemsRepeater.Layout>
+                  <StackLayout Orientation="Vertical"/>
+                </ItemsRepeater.Layout>
+              </ItemsRepeater>
+            </Grid>
+            </ScrollViewer>
+            </Grid>
+
+            <!-- The two hems show that there is more of the record than the block is showing. They are placed over the
+                 tracks, not in them, so neither one scrolls with what it covers.
+
+                 ══ taken away, not painted over ══
+
+                 A ramp to black laid over the tracks would be a ramp to a colour the list does not have. The shelf behind
+                 is a photograph under glass, so the dark band looks like a bar drawn under the record, not a line fading
+                 out of sight. So the pixels are removed instead. This is done the same way as the track pane's sheet. A
+                 composition surface holds a live copy of the scroller's own rendering. A mask brush multiplies that copy
+                 by a white-to-transparent ramp. A sprite then paints the result in the hem, and the same band is cut out
+                 of the live tracks underneath. What is behind shows through.
+
+                 These two elements are empty in the markup and ignore the pointer. Each one is filled by a composition
+                 sprite, and their depth is set in code. They are tagged, not named, because they live in a DataTemplate.
+                 The block they belong to is found from the scroller that raised its own Loaded event (see Tracks_Loaded).
+                 Both start at zero height, so a record whose tracks all fit shows neither. -->
+            <Grid Tag="head" Height="0" VerticalAlignment="Top" IsHitTestVisible="False"/>
+            <Grid Tag="foot" Height="0" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
+            </Grid>
+
+            <!-- The record spinner appears where the tracks are about to be, instead of the platform's ring in the corner.
+                 The room is already reserved and empty, and what is coming is a record. It is centred in that room and
+                 takes the record's own place. Nothing else is drawn there while it is shown. -->
+            <ctl:RecordSpinner Grid.Row="1" Width="52" Height="52"
+                               Spinning="{Binding Loading}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{Binding Loading, Converter={StaticResource BoolToVisible}}"/>
+          </Grid>
+
+        </Grid>
+
+        <!-- The seam sits UNDER the record, not over it. It is 50 points tall whether or not it draws a line: 24 points of
+             air, the two hairlines, then 24 more. That is the same gap between two records as before.
+
+             It is under the record because the block has to be one height, and one of the two positions must be the odd
+             one out. If the seam were over the record, the odd one would be the FIRST entry in the list. That entry never
+             has a rule, so it would carry 26 points of empty seam above it, which no other record has under the panel's
+             header. If the seam is under the record, the odd one is the LAST entry. Its seam draws nothing, and it sits
+             at the very bottom of the shelf, where extra air reads as padding anyway.
+
+             So the hairlines say that another record follows. HasRule is decided by what comes AFTER a record (see
+             Rebuild). A record that is followed by a group heading gives up its line. The heading divides them instead. -->
+        <Grid Grid.Row="2" Height="2" Margin="0,24,0,24">
+          <Rectangle Height="1" VerticalAlignment="Top" Fill="{StaticResource RpmSeamShade}"
+                     Visibility="{Binding HasRule, Converter={StaticResource BoolToVisible}}"/>
+          <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource RpmSeamLight}"
+                     Visibility="{Binding HasRule, Converter={StaticResource BoolToVisible}}"/>
+        </Grid>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- No header of its own. The panel's heading and the library's search are in MainPage, above all three views.
+       BringIntoViewOnFocusChange is OFF, for the same reason the wall has it off. The track lines are Buttons. Focus
+       recovery after a recycle would otherwise scroll the list on its own. -->
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="Auto"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- A ListView, not a repeater with a layout of our own. Records have different heights, and that is the case the
+         platform's own virtualization is built for. It keeps its anchor when the source is replaced. It scrolls a given
+         record into view without any arithmetic, and it does not need to be told where anything is. A custom measuring
+         layout is not used, because it has to guess what is on screen. A wrong guess after a search leaves the list
+         wrong.
+
+         No item chrome. A record's block IS the row, so the container gives up its padding, its minimum height and its
+         selection states. Nothing here is selectable. A click plays the record, and the buttons in the block do the
+         rest. -->
+    <ListView x:Name="EntriesList" Grid.Column="0"
+              ItemTemplate="{StaticResource EntryTemplate}"
+              SelectionMode="None" IsItemClickEnabled="False"
+              ScrollViewer.HorizontalScrollMode="Disabled"
+              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              ScrollViewer.VerticalScrollBarVisibility="Auto"
+              ScrollViewer.BringIntoViewOnFocusChange="False"
+              Padding="20,0,20,24">
+      <ListView.ItemContainerStyle>
+        <!-- The container is only a holder. It has no padding, no minimum height, and NO hover or press band. A record's
+             block is not a row you pick. The things inside it that respond to the pointer (its tracks, its buttons, its
+             heart) light up themselves. A white wash over the whole block would say that the block is a target too.
+
+             The template is ours because it has to be. The stock template fills its states from
+             {ThemeResource ListViewItemBackgroundPointerOver} and similar keys. A ThemeResource is resolved against the
+             theme dictionaries, so a local override cannot change it. So the states are not restyled. They are removed.
+             The template is a ContentPresenter, and that is the row. -->
+        <Style TargetType="ListViewItem">
+          <Setter Property="Padding" Value="0"/>
+          <Setter Property="Margin" Value="0"/>
+          <Setter Property="MinHeight" Value="0"/>
+          <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+          <Setter Property="VerticalContentAlignment" Value="Top"/>
+          <Setter Property="Background" Value="Transparent"/>
+          <Setter Property="IsTabStop" Value="False"/>
+          <!-- No focus rectangle around the whole record either. The keyboard reaches the buttons inside the block, and
+               those draw their own focus. -->
+          <Setter Property="UseSystemFocusVisuals" Value="False"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ListViewItem">
+                <ContentPresenter Content="{TemplateBinding Content}"
+                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Padding="{TemplateBinding Padding}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Style>
+      </ListView.ItemContainerStyle>
+    </ListView>
+
+    <!-- The alphabet down the right edge. The list is in artist order, so a letter is a place in the list. It has its
+         own column, not an overlay. Over the scroller it would be a strip of the collection that you cannot click,
+         right where the scrollbar already is.
+         It is inside a Viewbox that only shrinks. Twenty-seven rungs need about 350 points. On a short window the
+         Viewbox would otherwise clip Z off the bottom, and Z is the one letter the rail must always have. -->
+    <Viewbox Grid.Column="1" x:Name="LetterRailBox" Stretch="Uniform" StretchDirection="DownOnly"
+             VerticalAlignment="Center" Margin="0,8,8,8" Visibility="Collapsed">
+      <ItemsControl x:Name="LetterRail">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="model:AlbumListLetter">
+            <!-- Disabled is the normal state for most letters in a small collection. It must read as "nobody here", not as
+                 something broken. The letter dims, but it does not disappear, and the rung keeps its place. -->
+            <Button Click="Letter_Click" Tag="{Binding}" Content="{Binding Text}"
+                    IsEnabled="{Binding HasRecords}"
+                    Background="Transparent" BorderThickness="0" CornerRadius="3"
+                    Width="18" Height="15" MinWidth="0" MinHeight="0" Padding="0"
+                    FontSize="10" FontWeight="SemiBold" Foreground="#99FFFFFF"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+              <Button.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/>
+                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#3AFFFFFF"/>
+              </Button.Resources>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Viewbox>
+
+    <StackPanel x:Name="EmptyHint" Grid.ColumnSpan="2" Spacing="14" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+      <FontIcon x:Name="EmptyIcon" Glyph="&#xf87d;" FontFamily="{StaticResource Fa}" FontSize="42" Foreground="#55FFFFFF"/>
+      <TextBlock x:Name="EmptyText" Text="{loc:Str Key=Library_Empty}" FontSize="13" Foreground="#88FFFFFF"
+                 TextWrapping="Wrap" TextAlignment="Center"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

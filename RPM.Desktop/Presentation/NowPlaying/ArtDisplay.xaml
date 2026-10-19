@@ -1,0 +1,447 @@
+<UserControl x:Class="RPM.Desktop.Presentation.NowPlaying.ArtDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="ArtFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+  </UserControl.Resources>
+
+  <!-- Clipped: the backdrop fills the display and must not paint over the grid below it. -->
+  <Grid x:Name="Root">
+    <!-- The surface of the grid itself. The strip and the grid under it are one ground. There is no glow
+         and no wash. Whatever is on this strip (a photo, the waves, the record) is the only light on it. -->
+    <Grid.Background>
+      <StaticResource ResourceKey="GridSurfaceBrush"/>
+    </Grid.Background>
+    <Grid.Clip>
+      <RectangleGeometry x:Name="RootClip"/>
+    </Grid.Clip>
+
+    <!-- The header's right-click menu: flip through the artist's backdrops, and fetch them again. The
+         on-canvas arrow and refresh cluster has been removed, so only this menu carries the actions. A
+         disabled top line names the picture shown, out of the total. Item state is set in RefreshNav. The
+         menu is declared here as Root's ContextFlyout, so that its items get named fields. The art sits
+         behind the shell's content grid and never receives the right-click. The shell's header catcher
+         passes the click to ShowHeaderMenu, which is the real entry point and checks for idle (see
+         ArtDisplay.ShowHeaderMenu). -->
+    <Grid.ContextFlyout>
+      <MenuFlyout x:Name="ArtMenu">
+        <MenuFlyoutItem x:Name="CountItem" FontSize="12" IsEnabled="False" IsTabStop="False"/>
+        <MenuFlyoutSeparator x:Name="CountSep"/>
+        <MenuFlyoutItem x:Name="PrevItem" FontSize="12" Text="{loc:Str Key=Art_CtxPrevPicture}" Click="Prev_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf053;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="NextItem" FontSize="12" Text="{loc:Str Key=Art_CtxNextPicture}" Click="Next_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf054;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator/>
+        <MenuFlyoutItem x:Name="ChooseItem" FontSize="12" Text="{loc:Str Key=Art_CtxChooseImage}" Click="Choose_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf03e;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="PositionItem" FontSize="12" Text="{loc:Str Key=Art_CtxPositionArtwork}" Click="Position_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf0b2;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutItem x:Name="RefreshItem" FontSize="12" Text="{loc:Str Key=Art_CtxRefreshArtwork}" Click="Refresh_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf021;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+        <MenuFlyoutSeparator/>
+        <!-- Removes the picture on the header for this artist, for example when it is the wrong image,
+             whether the user chose it or a source offered it. It comes last, behind a separator, because it
+             is the only item that takes something away. The items above it all add or change a picture. -->
+        <MenuFlyoutItem x:Name="RemoveItem" FontSize="12" Text="{loc:Str Key=Art_CtxRemovePicture}" Click="Remove_Click">
+          <MenuFlyoutItem.Icon>
+            <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf2ed;"/>
+          </MenuFlyoutItem.Icon>
+        </MenuFlyoutItem>
+      </MenuFlyout>
+    </Grid.ContextFlyout>
+
+    <!-- ═══ ARTWORK ═══ The album's colour, its photograph and the fade into it. It is wrapped as ONE
+         layer, so that the whole thing can be taken away at once.
+
+         This is what parking does. When the drawer is tucked away, the strip is 80 pixels of a photograph
+         that nobody can see. That slice is too thin to be a picture, and busy enough to clash with the
+         words now on it. So the artwork goes, and the app's own backdrop shows through. When the drawer
+         opens, all of it returns unchanged. Fading the wrapper rather than its contents keeps this simple.
+         Nothing inside has to know that the drawer exists, and unparking restores exactly the state that
+         the crossfades had left. -->
+    <Grid x:Name="ArtLayer">
+      <!-- The album's dominant colour. It fills the whole window behind everything once a backdrop is up.
+           It starts transparent, so with no artwork the shell's backdrop shows through here instead of a
+           flat navy. It fades IN to the album colour when a backdrop loads, and OUT when it clears (see
+           ShowBackdrop and ClearBackdrop). The colour is synced to the artwork in code (SyncDominant). -->
+      <Rectangle x:Name="DominantFill" Opacity="0">
+        <Rectangle.Fill>
+          <SolidColorBrush x:Name="DominantBrush" Color="#0B111A"/>
+        </Rectangle.Fill>
+      </Rectangle>
+
+      <!-- ═══ The wash ═══ The same photograph, blurred until only its gradients are left. It covers the
+           whole window. The app stands on this. It is the second copy of the picture that the header frames
+           above it (see LoadedBackdrop), taken FROM the artwork rather than picked out of it as a colour.
+           So it agrees with the picture by construction: it is smooth and tonal. A chosen colour can come
+           out as a flat grey-green when the choice goes wrong. This cannot. It is REGISTERED to the
+           picture. It has the same pixels, at the same scale, in the same place, only out of focus (see
+           RenderWash). That lets the picture's edges dissolve invisibly, because there is no colour
+           difference across them for the fade to show. There are two layers, crossfaded like the picture's.
+           So a track change dissolves the ground with the art. It is sized in code (PlaceWash), never by a
+           Stretch mode. It is drawn for the window's own shape and placed at that size. While the window is
+           dragged, it is MOVED rather than resized, by the same rule that moves the picture above it
+           (RightEdge). A Stretch that fits this host would scale each axis on its own, and the two copies
+           would pull apart on a resize. -->
+      <!-- The pair lives in a host of its OWN, and this is required. The incoming copy is laid over the
+           outgoing one by z-index (see ShowWash). Z-index is only settled among SIBLINGS. If the two were
+           bare children of this layer, raising a wash would also raise it over the picture and the veil.
+           The sharp photograph would then vanish behind its own blur for the length of each fade, and come
+           back when the z-index was reset. That looks like a pop, not a transition. -->
+      <Grid x:Name="WashHost">
+        <Image x:Name="WashA" Opacity="0" Stretch="Fill" IsHitTestVisible="False"
+               HorizontalAlignment="Left" VerticalAlignment="Top"/>
+        <Image x:Name="WashB" Opacity="0" Stretch="Fill" IsHitTestVisible="False"
+               HorizontalAlignment="Left" VerticalAlignment="Top"/>
+      </Grid>
+
+      <!-- ...and a veil over it. A wash made of a photograph carries the photograph's brightness, and the
+           library's white text has to sit on it. The strength is set in code from how light the picture
+           really is (the Veil on LoadedBackdrop). So a night shot is barely touched, and a snowfield is
+           darkened well down. The veil is black rather than the album's colour, because it adjusts
+           exposure, not tint. The tint is underneath it, in the wash itself.
+
+           The veil stays OFF the header. The picture in the band is not veiled, because it is the thing
+           being looked at. A veil under it would put a step in brightness at each of its edges, and an edge
+           is exactly what the registration exists to avoid. So the veil is clear across the band. It comes
+           in over a long ramp below the band's foot, and it is full by the time the rows begin. The offsets
+           are set in Layout, since they follow the band. The alphas of the ramp follow a smoothstep. A
+           linear ramp arrives with its slope still on it, and it draws a Mach band along the line it was
+           meant to hide. -->
+      <Rectangle x:Name="WashVeil" Opacity="0" IsHitTestVisible="False">
+        <Rectangle.Fill>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop x:Name="VeilClear" Offset="0.30" Color="#00000000"/>
+            <GradientStop x:Name="VeilLow"   Offset="0.36" Color="#1A000000"/>
+            <GradientStop x:Name="VeilHalf"  Offset="0.42" Color="#80000000"/>
+            <GradientStop x:Name="VeilHigh"  Offset="0.48" Color="#E6000000"/>
+            <GradientStop x:Name="VeilFull"  Offset="0.54" Color="#FF000000"/>
+          </LinearGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
+
+      <!-- ═══ Backdrop ═══ The photo stops where the record starts. Its right edge is set in code to the x
+           position where the disc's arc crosses the top and bottom of the display. So the top-right and
+           bottom-right corners of the picture sit exactly on the record's edge, and the disc's bulge covers
+           the rest. There are two layers, not one. The incoming image is decoded into the idle layer and
+           only then faded in over the outgoing one, so the display never goes blank between tracks. Each
+           layer is a crop chosen by SaliencyCrop, which is the busiest part of the photo, zoomed to fill.
+           Behind it is an "ambient" fill: the same picture blurred to a colour wash, so the sides never sit
+           on flat black. -->
+      <Grid x:Name="BackdropHost" VerticalAlignment="Top">
+        <!-- There are two crossfade layers. Each is now just ONE image. The compositor (RenderComposite)
+             bakes the ambient wash, the framed photograph and every edge dissolve into a single bitmap the
+             size of the slot. So a layer is the composite alone, and its gradients can never fall out of
+             step with the picture. The incoming composite is decoded off-screen and only faded in over the
+             outgoing one, so the display never goes blank between tracks. It is placed in code
+             (PlaceLayer): at the slot's top-left corner, and it ENDS at the band's foot. The artwork is
+             framed to the header, not run on behind the library. The composite feathers into the
+             DominantFill wash behind it. -->
+        <Grid x:Name="BackdropA" Opacity="0">
+          <Image x:Name="BackdropImageA" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
+        </Grid>
+
+        <Grid x:Name="BackdropB" Opacity="0">
+          <Image x:Name="BackdropImageB" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
+        </Grid>
+
+        <!-- The photo dissolves towards the left: dark at the left edge, clear by the time it reaches the
+             record. This keeps the waves readable across the left of the strip, and it is what the title
+             and cover sit on. The stops are set in code, not here. The picture is fully clear a fixed
+             distance short of the record's left edge, whatever the display's width, so the photo always
+             reaches the disc at full strength. -->
+
+      </Grid>
+
+      <!-- ═══ Dim ═══ 20% black over the header's picture, so white text stays readable on a bright
+           photograph. #33 is 51 of 255.
+
+           It covers the picture AND the wash under it, across the whole width. Dimming the sharp picture
+           alone would put a brightness step at each of its dissolved edges, where it fades into the
+           undimmed wash. Below the picture's foot it fades out over the same rows that the wash's veil
+           fades in over, with mirrored alphas. So the ground goes from this shade to the veil's without a
+           line. The stop offsets are set in Layout, beside the veil's. It is faded with the scrim in
+           SyncStage: up while the header has a picture, down when it has none. -->
+      <Rectangle x:Name="HeaderDim" Opacity="0" IsHitTestVisible="False">
+        <Rectangle.Fill>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#33000000"/>
+            <GradientStop x:Name="DimFlat"  Offset="0.30" Color="#33000000"/>
+            <GradientStop x:Name="DimHigh"  Offset="0.36" Color="#2E000000"/>
+            <GradientStop x:Name="DimHalf"  Offset="0.42" Color="#1A000000"/>
+            <GradientStop x:Name="DimLow"   Offset="0.48" Color="#05000000"/>
+            <GradientStop x:Name="DimClear" Offset="0.54" Color="#00000000"/>
+          </LinearGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
+
+      <!-- ═══ Scrim ═══ The ground that the title and the artist stand on, over the picture and the wash
+           alike. A ramp from right to left: dark under the words, and nothing by the time it reaches the
+           record.
+
+           It is here, not inside the backdrop host, because it may NOT be clipped to the band. A darkening
+           that stopped at the band's foot would draw a straight line across the whole window at that
+           height. That is the hardest line in the app, and the most visible, because it runs the full width
+           at whatever strength the words need. So it is two pieces, the same way as the parked scrim. The
+           BAND is the flat ramp. The TAIL carries the shade on below the foot and then lets go. Both are
+           sized and placed in Layout. The tail's brush is baked (BuildTail), because its shade is the ramp
+           multiplied by a vertical fade, and no XAML brush can multiply two gradients. -->
+      <Grid x:Name="ScrimHost" Opacity="0" IsHitTestVisible="False"
+            HorizontalAlignment="Left" VerticalAlignment="Top">
+        <Rectangle x:Name="ScrimRect" VerticalAlignment="Top">
+          <Rectangle.Fill>
+            <!-- The alphas step down gently. A scrim that clears in two jumps reads as a band across the
+                 picture. The colour is the photo's own, set in code (SyncScrimColour).
+
+                 The alphas are low, because the blurred copy of the picture with its own veil (see the wash
+                 above) is already a legible ground everywhere. At full strength, the scrim would paint the
+                 left half of the header flat, and the blurred picture would stop at the header's edge. -->
+          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+              <GradientStop x:Name="ScrimStop0" Offset="0.0" Color="#800B111A"/>
+              <GradientStop x:Name="ScrimStop1" Offset="0.35" Color="#5C0B111A"/>
+              <GradientStop x:Name="ScrimStop2" Offset="0.72" Color="#2E0B111A"/>
+              <GradientStop x:Name="ScrimStop3" Offset="1.0" Color="#000B111A"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+        <Border x:Name="ScrimTail" VerticalAlignment="Top"/>
+      </Grid>
+
+      <!-- There is no whole-window bottom fade. The picture ends at the band's own foot. The composite's
+           own feather fades it there, and everything below is the dominant fill alone. -->
+    </Grid>
+
+    <!-- ═══ Stage ═══ The record and the waves, always on screen, idle or playing. Both are still until a
+         track actually plays. The ticker in the code-behind ramps them from a standstill to full speed over
+         a second, and it stops feeding them when playback stops. -->
+    <Grid x:Name="StageLayer">
+      <!-- Sound waves: three sine lines. Their points are rebuilt in code on resize, because a sine is a
+           sampled polyline, which XAML cannot express. Polyline in a Canvas: points are plain coordinates,
+           drawn where they say. -->
+      <!-- The waves are hidden. The record carries the playing motion on its own. The host is collapsed
+           rather than removed, so the ticker still drives the disc. The wave points are never shown. -->
+      <Canvas x:Name="WaveHost" Visibility="Collapsed">
+        <Polyline x:Name="Wave1" Stroke="#9904C8FF" StrokeThickness="4">
+          <Polyline.RenderTransform><TranslateTransform x:Name="Wave1Shift"/></Polyline.RenderTransform>
+        </Polyline>
+        <Polyline x:Name="Wave2" Stroke="#8800F15E" StrokeThickness="3">
+          <Polyline.RenderTransform><TranslateTransform x:Name="Wave2Shift"/></Polyline.RenderTransform>
+        </Polyline>
+        <Polyline x:Name="Wave3" Stroke="#5504C8FF" StrokeThickness="2.5">
+          <Polyline.RenderTransform><TranslateTransform x:Name="Wave3Shift"/></Polyline.RenderTransform>
+        </Polyline>
+      </Canvas>
+
+      <!-- The record and its shadow are not here. They are the shell-hosted RecordDisc, on top of the
+           content, so the disc is drawn over the grids. ArtDisplay still sizes and turns it (see Layout and
+           the ticker) through the attached RecordDisc reference. -->
+    </Grid>
+
+    <!-- ═══ Idle chrome ═══ This is empty now. The rpm mark below takes the place of the "No track"
+         placeholder. It is kept in the tree (its cover host is still sized in Layout and its opacity
+         crossfaded) so that the code can still use it. -->
+    <Grid x:Name="IdleChrome" Margin="24,12" ColumnSpacing="14" VerticalAlignment="Top">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Grid Grid.Column="0" x:Name="IdleCoverHost" VerticalAlignment="Bottom" HorizontalAlignment="Left"/>
+    </Grid>
+
+    <!-- The rpm brand mark: small, top-left corner, always on. Plain white letterforms, no stroke. Its
+         opacity is crossfaded in EnterTrack and EnterIdle. It is dim once a track's chrome is up, and full
+         when parked. The parked zoom adds the last of the lift, so the big mark is about 10% more solid.
+         The brush alpha is 0x8C (0.55), so a parked opacity of 1.0 gives the mark a little more strength
+         than a 0x80 brush would. -->
+    <!-- The left inset is 25, not 24. The grids' card sits at 24 with a 1 px border, so its glass surface
+         starts at 25. The mark aligns to that visible surface edge, not to the card's border, which is
+         invisible under the art. -->
+    <!-- The top inset is 44, which clears the macOS traffic lights. Windows has nothing in this corner, so
+         on Windows the code-behind moves the mark up to 25 (ArtDisplay.WinMarkTop), which is square with
+         its left inset. -->
+    <!-- The base Opacity is pinned to the DIMMEST state (playing, 0.46). Uno reverts a property to its base
+         for a frame when a storyboard on it is stopped. With no base set, that revert jumps to 1.0 (full
+         white), which is a flash before the parked zoom. With a base of 0.46, the worst a revert can do is
+         dip dark, and it never flashes bright. The idle and parked brighten runs on a HoldEnd storyboard
+         over this base (see Loaded). -->
+    <Path x:Name="RpmMark" Stretch="Uniform" Width="46.5" Height="18" Fill="#8CFFFFFF" Opacity="0.46"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Margin="25,44,0,0" IsHitTestVisible="False"
+          Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+
+    <!-- The tagline, under the parked mark. When nothing is playing, the band is empty, and the mark alone
+         in it says the app's name without saying what it is for. The tagline shows only while parked with
+         nothing playing. A playing track puts its own lines in this band, and the two would share the row.
+         It is faded in and out in SyncTagline. The leading "re" is shown in a dimmer tone. It is placed in
+         code (Layout, PlaceTagline), from the mark's own geometry. The D of "rediscover" stands on the stem
+         of the P's descender, and the top of the line sits just under the foot of that descender. So the
+         tagline hangs off the letter, not off the element's box. -->
+    <TextBlock x:Name="ParkedTagline" Opacity="0" IsHitTestVisible="False" FontSize="11" LineHeight="14"
+               LineStackingStrategy="BlockLineHeight"
+               HorizontalAlignment="Left" VerticalAlignment="Top"
+               TextTrimming="CharacterEllipsis" MaxLines="1">
+      <Run x:Name="TaglineHead" Foreground="#66FFFFFF"/><Run x:Name="TaglineTail" Foreground="#A6FFFFFF"/>
+    </TextBlock>
+
+    <!-- ═══ Track chrome ═══ cover beside text, bottom-left, with the backdrop keeping the right. Cover is
+         square on the display's height (sized in code). -->
+    <Grid x:Name="ContentLayer" Opacity="0" Margin="24,12" ColumnSpacing="14" VerticalAlignment="Top">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <Grid Grid.Column="0" x:Name="CoverHost" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+        <Border CornerRadius="6" BorderThickness="0">
+            <!-- Frosted glass with a live backdrop blur. It is frostier than a flat wall tile. -->
+          <Border.Background>
+            <ui:GlassBrush BlurAmount="20"/>
+          </Border.Background>
+          <Grid>
+            <!-- A faint dark veil over the frost so the disc still reads. -->
+            <Border CornerRadius="6" Background="#22000000"/>
+            <!-- No art for this track: an album disc, with the same faint disc and size as an empty album
+                 on the wall. -->
+            <TextBlock x:Name="CoverPlaceholder" Text="&#xf51f;" FontFamily="{StaticResource ArtFa}"
+                       FontSize="46" Foreground="#40FFFFFF"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- What a transparent mark stands on. A station's logo is published as a PNG with nothing
+                 behind it. The app's own dark showing through would look like a hole, not a background. So
+                 it gets the made figure that an artist with no photograph gets, in the logo's own colours.
+                 For every ordinary cover it is empty and invisible, because an opaque sleeve is its own
+                 background. It is filled in ShowCover (see LoadedCover.Ground). -->
+            <!-- There are two of them, for the same reason that the cover above has two. A station can
+                 change while its ground is up. With one layer, the new picture would replace the old in the
+                 frame the source is assigned. The two layers cross over each other, as the marks on top of
+                 them do. So the whole square changes station in one movement. -->
+            <Image x:Name="CoverGroundA" Stretch="UniformToFill" Opacity="0" IsHitTestVisible="False"/>
+            <Image x:Name="CoverGroundB" Stretch="UniformToFill" Opacity="0" IsHitTestVisible="False"/>
+            <Image x:Name="CoverA" Stretch="UniformToFill" Opacity="0"/>
+            <Image x:Name="CoverB" Stretch="UniformToFill" Opacity="0"/>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- ═══ Text ═══ Right of the cover, bottom-aligned, over the scrim: the title, artist and album. The
+           seek bar itself is not here. The art sits behind the shell's content grid and gets no pointer
+           input. So, like the record disc, the seek bar lives in the shell's top overlay, and ArtDisplay
+           positions it in Layout. The 21 px bottom margin is the slot the seek bar fills (a 14 px strip
+           plus a 7 px rhythm gap under the album). So the album keeps its place, and the knob of the seek
+           bar lands on the artist-to-album spacing. -->
+      <StackPanel Grid.Column="1" x:Name="TrackText" Spacing="2" VerticalAlignment="Bottom" Margin="0,0,0,21">
+        <TextBlock x:Name="TitleText" FontSize="22" FontWeight="SemiBold" Foreground="White"
+                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
+        <!-- The movement now playing, under the work it is part of. It is collapsed for all other tracks,
+             so a record that is not a composition shows its usual three lines. -->
+        <TextBlock x:Name="MovementText" FontSize="17" Foreground="#F2FFFFFF" Visibility="Collapsed"
+                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
+        <TextBlock x:Name="ArtistText" FontSize="15" Foreground="#DDFFFFFF"
+                   TextTrimming="CharacterEllipsis" MaxLines="1"/>
+        <TextBlock x:Name="AlbumText" FontSize="13" Foreground="#99FFFFFF"
+                   TextTrimming="CharacterEllipsis" MaxLines="1" Margin="0,2,0,0"/>
+      </StackPanel>
+    </Grid>
+
+
+    <!-- ═══ PARKED SCRIM ═══ The corner where the mini player sits, darkened. When parked, the artwork is
+         gone and the words land straight on the app's backdrop. That backdrop is a photograph of a crate of
+         records, and nothing white reads on it. The open chrome does not have this problem, because the
+         artwork carries its own scrim under the text. This is that scrim, for the one state that has no
+         artwork to carry it. It was first drawn as a radial gradient, and that was wrong. The iso-lines of
+         a radial are closed curves, so the fall-off draws its own outline wherever the eye can see the
+         difference. On a dark backdrop there was no difference to see. On a bright one, the darkening drew
+         itself as a black oval in the band. Softening the stops does not help, because the shape is what is
+         seen, not its edge. The radial also reached 260 px past the band's foot. ArtDisplay is inside
+         BackdropLayer, which the frost plate photographs, so that overhang was baked into the library
+         card's frost as a dark smudge under its top edge.
+
+         So the fall-off runs on ONE axis, from right to left. A single axis has no closed curve, so there
+         is no shape to read.
+
+         It cannot stop at the band's foot either. That would draw a straight edge across the window where
+         the darkening ends and the library card's own ground begins, which is a visible line. So it carries
+         on down, behind the card, and dies out there. The BAND is the flat part, and the TAIL is where it
+         lets go. The tail is inside BackdropLayer with everything else, so the card's frost is photographed
+         with it (FrostPlate), and the glass darkens together with the band rather than starting fresh under
+         it. Idle changes invalidate the plate, so parking re-takes it.
+
+         There are two rectangles, not one. The tail's shade is the band's ramp multiplied by a vertical
+         fade. No XAML brush multiplies, so the tail is that same ramp baked into a small bitmap with the
+         fade applied down its rows (BuildScrimTail). It is read back from THIS brush, so there is one curve
+         and not two. Both sit in one host, so the mini player's fade has one thing to animate. Sized in
+         Layout. -->
+    <Grid x:Name="ParkedScrimHost" Opacity="0" IsHitTestVisible="False"
+          HorizontalAlignment="Right" VerticalAlignment="Top">
+      <Rectangle x:Name="ParkedScrim" VerticalAlignment="Top">
+        <Rectangle.Fill>
+          <!-- Dark at the right edge, where the words stand. It is held across the parked column's own
+               width, then eased into nothing over a long tail. The slope is still falling when the tail
+               ends. A linear ramp that stops dead would leave a Mach band at the far end. -->
+          <LinearGradientBrush StartPoint="1,0" EndPoint="0,0">
+            <GradientStop Offset="0.0"  Color="#D9070A10"/>
+            <GradientStop Offset="0.30" Color="#C4070A10"/>
+            <GradientStop Offset="0.50" Color="#9E070A10"/>
+            <GradientStop Offset="0.62" Color="#72070A10"/>
+            <GradientStop Offset="0.72" Color="#4C070A10"/>
+            <GradientStop Offset="0.80" Color="#30070A10"/>
+            <GradientStop Offset="0.87" Color="#1C070A10"/>
+            <GradientStop Offset="0.93" Color="#0E070A10"/>
+            <GradientStop Offset="0.97" Color="#05070A10"/>
+            <GradientStop Offset="1.0"  Color="#00070A10"/>
+          </LinearGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
+      <!-- A Border, not a Rectangle. The tail is painted with an ImageBrush. Uno's Skia renderer honours
+           those as an element's BACKGROUND. A Shape's Fill takes the brush and draws nothing, which is as
+           invisible as having no tail at all. Gradient brushes on a Shape.Fill work, which is why the band
+           above is still a Rectangle. -->
+      <Border x:Name="ParkedScrimTail" VerticalAlignment="Top"/>
+    </Grid>
+
+    <!-- ═══ PARKED CHROME ═══ What the drawer shows about the track when it is tucked away. When parked,
+         the whole track chrome (cover, title, artist and album) is gone. The only thing left in the strip
+         is the seek bar, which shows how far through the track you are, but not what the track is. These
+         lines are the answer: the same three lines, small and right-aligned, sitting on the bar. They are
+         right-aligned because that is the end of the strip the record does NOT cover. The bar's own right
+         edge is already clamped clear of the disc, so the text and the line end together and read as one
+         object. The lines are sized and placed in Layout, and shown only while parked with something
+         playing. -->
+    <Grid x:Name="ParkedChrome" Opacity="0" IsHitTestVisible="False"
+          HorizontalAlignment="Left" VerticalAlignment="Top">
+      <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Spacing="0">
+        <TextBlock x:Name="ParkedTitle" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                   TextAlignment="Right" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+        <TextBlock x:Name="ParkedArtist" FontSize="11" Foreground="#CCFFFFFF"
+                   TextAlignment="Right" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+        <TextBlock x:Name="ParkedAlbum" FontSize="10" Foreground="#8AFFFFFF"
+                   TextAlignment="Right" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- ═══ Backdrop navigation ═══ The flip and refresh actions are on the header's right-click menu
+         (Root.ContextFlyout). No loading ring is drawn on the picture's corner, because there is nowhere on
+         this strip where it can sit. The header already shows that the artwork is coming: it crossfades
+         when it arrives and shows what was there until then. The menu items still grey out while a fetch is
+         in flight (RefreshNav), which is the one place where that state needs to be shown. -->
+  </Grid>
+</UserControl>

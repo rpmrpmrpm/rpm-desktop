@@ -1,0 +1,123 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Setup.Steps.WizardDoneStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <!-- Step three: what happened, and the ask.
+
+       ONE COLUMN, READ TOP TO BOTTOM. The screen follows the order of what it is for: what just
+       happened, then the ask, then what the ask buys, then the two buttons. The result has the same
+       header as the other two steps, so the record and the step count stay where they are. The ask is
+       one card across the width. Its perks are in two columns, so the card is wide and short rather
+       than tall and half empty.
+
+       Both buttons finish. Becoming a supporter opens a browser and lands on the library anyway. A
+       purchase that completes somewhere else must not leave the app parked here waiting for it. -->
+
+  <Grid Margin="52,40,52,0" RowSpacing="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header: the record, the step, and the result. -->
+    <Grid Grid.Row="0" ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <ctl:RecordDisc x:Name="Disc" Grid.Column="0" IsHitTestVisible="False"/>
+
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+        <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+        <TextBlock Text="{loc:Str Key=Wizard_DoneTitle}"
+                   FontFamily="{StaticResource RpmDisplayFontBold}"
+                   FontSize="24" Foreground="White"/>
+      </StackPanel>
+
+      <!-- What was imported. Step two shows the source folder here. This is the news, so it sits on the
+           header's own line, not in a card further down. -->
+      <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2"
+                  HorizontalAlignment="Right">
+        <TextBlock x:Name="AlbumsText" FontSize="16" FontWeight="Bold" Foreground="White"
+                   HorizontalAlignment="Right"/>
+        <TextBlock x:Name="TracksText" FontSize="12.5" Foreground="#8CFFFFFF"
+                   HorizontalAlignment="Right"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- The ask. -->
+    <!-- The card is centred, at the height its content needs. Two other placements put the empty space
+         in a worse place. Stretched to fill the body, the empty space moved inside the card, which then
+         looked like a large box with a little writing in it. Top-aligned, the whole lower half of the
+         window was bare above the buttons. There is not enough on this screen to fill a tall window, so
+         an island of content with air around it is the right look. -->
+    <Border Grid.Row="1" CornerRadius="12" Padding="26,22" MaxWidth="1000"
+            VerticalAlignment="Center" HorizontalAlignment="Stretch"
+            Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
+      <Grid RowSpacing="15">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+          <TextBlock Text="{loc:Str Key=Wizard_SupportTitle}"
+                     FontFamily="{StaticResource RpmDisplayFontBold}"
+                     FontSize="22" Foreground="White" VerticalAlignment="Bottom"/>
+          <TextBlock Text="{loc:Str Key=Supporter_Price}" FontSize="14" FontWeight="Bold"
+                     Foreground="{StaticResource RpmGoldBrush}"
+                     HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+        </Grid>
+
+        <!-- Capped, and left where the heading is. A paragraph run across the full width of a wide
+             window is a line that the eye cannot easily carry back to the start. -->
+        <TextBlock Grid.Row="1" Text="{loc:Str Key=Wizard_SupportPitch}" MaxWidth="700"
+                   HorizontalAlignment="Left"
+                   FontSize="14" LineHeight="22" Foreground="#A3FFFFFF" TextWrapping="Wrap"/>
+
+        <Rectangle Grid.Row="2" Height="1" Fill="#1FFFFFFF"/>
+
+        <TextBlock Grid.Row="3" Text="{loc:Str Key=Supporter_OfferTitle}" FontSize="11"
+                   Foreground="#6BFFFFFF" CharacterSpacing="220"/>
+
+        <!-- A QUIET LIST, not a grid of tiles. Tiles with a tinted background made the perks the
+             loudest thing on a screen whose first job is to say what was just imported. This list has
+             the same eight perks in the same order, from SupporterPerks.All. The glyph carries the
+             colour, and nothing else is drawn. There are two columns because the labels are short. One
+             column of eight would be a tall, thin list beside a lot of empty space. -->
+        <Grid x:Name="PerkGrid" Grid.Row="4" ColumnSpacing="34" RowSpacing="11"/>
+
+        <TextBlock Grid.Row="5" Text="{loc:Str Key=Supporter_PerkMore}" FontSize="11.5"
+                   Foreground="#6BFFFFFF"/>
+      </Grid>
+    </Border>
+
+    <!-- Footer. It uses the same band as the other two steps. -->
+    <Grid Grid.Row="2" Height="{StaticResource WizardFooterHeight}">
+      <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
+                  VerticalAlignment="Center">
+        <!-- Its words are set in Show: with nothing imported it says Import and goes back a step,
+             because there is no collection to open. -->
+        <ctl:RpmButton x:Name="FinishButton" Click="Finish_Click" Padding="18,0"/>
+        <ctl:RpmPrimaryButton x:Name="SupportButton" Click="Support_Click" Padding="20,0">
+          <StackPanel Orientation="Horizontal" Spacing="9">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF004;" FontSize="12"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Cloud_BecomeSupporter}" FontWeight="Bold"
+                       VerticalAlignment="Center"/>
+          </StackPanel>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </Grid>
+
+  </Grid>
+</UserControl>

@@ -1,0 +1,113 @@
+<Page x:Class="RPM.Desktop.Presentation.Settings.DisplaySettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+      xmlns:loc="using:RPM.Desktop.Strings"
+      Background="Transparent"
+      mc:Ignorable="d">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+    <StackPanel Spacing="24" Margin="20,0,20,0">
+      <StackPanel.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+          </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+      </StackPanel.Resources>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="{loc:Str Key=Settings_Display}"
+                   FontSize="22" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="{loc:Str Key=Settings_DisplayIntro}"
+                   FontSize="13" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <!-- No section heading over this card, because the card holds one setting. A heading would say
+           the same thing as the "Background" line inside it. The "Art display" heading
+           (Settings_ArtDisplay) names the card below, which is a different subject. This card is the
+           picture behind the whole app. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf03e;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Background}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_BackgroundHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+
+          <!-- The backdrops, shown as pictures of themselves. They are filled from code (see
+               RefreshBackground). The built-in backdrops are a fixed list, but the user's own picture
+               comes and goes. A row that has three tiles at one time and four at another would be a
+               list, not a layout. So the last tile is always the file picker, and the row is always
+               "one of these, or one of mine".
+
+               The row scrolls sideways. Five built-ins, the user's picture and the picker are wider
+               than the card at most window sizes. A plain StackPanel would clip what does not fit, with
+               no way to reach it. These are the same settings as the Genres page's shelves. The bottom
+               padding is the scrollbar's lane, so the bar does not draw over the captions. -->
+          <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                        Padding="0,4,0,14" BringIntoViewOnFocusChange="False">
+            <StackPanel x:Name="BgTiles" Orientation="Horizontal" Spacing="12" />
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+
+      <!-- The band across the top of the window: the record at its right edge, and the artist's
+           photograph behind it. There are two switches because they have two different costs. The
+           record uses frames: it turns the render tick on for as long as music plays. The photograph
+           uses the network: it is looked up, ranked and downloaded for each artist. Someone who wants a
+           still header and someone who wants the app to stop fetching pictures are not the same person. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf008;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_ArtDisplay}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <ToggleSwitch x:Name="RecordToggle"
+                        Header="{loc:Str Key=Settings_HeaderRecord}"
+                        Toggled="OnRecordToggled"
+                        OffContent="" OnContent="" />
+          <TextBlock Text="{loc:Str Key=Settings_HeaderRecordHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+
+          <ToggleSwitch x:Name="ArtistPhotoToggle"
+                        Header="{loc:Str Key=Settings_HeaderArtistPhoto}"
+                        Toggled="OnArtistPhotoToggled"
+                        OffContent="" OnContent="" />
+          <TextBlock Text="{loc:Str Key=Settings_HeaderArtistPhotoHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- The first-run hints, and the one way back to them. Each hint is shown once and then never
+           again. That is right for someone using the app, and wrong for anyone who wants to see them a
+           second time: a new person at the same computer, or someone working on them. They are here
+           rather than in a diagnostics area, because they are part of the window's chrome, and this is
+           the page about chrome. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0eb;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Hints}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_HintsHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <ctl:RpmButton x:Name="ReplayHintsButton" Click="OnReplayHints"
+                         HorizontalAlignment="Left" Padding="18,0"
+                         Content="{loc:Str Key=Settings_ShowHintsAgain}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Page>

@@ -1,0 +1,166 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Viz.VizFullScreen"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="VizFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+    <!-- Icons only, with no background disc. This matches the Pegasus and deck buttons. A dark disc
+         over a picture that changes colour every second looks like a hole in the room. Three of them
+         look like a control panel fixed to the screen. The box stays 36 by 36, so the touch target is a
+         comfortable size. Only the paint is removed. -->
+    <Style x:Key="VizTransportButton" TargetType="Button">
+      <Setter Property="Width" Value="36"/>
+      <Setter Property="Height" Value="36"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="18"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="#E6FFFFFF"/>
+      <Setter Property="FontFamily" Value="{StaticResource VizFa}"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Resources>
+
+  <!-- The full-screen visualizer. The stage fills the window. The now-playing controls that the header
+       normally shows (cover, title, artist, album, the countdown, the seek bar and the transport buttons)
+       run along the foot of the screen instead. IsTabStop lets Escape reach KeyDown. The grid starts
+       Collapsed, and Show() makes it visible. -->
+  <Grid x:Name="Root" Background="#000000" Visibility="Collapsed"
+        IsTabStop="True" UseSystemFocusVisuals="False" KeyDown="Root_KeyDown"
+        PointerMoved="Root_PointerActivity" PointerPressed="Root_PointerActivity">
+
+    <!-- The GL stage. It is sized in code (SizeStage) to fill this host. -->
+    <Grid x:Name="StageHost" SizeChanged="StageHost_SizeChanged"/>
+
+    <!-- Shows a message only when GL cannot start. It sits outside the chrome, so it does not fade away
+         with the chrome. -->
+    <TextBlock x:Name="StatusText" FontSize="11" Foreground="#EEFF6B6B" MaxWidth="620" TextWrapping="Wrap"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
+               Visibility="Collapsed" IsHitTestVisible="False"/>
+
+    <!-- ═══ Chrome ═══ everything that is not the visualizer. It hides five seconds after the last
+         pointer move, so the stage is alone on the screen. It comes back on the next pointer move. The
+         pin button keeps it visible. The code-behind fades it as one layer, never element by element. -->
+    <Grid x:Name="Chrome">
+
+      <!-- Pin: keeps this chrome visible instead of letting it fade. -->
+      <Button x:Name="PinButton" Click="Pin_Click"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,52,0"
+              Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
+              Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
+              ToolTipService.ToolTip="{loc:Str Key=Viz_Pin}"
+              AutomationProperties.Name="{loc:Str Key=Viz_Pin}">
+        <TextBlock x:Name="PinGlyph" Text="&#xf08d;" FontFamily="{StaticResource VizFa}" FontSize="12"/>
+      </Button>
+
+      <!-- Leave: the close button, or Escape. -->
+      <Button x:Name="CloseButton" Click="Close_Click"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,14,0"
+              Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
+              Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
+              ToolTipService.ToolTip="{loc:Str Key=Viz_Exit}"
+              AutomationProperties.Name="{loc:Str Key=Viz_Exit}">
+        <TextBlock Text="&#xf00d;" FontFamily="{StaticResource VizFa}" FontSize="12"/>
+      </Button>
+
+      <!-- ═══ Foot chrome ═══ The now-playing block from the header, moved to the bottom of the screen. -->
+      <Grid VerticalAlignment="Bottom">
+        <!-- The stage draws behind the chrome. This gradient keeps the text readable over the picture. -->
+        <Rectangle Height="230" VerticalAlignment="Bottom" IsHitTestVisible="False">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Offset="0.0" Color="#00000000"/>
+              <GradientStop Offset="0.55" Color="#99000000"/>
+              <GradientStop Offset="1.0" Color="#F2000000"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+
+        <Grid Margin="34,0,34,26" RowSpacing="12">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- Cover art. It reuses the bitmap that the header shows, so the image is decoded only once. -->
+          <Border Grid.Row="0" Grid.Column="0" Width="104" Height="104" CornerRadius="8"
+                  BorderBrush="#22FFFFFF" BorderThickness="1" Background="#22000000"
+                  VerticalAlignment="Bottom">
+            <Grid>
+              <TextBlock x:Name="CoverPlaceholder" Text="&#xf51f;" FontFamily="{StaticResource VizFa}"
+                         FontSize="40" Foreground="#40FFFFFF"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <Image x:Name="CoverImage" Stretch="UniformToFill" Opacity="0"/>
+            </Grid>
+          </Border>
+
+          <!-- Title, artist and album, aligned to the bottom edge of the cover. -->
+          <StackPanel Grid.Row="0" Grid.Column="1" Margin="18,0,0,0" Spacing="2" VerticalAlignment="Bottom">
+            <TextBlock x:Name="TitleText" FontSize="30" FontWeight="SemiBold" Foreground="White"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock x:Name="ArtistText" FontSize="18" Foreground="#DDFFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock x:Name="AlbumText" FontSize="14" Foreground="#99FFFFFF"
+                       TextTrimming="CharacterEllipsis" MaxLines="1" Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <!-- The shared seek bar, full width. It shows the countdown too, right-aligned above the line,
+               as the header does. -->
+          <ctl:SeekBar x:Name="Seek" Grid.Row="1" Grid.ColumnSpan="2"/>
+
+          <!-- The transport buttons, centred under the bar. They use the same commands as the deck's own
+               transport, on the same model. So the full screen never has a separate view of what the
+               player is doing. The space bar (Root_KeyDown) is a third way to press the middle button.
+
+               Each button has a Click handler as well as its Command. This is needed: a clicked button
+               keeps keyboard focus, and a focused button swallows the space bar. The handler gives focus
+               back to Root and keeps the chrome visible. -->
+          <!-- DataContext is null until Show gives this control the player. It is not inherited, because
+               the overlay is a child of ShellPage. An inherited context would be ShellModel, and every
+               {Binding} here would resolve against it before the visualizer is opened. -->
+          <StackPanel x:Name="Transport" Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal"
+                      DataContext="{x:Null}"
+                      Spacing="10" HorizontalAlignment="Center" Margin="0,2,0,0">
+            <StackPanel.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </StackPanel.Resources>
+
+            <Button Style="{StaticResource VizTransportButton}" Content="&#xf04a;" Click="Transport_Click"
+                    Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
+                    ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
+                    AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
+            <Button Style="{StaticResource VizTransportButton}" Content="{Binding PlayPauseGlyph}"
+                    Command="{Binding PlayPauseCommand}" Click="Transport_Click"
+                    FontSize="20" Width="42" Height="42"
+                    ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
+                    AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
+            <Button Style="{StaticResource VizTransportButton}" Content="&#xf04e;" Click="Transport_Click"
+                    Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
+                    ToolTipService.ToolTip="{Binding NextToolTip}"
+                    AutomationProperties.Name="{Binding NextToolTip}"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,118 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Import.QueueLegendPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+
+    <Style TargetType="TextBlock" x:Key="LegendGlyph">
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+      <Setter Property="TextAlignment" Value="Center"/>
+      <Setter Property="Width" Value="16"/>
+      <Setter Property="Margin" Value="0,1,0,0"/>
+    </Style>
+    <Style TargetType="TextBlock" x:Key="LegendLabel">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="#D8FFFFFF"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="LineHeight" Value="16"/>
+    </Style>
+  </UserControl.Resources>
+
+  <!-- The key to the marks in the first two columns.
+
+       There are two groups, because the two mark columns answer two different questions: what this
+       file is, and whether anything else already has it. There is no artist or album glyph in either.
+       A person and a folder at the head of a tree are clear without a key.
+
+       It is its own control because it is a block of reference text for a button. It does not belong
+       to the pane the button sits on. -->
+  <StackPanel Spacing="9" Width="260">
+
+    <StackPanel>
+      <TextBlock Text="{loc:Str Key=QueueLegend_FileGroup}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+      <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,0"/>
+    </StackPanel>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf00c;" Foreground="#8CFFFFFF" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Complete}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf059;" Foreground="{StaticResource QueueMarkMissingBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Missing}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf51f;" Foreground="{StaticResource QueueMarkAlbumFileBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_AlbumFile}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf187;" Foreground="{StaticResource QueueMarkOriginalBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Original}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf0c2;" Foreground="{StaticResource QueueMarkDatalessBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Dataless}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf071;" Foreground="{StaticResource QueueMarkUnreadableBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Unreadable}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+
+    <StackPanel Margin="0,3,0,0">
+      <TextBlock Text="{loc:Str Key=QueueLegend_CopyGroup}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+      <Border Height="1" Background="{StaticResource DenseRuleBrush}" Margin="0,3,0,0"/>
+    </StackPanel>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf0c5;" Foreground="{StaticResource QueueMarkDuplicateBrush}" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Duplicate}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf102;" Foreground="#04C8FF" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_Upgrade}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+    <Grid ColumnSpacing="9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="&#xf24d;" Foreground="#D88FB0C8" Style="{StaticResource LegendGlyph}"/>
+      <TextBlock Grid.Column="1" Text="{loc:Str Key=QueueLegend_QueueDuplicate}" Style="{StaticResource LegendLabel}"/>
+    </Grid>
+  </StackPanel>
+</UserControl>

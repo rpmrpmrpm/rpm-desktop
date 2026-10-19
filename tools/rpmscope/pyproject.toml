@@ -1,0 +1,23 @@
+[project]
+name = "rpmscope"
+version = "0.1.0"
+description = "Reads RPM's Scope rings: what ran, what waited, and why a frame was late."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+# The window only. top/stalls/why need none of this.
+view = ["PySide6>=6.6", "pyqtgraph>=0.13"]
+
+[project.scripts]
+rpmscope = "rpmscope.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rpmscope*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="RPM.Fingerprint.Net" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\mel-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\beat-decoder-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\bar-dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RPM.Core\RPM.Core.csproj" />
+  </ItemGroup>
+
+</Project>
