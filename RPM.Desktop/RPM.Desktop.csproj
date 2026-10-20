@@ -104,6 +104,13 @@
   <!-- Which head is compiling. Several places reach the window, the renderer or the GL surface
        through an API that only one of the two heads has. They branch on these constants and not on a
        runtime check, because the type they name does not exist to bind against on the other head. -->
+  <!-- In-place updates are on only in builds that the release makes: it passes -p:RpmUpdates=true.
+       A copy built from source reads no update feed, so a copy that someone builds and packages the same
+       way cannot replace itself with the official app (UpdateChannel.Released). -->
+  <PropertyGroup Condition="'$(RpmUpdates)' == 'true'">
+    <DefineConstants>$(DefineConstants);RPM_UPDATES</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
     <DefineConstants>$(DefineConstants);RPM_SKIA</DefineConstants>
   </PropertyGroup>

@@ -46,4 +46,13 @@ public class UpdateChannelTests
     [Fact]
     public void A_head_with_no_release_channel_asks_for_nothing()
         => Assert.Null(UpdateChannel.Name(UpdateHead.Other, Architecture.X64));
+
+    /// <summary>A copy built from source, as these tests are, is not a release build and reads no feed.
+    /// Otherwise a copy someone builds and packages the same way would replace itself with the official app.</summary>
+    [Fact]
+    public void ACopyBuiltFromSourceReadsNoFeed()
+    {
+        Assert.False(UpdateChannel.Released);
+        Assert.Null(UpdateChannel.Current);
+    }
 }

@@ -70,6 +70,13 @@ public sealed class AppUpdates
         _settings = settings;
         _log = log;
 
+        if (!UpdateChannel.Released)
+        {
+            _log.LogInformation("[update] this copy was not built by the release. No feed is read.");
+            Now = State.Unmanaged;
+            return;
+        }
+
         if (UpdateChannel.Current is not { } channel)
         {
             _log.LogInformation("[update] nothing is published for this head. No feed is read.");

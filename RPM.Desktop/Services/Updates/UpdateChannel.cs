@@ -43,8 +43,19 @@ public static class UpdateChannel
         _ => null,
     };
 
-    /// <summary>This copy's channel, or null where nothing is published for it.</summary>
-    public static string? Current => Name(
+    /// <summary>Whether this copy was built by the release (<c>-p:RpmUpdates=true</c>, see RPM.Desktop.csproj).
+    /// Only those copies read a feed. A copy built from source is not one of the published builds, so an
+    /// update would replace it with something else.</summary>
+    public static bool Released =>
+#if RPM_UPDATES
+        true;
+#else
+        false;
+#endif
+
+    /// <summary>This copy's channel, or null where nothing is published for it or it was not built by the
+    /// release.</summary>
+    public static string? Current => !Released ? null : Name(
         OperatingSystem.IsMacOS() ? UpdateHead.MacOS
         : OperatingSystem.IsWindows() ? UpdateHead.Windows
         : UpdateHead.Other,
