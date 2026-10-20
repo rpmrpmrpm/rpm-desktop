@@ -429,10 +429,10 @@ public class CrashHarvestTests : IDisposable
             {
               "pid" : 530,
               "userID" : 501,
-              "crashReporterKey" : "5DED7023-CD74-6BBD-8C10-491FE704BE1F",
-              "bootSessionUUID" : "167AE016-C2E1-4B2B-B9C1-3829140A547C",
-              "sleepWakeUUID" : "CC6A8D8A-7688-4B7D-926A-AE8BC4051A6E",
-              "trialInfo" : {"rollouts" : [{"rolloutId" : "699d4a6bb3c59721f0815d4a"}]},
+              "crashReporterKey" : "11111111-2222-3333-4444-555555555555",
+              "bootSessionUUID" : "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+              "sleepWakeUUID" : "99999999-8888-7777-6666-555555555555",
+              "trialInfo" : {"rollouts" : [{"rolloutId" : "000000000000000000000001"}]},
               "procPath" : "/Users/alex/Applications/rpm.app/Contents/MacOS/rpm",
               "exception" : {"type" : "EXC_BAD_ACCESS", "signal" : "SIGSEGV"},
               "faultingThread" : 0,
@@ -445,7 +445,7 @@ public class CrashHarvestTests : IDisposable
         Harvest().Run(Now);
 
         var kept = Assert.Single(PendingReports()).SystemReport!;
-        foreach (var gone in new[] { "crashReporterKey", "5DED7023", "bootSessionUUID", "sleepWakeUUID", "userID", "699d4a6b", "alex" })
+        foreach (var gone in new[] { "crashReporterKey", "11111111", "bootSessionUUID", "sleepWakeUUID", "userID", "000000000000000000000001", "alex" })
             Assert.DoesNotContain(gone, kept);
         Assert.Contains("/Users/~/Applications/rpm.app", kept);
         using var body = JsonDocument.Parse(kept[(kept.IndexOf('\n') + 1)..]);
