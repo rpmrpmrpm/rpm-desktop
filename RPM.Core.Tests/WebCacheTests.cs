@@ -262,9 +262,9 @@ public class WebCacheTests : IDisposable
         var server = new FakeServer("{}") { Gate = new SemaphoreSlim(0, 4) };
         var client = Client(server, out _);
 
-        var asks = Enumerable.Range(0, 4)
+        var asks = WithoutContext(() => Enumerable.Range(0, 4)
             .Select(_ => client.GetStringAsync("https://example.test/art"))
-            .ToArray();
+            .ToArray());
 
         // Four releases, so a cache that failed to share the flight finishes and fails the count
         // instead of hanging the suite.
@@ -281,8 +281,9 @@ public class WebCacheTests : IDisposable
         var client = Client(server, out _);
 
         using var leaving = new CancellationTokenSource();
-        var abandoned = client.GetStringAsync("https://example.test/art", leaving.Token);
-        var waiting = client.GetStringAsync("https://example.test/art");
+        var (abandoned, waiting) = WithoutContext(() => (
+            client.GetStringAsync("https://example.test/art", leaving.Token),
+            client.GetStringAsync("https://example.test/art")));
 
         leaving.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => abandoned);
@@ -419,9 +420,9 @@ public class WebCacheTests : IDisposable
         // Called directly rather than through Task.Run: each one runs as far as the far end's own wait
         // before it yields, so all ten are on the flight before anything is released. Through Task.Run
         // the scheduler decides how many join in time, and the test would measure that instead.
-        var asks = Enumerable.Range(0, 10)
+        var asks = WithoutContext(() => Enumerable.Range(0, 10)
             .Select(_ => client.GetStringAsync("https://example.test/art"))
-            .ToArray();
+            .ToArray());
 
         server.Gate!.Release(10);
         var answers = await Task.WhenAll(asks);
@@ -645,6 +646,28 @@ public class WebCacheTests : IDisposable
     }
 
     /// <summary>One endpoint, counting what it is asked and answering however the test needs.</summary>
+    /// <summary>
+    /// Runs <paramref name="start"/> with no synchronization context, as the app's art fetches run.
+    ///
+    /// <para>xUnit gives its tests a synchronization context. The handler sends a caller with a context
+    /// to the pool for its cache read, so that caller has not joined the flight when <paramref name="start"/>
+    /// returns. A test that counts requests, or cancels one caller while another waits, needs every
+    /// caller on the flight first. See <c>TenAskingAtOnceCostOneRequestEvenWhenTheAnswerIsNotWorthKeeping</c>.</para>
+    /// </summary>
+    private static T WithoutContext<T>(Func<T> start)
+    {
+        var was = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            return start();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(was);
+        }
+    }
+
     private sealed class FakeServer(byte[] body, string contentType, HttpStatusCode status = HttpStatusCode.OK)
         : HttpMessageHandler
     {
