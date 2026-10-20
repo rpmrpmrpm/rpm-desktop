@@ -117,7 +117,11 @@ public sealed record CloudTrackTags(
     [property: JsonPropertyName("catno")] string? Catno = null,
     [property: JsonPropertyName("barcode")] string? Barcode = null,
     [property: JsonPropertyName("mbReleaseId")] string? MusicBrainzReleaseId = null,
-    [property: JsonPropertyName("discId")] string? MusicBrainzDiscId = null)
+    [property: JsonPropertyName("discId")] string? MusicBrainzDiscId = null,
+    // What kind of release the record is, as ReleaseTypes.ToStored writes it ("Album", "Ep", "Live"...). The
+    // phone and the TV shelve an artist's records by it instead of guessing from the title. Album-level like
+    // the pressing above it, and on the row for the same reason.
+    [property: JsonPropertyName("releaseType")] string? ReleaseType = null)
 {
     /// <summary>Whether the row knows how loud the recording is. Zero means "not measured". A real
     /// reading is negative, because music sits below full scale. A track at exactly zero LUFS would be

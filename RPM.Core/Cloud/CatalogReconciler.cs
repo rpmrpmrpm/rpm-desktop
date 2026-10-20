@@ -164,7 +164,10 @@ public static class CatalogReconciler
             album?.Catno,
             album?.Barcode,
             album?.MusicBrainzReleaseId,
-            album?.DiscId);
+            album?.DiscId,
+            // What kind of release it is, as the file's RELEASETYPE tag or the album editor says. Null is
+            // "nobody has said", which the wire reads the same way.
+            track.ReleaseType is { } type ? ReleaseTypes.ToStored(type) : null);
     }
 
     /// <summary>
@@ -241,6 +244,8 @@ public static class CatalogReconciler
             return Say("discId", mine.MusicBrainzDiscId, theirs.MusicBrainzDiscId);
         if (!SameLoudness(mine, theirs))
             return Say("loudnessLufs", mine.LoudnessLufs, theirs.HasLoudness ? theirs.LoudnessLufs : null);
+        if (!SameText(mine.ReleaseType, theirs.ReleaseType))
+            return Say("releaseType", mine.ReleaseType, theirs.ReleaseType);
 
         // "Not known" on this side is no reason to push, as with the numbers above. A library whose files
         // have no advisory flag (most of them) would otherwise rewrite every row on every run.

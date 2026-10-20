@@ -68,6 +68,23 @@ public class CatalogReconcilerTests
         Assert.Empty(work.Sidecars);
     }
 
+    /// <summary>The phone and the TV shelve an artist's records by the type the listener set, so a type the
+    /// cloud does not have is sent, and one it already has is not sent again.</summary>
+    [Fact]
+    public void A_release_type_the_cloud_lacks_is_sent_and_one_it_has_is_not()
+    {
+        var mine = Mine() with { ReleaseType = ReleaseType.Ep };
+
+        var push = CatalogReconciler.Differs(mine, Theirs());
+        Assert.Equal("Ep", push.Tags?.ReleaseType);
+
+        var held = Theirs() with { Tags = Theirs().Tags! with { ReleaseType = "Ep" } };
+        Assert.Null(CatalogReconciler.Differs(mine, held).Tags);
+
+        // Nobody having said here is no reason to push, as with every other field.
+        Assert.Null(CatalogReconciler.Differs(Mine(), held).Tags);
+    }
+
     [Fact]
     public void A_duration_read_by_two_different_readers_is_the_same_duration()
     {
