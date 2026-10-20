@@ -528,6 +528,10 @@ appsettings.Development.json
 # never committed. A binary that is not the pinned one is fetched again on the next build.
 RPM.Desktop/NativeLibs/tools/
 
+# A local copy of the assets of an ffmpeg release (rpm-ffmpeg-<version>-<build>, published by
+# build-ffmpeg.yml): the ffmpeg-<rid>.gz archives and notes.md. They belong to the release only.
+ffmpeg-rel/
+
 # Machine-local iOS codesigning identity (see RPM.Mobile/signing.local.props)
 signing.local.props
 
