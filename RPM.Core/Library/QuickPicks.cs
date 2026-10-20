@@ -15,6 +15,10 @@ public enum QuickPickKind
 
     /// <summary>One radio station, keyed by its uuid.</summary>
     Station,
+
+    /// <summary>A song radio started on one of the songs played most, keyed by the song's library-relative path.
+    /// See <see cref="QuickPicks.RadioSeeds"/>.</summary>
+    Radio,
 }
 
 /// <summary>One entry: its kind, and the key that names it.</summary>
@@ -47,6 +51,43 @@ public static class QuickPicks
     /// <summary>How many panels stand side by side.</summary>
     public const int Panels = Count / Tall;
 
+    /// <summary>How many song radios the selection offers at most. Two: one is a suggestion, and more would push
+    /// out the things the listener actually plays.</summary>
+    public const int MostRadios = 2;
+
+    /// <summary>
+    /// The songs to offer a radio on: the one played most, and the next one by another act.
+    /// </summary>
+    /// <remarks>
+    /// <b>Another act, because two radios on one act are one radio.</b> A radio plays songs like the one it started
+    /// from, and two songs by one act are usually alike in every way it measures. So the second offer goes to the
+    /// most played song by somebody else, and where every song played is by one act there is only one offer.
+    /// </remarks>
+    /// <param name="songs">Most played first: the song's library-relative path and its act, empty where the tags
+    /// name none. An empty act is never taken for the same act as another empty one.</param>
+    public static IReadOnlyList<string> RadioSeeds(IReadOnlyList<(string Path, string Act)> songs)
+    {
+        ArgumentNullException.ThrowIfNull(songs);
+
+        var seeds = new List<string>(MostRadios);
+        var acts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, act) in songs)
+        {
+            if (seeds.Count == MostRadios)
+                break;
+            if (string.IsNullOrWhiteSpace(path))
+                continue;
+
+            var named = act?.Trim() ?? "";
+            if (named.Length > 0 && !acts.Add(named))
+                continue;
+
+            seeds.Add(path);
+        }
+
+        return seeds;
+    }
+
     /// <summary>
     /// The selection, in the order it is laid out.
     /// </summary>
@@ -64,12 +105,16 @@ public static class QuickPicks
     /// <param name="playlists">Most played first, keyed as the play log keys them.</param>
     /// <param name="stations">Most listened first, by uuid.</param>
     /// <param name="count">How many to choose, at most.</param>
+    /// <param name="radios">The songs to offer a radio on (<see cref="RadioSeeds"/>). They come first, ahead of the
+    /// deal: they are a suggestion made from the rest, not one more kind competing with it, and the top of the first
+    /// panel is where a suggestion is seen. At most <see cref="MostRadios"/>.</param>
     public static IReadOnlyList<QuickPick> Choose(
         IReadOnlyList<string> songs,
         IReadOnlyList<string> albums,
         IReadOnlyList<string> playlists,
         IReadOnlyList<string> stations,
-        int count)
+        int count,
+        IReadOnlyList<string>? radios = null)
     {
         if (count <= 0)
             return [];
@@ -83,6 +128,10 @@ public static class QuickPicks
         ];
 
         var picked = new List<QuickPick>(count);
+
+        foreach (var song in (radios ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).Take(MostRadios))
+            if (picked.Count < count)
+                picked.Add(new QuickPick(QuickPickKind.Radio, song));
 
         // How far each source has been read. Each source has its own position, so a short source is
         // skipped once it runs out.

@@ -3655,12 +3655,17 @@ public sealed partial class HomeView : UserControl
         // was played has none of them.
         var playlists = played.Select(r => r.Key).Where(byKey.ContainsKey).ToList();
 
+        // A radio on the song played most, and on the next one by somebody else. See QuickPicks.RadioSeeds.
+        var radios = QuickPicks.RadioSeeds(
+            [.. songs.Select(t => (t.RelativePath, RecommendRefusals.CreditOf(t.AlbumArtist, t.Artist)))]);
+
         var picks = QuickPicks.Choose(
             [.. songs.Select(t => t.RelativePath)],
             albums,
             playlists,
             [.. stations.Select(l => l.Station.Uuid)],
-            QuickPicks.Count);
+            QuickPicks.Count,
+            radios);
 
         var byPath = songs.ToDictionary(t => t.RelativePath, t => t, StringComparer.OrdinalIgnoreCase);
         var byUuid = stations.ToDictionary(l => l.Station.Uuid, l => l.Station, StringComparer.OrdinalIgnoreCase);
@@ -3680,6 +3685,22 @@ public sealed partial class HomeView : UserControl
                         Folder = song.Folder,
                         Track = song.ToTrackInfo(root),
                         Glyph = "\uf001",          // a note
+                        Metrics = tiles,
+                    });
+                    break;
+
+                case QuickPickKind.Radio when byPath.TryGetValue(pick.Key, out var seed):
+                    // Named for the song it starts from, with the kind first on the line under it, so it reads as
+                    // a radio and not as the song's own entry further down.
+                    cards.Add(new HomeQuickCard
+                    {
+                        Kind = pick.Kind,
+                        Key = pick.Key,
+                        Title = seed.Title ?? seed.FileName,
+                        Subtitle = KindLine("Home_QuickRadio", seed.Artist ?? seed.AlbumArtist),
+                        Folder = seed.Folder,
+                        Track = seed.ToTrackInfo(root),
+                        Glyph = "",          // the radio, as on Start radio in the song menus
                         Metrics = tiles,
                     });
                     break;
@@ -3785,8 +3806,13 @@ public sealed partial class HomeView : UserControl
         // The button says what it does, and it does nothing where the selection holds no songs. That
         // is a collection whose records have been played but whose individual songs have not.
         QuickPlayAll.Visibility =
-            _quick.Any(c => c.Track is not null) ? Visibility.Visible : Visibility.Collapsed;
+            SongsIn(_quick).Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    /// <summary>The songs in the selection, in the order shown. A radio entry carries its song too, but it is an
+    /// offer to start a radio and not a song in the selection: the same song has its own entry when it is there.</summary>
+    private static List<RPM.Core.Models.TrackInfo> SongsIn(IEnumerable<HomeQuickCard> cards) =>
+        [.. cards.Where(c => c.Kind == QuickPickKind.Song).Select(c => c.Track).OfType<RPM.Core.Models.TrackInfo>()];
 
     /// <summary>One entry pressed: what it opens depends on what it is, and a song is the only one
     /// that PLAYS and does not open. It uses the same four doors as the rest of this screen, so an
@@ -3803,6 +3829,12 @@ public sealed partial class HomeView : UserControl
                 // in this app does. It is not a bare Play: a track played around the queue leaves the
                 // queue holding something that is not playing.
                 Amp?.AddTracks([track], play: true);
+                break;
+
+            case QuickPickKind.Radio when card.Track is { } seed:
+                // The same as Start radio in a song's menu: the song plays now, and the queue fills with songs
+                // like whichever one is playing.
+                Amp?.StartRadio(seed);
                 break;
 
             case QuickPickKind.Album when card.Folder is { Length: > 0 } folder:
@@ -3837,7 +3869,7 @@ public sealed partial class HomeView : UserControl
     /// </remarks>
     private void QuickPlayAll_Click(object sender, RoutedEventArgs e)
     {
-        var tracks = _quick.Select(c => c.Track).OfType<RPM.Core.Models.TrackInfo>().ToList();
+        var tracks = SongsIn(_quick);
         if (tracks.Count == 0)
             return;
 
@@ -3967,7 +3999,7 @@ public sealed partial class HomeView : UserControl
     /// <see cref="FillQuickStationAsync"/>.</summary>
     private Task<byte[]?> QuickCoverAsync(HomeQuickCard card, CancellationToken ct) => card.Kind switch
     {
-        QuickPickKind.Song or QuickPickKind.Album =>
+        QuickPickKind.Song or QuickPickKind.Album or QuickPickKind.Radio =>
             CoverLoader is { } load && card.Folder is { Length: > 0 } folder
                 ? load(folder, ArtScaler.TileEdge, ct)
                 : Task.FromResult<byte[]?>(null),

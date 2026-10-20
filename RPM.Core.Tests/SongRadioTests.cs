@@ -18,20 +18,26 @@ public class SongRadioTests
     /// tests that are not about them.</summary>
     private static RadioRow Row(
         string path, int year = 1975, double? sound = 0.5, string? artist = null, string? folder = null,
-        string? title = null, bool offered = true, double? bpm = null) =>
+        string? title = null, bool offered = true, double? bpm = null, int plays = 0, string? genreTag = null,
+        string? subgenre = null) =>
         new(path, folder ?? path, artist ?? "act " + path, title ?? "song " + path, year,
-            sound, sound, sound, offered, bpm);
+            sound, sound, sound, offered, bpm, plays, genreTag, subgenre);
 
     private static RadioCrate Crate(
         IEnumerable<RadioRow> rows, IReadOnlyDictionary<string, string>? genres = null,
-        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>>? moods = null)
+        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>>? moods = null,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? styles = null)
     {
         var list = rows.ToList();
         return RadioCrate.Build(
             list,
             genres ?? list.Select(r => r.Folder).Distinct().ToDictionary(folder => folder, _ => "Rock"),
-            moods ?? NoMoods);
+            moods ?? NoMoods,
+            styles);
     }
+
+    private static Dictionary<string, string> AllOn(string shelf, params string[] folders) =>
+        folders.ToDictionary(folder => folder, _ => shelf);
 
     private static IReadOnlyList<string> Pick(
         RadioCrate crate, string seed, int count, IReadOnlyList<string>? history = null,
@@ -169,6 +175,171 @@ public class SongRadioTests
 
         for (var random = 0; random < 20; random++)
             Assert.DoesNotContain("far", Pick(crate, "seed", 1, random: random));
+    }
+
+    // ── styles ──
+
+    [Fact]
+    public void On_one_shelf_a_song_of_the_same_style_comes_before_an_unfiled_one_and_that_before_another_style()
+    {
+        var crate = Crate(
+            [
+                Row("seed", subgenre: "Trip Hop"), Row("trip hop", subgenre: "Trip Hop"), Row("unfiled"),
+                Row("electro", subgenre: "Electro"),
+            ],
+            AllOn("Electronic / Dance", "seed", "trip hop", "unfiled", "electro"));
+        var seed = crate.Find("seed")!;
+
+        var same = SongRadio.Apart(crate.Find("trip hop")!, seed);
+        var unfiled = SongRadio.Apart(crate.Find("unfiled")!, seed);
+        Assert.True(same < unfiled);
+        Assert.True(unfiled < SongRadio.Apart(crate.Find("electro")!, seed));
+    }
+
+    [Fact]
+    public void Kin_styles_are_closer_than_styles_with_nothing_in_common()
+    {
+        var crate = Crate(
+            [Row("lo-fi", subgenre: "Lo-fi Beats"), Row("downtempo", subgenre: "Downtempo"), Row("electro", subgenre: "Electro")],
+            AllOn("Electronic / Dance", "lo-fi", "downtempo", "electro"));
+        var seed = crate.Find("lo-fi")!;
+
+        Assert.Equal(SongRadio.KinStyle, SongRadio.GenreApart(crate.Find("downtempo")!, seed, new HashSet<string>()));
+        Assert.Equal(SongRadio.OtherStyle, SongRadio.GenreApart(crate.Find("electro")!, seed, new HashSet<string>()));
+    }
+
+    [Fact]
+    public void Styles_with_nothing_in_common_on_one_shelf_are_further_apart_than_two_related_shelves()
+    {
+        Assert.True(SongRadio.OtherStyle > SongRadio.RelatedGenre);
+    }
+
+    [Fact]
+    public void A_radio_on_trip_hop_does_not_pick_electro_while_trip_hop_is_left()
+    {
+        var chill = Enumerable.Range(0, SongRadio.Shortlist + 3).Select(i => Row($"chill{i}", subgenre: "Trip Hop")).ToList();
+        var club = Enumerable.Range(0, SongRadio.Shortlist).Select(i => Row($"club{i}", subgenre: "Electro")).ToList();
+        var crate = Crate(
+            [Row("seed", subgenre: "Trip Hop"), .. chill, .. club],
+            AllOn("Electronic / Dance", ["seed", .. chill.Select(r => r.Folder), .. club.Select(r => r.Folder)]));
+
+        for (var random = 0; random < 20; random++)
+            Assert.All(Pick(crate, "seed", 3, random: random), path => Assert.StartsWith("chill", path));
+    }
+
+    [Fact]
+    public void Styles_are_read_from_every_entry_of_a_listing_tag_and_from_the_record()
+    {
+        var crate = Crate(
+            [Row("a", genreTag: "classical, romantic classical, classical period"), Row("b", folder: "rec")],
+            AllOn("Classical", "a", "rec"),
+            styles: new Dictionary<string, IReadOnlyList<string>> { ["rec"] = ["Baroque", "Not A Style RPM Knows"] });
+
+        Assert.Equal(["Classical Period", "Romantic Classical"], crate.Find("a")!.Styles.Order());
+        Assert.Equal(["Baroque"], crate.Find("b")!.Styles);
+    }
+
+    [Fact]
+    public void A_record_on_no_shelf_takes_the_shelf_its_style_hangs_off()
+    {
+        var crate = Crate([Row("a", subgenre: "Trip Hop")], new Dictionary<string, string>());
+
+        Assert.Equal("Electronic / Dance", crate.Find("a")!.Genre);
+    }
+
+    [Fact]
+    public void Every_style_in_a_family_is_a_style_rpm_knows()
+    {
+        var known = RPM.Core.Metadata.Subgenres.All.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(SongRadio.StyleFamilies.SelectMany(f => f), style => Assert.Contains(style, known));
+    }
+
+    // ── classical ──
+
+    [Fact]
+    public void Between_two_classical_records_the_recording_year_is_not_an_era()
+    {
+        var crate = Crate(
+            [Row("mozart", 1987), Row("bach", 2000), Row("pop", 1987)],
+            new Dictionary<string, string> { ["mozart"] = "Classical", ["bach"] = "Classical", ["pop"] = "Pop" });
+        var seed = crate.Find("mozart")!;
+
+        Assert.Equal(SongRadio.Apart(seed, seed), SongRadio.Apart(crate.Find("bach")!, seed), 9);
+        Assert.True(SongRadio.Apart(crate.Find("bach")!, seed) < SongRadio.Apart(crate.Find("pop")!, seed));
+    }
+
+    [Fact]
+    public void A_classical_radio_picks_classical_records_and_keeps_to_the_period()
+    {
+        var baroque = Enumerable.Range(0, SongRadio.Shortlist + 4).Select(i => Row($"baroque{i}", 1990 + i, subgenre: "Baroque")).ToList();
+        var romantic = Enumerable.Range(0, SongRadio.Shortlist).Select(i => Row($"romantic{i}", 1990 + i, subgenre: "Romantic Classical")).ToList();
+        var pop = Enumerable.Range(0, SongRadio.Shortlist).Select(i => Row($"pop{i}", 1987)).ToList();
+        var genres = AllOn("Classical", ["seed", .. baroque.Select(r => r.Folder), .. romantic.Select(r => r.Folder)]);
+        foreach (var row in pop)
+            genres[row.Folder] = "Pop";
+        var crate = Crate([Row("seed", 1987, subgenre: "Baroque"), .. baroque, .. romantic, .. pop], genres);
+
+        for (var random = 0; random < 20; random++)
+            Assert.All(Pick(crate, "seed", 4, random: random), path => Assert.StartsWith("baroque", path));
+    }
+
+    // ── favourites ──
+
+    /// <summary>Ten songs closest, then the favourite, then a crowd further off in era. Enough of a crowd that the
+    /// favourite is inside <see cref="SongRadio.FavouriteFit"/> of the ranking without being in the closest
+    /// shortlist, so only its turn can bring it.</summary>
+    private static RadioCrate FavouriteCrate() => Crate(
+    [
+        Row("seed", 1975, 0.5),
+        .. Enumerable.Range(0, 10).Select(i => Row($"near{i}", 1975, 0.5)),
+        Row("favourite", 1977, 0.5, plays: 50),
+        .. Enumerable.Range(0, 300).Select(i => Row($"crowd{i}", 1995, 0.5)),
+    ]);
+
+    [Fact]
+    public void Every_fifth_song_is_a_favourite_that_fits()
+    {
+        var crate = FavouriteCrate();
+
+        // The radio has queued the seed and four songs, so the next is the fifth after the seed.
+        IReadOnlyList<string> history = ["seed", "near0", "near1", "near2", "near3"];
+        for (var random = 0; random < 10; random++)
+            Assert.Equal("favourite", Pick(crate, "near3", 1, history: history, origin: "seed", random: random)[0]);
+    }
+
+    [Fact]
+    public void A_favourite_waits_for_its_turn()
+    {
+        var crate = FavouriteCrate();
+
+        IReadOnlyList<string> history = ["seed", "near0"];
+        var picked = Pick(crate, "near0", 4, history: history, origin: "seed", random: 1);
+
+        Assert.DoesNotContain("favourite", picked.Take(3));
+        Assert.Equal("favourite", picked[3]);
+    }
+
+    [Fact]
+    public void A_favourite_that_does_not_fit_is_not_played()
+    {
+        var close = Enumerable.Range(0, 40).Select(i => Row($"close{i}", 1975, 0.5)).ToList();
+        var genres = AllOn("Rock", ["seed", .. close.Select(r => r.Folder)]);
+        genres["favourite"] = "Classical";
+        var crate = Crate([Row("seed", 1975, 0.5), .. close, Row("favourite", 2020, 0.99, plays: 50)], genres);
+
+        IReadOnlyList<string> history = ["seed", "close0", "close1", "close2", "close3"];
+        for (var random = 0; random < 10; random++)
+            Assert.DoesNotContain("favourite", Pick(crate, "close3", 6, history: history, origin: "seed", random: random));
+    }
+
+    [Fact]
+    public void A_song_played_once_or_twice_is_not_a_favourite()
+    {
+        var crate = Crate([Row("tried", plays: RadioCrate.FavouriteLeastPlays - 1), Row("loved", plays: RadioCrate.FavouriteLeastPlays)]);
+
+        Assert.False(crate.IsFavourite(crate.Find("tried")!));
+        Assert.True(crate.IsFavourite(crate.Find("loved")!));
     }
 
     // ── what is never picked ──

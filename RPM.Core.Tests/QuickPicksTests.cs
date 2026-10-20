@@ -75,6 +75,46 @@ public class QuickPicksTests
         Assert.Equal(["s1"], picks.Select(p => p.Key));
     }
 
+    // ── song radios ──
+
+    [Fact]
+    public void The_radios_come_first_and_the_deal_follows()
+    {
+        var picks = QuickPicks.Choose(Songs, Albums, Lists, Stations, 4, radios: ["s1", "s3"]);
+
+        Assert.Equal(
+            [
+                (QuickPickKind.Radio, "s1"),
+                (QuickPickKind.Radio, "s3"),
+                (QuickPickKind.Song, "s1"),
+                (QuickPickKind.Album, "a1"),
+            ],
+            picks.Select(p => (p.Kind, p.Key)));
+    }
+
+    [Fact]
+    public void No_more_than_two_radios_are_offered()
+    {
+        var picks = QuickPicks.Choose([], [], [], [], QuickPicks.Count, radios: ["s1", "s2", "s3"]);
+
+        Assert.Equal(QuickPicks.MostRadios, picks.Count);
+    }
+
+    [Fact]
+    public void The_second_radio_is_on_the_most_played_song_by_another_act()
+    {
+        var seeds = QuickPicks.RadioSeeds([("s1", "Sting"), ("s2", "sting"), ("s3", "Björk"), ("s4", "Prince")]);
+
+        Assert.Equal(["s1", "s3"], seeds);
+    }
+
+    [Fact]
+    public void One_act_played_is_one_radio_and_songs_with_no_act_are_each_their_own()
+    {
+        Assert.Equal(["s1"], QuickPicks.RadioSeeds([("s1", "Sting"), ("s2", "Sting")]));
+        Assert.Equal(["s1", "s2"], QuickPicks.RadioSeeds([("s1", ""), ("s2", "")]));
+    }
+
     // ── the panels ──
 
     /// <summary>Down each panel and then across. This makes four columns read as four lists and not as

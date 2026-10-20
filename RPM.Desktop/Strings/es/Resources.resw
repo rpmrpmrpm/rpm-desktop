@@ -6689,6 +6689,10 @@
     <value>Emisora de radio</value>
     <comment>Second line of a radio station entry in the home view's quick selection, under the station's name. Desktop and iPhone.</comment>
   </data>
+  <data name="Home_QuickRadio" xml:space="preserve">
+    <value>Radio</value>
+    <comment>Kind label on a song radio entry in the home view's quick selection, before the artist: 'Radio • Sting'. The entry is named after one of the songs played most; pressing it plays that song and keeps the queue filled with songs like it (the song menus' Start radio). Not internet radio.</comment>
+  </data>
   <data name="Home_QuickKindJoin" xml:space="preserve">
     <value>{0} • {1}</value>
     <comment>Second line of an album or playlist entry in the home view's quick selection. {0} = Home_QuickAlbum or Home_QuickPlaylist, {1} = the artist or the playlist's caption.</comment>

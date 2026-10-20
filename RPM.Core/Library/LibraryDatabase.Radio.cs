@@ -14,8 +14,37 @@ public sealed partial class LibraryDatabase
     public RadioCrate ReadRadioCrate()
     {
         var rows = QueryRadioRows();
-        var genreByFolder = MoodBands.GenreByFolder(QueryAlbumGenreCounts(), CatalogueFactsByFolder());
-        return RadioCrate.Build(rows, genreByFolder, SessionMoods.MoodsByPath());
+        var facts = CatalogueFactsByFolder();
+        var genreByFolder = MoodBands.GenreByFolder(QueryAlbumGenreCounts(), facts);
+        return RadioCrate.Build(rows, genreByFolder, SessionMoods.MoodsByPath(), StylesByFolder(facts));
+    }
+
+    /// <summary>
+    /// The styles each record is filed under: what the catalogues say about its release, and what the styles pass
+    /// stored on the album (<see cref="SetAlbumStyles"/>). Both, because either may have answered where the other
+    /// has not. Spellings are left as they are; <see cref="RadioCrate.Build"/> reads them.
+    /// </summary>
+    private Dictionary<string, IReadOnlyList<string>> StylesByFolder(IReadOnlyDictionary<string, CatalogueFacts> facts)
+    {
+        var byFolder = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, fact) in facts)
+            if (fact.Styles.Count > 0)
+                byFolder[folder] = fact.Styles;
+
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText = "SELECT folder, styles FROM album_meta WHERE styles IS NOT NULL AND styles <> ''";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var folder = reader.GetString(0);
+                var stored = SplitStyles(reader.GetString(1));
+                byFolder[folder] = byFolder.TryGetValue(folder, out var known) ? [.. known, .. stored] : stored;
+            }
+        }
+
+        return byFolder;
     }
 
     /// <summary>
@@ -38,7 +67,8 @@ public sealed partial class LibraryDatabase
                        CASE WHEN tracks.duration_seconds >= {Moods.LeastSeconds}{Reachable} THEN 1 ELSE 0 END,
                        CASE WHEN a.bpm > 0 AND a.bpm_confidence >= $minBpmConfidence THEN a.bpm
                             WHEN tracks.tag_bpm > 0 THEN tracks.tag_bpm
-                       END
+                       END,
+                       COALESCE(tracks.plays, 0), tracks.genre, tracks.subgenre
                 FROM tracks
                 LEFT JOIN track_analysis a ON a.relative_path = tracks.relative_path
                 """;
@@ -56,7 +86,10 @@ public sealed partial class LibraryDatabase
                     reader.IsDBNull(7) ? null : reader.GetDouble(7),
                     reader.IsDBNull(8) ? null : reader.GetDouble(8),
                     reader.GetInt64(9) == 1,
-                    reader.IsDBNull(10) ? null : reader.GetDouble(10)));
+                    reader.IsDBNull(10) ? null : reader.GetDouble(10),
+                    (int)Math.Min(reader.GetInt64(11), int.MaxValue),
+                    reader.IsDBNull(12) ? null : reader.GetString(12),
+                    reader.IsDBNull(13) ? null : reader.GetString(13)));
             return rows;
         }
     }
