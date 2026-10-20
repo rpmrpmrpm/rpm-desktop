@@ -31,7 +31,7 @@ public class PeerSessionsTests
         PublicKey = SharingProtocol.ToBase64Url(identity.PublicKey),
         Challenge = challenge,
         Signature = SharingProtocol.ToBase64Url(
-            identity.Sign(PeerSessions.SignedBytes(serverId, challenge))),
+            identity.Sign(PeerSessions.SignedBytes(serverId, challenge, ""))),
     };
 
     [Fact]
@@ -190,5 +190,97 @@ public class PeerSessionsTests
 
         Assert.Null(sessions.Redeem(Proof(identity, oldest), [peer]));
         Assert.NotNull(sessions.Redeem(Proof(identity, newest), [peer]));
+    }
+
+    [Fact]
+    public void The_account_a_peer_names_is_kept_with_its_token()
+    {
+        var (identity, peer) = Peer(PeerKind.Account);
+        using var _ = identity;
+        var sessions = new PeerSessions(ServerId);
+
+        var challenge = sessions.Issue().Challenge;
+        var proof = new SessionProof
+        {
+            PublicKey = SharingProtocol.ToBase64Url(identity.PublicKey),
+            Challenge = challenge,
+            Signature = SharingProtocol.ToBase64Url(identity.Sign(PeerSessions.SignedBytes(ServerId, challenge, "user-7"))),
+            Account = "user-7",
+        };
+
+        var grant = sessions.Redeem(proof, [peer]);
+        Assert.Equal("user-7", sessions.Account(grant!.Token));
+    }
+
+    /// <summary>The account is inside the signature, so a machine in the middle cannot change it.</summary>
+    [Fact]
+    public void An_account_changed_after_signing_is_refused()
+    {
+        var (identity, peer) = Peer(PeerKind.Account);
+        using var _ = identity;
+        var sessions = new PeerSessions(ServerId);
+
+        var challenge = sessions.Issue().Challenge;
+        var proof = new SessionProof
+        {
+            PublicKey = SharingProtocol.ToBase64Url(identity.PublicKey),
+            Challenge = challenge,
+            Signature = SharingProtocol.ToBase64Url(identity.Sign(PeerSessions.SignedBytes(ServerId, challenge, "user-7"))),
+            Account = "user-mine",
+        };
+
+        Assert.Null(sessions.Redeem(proof, [peer]));
+    }
+
+    [Fact]
+    public void A_ticket_opens_its_own_route_and_id_while_the_token_lives()
+    {
+        var now = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+        var (identity, peer) = Peer();
+        using var _ = identity;
+        var sessions = new PeerSessions(ServerId, () => now);
+
+        var token = sessions.Redeem(Proof(identity, sessions.Issue().Challenge), [peer])!.Token;
+        var handle = PeerSessions.Handle(token);
+        var ticket = PeerSessions.Ticket(token, SharingProtocol.TrackRoute, "track-1");
+
+        Assert.Equal(peer.DeviceId,
+            sessions.PeerForTicket(handle, ticket, SharingProtocol.TrackRoute, "track-1", [peer])!.DeviceId);
+
+        // Another id, another route, a made-up handle, and trust withdrawn.
+        Assert.Null(sessions.PeerForTicket(handle, ticket, SharingProtocol.TrackRoute, "track-2", [peer]));
+        Assert.Null(sessions.PeerForTicket(handle, ticket, SharingProtocol.CoverRoute, "track-1", [peer]));
+        Assert.Null(sessions.PeerForTicket("nobody", ticket, SharingProtocol.TrackRoute, "track-1", [peer]));
+        Assert.Null(sessions.PeerForTicket(handle, ticket, SharingProtocol.TrackRoute, "track-1", []));
+
+        // The token runs out, and its tickets with it.
+        now += PeerSessions.TokenLife;
+        Assert.Null(sessions.PeerForTicket(handle, ticket, SharingProtocol.TrackRoute, "track-1", [peer]));
+    }
+
+    [Fact]
+    public void Forgetting_a_computer_takes_its_tickets_with_it()
+    {
+        var (identity, peer) = Peer();
+        using var _ = identity;
+        var sessions = new PeerSessions(ServerId);
+
+        var token = sessions.Redeem(Proof(identity, sessions.Issue().Challenge), [peer])!.Token;
+        var ticket = PeerSessions.Ticket(token, SharingProtocol.TrackRoute, "track-1");
+        sessions.Revoke(peer.DeviceId);
+
+        Assert.Null(sessions.PeerForTicket(
+            PeerSessions.Handle(token), ticket, SharingProtocol.TrackRoute, "track-1", [peer]));
+    }
+
+    /// <summary>The phones make handles and tickets too (PeerWire.swift, PeerWire.kt). Their tests check these
+    /// same values, so a change here must change them too.</summary>
+    [Fact]
+    public void Handles_and_tickets_match_the_phones()
+    {
+        Assert.Equal("ufGG_y6PQoD1A0zS7jm0xg", PeerSessions.Handle("token-1"));
+        Assert.Equal("pfexHfz9I4_UxxVAiaRSMw", PeerSessions.Ticket("token-1", SharingProtocol.TrackRoute, "abc"));
+        Assert.Equal("rpm-share-session\nSERVER\nCH\nuser-7",
+            System.Text.Encoding.UTF8.GetString(PeerSessions.SignedBytes("SERVER", "CH", "user-7")));
     }
 }

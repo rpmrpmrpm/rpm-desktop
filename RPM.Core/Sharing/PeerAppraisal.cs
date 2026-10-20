@@ -8,13 +8,6 @@ public sealed record DiscoveredPeer
     public required string Name { get; init; }
     public required byte[] PublicKey { get; init; }
 
-    /// <summary>The display name it broadcast. Empty when it is signed out, when its owner has named
-    /// the machine themselves, or when it is a build from before this key existed.</summary>
-    public string Face { get; init; } = "";
-
-    /// <summary>The account fingerprint it broadcast, or empty when it is signed out.</summary>
-    public string AccountFingerprint { get; init; } = "";
-
     public required string Host { get; init; }
     public required int Port { get; init; }
 
@@ -42,15 +35,13 @@ public sealed record DiscoveredPeer
         other is not null
         && string.Equals(DeviceId, other.DeviceId, StringComparison.Ordinal)
         && string.Equals(Name, other.Name, StringComparison.Ordinal)
-        && string.Equals(Face, other.Face, StringComparison.Ordinal)
-        && string.Equals(AccountFingerprint, other.AccountFingerprint, StringComparison.Ordinal)
         && string.Equals(Host, other.Host, StringComparison.Ordinal)
         && Port == other.Port
         && Version == other.Version
         && PublicKey.AsSpan().SequenceEqual(other.PublicKey);
 
     public override int GetHashCode() =>
-        HashCode.Combine(DeviceId, Name, Face, AccountFingerprint, Host, Port, Version, PublicKey.Length);
+        HashCode.Combine(DeviceId, Name, Host, Port, Version, PublicKey.Length);
 }
 
 /// <summary>What to do about a peer that just turned up.</summary>
@@ -92,8 +83,6 @@ public static class PeerAppraisal
     /// </summary>
     /// <param name="peer">What the beacon said.</param>
     /// <param name="myDeviceId">This install's device id, so it does not offer to pair with itself.</param>
-    /// <param name="myAccountFingerprint">This install's account fingerprint, or empty when signed out.
-    /// Empty never matches: two signed-out machines are two strangers, not one user.</param>
     /// <param name="trusted">Who this install already shares with.</param>
     /// <param name="accountDeviceIds">The device ids the signed-in account has registered. This list
     /// makes "one of mine" a fact, not a claim. Empty when signed out, or when the registry has never
@@ -101,7 +90,6 @@ public static class PeerAppraisal
     public static PeerVerdict Appraise(
         DiscoveredPeer peer,
         string myDeviceId,
-        string myAccountFingerprint,
         IReadOnlyList<TrustedPeer> trusted,
         IReadOnlyCollection<string> accountDeviceIds)
     {
@@ -124,8 +112,7 @@ public static class PeerAppraisal
         if (PeerTrust.Find(trusted, peer.DeviceId) is not null)
             return PeerVerdict.Ignore;
 
-        bool mine = IsOwnInstall(
-            peer.DeviceId, peer.AccountFingerprint, myAccountFingerprint, accountDeviceIds);
+        bool mine = IsOwnInstall(peer.DeviceId, accountDeviceIds);
 
         if (!PeerTrust.HasRoom(trusted, peer.DeviceId))
             return PeerVerdict.Full;
@@ -134,39 +121,45 @@ public static class PeerAppraisal
     }
 
     /// <summary>
-    /// Whether a machine is another of this user's own installs. This one question decides whether its
-    /// music is merged into this collection or kept on a shelf of its own.
+    /// Whether a machine is one of this user's own installs: its device id is on the account's list of
+    /// registered installs. This one question decides whether its music is merged into this collection or
+    /// kept on a shelf of its own.
     ///
-    /// <para>
-    /// Two facts are needed. The fingerprint in a beacon says which account a machine claims to be in.
-    /// Anybody on the network can write one. Any paired peer already knows the account id the
-    /// fingerprint is derived from, so copying it is easy. The account's own list of registered installs
-    /// is the authority. The server writes that list for the signed-in user. A machine that is not on
-    /// it is not one of the user's own, however it introduces itself.
-    /// </para>
+    /// <para>The list is the authority. The server writes it for the signed-in user, so a machine that is
+    /// not on it is not one of the user's own, however it introduces itself. A device id is derived from the
+    /// device's key, and a session needs a signature with that key, so a machine cannot borrow another's
+    /// place on the list. Nothing broadcast is consulted: the network says nothing about accounts.</para>
     ///
-    /// <para>It is asked on every pass, not answered once at pairing. A computer that signs into a
-    /// different account later stops being one of the user's own at that moment. Its records must stop
-    /// going into the user's collection. The pairing stands. What changes is which shelf its music lands
-    /// on.</para>
+    /// <para>The list says which installs were registered, not which account each is signed into now. Once a
+    /// peer has opened a session it has said that too, inside its signature. See <see cref="StillOwnInstall"/>.</para>
     /// </summary>
     /// <param name="peerDeviceId">The machine in question.</param>
-    /// <param name="peerAccountFingerprint">What it says its account is.</param>
-    /// <param name="myAccountFingerprint">This install's, or empty when signed out. Empty never matches:
-    /// two signed-out machines are two strangers, not one user.</param>
-    /// <param name="accountDeviceIds">The installs the signed-in account has registered.</param>
-    public static bool IsOwnInstall(
-        string peerDeviceId,
-        string peerAccountFingerprint,
-        string myAccountFingerprint,
-        IReadOnlyCollection<string> accountDeviceIds)
+    /// <param name="accountDeviceIds">The installs the signed-in account has registered. Empty when signed
+    /// out, or when the registry has never been read on this machine.</param>
+    public static bool IsOwnInstall(string peerDeviceId, IReadOnlyCollection<string> accountDeviceIds)
     {
         ArgumentNullException.ThrowIfNull(accountDeviceIds);
-
-        return !string.IsNullOrEmpty(myAccountFingerprint)
-               && Same(peerAccountFingerprint, myAccountFingerprint)
-               && accountDeviceIds.Any(id => Same(id, peerDeviceId));
+        return accountDeviceIds.Any(id => Same(id, peerDeviceId));
     }
+
+    /// <summary>
+    /// Whether a paired machine is one of this user's own installs now. Asked on every pass, not answered once
+    /// at pairing: a computer that signs into a different account stops being one of the user's own at that
+    /// moment, and its records must stop going into the user's collection.
+    /// </summary>
+    /// <param name="peerDeviceId">The machine in question.</param>
+    /// <param name="peerAccount">The account it last proved it is signed into (<see cref="TrustedPeer.AccountUserId"/>),
+    /// or empty when it was signed out.</param>
+    /// <param name="peerAccountKnown">Whether it has said so since this install started. Until it has, the
+    /// answer rests on the device list alone.</param>
+    /// <param name="myAccount">This install's user id, or empty when signed out. Empty never matches.</param>
+    /// <param name="accountDeviceIds">The installs the signed-in account has registered.</param>
+    public static bool StillOwnInstall(
+        string peerDeviceId, string peerAccount, bool peerAccountKnown, string myAccount,
+        IReadOnlyCollection<string> accountDeviceIds) =>
+        !string.IsNullOrEmpty(myAccount)
+        && IsOwnInstall(peerDeviceId, accountDeviceIds)
+        && (!peerAccountKnown || Same(peerAccount, myAccount));
 
     private static bool Same(string? a, string? b) =>
         !string.IsNullOrEmpty(a) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

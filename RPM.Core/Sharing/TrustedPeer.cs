@@ -39,11 +39,6 @@ public sealed record TrustedPeer
     /// </summary>
     public string Face { get; init; } = "";
 
-    /// <summary>The account fingerprint seen at pairing, or empty when the peer was signed out. It is kept so
-    /// that a peer which was one of ours, and is now signed in as somebody else, is noticed. It is not quietly
-    /// still trusted as ours.</summary>
-    public string AccountFingerprint { get; init; } = "";
-
     public PeerKind Kind { get; init; } = PeerKind.Guest;
 
     /// <summary>
@@ -54,6 +49,13 @@ public sealed record TrustedPeer
     /// signed out. That peer's music is on its own disk and stays there.</para>
     /// </summary>
     public string AccountUserId { get; init; } = "";
+
+    /// <summary>When the peer last said which account it is in, inside a signature this machine checked: its
+    /// session proof when it borrows from here, or its account answer over the pinned link when this machine
+    /// borrows from it. Zero when it has not said so yet. Until then <see cref="AccountUserId"/> says nothing,
+    /// and whether the peer is one of this account's own rests on the account's device list alone
+    /// (<see cref="PeerAppraisal.StillOwnInstall"/>).</summary>
+    public long AccountProvedUtcTicks { get; init; }
 
     public long PairedUtcTicks { get; init; }
 

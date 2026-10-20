@@ -241,8 +241,8 @@ public sealed partial class SharingService : IDisposable
         {
             Name = _settings.ShareName,
             Face = _settings.ShareFace,
-            AccountFingerprint = PeerIdentity.AccountFingerprint(_auth.UserId),
             Trusted = () => _book.Peers,
+            OnSession = Proved,
             TrackCount = () => _library.Count,
             Account = () => new PeerAccount { UserId = _auth.UserId ?? "", Name = _settings.ShareName },
             OnCatalog = (asking, have, ct) => Task.FromResult(Catalog(asking, have, ct)),
@@ -279,8 +279,7 @@ public sealed partial class SharingService : IDisposable
 
         _beaconName = _settings.ShareName;
         _beaconFace = _settings.ShareFace;
-        _discovery.Start(identity, port, _beaconName, _beaconFace,
-                         PeerIdentity.AccountFingerprint(_auth.UserId));
+        _discovery.Start(identity, port, _beaconName);
 
         var token = _cts.Token;
         _ = Task.Run(() => CatalogLoopAsync(token));
@@ -827,7 +826,6 @@ public sealed partial class SharingService : IDisposable
         return NearbyComputers.Build(
             seen,
             PeerKeyStore.Identity.DeviceId,
-            PeerIdentity.AccountFingerprint(_auth.UserId),
             _book.Peers,
             AccountDeviceIds(),
             pairings);
@@ -865,15 +863,15 @@ public sealed partial class SharingService : IDisposable
         if (peer is null)
             return;
 
-        var (pairing, started) = _pairings.Begin(new PairingPeer(
-            peer.DeviceId, peer.Name, peer.Face, peer.PublicKey, peer.AccountFingerprint));
+        // No display name yet: the beacon names no person. The offer brings one (PairOffer.Face).
+        var (pairing, started) = _pairings.Begin(new PairingPeer(peer.DeviceId, peer.Name, "", peer.PublicKey));
         if (!started)
             return;
 
         // The connection is pinned to the key that the beacon carried. A machine that answers in its
         // place is refused before any word is exchanged. The beacon itself could be false. The six-digit
         // code is there for that case.
-        var client = new PeerClient(PeerKeyStore.Identity, peer.Host, peer.Port, peer.PublicKey);
+        var client = new PeerClient(PeerKeyStore.Identity, peer.Host, peer.Port, peer.PublicKey, MyAccount);
         var run = new PairingRun(_pairings, client, pairing, () => DateTime.UtcNow, Record);
 
         PairingRun? replaced;
@@ -886,13 +884,12 @@ public sealed partial class SharingService : IDisposable
 
         var name = _settings.ShareName;
         var face = _settings.ShareFace;
-        var account = PeerIdentity.AccountFingerprint(_auth.UserId);
 
         _ = Task.Run(async () =>
         {
             try
             {
-                await run.RunAsync(name, face, account);
+                await run.RunAsync(name, face);
             }
             catch (Exception ex)
             {
@@ -971,7 +968,7 @@ public sealed partial class SharingService : IDisposable
     private void Record(Pairing pairing)
     {
         var peer = pairing.Peer;
-        Trust(peer.DeviceId, peer.PublicKey, peer.Name, peer.Face, peer.Account);
+        Trust(peer.DeviceId, peer.PublicKey, peer.Name, peer.Face);
         Shell.Background.Run(() => GrantAsync(peer.DeviceId, peer.Name));
     }
 
@@ -1003,15 +1000,34 @@ public sealed partial class SharingService : IDisposable
         catch (Exception ex) { Faults.Note("sharing", "sweeping pairings", ex); }
     }
 
+    /// <summary>The account signed in here (the user id), or empty. What this machine says it is in, inside each
+    /// session proof it makes (<see cref="PeerClient"/>).</summary>
+    private string MyAccount() => _auth.UserId ?? "";
+
+    /// <summary>
+    /// A borrower opened a session here and said, inside its signature, which account it is in. Written into the
+    /// book so that <see cref="Restated"/> can tell when one of this account's computers has signed into another
+    /// account. Called on the server's thread.
+    /// </summary>
+    private void Proved(TrustedPeer proved, string account) => Noted(proved, account);
+
+    /// <summary>Records the account <paramref name="peer"/> said it is in, over a link pinned to its key, and returns
+    /// the record as it now stands. Applied to the book's current record under its lock (<see cref="PeerBook.Update"/>),
+    /// so it cannot put back an older copy of the rest of the record. Nothing is written when nothing changed.</summary>
+    private TrustedPeer Noted(TrustedPeer peer, string account) =>
+        _book.Update(peer.DeviceId, current =>
+            current.AccountProvedUtcTicks > 0 && string.Equals(current.AccountUserId, account, StringComparison.Ordinal)
+                ? null
+                : current with { AccountUserId = account, AccountProvedUtcTicks = DateTime.UtcNow.Ticks })
+        ?? peer;
+
     /// <summary>Writes a peer into the book, on whichever side of the question this machine was.</summary>
-    private void Trust(string deviceId, byte[] publicKey, string name, string face, string account)
+    private void Trust(string deviceId, byte[] publicKey, string name, string face)
     {
-        // Use the account's own list of installs, not the fingerprint that the machine broadcast. A
-        // beacon is gossip that anybody on the network can write. A peer may already know the account id
-        // that the fingerprint is made from. So a claim alone must not decide this. Otherwise a claim could
-        // merge somebody else's records into the user's collection.
-        var mine = PeerAppraisal.IsOwnInstall(
-            deviceId, account, PeerIdentity.AccountFingerprint(_auth.UserId), AccountDeviceIds());
+        // The account's own list of installs decides, and nothing the machine said about itself. Once it has
+        // opened a session it has also said which account it is in, inside a signature, and Restated takes
+        // that into account on every pass.
+        var mine = PeerAppraisal.IsOwnInstall(deviceId, AccountDeviceIds());
 
         _book.Add(new TrustedPeer
         {
@@ -1019,7 +1035,6 @@ public sealed partial class SharingService : IDisposable
             PublicKey = publicKey,
             Name = name,
             Face = face,
-            AccountFingerprint = account,
             Kind = mine ? PeerKind.Account : PeerKind.Guest,
             PairedUtcTicks = DateTime.UtcNow.Ticks,
             LastSeenUtcTicks = DateTime.UtcNow.Ticks,
@@ -1569,7 +1584,7 @@ public sealed partial class SharingService : IDisposable
         // against. A peer that is not in the book is pinned to the key its beacon carried. The device id is
         // derived from that key. Without a key, any certificate would be accepted.
         var made = new Held(new PeerClient(
-            PeerKeyStore.Identity, seen.Host, seen.Port, _book.Find(deviceId)?.PublicKey ?? seen.PublicKey));
+            PeerKeyStore.Identity, seen.Host, seen.Port, _book.Find(deviceId)?.PublicKey ?? seen.PublicKey, MyAccount));
 
         lock (_gate)
         {
@@ -1677,9 +1692,8 @@ public sealed partial class SharingService : IDisposable
     /// </summary>
     private bool Restated(TrustedPeer peer)
     {
-        var mine = PeerAppraisal.IsOwnInstall(
-            peer.DeviceId, peer.AccountFingerprint,
-            PeerIdentity.AccountFingerprint(_auth.UserId), AccountDeviceIds());
+        var mine = PeerAppraisal.StillOwnInstall(
+            peer.DeviceId, peer.AccountUserId, peer.AccountProvedUtcTicks > 0, MyAccount(), AccountDeviceIds());
 
         if (mine == peer.Kind is PeerKind.Account)
             return mine;
@@ -1777,12 +1791,12 @@ public sealed partial class SharingService : IDisposable
             // name and face on the share button are looked up under. Someone who is signed out is still
             // entitled to see who they are borrowing from. This must run before the two writes below,
             // because both of them put back a record that was read before this line.
-            if (peer.Kind is PeerKind.Guest && peer.AccountUserId.Length == 0 &&
-                await client.AccountAsync(cancellation) is { UserId.Length: > 0 } whose)
-            {
-                peer = peer with { AccountUserId = whose.UserId };
-                _book.Add(peer);
-            }
+            //
+            // It is asked on every pull, for every peer, not only once for a guest. The answer comes over the
+            // link pinned to this peer's key, so it is the peer's own word, and it is what Restated uses to
+            // notice a computer of the user's own that has signed into somebody else's account.
+            if (await client.AccountAsync(cancellation) is { } whose)
+                peer = Noted(peer, whose.UserId ?? "");
 
             _book.Seen(peer.DeviceId);
 
@@ -1895,7 +1909,6 @@ public sealed partial class SharingService : IDisposable
         var verdict = PeerAppraisal.Appraise(
             peer,
             PeerKeyStore.Identity.DeviceId,
-            PeerIdentity.AccountFingerprint(_auth.UserId),
             _book.Peers,
             AccountDeviceIds());
 
@@ -1909,7 +1922,7 @@ public sealed partial class SharingService : IDisposable
                 break;
 
             case PeerVerdict.AutoTrust:
-                Trust(peer.DeviceId, peer.PublicKey, peer.Name, peer.Face, peer.AccountFingerprint);
+                Trust(peer.DeviceId, peer.PublicKey, peer.Name, face: "");
                 Shell.Background.Run(() => PullOnceAsync(_book.Find(peer.DeviceId)!, CancellationToken.None));
                 break;
 
@@ -1982,8 +1995,7 @@ public sealed partial class SharingService : IDisposable
 
         _beaconName = _settings.ShareName;
         _beaconFace = _settings.ShareFace;
-        _discovery.Republish(PeerKeyStore.Identity, server.Port, _beaconName, _beaconFace,
-                             PeerIdentity.AccountFingerprint(_auth.UserId));
+        _discovery.Republish(PeerKeyStore.Identity, server.Port, _beaconName);
 
         if (_server is { } standing)
             standing.Face = _beaconFace;
@@ -2149,7 +2161,7 @@ public sealed partial class SharingService : IDisposable
                         continue;
 
                     theirs = account.UserId;
-                    _book.Add(peer with { AccountUserId = theirs });
+                    Noted(peer, theirs);
                 }
 
                 if (already.Contains(theirs))

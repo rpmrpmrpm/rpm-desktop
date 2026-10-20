@@ -55,7 +55,6 @@ public class LibraryServerTests : IDisposable
         {
             HasRoom = () => true,
             Name = "Alex's iMac",
-            AccountFingerprint = "MINE",
             TrackCount = () => 1,
             Trusted = () => trusted ?? [Trusted()],
             // Answers with the listing every time and tracks no versions of its own, which is the
@@ -78,8 +77,8 @@ public class LibraryServerTests : IDisposable
         return server;
     }
 
-    private PeerClient Borrower(LibraryServer server) =>
-        new(_client, "127.0.0.1", server.Port, _server.PublicKey);
+    private PeerClient Borrower(LibraryServer server, string account = "") =>
+        new(_client, "127.0.0.1", server.Port, _server.PublicKey, () => account);
 
     /// <summary>An HttpClient that trusts the serving machine's certificate and nothing else.
     /// The tests use it where they read a URL directly rather than through
@@ -272,7 +271,7 @@ public class LibraryServerTests : IDisposable
         var token = await client.TokenAsync();
         using var http = Reader();
         using var response = await http.GetAsync(
-            $"{client.BaseUrl}{SharingProtocol.TrackRoute}not-a-track?t={token}");
+            PeerClient.MediaUrl(client.BaseUrl, SharingProtocol.TrackRoute, "not-a-track", token!));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -364,9 +363,9 @@ public class LibraryServerTests : IDisposable
     /// <summary>What the serving machine's screen shows for the client's request.</summary>
     private Pairing Asked() => _board.Find(_client.DeviceId)!;
 
-    private async Task<PairOffer> AskAsync(PeerClient client, string name = "laptop", string face = "", string account = "")
+    private async Task<PairOffer> AskAsync(PeerClient client, string name = "laptop", string face = "")
     {
-        var (offer, delivery) = await client.PairAsync(name, face, account, PairingCode.Nonce(), CancellationToken.None);
+        var (offer, delivery) = await client.PairAsync(name, face, PairingCode.Nonce(), CancellationToken.None);
         Assert.Equal(PairDelivery.Offered, delivery);
         return offer!;
     }
@@ -404,7 +403,7 @@ public class LibraryServerTests : IDisposable
         server.OnPaired = pairing => paired = pairing;
 
         using var client = Borrower(server);
-        var offer = await AskAsync(client, "Anna's laptop", "Anna", "HERS");
+        var offer = await AskAsync(client, "Anna's laptop", "Anna");
 
         Assert.Equal(PairStatusKind.ShowingCode, offer.Status.State);
         Assert.NotEmpty(offer.Id);
@@ -421,7 +420,6 @@ public class LibraryServerTests : IDisposable
         // The person, alongside the machine. What the question on this screen is headed with, and
         // the only name available for it: nothing can be looked up about a peer that is not paired.
         Assert.Equal("Anna", asked.Peer.Face);
-        Assert.Equal("HERS", asked.Peer.Account);
 
         // The digits off their screen, typed here. That is the whole of the yes; nothing was pressed
         // at the other end.
@@ -644,10 +642,10 @@ public class LibraryServerTests : IDisposable
         using var server = Serving(trusted: []);
 
         // The serving machine is already asking the client.
-        _board.Begin(new PairingPeer(_client.DeviceId, "laptop", "", _client.PublicKey, ""));
+        _board.Begin(new PairingPeer(_client.DeviceId, "laptop", "", _client.PublicKey));
 
         using var client = Borrower(server);
-        var (offer, delivery) = await client.PairAsync("laptop", "", "", PairingCode.Nonce(), CancellationToken.None);
+        var (offer, delivery) = await client.PairAsync("laptop", "", PairingCode.Nonce(), CancellationToken.None);
 
         if (PairingCode.AsksFirst(_server.DeviceId, _client.DeviceId))
         {
@@ -682,7 +680,7 @@ public class LibraryServerTests : IDisposable
     }
 
     [Fact]
-    public async Task A_token_that_rode_in_a_url_opens_audio_and_nothing_else()
+    public async Task A_media_url_opens_its_own_track_and_nothing_else()
     {
         using var server = Serving();
         using var client = Borrower(server);
@@ -691,16 +689,50 @@ public class LibraryServerTests : IDisposable
         using var http = Reader();
 
         // The decoder does not check certificates, so a track URL is the one thing here that could be
-        // read off the wire. It has to be worth as little as possible: this track, and no answer at
-        // all to "what else is in this library?".
-        Assert.Equal(HttpStatusCode.OK,
+        // read off the wire. It has to be worth as little as possible: this track, and nothing else.
+        var url = await client.TrackUrlAsync(Track.RpmId);
+        Assert.DoesNotContain(token!, url!, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync(url)).StatusCode);
+
+        // The same handle and ticket on another track, on a picture, on the listing and on the account.
+        var query = new Uri(url!).Query;
+        foreach (var other in new[]
+                 {
+                     $"{SharingProtocol.TrackRoute}22222222-3333-4444-5555-666666666666",
+                     $"{SharingProtocol.ArtRoute}sleeve",
+                     SharingProtocol.CatalogRoute,
+                     SharingProtocol.AccountRoute,
+                 })
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, (await http.GetAsync($"{client.BaseUrl}{other}{query}")).StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task The_token_itself_in_a_url_opens_nothing()
+    {
+        using var server = Serving();
+        using var client = Borrower(server);
+
+        var token = await client.TokenAsync();
+        using var http = Reader();
+
+        Assert.Equal(HttpStatusCode.Unauthorized,
             (await http.GetAsync($"{client.BaseUrl}{SharingProtocol.TrackRoute}{Track.RpmId}?t={token}")).StatusCode);
+    }
 
-        Assert.Equal(HttpStatusCode.Unauthorized,
-            (await http.GetAsync($"{client.BaseUrl}{SharingProtocol.CatalogRoute}?t={token}")).StatusCode);
+    [Fact]
+    public async Task A_borrower_says_which_account_it_is_in_only_inside_its_session_proof()
+    {
+        using var server = Serving();
+        (TrustedPeer Peer, string Account)? said = null;
+        server.OnSession = (peer, account) => said = (peer, account);
 
-        Assert.Equal(HttpStatusCode.Unauthorized,
-            (await http.GetAsync($"{client.BaseUrl}{SharingProtocol.AccountRoute}?t={token}")).StatusCode);
+        using var client = Borrower(server, account: "user-7");
+        Assert.NotNull(await client.TokenAsync());
+
+        Assert.Equal(_client.DeviceId, said?.Peer.DeviceId);
+        Assert.Equal("user-7", said?.Account);
     }
 
     [Fact]
@@ -711,7 +743,7 @@ public class LibraryServerTests : IDisposable
         // The address is right and the port is right; the key is somebody else's. Which is exactly
         // what a machine sitting on the same network and answering first looks like.
         using var impostor = PeerIdentity.Create();
-        using var client = new PeerClient(_client, "127.0.0.1", server.Port, impostor.PublicKey);
+        using var client = new PeerClient(_client, "127.0.0.1", server.Port, impostor.PublicKey, () => "");
 
         Assert.Null(await client.HelloAsync());
         Assert.Null(await client.CatalogAsync());

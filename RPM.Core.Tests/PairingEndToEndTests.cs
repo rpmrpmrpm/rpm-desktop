@@ -60,7 +60,7 @@ public class PairingEndToEndTests : IDisposable
                 _recorded.Add(pairing);
         }
 
-        public PairingPeer AsPeer => new(Identity.DeviceId, Name, "", Identity.PublicKey, "");
+        public PairingPeer AsPeer => new(Identity.DeviceId, Name, "", Identity.PublicKey);
 
         public PairingState? StateWith(Computer other) => Board.Find(other.Identity.DeviceId)?.State;
 
@@ -91,12 +91,12 @@ public class PairingEndToEndTests : IDisposable
         Assert.True(started);
 
         var client = new PeerClient(
-            from.Identity, "127.0.0.1", to.Server.Port, to.Identity.PublicKey,
+            from.Identity, "127.0.0.1", to.Server.Port, to.Identity.PublicKey, () => "",
             handler ?? PeerCertificate.Handler(to.Identity.PublicKey));
 
         var run = new PairingRun(from.Board, client, pairing, () => DateTime.UtcNow, from.Record);
         _owned.Add(run);
-        _ = run.RunAsync(from.Name, "", "");
+        _ = run.RunAsync(from.Name, "");
         return run;
     }
 

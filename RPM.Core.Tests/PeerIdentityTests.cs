@@ -77,25 +77,6 @@ public class PeerIdentityTests
     }
 
     [Fact]
-    public void An_account_fingerprint_is_the_same_everywhere_and_is_not_the_account()
-    {
-        const string userId = "eu-west-1:4f0c1b7e-0000-4a11-9b2f-1a2b3c4d5e6f";
-
-        var fingerprint = PeerIdentity.AccountFingerprint(userId);
-
-        Assert.Equal(fingerprint, PeerIdentity.AccountFingerprint(userId));
-        Assert.NotEqual(userId, fingerprint);
-        Assert.DoesNotContain(userId, fingerprint, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Signed_out_has_no_fingerprint()
-    {
-        Assert.Equal("", PeerIdentity.AccountFingerprint(null));
-        Assert.Equal("", PeerIdentity.AccountFingerprint("  "));
-    }
-
-    [Fact]
     public void A_key_makes_the_round_trip_through_a_txt_record()
     {
         using var identity = PeerIdentity.Create();

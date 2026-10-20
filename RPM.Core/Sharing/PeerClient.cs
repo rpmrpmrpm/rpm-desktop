@@ -16,6 +16,9 @@ public sealed partial class PeerClient : IDisposable
     private readonly HttpClient _http;
     private readonly PeerIdentity _identity;
 
+    /// <summary>The account signed in here (the user id), or empty. Read for every session proof.</summary>
+    private readonly Func<string> _account;
+
     /// <summary>The key the other machine must hold. The connection is pinned to it. A pairing commitment
     /// is bound to it.</summary>
     private readonly byte[] _pinnedKey;
@@ -44,16 +47,23 @@ public sealed partial class PeerClient : IDisposable
     /// a caller that left it out would accept whatever answered. Every caller has a key: the book's, or
     /// the beacon's, which the device id is derived from.</para>
     /// </param>
-    public PeerClient(PeerIdentity identity, string host, int port, byte[] publicKey)
-        : this(identity, host, port, publicKey, Pinned(publicKey))
+    /// <param name="account">The account signed in here, read each time a session is proved. It goes inside the
+    /// signature, so the other machine learns which account this one is in only after the key is proved, and
+    /// only over the pinned link. Required: a client that forgot it would say "signed out", and a computer of
+    /// the user's own would be served as a guest's.</param>
+    public PeerClient(PeerIdentity identity, string host, int port, byte[] publicKey, Func<string> account)
+        : this(identity, host, port, publicKey, account, Pinned(publicKey))
     {
     }
 
     /// <summary>For tests. Talks through <paramref name="handler"/>, which decides what is believed.
     /// <paramref name="publicKey"/> is the key a pairing commitment is bound to.</summary>
-    internal PeerClient(PeerIdentity identity, string host, int port, byte[] publicKey, HttpMessageHandler handler)
+    internal PeerClient(
+        PeerIdentity identity, string host, int port, byte[] publicKey, Func<string> account, HttpMessageHandler handler)
     {
         ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(account);
+        _account = account;
         ArgumentException.ThrowIfNullOrWhiteSpace(host);
         ArgumentNullException.ThrowIfNull(publicKey);
         ArgumentNullException.ThrowIfNull(handler);
@@ -137,13 +147,12 @@ public sealed partial class PeerClient : IDisposable
     /// <param name="face">The display name of whoever is at this machine, or empty. This is required rather
     /// than defaulted. If it were forgotten, the question on their screen would show only a hostname, and
     /// nothing would say that anything was missing.</param>
-    /// <param name="accountFingerprint">This machine's account fingerprint, or empty.</param>
     /// <param name="nonce">This machine's half of the code.</param>
     /// <returns>The offer when they answered with one. <see cref="PairDelivery.Crossed"/> when they are asking
     /// this machine at the same moment and ask first. <see cref="PairDelivery.Undelivered"/> when nothing
     /// usable came back.</returns>
     public async Task<(PairOffer? Offer, PairDelivery Delivery)> PairAsync(
-        string name, string face, string accountFingerprint, byte[] nonce,
+        string name, string face, byte[] nonce,
         CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(nonce);
@@ -153,7 +162,6 @@ public sealed partial class PeerClient : IDisposable
             PublicKey = SharingProtocol.ToBase64Url(_identity.PublicKey),
             Name = name ?? "",
             Face = face ?? "",
-            Account = accountFingerprint ?? "",
             Nonce = SharingProtocol.ToBase64Url(nonce),
             Pairing = SharingProtocol.Pairing,
         };
@@ -297,13 +305,15 @@ public sealed partial class PeerClient : IDisposable
             if (peerId is null)
                 return null;
 
-            var signature = _identity.Sign(PeerSessions.SignedBytes(peerId, challenge.Challenge));
+            var account = _account() ?? "";
+            var signature = _identity.Sign(PeerSessions.SignedBytes(peerId, challenge.Challenge, account));
 
             var proof = new SessionProof
             {
                 PublicKey = SharingProtocol.ToBase64Url(_identity.PublicKey),
                 Challenge = challenge.Challenge,
                 Signature = SharingProtocol.ToBase64Url(signature),
+                Account = account,
             };
 
             var response = await _http.PostAsJsonAsync(
@@ -402,14 +412,25 @@ public sealed partial class PeerClient : IDisposable
     /// <summary>
     /// Where a borrowed track's bytes are, as a URL that a decoder can open. Null when this peer will not
     /// have us. That is the same answer as a file that is not there.
+    ///
+    /// <para>The URL carries a ticket for this one track, not the token (<see cref="PeerSessions.Ticket"/>). The
+    /// decoder does not check the peer's certificate, so the URL is the one thing here someone on the network
+    /// could read. What they read opens this track until the token runs out, and nothing else.</para>
     /// </summary>
     public async Task<string?> TrackUrlAsync(string rpmId, CancellationToken cancellation = default)
     {
         if (string.IsNullOrWhiteSpace(rpmId) || await TokenAsync(cancellation) is not { } token)
             return null;
 
-        return $"{BaseUrl}{SharingProtocol.TrackRoute}{Uri.EscapeDataString(rpmId)}?t={Uri.EscapeDataString(token)}";
+        return MediaUrl(BaseUrl, SharingProtocol.TrackRoute, rpmId, token);
     }
+
+    /// <summary>A media URL for <paramref name="id"/> under <paramref name="route"/>, with the token's handle and
+    /// a ticket for that route and id. The ticket is made over the unescaped id, as the server reads it.</summary>
+    public static string MediaUrl(string baseUrl, string route, string id, string token) =>
+        $"{baseUrl}{route}{Uri.EscapeDataString(id)}" +
+        $"?s={Uri.EscapeDataString(PeerSessions.Handle(token))}" +
+        $"&t={Uri.EscapeDataString(PeerSessions.Ticket(token, route, id))}";
 
     /// <summary>A picture from the peer, by whichever route names that kind of picture. Null when there is
     /// none, or the peer cannot be reached.</summary>

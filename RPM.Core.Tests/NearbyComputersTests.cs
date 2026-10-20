@@ -5,7 +5,6 @@ namespace RPM.Core.Tests;
 /// <summary>Which computers get a row under "On this network", and what each row offers.</summary>
 public class NearbyComputersTests
 {
-    private const string MyAccount = "MINE";
 
     private static DiscoveredPeer Seen(PeerIdentity identity, string name = "Anna's iMac", int? version = null) => new()
     {
@@ -19,7 +18,7 @@ public class NearbyComputersTests
 
     private static Pairing Asked(PeerIdentity identity, bool dismissed = false) => new()
     {
-        Peer = new PairingPeer(identity.DeviceId, "from the request", "", identity.PublicKey, ""),
+        Peer = new PairingPeer(identity.DeviceId, "from the request", "", identity.PublicKey),
         Direction = PairingDirection.Asked,
         Attempt = 1,
         State = PairingState.ShowingCode,
@@ -29,7 +28,7 @@ public class NearbyComputersTests
     private static IReadOnlyList<NearbyComputer> Build(
         IReadOnlyList<DiscoveredPeer> seen, IReadOnlyList<TrustedPeer>? trusted = null,
         IReadOnlyList<Pairing>? pairings = null) =>
-        NearbyComputers.Build(seen, "me", MyAccount, trusted ?? [], [], pairings ?? []);
+        NearbyComputers.Build(seen, "me", trusted ?? [], [], pairings ?? []);
 
     [Fact]
     public void An_unpaired_computer_can_be_asked()
@@ -118,6 +117,6 @@ public class NearbyComputersTests
         var self = Seen(anna) with { DeviceId = "me", PublicKey = anna.PublicKey };
 
         Assert.Empty(Build([lying]));
-        Assert.DoesNotContain(NearbyComputers.Build([self], "me", MyAccount, [], [], []), r => r.DeviceId == "me");
+        Assert.DoesNotContain(NearbyComputers.Build([self], "me", [], [], []), r => r.DeviceId == "me");
     }
 }

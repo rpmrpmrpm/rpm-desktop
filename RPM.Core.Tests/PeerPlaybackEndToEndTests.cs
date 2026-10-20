@@ -69,7 +69,7 @@ public class PeerPlaybackEndToEndTests : IDisposable
         };
         server.Start();
 
-        using var client = new PeerClient(_borrower, "127.0.0.1", server.Port, _owner.PublicKey);
+        using var client = new PeerClient(_borrower, "127.0.0.1", server.Port, _owner.PublicKey, () => "");
         var url = await client.TrackUrlAsync("11111111-2222-3333-4444-555555555555");
 
         Assert.NotNull(url);
@@ -102,7 +102,7 @@ public class PeerPlaybackEndToEndTests : IDisposable
         };
         server.Start();
 
-        using var client = new PeerClient(_borrower, "127.0.0.1", server.Port, _owner.PublicKey);
+        using var client = new PeerClient(_borrower, "127.0.0.1", server.Port, _owner.PublicKey, () => "");
         var url = await client.TrackUrlAsync("11111111-2222-3333-4444-555555555555");
 
         // Dropping the needle three seconds in is a range request against the same URL. A server that

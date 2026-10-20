@@ -97,18 +97,6 @@ public sealed class PeerIdentity : IDisposable
         return Base32.Encode(SHA256.HashData(publicKey).AsSpan(0, IdBytes));
     }
 
-    /// <summary>
-    /// The public shorthand for an account: a fingerprint of the user id, not the user id itself.
-    ///
-    /// <para>It travels in a beacon that anyone on a café network can read. Its whole job is to answer
-    /// "is that machine mine?". A fingerprint answers that, and tells a stranger nothing they could use to
-    /// look up an account.</para>
-    /// </summary>
-    public static string AccountFingerprint(string? userId) =>
-        string.IsNullOrWhiteSpace(userId)
-            ? ""
-            : Base32.Encode(SHA256.HashData(Encoding.UTF8.GetBytes(userId)).AsSpan(0, 12));
-
     public void Dispose() => _key.Dispose();
 }
 

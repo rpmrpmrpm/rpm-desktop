@@ -33,7 +33,7 @@ public class PeerClientClosedTests
 
     private static PeerClient Closed()
     {
-        var client = new PeerClient(PeerIdentity.Create(), "192.0.2.1", 51733, [1, 2, 3], new Silent());
+        var client = new PeerClient(PeerIdentity.Create(), "192.0.2.1", 51733, [1, 2, 3], () => "", new Silent());
         client.Dispose();
         return client;
     }
@@ -102,7 +102,7 @@ public class PeerClientClosedTests
         Assert.Null(await asker.TypeAsync("id", "123456", CancellationToken.None));
         Assert.False(await Closed().PairWithdrawAsync("id", CancellationToken.None));
         Assert.Equal(PairDelivery.Undelivered,
-            (await Closed().PairAsync("laptop", "", "", PairingCode.Nonce(), CancellationToken.None)).Delivery);
+            (await Closed().PairAsync("laptop", "", PairingCode.Nonce(), CancellationToken.None)).Delivery);
     }
 
     // ── closing one twice does nothing ──

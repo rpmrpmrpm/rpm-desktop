@@ -12,14 +12,13 @@ namespace RPM.Core.Tests;
 /// </summary>
 public class PeerAppraisalTests
 {
-    private const string MyAccount = "MINE";
+    private const string MyAccount = "user-mine";
 
-    private static DiscoveredPeer Seen(PeerIdentity identity, string account = "") => new()
+    private static DiscoveredPeer Seen(PeerIdentity identity) => new()
     {
         DeviceId = identity.DeviceId,
         Name = "Anna's iMac",
         PublicKey = identity.PublicKey,
-        AccountFingerprint = account,
         Host = "192.168.1.7",
         Port = 51733,
     };
@@ -37,7 +36,7 @@ public class PeerAppraisalTests
         using var me = PeerIdentity.Create();
 
         Assert.Equal(PeerVerdict.Self,
-            PeerAppraisal.Appraise(Seen(me), me.DeviceId, MyAccount, [], []));
+            PeerAppraisal.Appraise(Seen(me), me.DeviceId, [], []));
     }
 
     [Fact]
@@ -46,7 +45,7 @@ public class PeerAppraisalTests
         using var them = PeerIdentity.Create();
 
         Assert.Equal(PeerVerdict.Ask,
-            PeerAppraisal.Appraise(Seen(them), "me", MyAccount, [], []));
+            PeerAppraisal.Appraise(Seen(them), "me", [], []));
     }
 
     [Fact]
@@ -55,7 +54,7 @@ public class PeerAppraisalTests
         using var them = PeerIdentity.Create();
 
         Assert.Equal(PeerVerdict.Known,
-            PeerAppraisal.Appraise(Seen(them), "me", MyAccount, [Trusted(them)], []));
+            PeerAppraisal.Appraise(Seen(them), "me", [Trusted(them)], []));
     }
 
     [Fact]
@@ -65,28 +64,18 @@ public class PeerAppraisalTests
 
         Assert.Equal(PeerVerdict.AutoTrust,
             PeerAppraisal.Appraise(
-                Seen(mine, MyAccount), "me", MyAccount, [], [mine.DeviceId]));
+                Seen(mine), "me", [], [mine.DeviceId]));
     }
 
     [Fact]
-    public void A_machine_claiming_my_account_that_the_account_has_never_registered_is_asked_about()
+    public void A_machine_the_account_has_never_registered_is_asked_about()
     {
         using var them = PeerIdentity.Create();
 
-        // The fingerprint is public: it is in a beacon anybody can write. What makes a machine one of
-        // ours is the account's own list of devices, not the claim.
+        // The beacon says nothing about accounts. What makes a machine one of ours is the account's own
+        // list of devices, and this one is not on it.
         Assert.Equal(PeerVerdict.Ask,
-            PeerAppraisal.Appraise(Seen(them, MyAccount), "me", MyAccount, [], []));
-    }
-
-    [Fact]
-    public void Signed_out_nobody_is_automatically_mine()
-    {
-        using var them = PeerIdentity.Create();
-
-        Assert.Equal(PeerVerdict.Ask,
-            PeerAppraisal.Appraise(
-                Seen(them, ""), "me", myAccountFingerprint: "", [], [them.DeviceId]));
+            PeerAppraisal.Appraise(Seen(them), "me", [], ["SOMEBODY-ELSE"]));
     }
 
     [Fact]
@@ -97,7 +86,7 @@ public class PeerAppraisalTests
         var lying = Seen(them) with { DeviceId = "SOMEBODYELSE" };
 
         Assert.Equal(PeerVerdict.Ignore,
-            PeerAppraisal.Appraise(lying, "me", MyAccount, [], []));
+            PeerAppraisal.Appraise(lying, "me", [], []));
     }
 
     [Fact]
@@ -111,7 +100,7 @@ public class PeerAppraisalTests
         var lying = Seen(impostor) with { DeviceId = trusted.DeviceId };
 
         Assert.Equal(PeerVerdict.Ignore,
-            PeerAppraisal.Appraise(lying, "me", MyAccount, [Trusted(trusted)], []));
+            PeerAppraisal.Appraise(lying, "me", [Trusted(trusted)], []));
     }
 
     [Fact]
@@ -121,7 +110,7 @@ public class PeerAppraisalTests
 
         Assert.Equal(PeerVerdict.Ignore,
             PeerAppraisal.Appraise(
-                Seen(them) with { Version = SharingProtocol.Version + 1 }, "me", MyAccount, [], []));
+                Seen(them) with { Version = SharingProtocol.Version + 1 }, "me", [], []));
     }
 
     [Fact]
@@ -134,7 +123,7 @@ public class PeerAppraisalTests
             .ToList();
 
         Assert.Equal(PeerVerdict.Full,
-            PeerAppraisal.Appraise(Seen(them), "me", MyAccount, full, []));
+            PeerAppraisal.Appraise(Seen(them), "me", full, []));
     }
 
     [Fact]
@@ -148,25 +137,39 @@ public class PeerAppraisalTests
 
         Assert.Equal(PeerVerdict.Full,
             PeerAppraisal.Appraise(
-                Seen(mine, MyAccount), "me", MyAccount, full, [mine.DeviceId]));
+                Seen(mine), "me", full, [mine.DeviceId]));
     }
 
     [Fact]
-    public void A_machine_is_one_of_the_users_own_only_when_the_account_says_so()
+    public void A_machine_is_one_of_the_users_own_only_when_the_account_has_registered_it()
     {
-        // The fingerprint is what a machine claims. The account's own list of installs is the truth,
-        // and the difference matters, because "one of mine" merges somebody's records into this
-        // collection instead of putting them on their own shelf.
-        Assert.True(PeerAppraisal.IsOwnInstall("LAPTOP", "MINE", "MINE", ["LAPTOP", "DESKTOP"]));
+        // The account's own list of installs is the truth. "One of mine" merges somebody's records into
+        // this collection instead of putting them on their own shelf.
+        Assert.True(PeerAppraisal.IsOwnInstall("LAPTOP", ["LAPTOP", "DESKTOP"]));
+        Assert.False(PeerAppraisal.IsOwnInstall("STRANGER", ["LAPTOP"]));
 
-        // Claims the right account, but the account has never registered it.
-        Assert.False(PeerAppraisal.IsOwnInstall("STRANGER", "MINE", "MINE", ["LAPTOP"]));
+        // Signed out here: no list, so nobody is mine.
+        Assert.False(PeerAppraisal.IsOwnInstall("LAPTOP", []));
+    }
 
-        // Registered once, but now signed into somebody else's account.
-        Assert.False(PeerAppraisal.IsOwnInstall("LAPTOP", "THEIRS", "MINE", ["LAPTOP"]));
+    [Fact]
+    public void A_registered_machine_stops_being_mine_when_it_proves_another_account()
+    {
+        // Not proved yet (an old pairing, or no session since this install started): the list decides.
+        Assert.True(PeerAppraisal.StillOwnInstall("LAPTOP", "", peerAccountKnown: false, MyAccount, ["LAPTOP"]));
+
+        // Proved, in its session signature or its pinned account answer, to be in this account.
+        Assert.True(PeerAppraisal.StillOwnInstall("LAPTOP", MyAccount, peerAccountKnown: true, MyAccount, ["LAPTOP"]));
+
+        // Registered once, but now signed into somebody else's account, or signed out.
+        Assert.False(PeerAppraisal.StillOwnInstall("LAPTOP", "user-theirs", peerAccountKnown: true, MyAccount, ["LAPTOP"]));
+        Assert.False(PeerAppraisal.StillOwnInstall("LAPTOP", "", peerAccountKnown: true, MyAccount, ["LAPTOP"]));
+
+        // Proving the right account does not put a machine on the list.
+        Assert.False(PeerAppraisal.StillOwnInstall("STRANGER", MyAccount, peerAccountKnown: true, MyAccount, ["LAPTOP"]));
 
         // Signed out here. Two signed-out machines are two strangers, not one user.
-        Assert.False(PeerAppraisal.IsOwnInstall("LAPTOP", "", "", ["LAPTOP"]));
+        Assert.False(PeerAppraisal.StillOwnInstall("LAPTOP", "", peerAccountKnown: true, "", ["LAPTOP"]));
     }
 
     [Fact]
@@ -194,7 +197,6 @@ public class PeerAppraisalTests
         Assert.NotEqual(here, here with { Host = "192.168.1.9" });
         Assert.NotEqual(here, here with { Port = 51734 });
         Assert.NotEqual(here, here with { Name = "Anna's MacBook" });
-        Assert.NotEqual(here, here with { AccountFingerprint = MyAccount });
         Assert.NotEqual(here, here with { PublicKey = [1, 2, 3] });
     }
 }

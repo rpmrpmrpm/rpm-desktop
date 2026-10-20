@@ -59,10 +59,7 @@ public sealed partial class PeerDiscovery : IDisposable
     /// written against.</param>
     /// <param name="port">Where <see cref="LibraryServer"/> is listening.</param>
     /// <param name="name">What to call this machine on somebody else's screen.</param>
-    /// <param name="face">The display name of whoever is signed in, or empty.</param>
-    /// <param name="accountFingerprint">The signed-in account's fingerprint, or empty.</param>
-    public void Start(
-        PeerIdentity identity, int port, string name, string face, string accountFingerprint)
+    public void Start(PeerIdentity identity, int port, string name)
     {
         ArgumentNullException.ThrowIfNull(identity);
 
@@ -90,7 +87,7 @@ public sealed partial class PeerDiscovery : IDisposable
                 _dns.ServiceInstanceDiscovered += OnDiscovered;
                 _dns.ServiceInstanceShutdown += OnShutdown;
 
-                Advertise(identity, port, name, face, accountFingerprint);
+                Advertise(identity, port, name);
 
                 _cts = new CancellationTokenSource();
                 var token = _cts.Token;
@@ -107,11 +104,11 @@ public sealed partial class PeerDiscovery : IDisposable
     }
 
     /// <summary>
-    /// Says the same thing again with something changed: signed in, signed out, or the machine
-    /// renamed. The old record is withdrawn first so that peers do not hold both.
+    /// Says the same thing again with something changed: the machine renamed. The old record is
+    /// withdrawn first so that peers do not hold both. The beacon names no account (PeerBeacon), so
+    /// signing in or out changes nothing in it.
     /// </summary>
-    public void Republish(
-        PeerIdentity identity, int port, string name, string face, string accountFingerprint)
+    public void Republish(PeerIdentity identity, int port, string name)
     {
         lock (_gate)
         {
@@ -123,7 +120,7 @@ public sealed partial class PeerDiscovery : IDisposable
                 if (_profile is { } old)
                     _dns.Unadvertise(old);
 
-                Advertise(identity, port, name, face, accountFingerprint);
+                Advertise(identity, port, name);
             }
             catch (Exception ex)
             {
@@ -165,15 +162,14 @@ public sealed partial class PeerDiscovery : IDisposable
         try { cts?.Dispose(); } catch { }
     }
 
-    private void Advertise(
-        PeerIdentity identity, int port, string name, string face, string accountFingerprint)
+    private void Advertise(PeerIdentity identity, int port, string name)
     {
         // The instance name is the device id rather than the machine's name: two computers called
         // "MacBook Pro" on one network are two instances, and DNS-SD names have to differ. What the
         // user reads is the name in the TXT record.
         var profile = new ServiceProfile(identity.DeviceId, SharingProtocol.ServiceType, (ushort)port);
 
-        foreach (var (key, value) in PeerBeacon.Announce(identity, name, face, accountFingerprint))
+        foreach (var (key, value) in PeerBeacon.Announce(identity, name))
             profile.AddProperty(key, value);
 
         _dns!.Advertise(profile);

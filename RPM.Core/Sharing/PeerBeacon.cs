@@ -11,18 +11,15 @@ namespace RPM.Core.Sharing;
 public static class PeerBeacon
 {
     /// <summary>
-    /// The TXT record for this machine: the version, who it is, what to call it, who is signed in,
-    /// the key its identity rests on, and the account fingerprint when there is one.
+    /// The TXT record for this machine: the version, who it is, what to call it, and the key its
+    /// identity rests on.
+    ///
+    /// <para>Nothing about the account. Anybody on the network reads this record, a café network
+    /// included, so it names no person and no account. Which account a peer is in is said only inside
+    /// the signed session proof, to a machine whose key it has pinned.</para>
     /// </summary>
     /// <param name="name">What the machine is called. Always sent.</param>
-    /// <param name="face">The display name of whoever is signed in, or empty. It is sent because a
-    /// pairing question is asked before anything can be looked up. The account fingerprint sent beside
-    /// it is only for comparing, not for fetching a profile. Without this value, the first thing a
-    /// person reads about another computer can only be a machine name. This is not an optional
-    /// parameter with a default. A face that is silently forgotten is a display name that silently
-    /// never arrives, which is the kind of bug this parameter prevents.</param>
-    public static IReadOnlyDictionary<string, string> Announce(
-        PeerIdentity identity, string name, string face, string accountFingerprint)
+    public static IReadOnlyDictionary<string, string> Announce(PeerIdentity identity, string name)
     {
         ArgumentNullException.ThrowIfNull(identity);
 
@@ -33,14 +30,6 @@ public static class PeerBeacon
             [SharingProtocol.Txt.Name] = name ?? "",
             [SharingProtocol.Txt.PublicKey] = SharingProtocol.ToBase64Url(identity.PublicKey),
         };
-
-        // Left out rather than sent empty, for the same reason in both cases. A missing key says
-        // nothing. An empty value invites a reader to match it against another empty value.
-        if (!string.IsNullOrWhiteSpace(face))
-            txt[SharingProtocol.Txt.Face] = face;
-
-        if (!string.IsNullOrEmpty(accountFingerprint))
-            txt[SharingProtocol.Txt.Account] = accountFingerprint;
 
         return txt;
     }
@@ -78,9 +67,7 @@ public static class PeerBeacon
         {
             DeviceId = id,
             Name = Value(txt, SharingProtocol.Txt.Name) ?? id,
-            Face = Value(txt, SharingProtocol.Txt.Face) ?? "",
             PublicKey = key,
-            AccountFingerprint = Value(txt, SharingProtocol.Txt.Account) ?? "",
             Host = host,
             Port = port,
             Version = version,

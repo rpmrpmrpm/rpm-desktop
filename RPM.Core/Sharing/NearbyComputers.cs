@@ -34,7 +34,6 @@ public static class NearbyComputers
     public static IReadOnlyList<NearbyComputer> Build(
         IReadOnlyList<DiscoveredPeer> seen,
         string myDeviceId,
-        string myAccountFingerprint,
         IReadOnlyList<TrustedPeer> trusted,
         IReadOnlyCollection<string> accountDeviceIds,
         IReadOnlyList<Pairing> pairings)
@@ -66,14 +65,15 @@ public static class NearbyComputers
             // because its music has stopped arriving.
             if (peer.Version != SharingProtocol.Version)
             {
+                // An unpaired computer is shown by its machine name. The beacon names no person (PeerBeacon).
                 rows[peer.DeviceId] = new NearbyComputer(
-                    peer.DeviceId, peer.Name, peer.Face,
+                    peer.DeviceId, peer.Name, Face: "",
                     peer.Version < SharingProtocol.Version ? NearbyKind.NeedsUpdateThere : NearbyKind.NeedsUpdateHere,
                     null);
                 continue;
             }
 
-            var verdict = PeerAppraisal.Appraise(peer, myDeviceId, myAccountFingerprint, trusted, accountDeviceIds);
+            var verdict = PeerAppraisal.Appraise(peer, myDeviceId, trusted, accountDeviceIds);
             var kind = verdict switch
             {
                 PeerVerdict.Ask => NearbyKind.CanAsk,
@@ -82,7 +82,7 @@ public static class NearbyComputers
             };
 
             if (kind is { } offered)
-                rows[peer.DeviceId] = new NearbyComputer(peer.DeviceId, peer.Name, peer.Face, offered, null);
+                rows[peer.DeviceId] = new NearbyComputer(peer.DeviceId, peer.Name, Face: "", offered, null);
         }
 
         return [.. rows.Values

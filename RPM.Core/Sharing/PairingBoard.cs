@@ -100,7 +100,7 @@ public sealed record PairingTimes(
 
 /// <summary>Who the other computer says it is: what a pairing is about, and what is saved as the pairing record
 /// when it is accepted.</summary>
-public sealed record PairingPeer(string DeviceId, string Name, string Face, byte[] PublicKey, string Account);
+public sealed record PairingPeer(string DeviceId, string Name, string Face, byte[] PublicKey);
 
 /// <summary>One pairing, as it stood when it was read. It cannot be changed. Screens read these and never keep
 /// state of their own about a pairing.</summary>

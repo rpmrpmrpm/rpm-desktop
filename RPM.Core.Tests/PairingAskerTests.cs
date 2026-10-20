@@ -73,7 +73,7 @@ public class PairingAskerTests
             new(HttpStatusCode.OK) { Content = JsonContent.Create(status, SharingJson.Default.PairStatus) };
     }
 
-    private PeerClient Client(Owner owner) => new(_me, "192.0.2.1", 51733, _ownerKey, owner);
+    private PeerClient Client(Owner owner) => new(_me, "192.0.2.1", 51733, _ownerKey, () => "", owner);
 
     /// <summary>The digits the asking computer computes from a revealed nonce.</summary>
     private string Digits(Owner owner, byte[] ownerNonce) =>

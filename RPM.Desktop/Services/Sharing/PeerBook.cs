@@ -74,6 +74,38 @@ public sealed partial class PeerBook
         return outcome;
     }
 
+    /// <summary>
+    /// Changes one record in place, under the book's lock, and returns it as it now stands. <paramref name="change"/>
+    /// is given the current record and returns the new one, or null to leave it as it is. Null when the peer is not
+    /// in the book.
+    ///
+    /// <para>Use this, not <see cref="Find"/> then <see cref="Add"/>, for a change made from another thread. Between
+    /// a read and an <see cref="Add"/> another write can land, and the <see cref="Add"/> would put back the record
+    /// as it was read.</para>
+    /// </summary>
+    public TrustedPeer? Update(string deviceId, Func<TrustedPeer, TrustedPeer?> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+
+        TrustedPeer changed;
+        lock (_gate)
+        {
+            if (PeerTrust.Find(Peers, deviceId) is not { } current)
+                return null;
+            if (change(current) is not { } next)
+                return current;
+
+            var (_, peers) = PeerTrust.Add(Peers, next);
+            _peers = peers;
+            if (_loaded)
+                Write(peers);
+            changed = PeerTrust.Find(peers, deviceId)!;
+        }
+
+        Changed?.Invoke();
+        return changed;
+    }
+
     /// <summary>Stops sharing with one computer, in both directions: it can no longer read this
     /// library, and its music leaves this one.</summary>
     public void Remove(string deviceId)

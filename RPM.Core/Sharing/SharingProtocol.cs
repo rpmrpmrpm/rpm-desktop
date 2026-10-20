@@ -17,10 +17,12 @@ public static class SharingProtocol
     /// <summary>The version both ends must agree on. It is raised when the wire changes in a way that an older
     /// build would read wrongly. An older build is meant to see a peer it does not understand and leave it
     /// alone, not half-read it.</summary>
-    /// <remarks>Version 3 is the version where pairing is followed by both ends. This covers the status, code
-    /// and withdraw routes, and an id in the offer. A version 2 computer and a version 3 computer ignore each
-    /// other, paired ones included, until both are updated.</remarks>
-    public const int Version = 3;
+    /// <remarks>Version 4: nothing about the account is said before a peer has proved its key. The beacon and the
+    /// greeting carry no account and no display name; the account is named inside the signed session proof
+    /// (<see cref="SessionProof.Account"/>). A media URL carries a ticket for one route and id, not the token
+    /// (<see cref="PeerSessions.Ticket"/>). A version 3 computer and a version 4 computer ignore each other,
+    /// paired ones included, until both are updated.</remarks>
+    public const int Version = 4;
 
     /// <summary>
     /// The pairing exchange both ends must speak. It is kept apart from <see cref="Version"/>, so that computers
@@ -98,13 +100,6 @@ public static class SharingProtocol
         public const string DeviceId = "id";
         public const string Name = "n";
 
-        /// <summary>The display name on the account this machine is signed into. This key is optional. It is
-        /// absent from older builds, and absent when the user has named the computer themselves. See
-        /// <see cref="PeerLabel.Announce"/>. A reader that does not know the key ignores it, so it costs an old
-        /// peer nothing.</summary>
-        public const string Face = "d";
-
-        public const string Account = "a";
         public const string PublicKey = "k";
     }
 
@@ -150,13 +145,7 @@ public sealed record PeerHello
     [JsonPropertyName("version")] public int Version { get; init; } = SharingProtocol.Version;
     [JsonPropertyName("deviceId")] public required string DeviceId { get; init; }
     [JsonPropertyName("name")] public required string Name { get; init; }
-
-    /// <summary>The display name on the account at that machine, or empty. It is optional on the wire. An older
-    /// build sends nothing, and a reader that gets nothing falls back to the name.</summary>
-    [JsonPropertyName("face")] public string Face { get; init; } = "";
-
     [JsonPropertyName("publicKey")] public required string PublicKey { get; init; }
-    [JsonPropertyName("account")] public string Account { get; init; } = "";
 
     /// <summary>How many tracks are on offer. It is shown in the offer, so that "share libraries?" is a question
     /// with a size in it.</summary>
@@ -178,7 +167,6 @@ public sealed record PairRequest
     /// answering screen is headed with. Without it, the question shows only a machine name.</summary>
     [JsonPropertyName("face")] public string Face { get; init; } = "";
 
-    [JsonPropertyName("account")] public string Account { get; init; } = "";
 
     /// <summary>
     /// A random value that only computers before pairing version 2 read. Those computers make the digits from
@@ -293,7 +281,6 @@ public sealed record PairOffer
     [JsonPropertyName("face")] public string Face { get; init; } = "";
 
     [JsonPropertyName("publicKey")] public required string PublicKey { get; init; }
-    [JsonPropertyName("account")] public string Account { get; init; } = "";
 
     /// <summary>The pairing id. It is empty when no pairing was made. <see cref="Status"/> says why.</summary>
     [JsonPropertyName("id")] public string Id { get; init; } = "";
@@ -373,6 +360,10 @@ public sealed record SessionProof
     [JsonPropertyName("publicKey")] public required string PublicKey { get; init; }
     [JsonPropertyName("challenge")] public required string Challenge { get; init; }
     [JsonPropertyName("signature")] public required string Signature { get; init; }
+
+    /// <summary>The account the peer is signed into (the user id), or empty. Covered by the signature (see
+    /// <see cref="PeerSessions.SignedBytes"/>), and sent only to a machine whose key the peer has pinned.</summary>
+    [JsonPropertyName("account")] public string Account { get; init; } = "";
 }
 
 /// <summary>The token, and how long it is good for.</summary>

@@ -132,12 +132,17 @@ public sealed class LibraryServer : IDisposable
     /// <summary>What this machine calls itself in the offer on somebody else's screen.</summary>
     public string Name { get; set; } = "";
 
-    /// <summary>The display name of whoever is signed in here, or empty. It is sent with every greeting and
-    /// offer, so the far end can show a person's name rather than a hostname before it has any way to look one up.</summary>
+    /// <summary>The display name of whoever is signed in here, or empty. It is sent only in a pairing offer, to the
+    /// machine that asked, so the person typing the code can see whose computer it is. The greeting, which anybody
+    /// on the network may read, does not carry it.</summary>
     public string Face { get; set; } = "";
 
-    /// <summary>The account fingerprint to greet with, or empty when signed out.</summary>
-    public string AccountFingerprint { get; set; } = "";
+    /// <summary>
+    /// Called when a peer has proved its key and opened a session. It names the peer and the account it said it is
+    /// in, inside its signature: the user id, or empty when it is signed out. This is how this machine learns which
+    /// account a borrower is in now (<see cref="TrustedPeer.AccountUserId"/>).
+    /// </summary>
+    public Action<TrustedPeer, string>? OnSession { get; set; }
 
     /// <summary>
     /// The account signed in here. It is sent only to trusted peers. See <see cref="PeerAccount"/>.
@@ -382,10 +387,17 @@ public sealed class LibraryServer : IDisposable
             }
 
             var proof = Read(request.Body, SharingJson.Default.SessionProof);
-            if (proof is null || _sessions.Redeem(proof, Trusted()) is not { } grant)
+            var trusted = Trusted();
+            if (proof is null || _sessions.Redeem(proof, trusted) is not { } grant)
             {
                 await WriteStatusAsync(stream, "403 Forbidden", cancellation);
                 return;
+            }
+
+            if (OnSession is { } said && _sessions.Peer(grant.Token, trusted) is { } proved)
+            {
+                try { said(proved, _sessions.Account(grant.Token) ?? ""); }
+                catch (Exception ex) when (Say(path, ex)) { }
             }
 
             await WriteJsonAsync(stream, grant, SharingJson.Default.SessionGrant, headOnly: false, cancellation);
@@ -393,17 +405,16 @@ public sealed class LibraryServer : IDisposable
         }
 
         // The collection itself (its listing, and which account holds it) is sent only to a request that
-        // carries its token in a header, over a connection whose certificate the other end has pinned. A token
-        // that rode in a URL opens the media routes and nothing else, so the worst a track URL read off the wire
-        // can do is play that track.
-        bool media = path.StartsWith(SharingProtocol.TrackRoute, StringComparison.Ordinal)
-                  || path.StartsWith(SharingProtocol.CoverRoute, StringComparison.Ordinal)
-                  || path.StartsWith(SharingProtocol.DiscRoute, StringComparison.Ordinal)
-                  || path.StartsWith(SharingProtocol.ArtRoute, StringComparison.Ordinal);
+        // carries its token in a header, over a connection whose certificate the other end has pinned. A media
+        // URL carries a ticket for its own route and id instead (PeerSessions.Ticket), so the worst a URL read
+        // off the wire can do is open that one track or picture until the token runs out.
+        var peer = request.HeaderToken is { } token
+            ? _sessions.Peer(token, Trusted())
+            : MediaTarget(path) is { } target
+                ? _sessions.PeerForTicket(request.Query("s"), request.Query("t"), target.Route, target.Id, Trusted())
+                : null;
 
-        var offered = request.HeaderToken ?? (media ? request.QueryToken : null);
-
-        if (_sessions.Peer(offered, Trusted()) is not { } peer)
+        if (peer is null)
         {
             await WriteStatusAsync(stream, "401 Unauthorized", cancellation);
             return;
@@ -484,8 +495,7 @@ public sealed class LibraryServer : IDisposable
             return;
         }
 
-        var peer = new PairingPeer(
-            PeerIdentity.IdFor(key), asking.Name ?? "", asking.Face ?? "", key, asking.Account ?? "");
+        var peer = new PairingPeer(PeerIdentity.IdFor(key), asking.Name ?? "", asking.Face ?? "", key);
 
         var secrets = new PairingSecrets(key, _identity.PublicKey);
         var (kind, pairing) = _pairings.Incoming(_identity.DeviceId, peer, secrets, SafeRoom(hasRoom));
@@ -602,7 +612,6 @@ public sealed class LibraryServer : IDisposable
         Name = Name,
         Face = Face,
         PublicKey = SharingProtocol.ToBase64Url(_identity.PublicKey),
-        Account = AccountFingerprint,
         Id = id,
         Status = status,
     };
@@ -617,11 +626,22 @@ public sealed class LibraryServer : IDisposable
     {
         DeviceId = _identity.DeviceId,
         Name = Name,
-        Face = Face,
         PublicKey = SharingProtocol.ToBase64Url(_identity.PublicKey),
-        Account = AccountFingerprint,
         TrackCount = SafeCount(),
     };
+
+    /// <summary>The media route and unescaped id a path names, or null for any other path. A ticket is checked
+    /// against exactly these two.</summary>
+    private static (string Route, string Id)? MediaTarget(string path)
+    {
+        foreach (var route in new[]
+                 { SharingProtocol.TrackRoute, SharingProtocol.CoverRoute, SharingProtocol.DiscRoute, SharingProtocol.ArtRoute })
+        {
+            if (Tail(path, route) is { } id)
+                return (route, id);
+        }
+        return null;
+    }
 
     private int SafeCount()
     {
@@ -784,21 +804,8 @@ public sealed class LibraryServer : IDisposable
                 ? value["Bearer ".Length..].Trim()
                 : null;
 
-        /// <summary>
-        /// The token in the query string.
-        ///
-        /// <para>This is needed, not a convenience. A borrowed track is handed to ffmpeg as a URL and nothing
-        /// else. That is what lets a peer's track play through the same pipeline as a file, seeking included.
-        /// A URL is the only place a token can go.</para>
-        ///
-        /// <para>This is kept apart from the header because it is the weaker of the two. The decoder does not
-        /// check the certificate it is handed. ffmpeg does not do that by default, and the address in the URL
-        /// is a number that no certificate was issued for. So a URL is the one thing here that could be learned
-        /// by someone on the network. It opens audio and pictures, and nothing that would say what else is in
-        /// the library.</para>
-        /// </summary>
-        public string? QueryToken => Query("t");
-
+        /// <summary>A query value, unescaped. A media URL carries the token's handle in <c>s</c> and its ticket in
+        /// <c>t</c> (<see cref="PeerSessions.PeerForTicket"/>), because a decoder is handed a URL and nothing else.</summary>
         public string? Query(string name)
         {
             int mark = Target.IndexOf('?', StringComparison.Ordinal);

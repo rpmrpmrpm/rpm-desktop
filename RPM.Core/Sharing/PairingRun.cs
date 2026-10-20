@@ -54,12 +54,12 @@ public sealed class PairingRun : IDisposable
 
     /// <summary>Sends the request and follows the pairing until it ends, is replaced, or this run is
     /// stopped.</summary>
-    public async Task RunAsync(string name, string face, string accountFingerprint)
+    public async Task RunAsync(string name, string face)
     {
         var token = _stop.Token;
 
         // Older builds read the nonce sent here. See PairRequest.Nonce.
-        var (offer, delivery) = await _client.PairAsync(name, face, accountFingerprint, PairingCode.Nonce(), token);
+        var (offer, delivery) = await _client.PairAsync(name, face, PairingCode.Nonce(), token);
         if (token.IsCancellationRequested)
             return;
 

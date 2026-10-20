@@ -17,28 +17,30 @@ public class PeerBeaconTests
     {
         using var identity = PeerIdentity.Create();
 
-        var txt = PeerBeacon.Announce(identity, "Alex's iMac", "Alex", "MINE");
+        var txt = PeerBeacon.Announce(identity, "Alex's iMac");
         var peer = PeerBeacon.Read(txt, "192.168.1.7", 51733);
 
         Assert.NotNull(peer);
         Assert.Equal(identity.DeviceId, peer!.DeviceId);
         Assert.Equal("Alex's iMac", peer.Name);
-        Assert.Equal("Alex", peer.Face);
-        Assert.Equal("MINE", peer.AccountFingerprint);
         Assert.Equal(identity.PublicKey, peer.PublicKey);
         Assert.Equal(SharingProtocol.Version, peer.Version);
         Assert.Equal(51733, peer.Port);
     }
 
+    /// <summary>Anybody on the network reads the beacon, a café network included, so it names no person and no
+    /// account: the version, the id, the machine's name and the key, and nothing else.</summary>
     [Fact]
-    public void Signed_out_broadcasts_no_account_at_all()
+    public void The_beacon_names_no_person_and_no_account()
     {
         using var identity = PeerIdentity.Create();
 
-        var txt = PeerBeacon.Announce(identity, "laptop", "", "");
+        var txt = PeerBeacon.Announce(identity, "laptop");
 
-        Assert.False(txt.ContainsKey(SharingProtocol.Txt.Account));
-        Assert.Equal("", PeerBeacon.Read(txt, "10.0.0.4", 1)!.AccountFingerprint);
+        Assert.Equal(
+            new[] { SharingProtocol.Txt.DeviceId, SharingProtocol.Txt.PublicKey, SharingProtocol.Txt.Name, SharingProtocol.Txt.Version }
+                .OrderBy(k => k, StringComparer.Ordinal),
+            txt.Keys.OrderBy(k => k, StringComparer.Ordinal));
     }
 
     [Fact]
@@ -59,7 +61,7 @@ public class PeerBeaconTests
     {
         using var identity = PeerIdentity.Create();
 
-        var txt = new Dictionary<string, string>(PeerBeacon.Announce(identity, "x", "", ""))
+        var txt = new Dictionary<string, string>(PeerBeacon.Announce(identity, "x"))
         {
             [SharingProtocol.Txt.DeviceId] = "SOMEBODYELSE",
         };
@@ -71,7 +73,7 @@ public class PeerBeaconTests
     public void A_machine_with_nowhere_to_be_reached_is_nobody()
     {
         using var identity = PeerIdentity.Create();
-        var txt = PeerBeacon.Announce(identity, "x", "", "");
+        var txt = PeerBeacon.Announce(identity, "x");
 
         Assert.Null(PeerBeacon.Read(txt, "", 51733));
         Assert.Null(PeerBeacon.Read(txt, "10.0.0.4", 0));
@@ -82,7 +84,7 @@ public class PeerBeaconTests
     {
         using var identity = PeerIdentity.Create();
 
-        var txt = new Dictionary<string, string>(PeerBeacon.Announce(identity, "x", "", ""))
+        var txt = new Dictionary<string, string>(PeerBeacon.Announce(identity, "x"))
         {
             [SharingProtocol.Txt.Version] = "99",
         };
@@ -93,7 +95,7 @@ public class PeerBeaconTests
         var peer = PeerBeacon.Read(txt, "10.0.0.4", 51733);
 
         Assert.Equal(99, peer!.Version);
-        Assert.Equal(PeerVerdict.Ignore, PeerAppraisal.Appraise(peer, "me", "MINE", [], []));
+        Assert.Equal(PeerVerdict.Ignore, PeerAppraisal.Appraise(peer, "me", [], []));
     }
 
     [Fact]
@@ -101,46 +103,21 @@ public class PeerBeaconTests
     {
         using var identity = PeerIdentity.Create();
 
-        var txt = PeerBeacon.Announce(identity, "", "", "");
+        var txt = PeerBeacon.Announce(identity, "");
 
         Assert.Equal(identity.DeviceId, PeerBeacon.Read(txt, "10.0.0.4", 51733)!.Name);
     }
 
     [Fact]
-    public void A_machine_whose_owner_named_it_broadcasts_no_face_at_all()
-    {
-        using var identity = PeerIdentity.Create();
-
-        var txt = PeerBeacon.Announce(identity, "Studio Mac", "", "MINE");
-
-        Assert.False(txt.ContainsKey(SharingProtocol.Txt.Face));
-        Assert.Equal("", PeerBeacon.Read(txt, "10.0.0.4", 1)!.Face);
-    }
-
-    [Fact]
-    public void A_record_from_before_the_face_existed_reads_without_one()
-    {
-        using var identity = PeerIdentity.Create();
-
-        var older = new Dictionary<string, string>(PeerBeacon.Announce(identity, "OLD-LAPTOP", "Gio", ""));
-        older.Remove(SharingProtocol.Txt.Face);
-
-        var peer = PeerBeacon.Read(older, "10.0.0.4", 51733);
-
-        Assert.Equal("", peer!.Face);
-        Assert.Equal("OLD-LAPTOP", PeerLabel.For(PeerFace.Nobody, peer.Face, peer.Name));
-    }
-
-    [Fact]
-    public void A_renamed_person_is_a_different_announcement()
+    public void A_renamed_machine_is_a_different_announcement()
     {
         // DiscoveredPeer defines its own equality, and everything after a beacon is skipped when two
-        // announcements are equal. A face left out of that comparison would be a rename that reaches
+        // announcements are equal. A name left out of that comparison would be a rename that reaches
         // nobody.
         using var identity = PeerIdentity.Create();
 
-        var before = PeerBeacon.Read(PeerBeacon.Announce(identity, "MBP", "Alex", ""), "10.0.0.4", 1);
-        var after = PeerBeacon.Read(PeerBeacon.Announce(identity, "MBP", "DJ Alex", ""), "10.0.0.4", 1);
+        var before = PeerBeacon.Read(PeerBeacon.Announce(identity, "MBP"), "10.0.0.4", 1);
+        var after = PeerBeacon.Read(PeerBeacon.Announce(identity, "Studio"), "10.0.0.4", 1);
 
         Assert.NotEqual(before, after);
     }

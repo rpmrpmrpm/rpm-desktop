@@ -28,7 +28,7 @@ public class PairingBoardTests
 
     private PairingBoard Board() => new(Times, () => _now);
 
-    private static PairingPeer Peer(string id) => new(id, id + "-name", "", [1, 2, 3], "");
+    private static PairingPeer Peer(string id) => new(id, id + "-name", "", [1, 2, 3]);
 
     // The asking computer's key, as Peer() carries it, and this computer's.
     private static readonly byte[] AskerKey = [1, 2, 3];
