@@ -431,6 +431,23 @@ public class LibraryDatabaseTests : IDisposable
         Assert.Equal(before, after.AddedUtcTicks);
     }
 
+    /// <summary>The album editor's release type reaches the row through a move, as every edit does, so a
+    /// move writes it: set, changed and cleared.</summary>
+    [Fact]
+    public void Moving_a_row_writes_its_release_type()
+    {
+        _db.Upsert(Track("a/01.mp3", album: "Cross"));
+
+        _db.MoveMany([("a/01.mp3", Track("a/01.mp3", album: "Cross") with { ReleaseType = ReleaseType.Ep })]);
+        Assert.Equal(ReleaseType.Ep, Assert.Single(_db.Query()).ReleaseType);
+
+        _db.MoveMany([("a/01.mp3", Track("a/01.mp3", album: "Cross") with { ReleaseType = ReleaseType.Live })]);
+        Assert.Equal(ReleaseType.Live, Assert.Single(_db.Query()).ReleaseType);
+
+        _db.MoveMany([("a/01.mp3", Track("a/01.mp3", album: "Cross") with { ReleaseType = null })]);
+        Assert.Null(Assert.Single(_db.Query()).ReleaseType);
+    }
+
     /// <summary>An upsert (what import and sync do with a file they have just read) must not overwrite
     /// them either: a caller that has only read the file does not know these values.</summary>
     [Fact]

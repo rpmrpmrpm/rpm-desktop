@@ -2216,6 +2216,9 @@ public sealed partial class LibraryDatabase : IDisposable
                     disc_count = $disccount, disc_subtitle = $discsub, work = $work,
                     movement_name = $movement, movement_no = $movementno, composer = $composer,
                     year = $year,
+                    -- What kind of release the record is. The album editor sets it, and an edit is a
+                    -- move, so a move carries it.
+                    release_type = $releasetype,
                     channels = $chan, sample_rate = $rate, bits_per_sample = $bits,
                     bitrate_kbps = $kbps, codec_description = $codec,
                     -- A move is the same file somewhere else: its loudness did not change. Kept

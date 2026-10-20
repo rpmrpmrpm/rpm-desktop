@@ -311,10 +311,11 @@ internal static class MassEdit
                         // Every other field that the edit windows offer and that the row keeps. A field
                         // left out here is written back as the row's old value by MoveMany. The edit
                         // would then look saved, but it would not be. These are the explicit mark, the
-                        // subgenre and the classical block. They are mapped the same way as
+                        // subgenre, the release type and the classical block. They are mapped the same way as
                         // LibraryDatabase.FromTrackInfo maps them for a local file.
                         Advisory = s.Track.Advisory,
                         Subgenre = s.Track.Subgenre,
+                        ReleaseType = s.Track.ReleaseType,
                         Composer = s.Track.Composers,
                         Work = s.Track.Work,
                         MovementName = s.Track.MovementName,
