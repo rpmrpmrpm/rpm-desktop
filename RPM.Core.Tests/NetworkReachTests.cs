@@ -501,13 +501,19 @@ public class NetworkReachTests
     public async Task ACallerArrivingAfterTheChangeGetsANewMeasurement()
     {
         var release = new TaskCompletionSource();
+        var measuring = new TaskCompletionSource();
         var asks = 0;
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ =>
             {
+                // Both probes wait. AddressesChanged starts the second measurement itself, and the caller
+                // below must find it still running. A probe that answered at once could finish first, and
+                // the caller would then start a third.
                 if (Interlocked.Increment(ref asks) == 1)
                     await release.Task;
+                else
+                    await measuring.Task;
                 return false;
             },
             now: () => DateTimeOffset.UtcNow);
@@ -519,6 +525,7 @@ public class NetworkReachTests
         Assert.NotSame(stale, fresh);
 
         release.SetResult();
+        measuring.SetResult();
         await Task.WhenAll(stale, fresh);
         Assert.Equal(2, asks);
     }
