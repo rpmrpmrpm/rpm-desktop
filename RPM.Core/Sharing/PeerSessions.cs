@@ -24,6 +24,11 @@ public sealed class PeerSessions
 
     public static readonly TimeSpan ChallengeLife = TimeSpan.FromMinutes(1);
 
+    /// <summary>Challenges held at once. Anyone on the network may ask for one, so without a limit a
+    /// machine could fill this one's memory with them. Past the limit the oldest is dropped. A peer that
+    /// answers promptly is not affected.</summary>
+    public const int MaxChallenges = 256;
+
     /// <summary>What a signature is made over: the purpose, the machine that asked, and the challenge.
     /// The purpose string stops a signature made here from having any meaning in another exchange that
     /// also signs bytes.</summary>
@@ -31,6 +36,10 @@ public sealed class PeerSessions
 
     private readonly object _gate = new();
     private readonly Dictionary<string, DateTime> _challenges = new(StringComparer.Ordinal);
+
+    /// <summary>The challenges in the order they were issued, so the oldest is the one dropped. It can hold
+    /// challenges already answered or expired; those are skipped.</summary>
+    private readonly Queue<string> _issued = new();
     private readonly Dictionary<string, (TrustedPeer Peer, DateTime Until)> _tokens = new(StringComparer.Ordinal);
 
     private readonly string _deviceId;
@@ -52,7 +61,10 @@ public sealed class PeerSessions
         lock (_gate)
         {
             Sweep();
+            while (_challenges.Count >= MaxChallenges && _issued.TryDequeue(out var oldest))
+                _challenges.Remove(oldest);
             _challenges[challenge] = _now() + ChallengeLife;
+            _issued.Enqueue(challenge);
         }
 
         return new SessionChallenge { Challenge = challenge, ExpiresIn = (int)ChallengeLife.TotalSeconds };
@@ -147,6 +159,8 @@ public sealed class PeerSessions
         var now = _now();
         foreach (var (challenge, expires) in _challenges.ToList())
             if (expires <= now) _challenges.Remove(challenge);
+        while (_issued.TryPeek(out var first) && !_challenges.ContainsKey(first))
+            _issued.Dequeue();
 
         foreach (var (token, session) in _tokens.ToList())
             if (session.Until <= now) _tokens.Remove(token);

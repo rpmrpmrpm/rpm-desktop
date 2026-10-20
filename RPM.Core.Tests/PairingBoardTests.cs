@@ -708,6 +708,31 @@ public class PairingBoardTests
         Assert.Equal(2, status.TriesLeft);
     }
 
+    /// <summary>Each rest in a row is twice as long as the one before. With a fixed rest a machine could keep
+    /// guessing at about one code a minute for as long as it liked.</summary>
+    [Fact]
+    public void A_second_rest_in_a_row_is_twice_as_long()
+    {
+        var board = new PairingBoard(Times with { WrongCodesAllowed = 3 }, () => _now);
+
+        void ThreeWrongCodes()
+        {
+            var (_, asked) = Asked(board, A, B, true);
+            for (var i = 0; i < 3; i++)
+                Type(board, asked!.Id, Wrong(board, asked.Id));
+        }
+
+        ThreeWrongCodes();
+        _now += Times.RestFor;
+        ThreeWrongCodes();
+
+        _now += Times.RestFor;
+        Assert.Equal(PairingBoard.IncomingKind.Resting, board.Incoming(A, Peer("CCCC"), Secrets(), roomHere: true).Kind);
+
+        _now += Times.RestFor;
+        Assert.Equal(PairingBoard.IncomingKind.Created, board.Incoming(A, Peer("CCCC"), Secrets(), roomHere: true).Kind);
+    }
+
     [Fact]
     public void Too_many_wrong_codes_across_requests_stop_requests_for_a_while()
     {

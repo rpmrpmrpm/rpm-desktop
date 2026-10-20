@@ -772,4 +772,29 @@ public class LibraryServerTests : IDisposable
         try { Directory.Delete(_folder, recursive: true); } catch { }
         GC.SuppressFinalize(this);
     }
+
+    /// <summary>A connection that says nothing is closed. Without this a machine on the network could hold
+    /// connections open until this app ran out of sockets.</summary>
+    [Fact]
+    public async Task A_connection_that_sends_nothing_is_closed()
+    {
+        Directory.CreateDirectory(_folder);
+        var server = new LibraryServer(_server, _board) { RequestWait = TimeSpan.FromMilliseconds(300) };
+        server.Start();
+        try
+        {
+            using var silent = new System.Net.Sockets.TcpClient();
+            await silent.ConnectAsync(IPAddress.Loopback, server.Port);
+            var stream = silent.GetStream();
+
+            using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var read = await stream.ReadAsync(new byte[1], limit.Token);
+
+            Assert.Equal(0, read);
+        }
+        finally
+        {
+            server.Stop();
+        }
+    }
 }

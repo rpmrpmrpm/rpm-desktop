@@ -173,4 +173,22 @@ public class PeerSessionsTests
         Assert.Null(sessions.Peer("made-up", []));
         Assert.Null(sessions.Peer(null, []));
     }
+
+    /// <summary>Anyone on the network may ask for a challenge, so only so many are held. The oldest goes
+    /// first, and a peer that answers its own promptly is not affected.</summary>
+    [Fact]
+    public void Only_so_many_challenges_are_held_and_the_oldest_goes_first()
+    {
+        var (identity, peer) = Peer();
+        using var _ = identity;
+        var sessions = new PeerSessions(ServerId, () => new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc));
+
+        var oldest = sessions.Issue().Challenge;
+        for (var i = 0; i < PeerSessions.MaxChallenges; i++)
+            sessions.Issue();
+        var newest = sessions.Issue().Challenge;
+
+        Assert.Null(sessions.Redeem(Proof(identity, oldest), [peer]));
+        Assert.NotNull(sessions.Redeem(Proof(identity, newest), [peer]));
+    }
 }

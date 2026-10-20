@@ -183,6 +183,15 @@ public sealed class PairingBoard
     /// codes within <see cref="PairingTimes.WrongCodeWindow"/>.</summary>
     private DateTime _restingUntil = DateTime.MinValue;
 
+    /// <summary>How many rests in a row, since the last pairing that worked. Each rest is twice as long as
+    /// the one before, up to <see cref="LongestRest"/> times <see cref="PairingTimes.RestFor"/>.</summary>
+    private int _rests;
+
+    /// <summary>The longest rest, as a multiple of <see cref="PairingTimes.RestFor"/>: one day for the standard
+    /// ten minutes. With a fixed rest a machine could keep guessing at about one code a minute for as long as it
+    /// liked. Doubling makes a long run of guesses take years instead.</summary>
+    private const int LongestRest = 144;
+
     /// <param name="times">Durations and counts. The app uses <see cref="PairingTimes.Standard"/>.</param>
     /// <param name="clock">The current UTC time. Tests pass a clock that they move by hand.</param>
     public PairingBoard(PairingTimes times, Func<DateTime> clock)
@@ -595,6 +604,9 @@ public sealed class PairingBoard
                 if (secrets.Opens(current, commitment, opening ?? []))
                 {
                     End(entry, roomHere ? PairingState.Accepted : PairingState.Full);
+
+                    // A code typed correctly is a person at both screens, so the rests start short again.
+                    _rests = 0;
                     if (entry.State is PairingState.Accepted)
                         accepted = entry.Freeze();
                 }
@@ -634,7 +646,9 @@ public sealed class PairingBoard
         if (_wrongCodes.Count < _times.WrongCodesAllowed)
             return;
 
-        _restingUntil = now + _times.RestFor;
+        var factor = Math.Min(LongestRest, 1L << Math.Min(_rests, 30));
+        _restingUntil = now + _times.RestFor * factor;
+        _rests++;
         _wrongCodes.Clear();
     }
 

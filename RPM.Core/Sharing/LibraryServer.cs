@@ -83,6 +83,17 @@ public sealed class LibraryServer : IDisposable
     private const int MaxRequestBytes = 16 * 1024;
     private const int MaxBodyBytes = 8 * 1024;
 
+    /// <summary>How long a connection gets for the TLS handshake and the request itself. A connection that
+    /// sends nothing is closed after this. Without it, a machine on the network could open connections and
+    /// leave them silent until this app ran out of sockets. Tests set a shorter one.</summary>
+    public TimeSpan RequestWait { get; init; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>Connections served at once. A client opens at most a few per computer (Wire.LocalSockets),
+    /// so this leaves room for several borrowers. A connection over the limit is closed at once.</summary>
+    private const int MaxConnections = 64;
+
+    private readonly SemaphoreSlim _connections = new(MaxConnections, MaxConnections);
+
     /// <summary>What is read from the disk in one go while serving audio. It is big enough that a FLAC does not
     /// cost thousands of reads, and small enough that a peer hanging up is noticed quickly.</summary>
     private const int CopyBuffer = 128 * 1024;
@@ -226,7 +237,17 @@ public sealed class LibraryServer : IDisposable
             try { client = await listener.AcceptTcpClientAsync(cancellation); }
             catch { return; }
 
-            _ = Task.Run(() => ServeAsync(client, cancellation), CancellationToken.None);
+            if (!_connections.Wait(0))
+            {
+                client.Dispose();
+                continue;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try { await ServeAsync(client, cancellation); }
+                finally { _connections.Release(); }
+            }, CancellationToken.None);
         }
     }
 
@@ -244,6 +265,11 @@ public sealed class LibraryServer : IDisposable
                 await using var raw = client.GetStream();
                 await using var stream = new SslStream(raw, leaveInnerStreamOpen: false);
 
+                // The handshake and the request must arrive within RequestWait. Serving the answer is not
+                // limited by it: a track can stream for an hour.
+                using var arriving = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                arriving.CancelAfter(RequestWait);
+
                 await stream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
                 {
                     ServerCertificate = _certificate,
@@ -253,9 +279,9 @@ public sealed class LibraryServer : IDisposable
                     // Nothing to check here. The certificate proves the key, and a moment later the token decides who
                     // may read anything.
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
-                }, cancellation);
+                }, arriving.Token);
 
-                if (await ReadRequestAsync(stream, cancellation) is not { } request)
+                if (await ReadRequestAsync(stream, arriving.Token) is not { } request)
                     return;
 
                 try
