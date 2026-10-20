@@ -17,7 +17,7 @@ namespace RPM.Desktop.Services.Account;
 /// answers with a short page and closes the connection. A request for another path (a browser also asks
 /// for <c>/favicon.ico</c>) gets 404 and the listener keeps waiting.</para>
 /// </summary>
-internal sealed class LoopbackCallback : IDisposable
+internal sealed partial class LoopbackCallback : IDisposable
 {
     /// <summary>How long one connection may take to send its request line. A connection that sends
     /// nothing must not stop the browser's own request from being read.</summary>
