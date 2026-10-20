@@ -32,6 +32,21 @@ You only need the repo of the app you want to change.
 - A change that needs something new from the server (a new endpoint or field) starts as an issue.
   Only the maintainers can change the server.
 
+## Talking to the rpm API
+
+The apps read catalogue pages, artwork and the cloud library from the rpm API. A build needs an API
+key for that. The source holds none: official builds get the official key from the release.
+
+To use the API from your own build, sign in at [rpmrpmrpm.com/developer](https://rpmrpmrpm.com/developer)
+with your rpm account and make a developer key. Use your own account for testing. A developer key
+can be revoked, and requests made with it count against your account. Then:
+
+- **Desktop:** set `RPM_APP_KEY` in your environment before you build. The build writes it into
+  `RPM.Core` (`RpmAppKey` in `RPM.Core/RPM.Core.csproj`).
+
+Without a key the apps still build and run: the local library, playback and casting work, and the
+pages that need the API stay empty. Never commit a key.
+
 ## Pull requests
 
 - Keep a pull request to one change. Small pull requests are reviewed faster.

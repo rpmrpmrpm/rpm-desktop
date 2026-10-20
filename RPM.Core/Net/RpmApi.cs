@@ -5,26 +5,26 @@
 /// one operation: <see cref="At"/> is the only thing that makes a <see cref="Destination"/> carrying the
 /// key, so a client cannot end up pointed at the API without one.
 /// </summary>
-public static class RpmApi
+public static partial class RpmApi
 {
     /// <summary>The header the API reads the key from. Matches AppKeyHandler.HeaderName.</summary>
     public const string KeyHeader = "X-RPM-Key";
 
     /// <summary>
-    /// The key compiled into this build. It ships inside the binary and can be read back out of it, so
-    /// treat it as a filter on casual traffic rather than as a secret: what bounds what the API costs is
-    /// the reserved concurrency and the edge cache in front of it, not this value. The server holds two
-    /// keys at once, so replacing this one in a later build does not refuse the builds already installed.
+    /// The key compiled into this build, or empty when it has none. The source holds no key: it comes
+    /// from the build (<c>RpmAppKey</c> in RPM.Core.csproj). A release carries the official key, and a
+    /// contributor's build their own developer key from rpmrpmrpm.com/developer. It ships inside the binary
+    /// and can be read back out of it, so treat it as a filter on casual traffic and a name for whose build
+    /// is asking, not as a secret: what bounds what the API costs is the reserved concurrency and the edge
+    /// cache in front of it. The server holds two official keys at once, so replacing the key in a later
+    /// build does not refuse the builds already installed.
     ///
-    /// <para>RPM_APP_KEY overrides it, for pointing a local build at a deployed API. Debug builds only: a
-    /// Release build of the app reads no RPM_* switch (see DevSwitch).</para>
+    /// <para>RPM_APP_KEY in the environment overrides it at run time, for pointing a local build at a
+    /// deployed API. Debug builds only: a Release build of the app reads no RPM_* switch (see
+    /// DevSwitch).</para>
     /// </summary>
     public static string Key =>
         RPM.Core.Diagnostics.DevSwitch.Read("RPM_APP_KEY") is { Length: > 0 } supplied ? supplied : Shipped;
-
-    // The key the deployed API accepts. It is compiled in rather than fetched, because it must exist before
-    // the first request.
-    private const string Shipped = "rpm_live_FEvcaWAmKYVQIOi8EbDUD98kgpkpbT9r";
 
     /// <summary>The host the deployed API answers on. Named here so <see cref="Owns"/> can recognise it in
     /// an address that came from somewhere else, which is the check that keeps the API from being reached
