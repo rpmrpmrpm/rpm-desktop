@@ -124,7 +124,7 @@ public static class TrackMenuFactory
         // A radio picks from the collection that holds the song, so a file from outside the library has nothing to
         // offer it.
         if (state.InLibrary)
-            menu.Items.Add(Item("Track_StartRadio", "\uf8d7", () => Invoke(TrackMenuCommand.StartRadio)));
+            menu.Items.Add(Item("Track_StartMixtape", "\uf8ab", () => Invoke(TrackMenuCommand.StartRadio)));
 
         // Add to playlist: every saved playlist, on this one track.
         // A playlist is made of rows in THIS library. A borrowed song has no rows, so the entry is left

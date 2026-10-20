@@ -151,6 +151,27 @@
                 ToolTipService.ToolTip="{loc:Str Key=Player_Dislike}"
                 AutomationProperties.Name="{loc:Str Key=Player_Dislike}"/>
 
+        <!-- ═══ The queue ═══ The list-music mark, the shape every player uses for "what is coming up". It opens
+             the queue as a card above the deck, drawn like the cast and view pickers, so the queue can be seen
+             and jumped around in without leaving the view you are in. It sits beside stop, because both are
+             about the whole queue rather than the record on the deck. -->
+        <Button x:Name="QueueButton" Style="{StaticResource TransportButton}" Content="&#xf8c9;"
+                ToolTipService.ToolTip="{loc:Str Key=Deck_QueueTip}"
+                AutomationProperties.Name="{loc:Str Key=Deck_QueueTip}">
+          <Button.Flyout>
+            <Flyout x:Name="QueueFlyout" Placement="Top" Opening="QueueFlyout_Opening">
+              <Flyout.FlyoutPresenterStyle>
+                <Style TargetType="FlyoutPresenter">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="CornerRadius" Value="8"/>
+                  <Setter Property="MaxWidth" Value="400"/>
+                </Style>
+              </Flyout.FlyoutPresenterStyle>
+              <local:QueueCard x:Name="QueueCardContent"/>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+
         <Button Style="{StaticResource TransportButton}" Content="&#xf04d;"
                 Command="{Binding StopCommand}" ToolTipService.ToolTip="{loc:Str Key=Transport_Stop}"
                 AutomationProperties.Name="{loc:Str Key=Transport_Stop}"/>

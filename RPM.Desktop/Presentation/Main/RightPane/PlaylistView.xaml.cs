@@ -363,7 +363,7 @@ public sealed partial class PlaylistView : UserControl
     private const string GlyphCloudUp = "\uf0ee";       // cloud-upload, same glyph as the album wall
     private const string GlyphCloudOff = "\uf381";      // cloud-slash
     private const string GlyphDj = "\uf025";            // headphones, same glyph as the auto-mix button
-    private const string GlyphRadio = "\uf8d7";         // radio, same glyph as Start radio in the song menus
+    private const string GlyphMixtape = "\uf8ab";       // cassette tape, same glyph as Start mixtape in the song menus
     private const string GlyphCover = "\uf03e";         // image, same glyph as the other art pickers
     private const string GlyphRefuseArtist = "\uf506";  // user-slash, for an action that a list is told to stop offering
     private const string GlyphRefuseAlbum = "\uf8d9";   // record-vinyl, used for the album half of the same pair
@@ -1781,7 +1781,7 @@ public sealed partial class PlaylistView : UserControl
 
         // A radio starts from one song, so it is offered on one row, like the DJ above.
         if (target.Count == 1)
-            flyout.Items.Add(Item(Loc.Get("Track_StartRadio"), GlyphRadio, () => m.StartRadioFromRow(row)));
+            flyout.Items.Add(Item(Loc.Get("Track_StartMixtape"), GlyphMixtape, () => m.StartRadioFromRow(row)));
 
         // Only on a list that the library writes. On the queue or a saved playlist there is no pool to
         // remember the refusal for, and the entry would look like it does nothing: those lists hold exactly

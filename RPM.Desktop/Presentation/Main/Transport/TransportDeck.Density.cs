@@ -109,8 +109,8 @@ internal sealed partial class TransportDeck
     /// every step.</summary>
     private double DeckRowWidth(int stage)
     {
-        // Stop, back, play, forward: the four that never leave.
-        var transport = TransportKeyWidth * 3 + TransportPlayWidth + DeckSpacing * 3;
+        // Queue, stop, back, play, forward: the five that never leave.
+        var transport = TransportKeyWidth * 4 + TransportPlayWidth + DeckSpacing * 4;
 
         if (stage < 6)
         {

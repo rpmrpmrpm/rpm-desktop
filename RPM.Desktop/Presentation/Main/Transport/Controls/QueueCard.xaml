@@ -1,0 +1,87 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.Controls.QueueCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:RPM.Desktop.Converters"
+             xmlns:loc="using:RPM.Desktop.Strings"
+             RequestedTheme="Dark">
+
+  <!-- The queue, opened upwards from the deck. It is the same list the Now playing playlist shows, as a card
+       that can be looked at without leaving the view you are in. It is drawn like the deck's other two
+       flyouts (the cast and the view pickers): the CardTitleBarBrush band across the top, then plain rows
+       on the flyout's own dark. The host flyout sets its presenter padding to zero, so the band sits flush.
+
+       DataContext is the one RPaMpModel, inherited from the button that opens it. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
+    <!-- The playing row is lit the way the cast picker lights the speaker that is playing: the app's cyan on
+         the mark, white on the words. The others are a step dimmer. -->
+    <conv:BoolToBrushConverter x:Key="MarkBrush" TrueBrush="#04C8FF" FalseBrush="#66FFFFFF"/>
+    <conv:BoolToBrushConverter x:Key="TitleBrush" TrueBrush="#FFFFFFFF" FalseBrush="#DDFFFFFF"/>
+    <conv:BoolToBrushConverter x:Key="RowBrush" TrueBrush="#1404C8FF" FalseBrush="Transparent"/>
+  </UserControl.Resources>
+
+  <StackPanel Width="360">
+
+    <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
+            Height="32" Padding="16,0"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+      <Grid>
+        <TextBlock Text="{loc:Str Key=Playlists_NowPlaying}" VerticalAlignment="Center"
+                   FontSize="12" FontWeight="SemiBold" Foreground="#CCFFFFFF"/>
+        <TextBlock x:Name="CountText" HorizontalAlignment="Right" VerticalAlignment="Center"
+                   FontSize="11" Foreground="#88FFFFFF"/>
+      </Grid>
+    </Border>
+
+    <!-- A queue can be thousands of rows long, so the list virtualises. Its height is capped in code
+         (CapHeight) to the window, the way the cast picker's is. -->
+    <ListView x:Name="Rows" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Rows_ItemClick"
+              Padding="6,6,6,8" MaxHeight="420">
+      <ListView.ItemContainerStyle>
+        <Style TargetType="ListViewItem">
+          <Setter Property="Padding" Value="0"/>
+          <Setter Property="Margin" Value="0,1"/>
+          <Setter Property="MinHeight" Value="0"/>
+          <Setter Property="CornerRadius" Value="4"/>
+          <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+      </ListView.ItemContainerStyle>
+      <ListView.ItemTemplate>
+        <DataTemplate>
+          <Grid Padding="8,6" ColumnSpacing="10" CornerRadius="4"
+                Background="{Binding IsCurrent, Converter={StaticResource RowBrush}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="26"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- The row's place, or the play mark on the one that is on the deck. -->
+            <TextBlock Grid.Column="0" Text="{Binding Index}" FontSize="11" HorizontalAlignment="Right"
+                       VerticalAlignment="Center" Foreground="#66FFFFFF"
+                       Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            <TextBlock Grid.Column="0" Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="10"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                       Foreground="{Binding IsCurrent, Converter={StaticResource MarkBrush}}"
+                       Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisible}}"/>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis" MaxLines="1"
+                         Foreground="{Binding IsCurrent, Converter={StaticResource TitleBrush}}"/>
+              <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#99FFFFFF"
+                         TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            </StackPanel>
+
+            <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="11" Foreground="#77FFFFFF"
+                       VerticalAlignment="Center"/>
+          </Grid>
+        </DataTemplate>
+      </ListView.ItemTemplate>
+    </ListView>
+
+    <TextBlock x:Name="EmptyText" Text="{loc:Str Key=Deck_QueueEmpty}" Visibility="Collapsed"
+               FontSize="12" Foreground="#99FFFFFF" TextWrapping="WrapWholeWords"
+               Margin="16,14,16,16"/>
+  </StackPanel>
+</UserControl>

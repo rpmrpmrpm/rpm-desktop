@@ -3697,7 +3697,7 @@ public sealed partial class HomeView : UserControl
                         Kind = pick.Kind,
                         Key = pick.Key,
                         Title = seed.Title ?? seed.FileName,
-                        Subtitle = KindLine("Home_QuickRadio", seed.Artist ?? seed.AlbumArtist),
+                        Subtitle = KindLine("Home_QuickMixtape", seed.Artist ?? seed.AlbumArtist),
                         Folder = seed.Folder,
                         Track = seed.ToTrackInfo(root),
                         Glyph = "",          // the radio, as on Start radio in the song menus
@@ -3742,7 +3742,7 @@ public sealed partial class HomeView : UserControl
                         Title = station.Display,
                         Subtitle = Loc.Get("Home_QuickStation"),
                         Station = station,
-                        Glyph = "\uf8d7",          // the radio
+                        Glyph = "\uf8ab",          // the cassette tape: a mixtape, not the internet radio
                         InkColor = SoftFigure.RingColours(station.Display) is [var first, ..]
                             ? first
                             : Windows.UI.Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF),

@@ -4497,6 +4497,10 @@
     <value>Downloaded {0} of {1} files</value>
     <comment>Status line after the cloud download finishes.</comment>
   </data>
+  <data name="Queue_CatalogueFilled" xml:space="preserve">
+    <value>Records filled in from the catalogue: {0}</value>
+    <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre or year.</comment>
+  </data>
   <data name="QueueDup_InLibrary" xml:space="preserve">
     <value>The collection already holds this track, in a copy at least as good.</value>
     <comment>Tooltip on the duplicate mark.</comment>
@@ -5273,9 +5277,9 @@
     <value>Remove from favourites</value>
     <comment>Track context-menu item: clear the favorite mark on this song.</comment>
   </data>
-  <data name="Track_StartRadio" xml:space="preserve">
-    <value>Start radio</value>
-    <comment>Track context-menu item (song menus, library table, playlist rows): plays this song now and keeps the queue filled with songs of a similar mood, era and genre to whichever song is playing. Not internet radio.</comment>
+  <data name="Track_StartMixtape" xml:space="preserve">
+    <value>Start mixtape</value>
+    <comment>Track context-menu item (song menus, library table, playlist rows): plays this song now and keeps the queue filled with songs of a similar mood, genre and era from the collection. Called a mixtape, not a radio, so it is not mistaken for internet radio.</comment>
   </data>
   <data name="Details_ReleaseType" xml:space="preserve">
     <value>Release type</value>
@@ -5644,6 +5648,14 @@
   <data name="Settings_RequiredTagsHint" xml:space="preserve">
     <value>A queued file is marked when it is missing any of these. Import is not blocked by them.</value>
     <comment>Settings hint under the required tags checkboxes.</comment>
+  </data>
+  <data name="Settings_CatalogueFill" xml:space="preserve">
+    <value>Fill in missing genre and year when music is added</value>
+    <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue and fills blank genre, subgenre and year in the import queue.</comment>
+  </data>
+  <data name="Settings_CatalogueFillHint" xml:space="preserve">
+    <value>rpm looks each record up in its catalogue and fills in the genre, subgenre and year where they are blank or not on rpm's genre list. Values that are already set are kept. Nothing is written to your files until you import.</value>
+    <comment>Settings hint under the catalogue fill toggle.</comment>
   </data>
   <data name="Queue_ChipDuplicates" xml:space="preserve">
     <value>Hide duplicates</value>
@@ -6689,9 +6701,9 @@
     <value>Radio station</value>
     <comment>Second line of a radio station entry in the home view's quick selection, under the station's name. Desktop and iPhone.</comment>
   </data>
-  <data name="Home_QuickRadio" xml:space="preserve">
-    <value>Radio</value>
-    <comment>Kind label on a song radio entry in the home view's quick selection, before the artist: 'Radio • Sting'. The entry is named after one of the songs played most; pressing it plays that song and keeps the queue filled with songs like it (the song menus' Start radio). Not internet radio.</comment>
+  <data name="Home_QuickMixtape" xml:space="preserve">
+    <value>Mixtape</value>
+    <comment>Kind label on a mixtape entry in the home view's quick selection, before the artist: 'Mixtape • Sting'. The entry starts a mixtape (songs like this one, kept coming) on one of the songs played most. Called a mixtape, not a radio, so it is not mistaken for internet radio.</comment>
   </data>
   <data name="Home_QuickKindJoin" xml:space="preserve">
     <value>{0} • {1}</value>
@@ -9012,5 +9024,41 @@
   <data name="Tv_MenuReload" xml:space="preserve">
     <value>Reload library</value>
     <comment>Android TV side menu: spoken name of the key at the top right that reads the collection from the cloud again.</comment>
+  </data>
+  <data name="Tv_LegendMove" xml:space="preserve">
+    <value>Move</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to the arrow keys: they move from item to item.</comment>
+  </data>
+  <data name="Tv_LegendHoldMenu" xml:space="preserve">
+    <value>Hold: menu</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to the OK key: holding it opens the menu of the track or station it stands on.</comment>
+  </data>
+  <data name="Tv_LegendTune" xml:space="preserve">
+    <value>Tune in</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to the OK key on the radio screen: it starts the station it stands on.</comment>
+  </data>
+  <data name="Tv_LegendHoldModes" xml:space="preserve">
+    <value>Hold: radio modes</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to the Right key on the radio screen: holding it for two seconds opens the wheel of the radio's modes (Tuner, Search, Music, News, Local).</comment>
+  </data>
+  <data name="Tv_LegendLetters" xml:space="preserve">
+    <value>Letters</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to an arrow key: it opens the alphabet, to jump to a letter.</comment>
+  </data>
+  <data name="Tv_LegendTurn" xml:space="preserve">
+    <value>Turn</value>
+    <comment>Shown on the Android TV app's key legend: a small card that appears for two seconds when a screen opens, listing what the remote's keys do there. Each entry is an icon of the key followed by this text. Next to the Left and Right keys on the album carousel: they turn it one record.</comment>
+  </data>
+  <data name="Tv_SettingsKeyLegend" xml:space="preserve">
+    <value>Remote key hints</value>
+    <comment>Row in the Android TV app's settings: whether a small card listing what the remote's keys do is shown for two seconds when a screen opens. The value is On or Off; OK switches it.</comment>
+  </data>
+  <data name="Deck_QueueTip" xml:space="preserve">
+    <value>Now playing queue</value>
+    <comment>Player deck at the foot of the window: tooltip and accessible name of the key left of stop that opens the queue (the songs playing now and next) as a card above the deck.</comment>
+  </data>
+  <data name="Deck_QueueEmpty" xml:space="preserve">
+    <value>Nothing is queued. Play a record or a song and what comes next shows here.</value>
+    <comment>Player deck: the queue card's text when nothing is queued.</comment>
   </data>
 </root>

@@ -44,8 +44,8 @@
         <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf025;"/></MenuFlyoutItem.Icon>
       </MenuFlyoutItem>
       <!-- Starts from the right-clicked row, whatever else is selected: a radio has one song to start from. -->
-      <MenuFlyoutItem x:Name="CtxStartRadio" FontSize="12" Text="{loc:Str Key=Track_StartRadio}" Click="CtxStartRadio_Click">
-        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8d7;"/></MenuFlyoutItem.Icon>
+      <MenuFlyoutItem x:Name="CtxStartRadio" FontSize="12" Text="{loc:Str Key=Track_StartMixtape}" Click="CtxStartRadio_Click">
+        <MenuFlyoutItem.Icon><FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf8ab;"/></MenuFlyoutItem.Icon>
       </MenuFlyoutItem>
 
       <MenuFlyoutSeparator/>
