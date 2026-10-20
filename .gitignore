@@ -535,6 +535,10 @@ ffmpeg-rel/
 # Machine-local iOS codesigning identity (see RPM.Mobile/signing.local.props)
 signing.local.props
 
+# The Mac provisioning profile that scripts/release-mac.sh embeds in the app. It belongs to rpm's
+# Apple team and is kept on the release machine only.
+RPM.Desktop/RPM.Desktop.provisionprofile
+
 # The beat, key and lyric timing models. The four that ship are 214 MB together and can be rebuilt
 # from upstream by scripts/export_*_onnx.py. The float32 wav2vec2 and the eight-bit beat model
 # exist only in a working copy and do not ship. None of them is committed: the build downloads the
