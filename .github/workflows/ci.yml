@@ -7,9 +7,16 @@ on:
   push:
     branches: [main]
     paths: ['RPM.*/**', 'tools/**', '*.props', '*.targets', 'global.json', '.github/workflows/ci.yml']
+  # Started by hand from Actions, it also builds on Windows and macOS.
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to the same branch or pull request cancels the run still going for the older one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -45,7 +52,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Linux on every push. Windows and macOS only when the workflow is started by hand: on a
+        # private repo a Windows minute is billed as two and a macOS minute as ten. The Windows
+        # release (release.yml) and release-mac.sh build both platforms in full anyway.
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
