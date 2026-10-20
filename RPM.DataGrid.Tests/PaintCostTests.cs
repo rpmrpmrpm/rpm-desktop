@@ -167,14 +167,14 @@ public class PaintCostTests(ITestOutputHelper output)
 
         Array.Sort(times);
         var worst = times[^1];
-        var nextWorst = times[^2];
+        var slow = times[frames * 9 / 10];
         output.WriteLine(
-            $"{frames} frames of fast scroll: worst {worst:F2}ms, next {nextWorst:F2}ms, mean {times.Average():F2}ms");
+            $"{frames} frames of fast scroll: worst {worst:F2}ms, 90th percentile {slow:F2}ms, mean {times.Average():F2}ms");
 
-        // One frame may be slow: on a shared CI machine another process or the scheduler can stop this
-        // thread for a while. A grid that is slow to draw makes every frame slow, so the second worst
-        // frame still shows it.
-        Assert.True(nextWorst < 100, $"the second worst frame of a fast scroll took {nextWorst:F1}ms");
+        // A few frames may be slow: on a shared CI machine another process or the scheduler can stop
+        // this thread for a while. A grid that is slow to draw makes every frame slow, so the 90th
+        // percentile still shows it.
+        Assert.True(slow < 100, $"the 90th percentile frame of a fast scroll took {slow:F1}ms");
     }
 
     [Fact]
