@@ -15,7 +15,13 @@ namespace RPM.DataGrid.Tests;
 /// only the grid's own work into a raster surface.</para>
 ///
 /// <para>The bounds are loose on purpose. The numbers the run prints are the answer.</para>
+///
+/// <para>The tests check the median frame, not the mean. A shared CI machine can stop the test
+/// thread for a while, and a pause like that lands in a few frames. A grid that is slow to draw is
+/// slow in every frame, so the median still shows it. The class runs on its own, not beside the
+/// other tests in this project, for the same reason.</para>
 /// </summary>
+[Collection(nameof(PaintCostTests))]
 public class PaintCostTests(ITestOutputHelper output)
 {
     private sealed record Track(string Title, string Artist, string Album, int Year);
@@ -74,6 +80,25 @@ public class PaintCostTests(ITestOutputHelper output)
     private static PaintHarness Library(int rows) =>
         new(Columns(), new ListSource(Tracks(rows)), 1600, 900);
 
+    /// <summary>The median time of <paramref name="frames"/> calls of <paramref name="paint"/>, in ms.
+    /// Garbage is collected first, so a collection of the set-up's work does not land in a frame.</summary>
+    private static double MedianFrame(int frames, Action paint)
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        var times = new double[frames];
+        for (var i = 0; i < frames; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            paint();
+            times[i] = clock.Elapsed.TotalMilliseconds;
+        }
+
+        Array.Sort(times);
+        return times[frames / 2];
+    }
+
     [Fact]
     public void A_cold_frame_of_the_library_table()
     {
@@ -84,13 +109,21 @@ public class PaintCostTests(ITestOutputHelper output)
 
         // Warm the fonts and the shapers. A running app has done this before anybody scrolls.
         h.Painter.Paint(canvas, h.Frame);
-        h.Shop.Clear();
 
-        var clock = Stopwatch.StartNew();
-        h.Painter.Paint(canvas, h.Frame);
-        clock.Stop();
+        // The best of three cold frames: each one starts from an empty shop, and a pause of the
+        // machine in one of them does not decide the result.
+        var ms = double.MaxValue;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            h.Shop.Clear();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
 
-        var ms = clock.Elapsed.TotalMilliseconds;
+            var clock = Stopwatch.StartNew();
+            h.Painter.Paint(canvas, h.Frame);
+            ms = Math.Min(ms, clock.Elapsed.TotalMilliseconds);
+        }
+
         output.WriteLine(
             $"cold frame: {h.Painter.RowsDrawn} rows x {h.Painter.CellsDrawn / Math.Max(1, h.Painter.RowsDrawn)} columns " +
             $"= {h.Painter.CellsDrawn} cells in {ms:F2}ms");
@@ -155,13 +188,8 @@ public class PaintCostTests(ITestOutputHelper output)
         for (var i = 0; i < 5; i++)
             h.Painter.Paint(canvas, h.Frame);
 
-        var clock = Stopwatch.StartNew();
-        for (var i = 0; i < 30; i++)
-            h.Painter.Paint(canvas, h.Frame);
-        clock.Stop();
-
-        var ms = clock.Elapsed.TotalMilliseconds / 30;
-        output.WriteLine($"still frame: {ms:F2}ms");
+        var ms = MedianFrame(30, () => h.Painter.Paint(canvas, h.Frame));
+        output.WriteLine($"still frame: {ms:F2}ms (median)");
 
         Assert.True(ms < 40, $"a still frame took {ms:F1}ms");
     }
@@ -184,12 +212,7 @@ public class PaintCostTests(ITestOutputHelper output)
             for (var i = 0; i < 5; i++)
                 h.Painter.Paint(canvas, h.Frame);
 
-            var clock = Stopwatch.StartNew();
-            for (var i = 0; i < 20; i++)
-                h.Painter.Paint(canvas, h.Frame);
-            clock.Stop();
-
-            times.Add(clock.Elapsed.TotalMilliseconds / 20);
+            times.Add(MedianFrame(20, () => h.Painter.Paint(canvas, h.Frame)));
         }
 
         output.WriteLine($"100 rows: {times[0]:F2}ms, 200,000 rows: {times[1]:F2}ms");
@@ -197,3 +220,8 @@ public class PaintCostTests(ITestOutputHelper output)
         Assert.True(times[1] < times[0] * 3 + 2, $"200,000 rows cost {times[1]:F2}ms against {times[0]:F2}ms for 100");
     }
 }
+
+/// <summary>Runs <see cref="PaintCostTests"/> on its own, so other tests do not share the CPU with the
+/// frames it times.</summary>
+[CollectionDefinition(nameof(PaintCostTests), DisableParallelization = true)]
+public sealed class PaintCostCollection;
