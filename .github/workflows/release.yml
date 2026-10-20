@@ -1,0 +1,343 @@
+name: "Release: Windows"
+
+# The Windows half of an rpm release: publish, sign, package with Velopack, and put the package and
+# the feed on updates.rpmrpmrpm.com, which is what the app reads (UpdateChannel.cs).
+#
+# The macOS half is built on a Mac that has the Developer ID identity and the notary profile, with
+#   scripts/release-mac.sh --arch <arm64|x64> --publish
+# which writes the osx-arm64 and osx-x64 channels of the same feed.
+#
+# The version is the tag's, and only the tag's. RPM.Desktop.csproj says 0.0.0, the version of a build
+# that is not a release, and both platforms pass the tag's version over it. release-mac.sh --publish
+# reads the same tag from HEAD and refuses unless origin has it at that commit and the checkout has no
+# other change, so one version is one commit on both platforms.
+#
+# A release:
+#   1. git tag rpm-v<X.Y.Z> && git push origin rpm-v<X.Y.Z>  → this workflow.
+#   2. On the Mac, at that commit: scripts/release-mac.sh --arch arm64 --publish, then --arch x64.
+#
+# The secrets are in the "release" environment, so only a run of this workflow on a tag can read
+# them. A pull request never can.
+
+on:
+  push:
+    tags: ["rpm-v*"]
+  # Started by hand only on a tag: "Use workflow from" must name rpm-v<X.Y.Z>. A run on a branch stops
+  # at Determine version, because a version typed here would name no commit.
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  # One prefix per published build under the update host. The app computes the same name from its
+  # own head and architecture; they must agree.
+  CHANNEL: win-x64
+  PACK_ID: com.rpm.desktop
+  # Pinned to the Velopack library in Directory.Packages.props. A CLI that writes a newer manifest
+  # than the installed library can read breaks updating silently, on the machines that already have
+  # the app.
+  VPK_VERSION: 0.0.1298
+  # The RPM-Updates stack's outputs. Not secrets: a bucket nothing can read without the distribution,
+  # and the distribution is what the app reads by name anyway.
+  UPDATE_BUCKET: rpm-updates
+  UPDATE_DISTRIBUTION: E2USUCSFUYECH8
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: rpm-desktop
+
+      # The shared files (strings.json and the generators' data), read by the build from ../rpm.
+      - uses: actions/checkout@v7
+        with:
+          repository: rpmrpmrpm/rpm
+          path: rpm
+          token: ${{ secrets.SIBLING_REPOS_TOKEN || github.token }}
+
+      # The icon fonts. A release without them fails the build (RpmIconFonts in RPM.Desktop.csproj).
+      - uses: actions/checkout@v7
+        with:
+          repository: rpmrpmrpm/rpm-fonts-pro
+          path: rpm-fonts-pro
+          token: ${{ secrets.SIBLING_REPOS_TOKEN }}
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      # The version is the tag's. release_version.py is the same rule release-mac.sh applies: three
+      # whole numbers, which is what CFBundleVersion and .NET's AssemblyVersion both accept.
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          version="$(python -I rpm-desktop/scripts/release_version.py ref "${GITHUB_REF}")"
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      # Before the publish: the official API key is read from Secrets Manager with this role, so the
+      # one copy of the key is RPM/AppKey and a rotation needs no change here.
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_RELEASE_ROLE }}
+          aws-region: eu-west-1
+
+      - name: Read the API key
+        shell: bash
+        run: |
+          set -o pipefail
+          key="$(aws secretsmanager get-secret-value --secret-id RPM/AppKey --query SecretString --output text \
+            | python -I -c 'import json, sys; print(json.load(sys.stdin)["Current"])')"
+          echo "::add-mask::${key}"
+          echo "RPM_APP_KEY=${key}" >> "$GITHUB_ENV"
+
+      - name: Publish
+        shell: bash
+        working-directory: rpm-desktop
+        env:
+          # The publish runs scripts/fetch-tools.ps1, which downloads ffmpeg from this repository's
+          # rpm-ffmpeg release, and fails unless ffmpeg and fpcalc are the binaries
+          # scripts/tool-versions.txt pins by SHA-256 (PublishRpmTools in RPM.Desktop.csproj). It
+          # also downloads the beat and key models from updates.rpmrpmrpm.com and checks their hashes
+          # (FetchRpmModels). And it copies the Visual C++ runtime next to rpm.exe from the runner's
+          # Visual Studio (PublishVcRuntime), so the runner needs Visual Studio with the C++
+          # workload, which windows-latest has.
+          GH_TOKEN: ${{ github.token }}
+          # RPM_APP_KEY, from the step above, is the official key the app sends to the rpm API
+          # (RpmAppKeySource in RPM.Core.csproj). A release build fails without it.
+        run: |
+          # Self-contained and unpackaged: Velopack replaces a folder of files, which is not something
+          # an MSIX install allows. WindowsPackageType is already None in the csproj; it is stated
+          # again here so a change there cannot quietly produce a build this workflow cannot package.
+          # Native AOT, as the Mac build is (RpmWinUiAot in RPM.Desktop.csproj). RpmUpdates turns on
+          # the update check, which only official releases have.
+          dotnet publish RPM.Desktop/RPM.Desktop.csproj \
+            -c Release -f net10.0-windows10.0.19041 -r win-x64 \
+            --self-contained \
+            -p:WindowsPackageType=None \
+            -p:WindowsAppSDKSelfContained=true \
+            -p:RpmWinUiAot=true \
+            -p:RpmUpdates=true \
+            -p:Version=${{ steps.version.outputs.value }} \
+            -p:ApplicationDisplayVersion=${{ steps.version.outputs.value }} \
+            -o publish
+
+          # The native symbols for rpm.exe are kept, and kept out of the package. They turn the
+          # offsets in a native crash report back into function names. Shipped, they would hand every
+          # user the symbols, so rpm.pdb moves out before the package is made and is stored below, as
+          # release-mac.sh does with rpm.dSYM. Every other .pdb in the folder is dropped.
+          if [ ! -f publish/rpm.pdb ]; then
+            echo "::error::The AOT publish wrote no rpm.pdb, so native crash reports from this release could not be read."
+            exit 1
+          fi
+          mkdir -p symbols
+          mv publish/rpm.pdb symbols/rpm.pdb
+          find publish -name '*.pdb' -delete
+          echo "publish: $(du -sh publish | cut -f1), symbols: $(du -sh symbols/rpm.pdb | cut -f1)"
+
+      # The ONNX Runtime and DirectML the app is built against, not Windows ML's copies. Windows ML
+      # comes in with the Windows App SDK carrying its own onnxruntime.dll and DirectML.dll.
+      # RPM.Desktop.csproj excludes them; this checks the result byte for byte, before anything is
+      # signed or packed.
+      - name: ONNX Runtime and DirectML are the app's own
+        shell: pwsh
+        working-directory: rpm-desktop
+        run: |
+          $packages = ((dotnet nuget locals global-packages --list) -replace '^global-packages:\s*', '').Trim()
+          $ortVersion = ([xml](Get-Content Directory.Packages.props)).Project.ItemGroup.PackageVersion |
+            Where-Object { $_.Include -eq 'Microsoft.ML.OnnxRuntime.DirectML' } | ForEach-Object { $_.Version }
+          $ortDir = Join-Path $packages "microsoft.ml.onnxruntime.directml/$ortVersion"
+          $nuspec = Get-Content (Join-Path $ortDir 'microsoft.ml.onnxruntime.directml.nuspec') -Raw
+          $dmlVersion = [regex]::Match($nuspec, 'id="Microsoft.AI.DirectML" version="\[?([0-9.]+)').Groups[1].Value
+          if (-not $ortVersion -or -not $dmlVersion) { throw "Could not read the ONNX Runtime ($ortVersion) or DirectML ($dmlVersion) version." }
+          $expected = [ordered]@{
+            'onnxruntime.dll' = Join-Path $ortDir 'runtimes/win-x64/native/onnxruntime.dll'
+            'DirectML.dll'    = Join-Path $packages "microsoft.ai.directml/$dmlVersion/bin/x64-win/DirectML.dll"
+          }
+          foreach ($name in $expected.Keys) {
+            $shipped = Join-Path publish $name
+            if (-not (Test-Path $shipped)) { throw "$name is not in the publish folder." }
+            if (-not (Test-Path $expected[$name])) { throw "Cannot find $($expected[$name]) to compare $name with." }
+            $a = (Get-FileHash $shipped).Hash
+            $b = (Get-FileHash $expected[$name]).Hash
+            if ($a -ne $b) { throw "$name in the publish folder is not the one in its package ($a against $b): Windows ML's copy is in the build." }
+            "$name is the package's own, ONNX Runtime $ortVersion / DirectML $dmlVersion ($a)"
+          }
+          if (Test-Path publish/Microsoft.Windows.AI.MachineLearning.dll) { throw "Windows ML is in the publish folder." }
+
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
+
+      # Azure Trusted Signing. Without it Windows SmartScreen meets an unsigned installer and tells the
+      # user so.
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      # The Trusted Signing account and certificate profile vpk signs with. They come from the
+      # release environment, so the repository does not name the account.
+      - name: Signing settings
+        shell: bash
+        env:
+          ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+        run: |
+          python -I -c 'import json, os; print(json.dumps({"Endpoint": "https://weu.codesigning.azure.net/", "CodeSigningAccountName": os.environ["ACCOUNT"], "CertificateProfileName": os.environ["PROFILE"]}))' > azure-trusted-signing.json
+
+      # --packAuthors is the Publisher in Windows' Apps list. Without it Velopack writes the package id
+      # (com.rpm.desktop) there.
+      - name: Package with Velopack
+        shell: cmd
+        run: |
+          vpk pack ^
+            --mainExe rpm.exe ^
+            --packId ${{ env.PACK_ID }} ^
+            --packTitle rpm ^
+            --packAuthors rpm ^
+            --packVersion ${{ steps.version.outputs.value }} ^
+            --packDir rpm-desktop\publish ^
+            --outputDir release ^
+            --channel ${{ env.CHANNEL }} ^
+            --icon rpm-desktop\RPM.Desktop\Assets\Icons\window-icon.ico ^
+            --azureTrustedSignFile azure-trusted-signing.json
+
+      # The publish fails unless ffmpeg and fpcalc are present at the SHA-256 tool-versions.txt pins.
+      # This reads both back out of the signed package, which is what Setup and every update unpack,
+      # and runs them. Without them the app decodes and fingerprints nothing. It runs before the
+      # upload, so a package that fails is never put on the update host.
+      - name: ffmpeg and fpcalc are in the package and run
+        shell: pwsh
+        run: |
+          $package = @(Get-ChildItem release -Filter *-full.nupkg)
+          if ($package.Count -ne 1) { throw "Expected one full package in release, found $($package.Count)" }
+          rpm-desktop\scripts\check-release-tools.ps1 -Package $package[0].FullName
+
+      # The delta package: the files that changed since the release installed copies have, patched, so
+      # an update downloads tens of megabytes instead of the whole app. It is made from the newest full
+      # package in the live feed and kept only when update.exe, the updater an installed copy runs,
+      # rebuilds from it a package with exactly the files of the full one. The feed vpk wrote names
+      # this release only; it is replaced by the live feed plus this release, so older deltas stay
+      # listed (scripts/release_delta.py, and DeltaChain in the app for why the feed must only grow).
+      # It runs before the upload, so a delta that fails is never published.
+      - name: Delta from the previous release
+        shell: pwsh
+        run: |
+          python -I -m unittest discover -s rpm-desktop/scripts -p test_release_delta.py
+          if ($LASTEXITCODE -ne 0) { throw "release_delta.py fails its own tests." }
+
+          $version = '${{ steps.version.outputs.value }}'
+          # The host the app reads its feed from, as the app names it.
+          $updateHost = (Select-String -Path rpm-desktop/RPM.Desktop/Services/Updates/UpdateChannel.cs `
+            -Pattern 'const string Host = "([^"]+)"').Matches[0].Groups[1].Value
+          if (-not $updateHost) { throw "Could not read Host from UpdateChannel.cs." }
+
+          $previous = python -I rpm-desktop/scripts/release_delta.py previous --feed "$updateHost/${{ env.CHANNEL }}/" `
+            --channel ${{ env.CHANNEL }} --version $version --out previous
+          if ($LASTEXITCODE -ne 0) { throw "Could not read the previous release from $updateHost." }
+
+          $full = "release/${{ env.PACK_ID }}-$version-${{ env.CHANNEL }}-full.nupkg"
+          $delta = "release/${{ env.PACK_ID }}-$version-${{ env.CHANNEL }}-delta.nupkg"
+          vpk delta generate --base $previous --new $full --output $delta
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $delta)) { throw "vpk made no delta." }
+
+          $update = Join-Path $env:USERPROFILE ".dotnet/tools/.store/vpk/${{ env.VPK_VERSION }}/vpk/${{ env.VPK_VERSION }}/vendor/update.exe"
+          if (-not (Test-Path $update)) { throw "update.exe is not at $update." }
+          # Absolute paths: update.exe changes to its own folder before it reads its arguments.
+          $rebuilt = Join-Path $PWD "rebuilt.nupkg"
+          Remove-Item $rebuilt -ErrorAction SilentlyContinue
+          # Start-Process -Wait, not &: update.exe is a GUI-subsystem program, which PowerShell's call
+          # operator does not wait for, so $LASTEXITCODE would not be its exit code and the comparison
+          # below would race the patch.
+          $patch = Start-Process -FilePath $update -Wait -PassThru -NoNewWindow -ArgumentList @(
+            'patch', '--old', "`"$((Resolve-Path $previous).Path)`"", '--delta', "`"$((Resolve-Path $delta).Path)`"",
+            '--output', "`"$rebuilt`"")
+          if ($patch.ExitCode -ne 0) { throw "update.exe could not apply the delta to $previous (exit $($patch.ExitCode))." }
+          python -I rpm-desktop/scripts/release_delta.py same-files $full $rebuilt
+          if ($LASTEXITCODE -ne 0) { throw "The package rebuilt from the delta is not the full package." }
+
+          python -I rpm-desktop/scripts/release_delta.py feed --previous "previous/releases.${{ env.CHANNEL }}.json" `
+            --channel ${{ env.CHANNEL }} --full $full --delta $delta --out release
+          if ($LASTEXITCODE -ne 0) { throw "Could not write the feed." }
+          "delta: {0:N1} MB, full: {1:N1} MB" -f ((Get-Item $delta).Length / 1MB), ((Get-Item $full).Length / 1MB)
+
+      # Signed in again: the build above can outlast the first sign-in's hour.
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_RELEASE_ROLE }}
+          aws-region: eu-west-1
+
+      # The signed feed, before anything is uploaded. The private key goes from Secrets Manager into
+      # the tool through the pipe and is never written to the runner's disk. FeedSign checks what it
+      # signed against the public key compiled into the app, so a wrong key stops the release here.
+      - name: Sign the feed
+        shell: bash
+        run: |
+          set -o pipefail
+          aws secretsmanager get-secret-value --region eu-west-1 --secret-id RPM/UpdateFeedKey \
+              --query SecretString --output text \
+            | dotnet run -c Release --project rpm-desktop/tools/FeedSign -- "${CHANNEL}" \
+              "release/releases.${CHANNEL}.json" release
+
+      # The symbols first, to the private deploy bucket rather than the public update host, under the
+      # same prefix as the Mac's. A release whose symbols could not be stored stops here, before
+      # anything is uploaded.
+      - name: Store the symbols
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $zip = "rpm-$version-win-x64.pdb.zip"
+          Compress-Archive -Path rpm-desktop\symbols\rpm.pdb -DestinationPath $zip
+          aws s3 cp $zip "s3://fobo-deploy-artifacts/rpm-symbols/$version/$zip" --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw "Could not store $zip; a release without its symbols cannot be read back from a crash report." }
+          "stored $zip ({0:N0} MB)" -f ((Get-Item $zip).Length / 1MB)
+
+      # The packages first and the feed last. A feed naming a package nobody can download yet fails
+      # every app that reads it in between; the other order is a release that arrives a few seconds
+      # late.
+      - name: Upload the packages
+        shell: bash
+        run: |
+          aws s3 cp release "s3://${UPDATE_BUCKET}/${CHANNEL}/" \
+            --recursive --exclude "releases.*.json" --exclude "RELEASES-*" --only-show-errors
+
+      - name: Upload the feed and the installer
+        shell: bash
+        run: |
+          aws s3 cp "release/releases.${CHANNEL}.json" \
+            "s3://${UPDATE_BUCKET}/${CHANNEL}/releases.${CHANNEL}.json" \
+            --cache-control "no-cache" --only-show-errors
+
+          # What copies that check the feed signature read (FeedSignature); the plain feed above is
+          # for copies that do not.
+          aws s3 cp "release/releases.${CHANNEL}.signed.json" \
+            "s3://${UPDATE_BUCKET}/${CHANNEL}/releases.${CHANNEL}.signed.json" \
+            --cache-control "no-cache" --only-show-errors
+
+          # The download the site links to, under a name that never changes. Which version it is lives
+          # in the feed and in the app.
+          SETUP="$(ls release/*Setup.exe | head -1)"
+          aws s3 cp "${SETUP}" "s3://${UPDATE_BUCKET}/latest/rpm-setup.exe" --only-show-errors
+
+      - name: Invalidate the feed at the edge
+        shell: bash
+        # Git Bash on Windows rewrites an argument that starts with / into a Windows path, so
+        # /win-x64/releases.win-x64.json would reach CloudFront as C:/Program Files/Git/... and be
+        # refused as an invalid path. This turns that rewriting off.
+        env:
+          MSYS_NO_PATHCONV: "1"
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${UPDATE_DISTRIBUTION}" \
+            --paths "/${CHANNEL}/releases.${CHANNEL}.json" "/${CHANNEL}/releases.${CHANNEL}.signed.json" \
+              "/${CHANNEL}/RELEASES-${CHANNEL}" "/latest/rpm-setup.exe" \
+            --query 'Invalidation.Id' --output text
+
+      # No Actions artifact. The update host keeps every release's full and delta package under its
+      # version (win-x64/com.rpm.desktop-<version>-win-x64-*.nupkg), and that is what a release that
+      # went out wrong is looked at from. The release folder is several hundred megabytes per tag.

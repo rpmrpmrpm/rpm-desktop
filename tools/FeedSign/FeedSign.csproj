@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Signs a channel's update feed at release time. Both release paths run it:
+    scripts/release-mac.sh and .github/workflows/release.yml. The command is at the top
+    of Program.cs (an XML comment cannot hold its double dashes).
+
+    The private key arrives on standard input and is never written anywhere. The signing code is the
+    app's own file, linked below, so the tool and the app cannot disagree on the format.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\RPM.Desktop\Services\Updates\FeedSignature.cs" Link="FeedSignature.cs" />
+  </ItemGroup>
+
+</Project>

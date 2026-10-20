@@ -603,3 +603,8 @@ Local.xcconfig
 # RPM.Desktop/RPM.Desktop.csproj). The licence does not allow publishing these files.
 RPM.Desktop/Assets/Fonts/fa-solid-900.ttf
 RPM.Desktop/Assets/Fonts/fa-regular-400.ttf
+
+# The Developer ID provisioning profile for release-mac.sh. Kept out of the repository.
+RPM.Desktop/RPM.Desktop.provisionprofile
+# The release build's native symbols (release.yml). Stored privately, never committed.
+symbols/
