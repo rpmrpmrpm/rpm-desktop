@@ -253,7 +253,9 @@ public sealed class MusicBrainzClient
         string? Label = null,
         string? CatalogNumber = null,
         string? Genre = null,
-        string? Country = null);
+        string? Country = null,
+        string? PrimaryType = null,
+        IReadOnlyList<string>? SecondaryTypes = null);
 
     /// <summary>
     /// What a release lookup asks for.
@@ -373,8 +375,30 @@ public sealed class MusicBrainzClient
             // The release's own voted genres, falling back to the release group's: a single pressing
             // often has no genre tags when the record as a whole does.
             Genre: MusicBrainzRelations.TopGenre(root, releaseGroup),
-            Country: root.TryGetProperty("country", out var co) ? co.GetString() : null);
+            Country: root.TryGetProperty("country", out var co) ? co.GetString() : null,
+            PrimaryType: PrimaryTypeOf(releaseGroup),
+            SecondaryTypes: SecondaryTypesOf(releaseGroup));
     }
+
+    /// <summary>The release group's primary type ("Album", "EP", "Single"), or null where it has none. What
+    /// kind of release this is belongs to the group, not to one pressing of it.</summary>
+    internal static string? PrimaryTypeOf(JsonElement releaseGroup)
+        => releaseGroup.ValueKind == JsonValueKind.Object
+           && releaseGroup.TryGetProperty("primary-type", out var type) && type.ValueKind == JsonValueKind.String
+            ? type.GetString() is { Length: > 0 } name ? name : null
+            : null;
+
+    /// <summary>The release group's secondary types ("Live", "Compilation", "Mixtape/Street"), empty where it
+    /// has none.</summary>
+    internal static IReadOnlyList<string> SecondaryTypesOf(JsonElement releaseGroup)
+        => releaseGroup.ValueKind == JsonValueKind.Object
+           && releaseGroup.TryGetProperty("secondary-types", out var types) && types.ValueKind == JsonValueKind.Array
+            ? [.. types.EnumerateArray()
+                .Where(t => t.ValueKind == JsonValueKind.String)
+                .Select(t => t.GetString())
+                .OfType<string>()
+                .Where(t => t.Length > 0)]
+            : [];
 
     /// <summary>One DVD found by a search, with enough detail to choose between results without a
     /// second call.</summary>
@@ -731,7 +755,9 @@ public sealed class MusicBrainzClient
         string? Genre = null,
         string? Country = null,
         string? Format = null,
-        string? DiscSubtitle = null);
+        string? DiscSubtitle = null,
+        string? PrimaryType = null,
+        IReadOnlyList<string>? SecondaryTypes = null);
 
     /// <summary>
     /// What a disc-id lookup asks for: the same includes as a release lookup.
@@ -800,7 +826,9 @@ public sealed class MusicBrainzClient
                 Genre: MusicBrainzRelations.TopGenre(release, releaseGroup),
                 Country: release.TryGetProperty("country", out var dco) ? dco.GetString() : null,
                 Format: format,
-                DiscSubtitle: subtitle);
+                DiscSubtitle: subtitle,
+                PrimaryType: PrimaryTypeOf(releaseGroup),
+                SecondaryTypes: SecondaryTypesOf(releaseGroup));
 
         // A release can have several discs. Pick the medium that has this disc ID. After a fuzzy
         // lookup the ID does not appear, so fall back to the first medium.

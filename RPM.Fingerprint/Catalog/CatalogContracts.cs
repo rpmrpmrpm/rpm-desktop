@@ -69,6 +69,10 @@ public sealed record CatalogMedium(
 /// flat overall order; <see cref="Media"/> keeps the discs apart.</summary>
 /// <param name="OriginalYear">When the record first came out, as against when this pressing did.
 /// Zero when the catalogue does not say.</param>
+/// <param name="PrimaryType">The release group's primary type as MusicBrainz names it ("Album", "EP",
+/// "Single"), and <paramref name="SecondaryTypes"/> its secondary ones ("Live", "Compilation",
+/// "Soundtrack", "Mixtape/Street"). What kind of release this is, which the import fills its release type
+/// from (ReleaseTypes.FromMusicBrainz). Null and empty when the catalogue does not say.</param>
 public sealed record CatalogReleaseDetail(
     string Id,
     string Title,
@@ -85,11 +89,17 @@ public sealed record CatalogReleaseDetail(
     string? CatalogNumber = null,
     string? Genre = null,
     string? Subgenre = null,
-    string? Country = null);
+    string? Country = null,
+    string? PrimaryType = null,
+    IReadOnlyList<string>? SecondaryTypes = null);
 
 /// <summary>What a CD's table of contents resolved to: the matching medium's track list, and
 /// everything the catalogue knows about the pressing it belongs to. A rip is the one moment those
 /// facts can be had, so the disc lookup carries as much as a release lookup does.</summary>
+/// <param name="PrimaryType">The release group's primary type as MusicBrainz names it ("Album", "EP",
+/// "Single"), and <paramref name="SecondaryTypes"/> its secondary ones ("Live", "Compilation",
+/// "Soundtrack", "Mixtape/Street"). What kind of release this is, which the import fills its release type
+/// from (ReleaseTypes.FromMusicBrainz). Null and empty when the catalogue does not say.</param>
 public sealed record CatalogDisc(
     string ReleaseId,
     string Title,
@@ -109,7 +119,9 @@ public sealed record CatalogDisc(
     string? Subgenre = null,
     string? Country = null,
     string? Format = null,
-    string? DiscSubtitle = null);
+    string? DiscSubtitle = null,
+    string? PrimaryType = null,
+    IReadOnlyList<string>? SecondaryTypes = null);
 
 /// <summary>
 /// Where a release's front cover can be fetched from, once the server has looked.

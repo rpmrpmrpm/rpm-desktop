@@ -86,7 +86,7 @@ public sealed class RpmMetadataProvider(IRpmMetadataApi api) : IMetadataProvider
         => (await _api.GetReleaseAsync(releaseId, ct)).Then<ReleaseDetail?>(details => details is null ? null : Detail(details));
 
     /// <summary>One release's listing as the app's own shape.</summary>
-    private static ReleaseDetail Detail(CatalogReleaseDetail details)
+    internal static ReleaseDetail Detail(CatalogReleaseDetail details)
     {
         // Build from the media so each track keeps its disc and its number on that disc. The flat
         // continuous Position is kept for the merged view and for matching.
@@ -144,7 +144,8 @@ public sealed class RpmMetadataProvider(IRpmMetadataApi api) : IMetadataProvider
             Label: details.Label,
             CatalogNumber: details.CatalogNumber,
             Genre: kind.IsKnown ? kind.Genre : details.Genre,
-            Subgenre: kind.Subgenre);
+            Subgenre: kind.Subgenre,
+            ReleaseType: Library.ReleaseTypes.FromMusicBrainz(details.PrimaryType, details.SecondaryTypes));
     }
 
     /// <summary>One wire track as the app's own shape, for a listing that did not come through a search.

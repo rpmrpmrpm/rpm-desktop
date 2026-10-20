@@ -166,6 +166,8 @@ public sealed record ReleaseTrackInfo(
 /// throttled request for each release. A catalogue with no such pictures, or one that does not say, reports
 /// 0. 0 does not mean the front cover is missing too. See
 /// <see cref="IReleaseArtProvider.OtherImagesAsync"/> for what the pictures are.</param>
+/// <param name="ReleaseType">What kind of release it is, from the catalogue's own types, or null where it does
+/// not say. The import and the album editor fill their release type from it.</param>
 public sealed record ReleaseDetail(
     ReleaseRef Ref,
     string Title,
@@ -184,7 +186,8 @@ public sealed record ReleaseDetail(
     string? CatalogNumber = null,
     string? Genre = null,
     string? Subgenre = null,
-    int Photos = 0);
+    int Photos = 0,
+    RPM.Core.Library.ReleaseType? ReleaseType = null);
 
 /// <summary>
 /// Somewhere that knows which records exist, such as MusicBrainz or Discogs. They answer the same two

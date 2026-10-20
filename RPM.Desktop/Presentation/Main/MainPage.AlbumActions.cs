@@ -867,6 +867,10 @@ public sealed partial class MainPage
             Set(Dialogs.TagFieldKind.CatalogNumber, detail.CatalogNumber ?? release.CatalogNumber);
             Set(Dialogs.TagFieldKind.Media, detail.Format ?? release.Format);
             SetNumber(Dialogs.TagFieldKind.OriginalYear, detail.OriginalYear);
+            // What kind of release it is, as the catalogue files it. Stored by its own name, which is what
+            // the release type's list holds (TagFields.ReleaseTypeValues).
+            if (detail.ReleaseType is { } type)
+                Set(Dialogs.TagFieldKind.ReleaseType, RPM.Core.Library.ReleaseTypes.ToStored(type));
 
             // One name for the shelf, on both fields for the same reason the artist is set twice.
             Set(Dialogs.TagFieldKind.AlbumArtistSort, detail.ArtistSort);
