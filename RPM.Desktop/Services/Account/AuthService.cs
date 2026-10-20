@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using RPM.Core.Diagnostics;
 using RPM.Core.Net;
 using RPM.Core.Threading;
+using RPM.Desktop.Strings;
 
 namespace RPM.Desktop.Services.Account;
 
@@ -167,21 +168,26 @@ public sealed partial class AuthService
     }
 
     /// <summary>
-    /// Social sign-in. It asks the accounts API for a one-time session and a browser URL, opens that URL,
-    /// and then polls until the website writes the tokens. Only this app can collect them: it keeps the
-    /// poll secret and sends only its hash (see <see cref="PollSecret"/>).
+    /// Social sign-in. It asks the accounts API for a one-time session and a browser URL and opens that URL.
+    /// When the person is done, the website sends the browser back to this app with a one-time code: to the
+    /// sign-in sheet on macOS (<see cref="MacWebAuth"/>), and to a port on <c>127.0.0.1</c> on Windows and
+    /// Linux (<see cref="LoopbackCallback"/>). The app then collects the tokens with the code and its poll
+    /// secret (see <see cref="PollSecret"/>). Someone else who has the login URL has neither.
     /// </summary>
     public async Task<SignInOutcome> SignInSocialAsync(string provider, CancellationToken ct)
     {
         try
         {
+            var secret = PollSecret.Make();
+            using var loopback = MacWebAuth.Applicable ? null : LoopbackCallback.Open();
+
             // appId is the identifier that the accounts backend registered for this app. It must match the
             // backend's allowlist exactly. A value that is not on the list comes back as a session with no
             // tokens. That looks like a silent sign-in failure, not like an error.
-            var secret = PollSecret.Make();
-            var start = await _http.PostAsJsonAsync(
-                "auth/social-login", new SocialLoginRequest(provider, "RPM", PollSecret.HashOf(secret)),
-                AuthJson.Default.SocialLoginRequest, ct);
+            var request = new SocialLoginRequest(
+                provider, "RPM", PollSecret.HashOf(secret),
+                loopback is null ? "app" : "loopback", loopback?.Port);
+            var start = await _http.PostAsJsonAsync("auth/social-login", request, AuthJson.Default.SocialLoginRequest, ct);
             if (!start.IsSuccessStatusCode)
             {
                 Said.Line("auth", $"social sign-in not started: {(int)start.StatusCode} {await TryReadError(start)}");
@@ -194,43 +200,43 @@ public sealed partial class AuthService
                 return new SignInOutcome.Refused(SignInRefusal.Other);
             }
 
-            await Windows.System.Launcher.LaunchUriAsync(new Uri(s.LoginUrl));
-
-            var deadline = DateTime.UtcNow.AddMinutes(3);
-            while (DateTime.UtcNow < deadline)
+            string? code;
+            if (loopback is null)
             {
-                if (!await Cancellable.DelayAsync(2000, ct))
-                    return new SignInOutcome.Abandoned();
-                using var ask = new HttpRequestMessage(
-                    HttpMethod.Get, $"auth/poll-session?sessionId={Uri.EscapeDataString(s.SessionId)}");
-                ask.Headers.Add(PollSecret.Header, secret);
-                using var answer = await _http.SendAsync(ask, ct);
-
-                // 403: the server holds a different hash for this session. It does not happen to this
-                // app's own session, so the sign-in is not this app's to finish.
-                if (answer.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                // The sheet must be started on the UI thread. The awaits above did not leave it.
+                var callback = await MacWebAuth.AuthenticateAsync(new Uri(s.LoginUrl), ct);
+                if (callback is null) return new SignInOutcome.Abandoned();
+                if (MacWebAuth.ParseValue(callback, "sessionId") != s.SessionId)
                 {
-                    Said.Line("auth", "social sign-in refused: the poll secret did not match");
+                    Said.Line("auth", "social sign-in came back for another session");
                     return new SignInOutcome.Refused(SignInRefusal.Other);
                 }
-                answer.EnsureSuccessStatusCode();
-                var poll = await answer.Content.ReadFromJsonAsync(AuthJson.Default.PollResponse, ct);
-                if (poll is null || poll.Status != "complete") continue;
-                if (string.IsNullOrEmpty(poll.AccessToken))
-                {
-                    Said.Line("auth", "social sign-in completed with no token");
-                    return new SignInOutcome.Refused(SignInRefusal.Other);
-                }
-
-                SetSession(new Session(
-                    poll.UserId ?? "", poll.Email ?? "", poll.DisplayName,
-                    poll.AccessToken, poll.RefreshToken ?? "",
-                    DateTime.UtcNow.AddSeconds(poll.ExpiresIn > 0 ? poll.ExpiresIn : 3600)));
-                RevokePendingAfterSignIn();
-                return new SignInOutcome.SignedIn();
+                code = MacWebAuth.ParseValue(callback, "code");
             }
-            Said.Line("auth", $"social sign-in with {provider} not finished in the browser within 3 minutes");
-            return new SignInOutcome.Refused(SignInRefusal.BrowserTimedOut);
+            else
+            {
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(s.LoginUrl));
+
+                using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                limit.CancelAfter(TimeSpan.FromMinutes(3));
+                try
+                {
+                    var page = LoopbackCallback.Page(Loc.Get("Login_BrowserDoneTitle"), Loc.Get("Login_BrowserDoneBody"));
+                    code = await loopback.WaitForCodeAsync(s.SessionId, page, limit.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    Said.Line("auth", $"social sign-in with {provider} not finished in the browser within 3 minutes");
+                    return new SignInOutcome.Refused(SignInRefusal.BrowserTimedOut);
+                }
+            }
+
+            if (string.IsNullOrEmpty(code))
+            {
+                Said.Line("auth", "social sign-in came back with no code");
+                return new SignInOutcome.Refused(SignInRefusal.Other);
+            }
+            return await CollectSocialAsync(s.SessionId, secret, code, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -240,6 +246,50 @@ public sealed partial class AuthService
         {
             return new SignInOutcome.Failed(Faults.Note("auth", $"sign-in with {provider}", ex));
         }
+    }
+
+    /// <summary>
+    /// Collects the tokens of a finished social sign-in with the one-time code and the poll secret. The
+    /// website writes the tokens before it sends the browser back, so the first ask normally finds them.
+    /// Two more asks a second apart cover a slow write.
+    /// </summary>
+    private async Task<SignInOutcome> CollectSocialAsync(string sessionId, string secret, string code, CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            if (attempt > 0 && !await Cancellable.DelayAsync(1000, ct))
+                return new SignInOutcome.Abandoned();
+
+            using var ask = new HttpRequestMessage(
+                HttpMethod.Get, $"auth/poll-session?sessionId={Uri.EscapeDataString(sessionId)}");
+            ask.Headers.Add(PollSecret.Header, secret);
+            ask.Headers.Add(PollSecret.CodeHeader, code);
+            using var answer = await _http.SendAsync(ask, ct);
+
+            // 403: the secret or the code does not match this session, so the sign-in is not this app's.
+            if (answer.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                Said.Line("auth", "social sign-in refused: the poll secret or the code did not match");
+                return new SignInOutcome.Refused(SignInRefusal.Other);
+            }
+            answer.EnsureSuccessStatusCode();
+            var poll = await answer.Content.ReadFromJsonAsync(AuthJson.Default.PollResponse, ct);
+            if (poll is null || poll.Status != "complete") continue;
+            if (string.IsNullOrEmpty(poll.AccessToken))
+            {
+                Said.Line("auth", "social sign-in completed with no token");
+                return new SignInOutcome.Refused(SignInRefusal.Other);
+            }
+
+            SetSession(new Session(
+                poll.UserId ?? "", poll.Email ?? "", poll.DisplayName,
+                poll.AccessToken, poll.RefreshToken ?? "",
+                DateTime.UtcNow.AddSeconds(poll.ExpiresIn > 0 ? poll.ExpiresIn : 3600)));
+            RevokePendingAfterSignIn();
+            return new SignInOutcome.SignedIn();
+        }
+        Said.Line("auth", "social sign-in came back, but the tokens were not there to collect");
+        return new SignInOutcome.Refused(SignInRefusal.Other);
     }
 
     public void Logout()
@@ -563,7 +613,9 @@ public sealed partial class AuthService
     private sealed record SocialLoginRequest(
         [property: JsonPropertyName("provider")] string Provider,
         [property: JsonPropertyName("appId")] string AppId,
-        [property: JsonPropertyName("pollHash")] string PollHash);
+        [property: JsonPropertyName("pollHash")] string PollHash,
+        [property: JsonPropertyName("returnTo")] string ReturnTo,
+        [property: JsonPropertyName("port"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Port);
 
     private sealed record RefreshRequest(
         [property: JsonPropertyName("refreshToken")] string? RefreshToken);

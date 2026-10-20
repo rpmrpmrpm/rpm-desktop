@@ -1035,6 +1035,14 @@
   <data name="Login_WaitingBrowser" xml:space="preserve">
     <value>En attente de la connexion dans le navigateur…</value>
   </data>
+  <data name="Login_BrowserDoneTitle" xml:space="preserve">
+    <value>Connecté</value>
+    <comment>Title of the page the browser shows after signing in with Apple or Google from rpm on Windows or Linux. The app serves this page itself.</comment>
+  </data>
+  <data name="Login_BrowserDoneBody" xml:space="preserve">
+    <value>Vous pouvez fermer cet onglet et revenir à rpm.</value>
+    <comment>Text under Login_BrowserDoneTitle on the same browser page.</comment>
+  </data>
   <data name="Lookup_CatalogNumber" xml:space="preserve">
     <value>N° de catalogue</value>
   </data>
@@ -8304,6 +8312,10 @@
   <data name="Tv_SignIn_ScanThis" xml:space="preserve">
     <value>Scannez le code avec l'appareil photo de votre téléphone et connectez-vous sur votre téléphone.</value>
     <comment>Under the QR code in the Android TV sign-in pop-up.</comment>
+  </data>
+  <data name="Tv_SignIn_Code" xml:space="preserve">
+    <value>Code {0}. Vérifiez que votre téléphone affiche le même code.</value>
+    <comment>Under the QR code on the Apple TV and Android TV sign-in screens. {0} is eight letters in two groups, e.g. BCDF-GHJK. The phone's sign-in page shows the same code before it goes on to Apple or Google.</comment>
   </data>
   <data name="Tv_SignIn_Done" xml:space="preserve">
     <value>Vous êtes connecté en tant que {0}.</value>
