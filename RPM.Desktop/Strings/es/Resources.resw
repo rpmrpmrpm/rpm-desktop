@@ -2528,6 +2528,26 @@
     <value>Diseño predeterminado</value>
     <comment>Row in the Android TV app's settings panel: which layout the now-playing screen opens with (Full, Compact or Visuals only). OK moves to the next layout.</comment>
   </data>
+  <data name="Tv_SettingsRoomStyle" xml:space="preserve">
+    <value>Animación de la sala</value>
+    <comment>Row in the Android TV app's settings panel, Visualisation section: which music-reactive animation is drawn behind the player and the screens (Original, Yang, Lava or RPaMp). OK moves to the next one.</comment>
+  </data>
+  <data name="Tv_RoomStyleOriginal" xml:space="preserve">
+    <value>Original</value>
+    <comment>Value of the Room animation row in the Android TV settings: the room's own animation, the glowing shapes every RPM app draws. Feminine in French (une animation).</comment>
+  </data>
+  <data name="Tv_RoomStyleYang" xml:space="preserve">
+    <value>Yang</value>
+    <comment>Value of the Room animation row in the Android TV settings: four balls turning round the middle with trails behind them. A name; leave it untranslated.</comment>
+  </data>
+  <data name="Tv_RoomStyleLava" xml:space="preserve">
+    <value>Lava</value>
+    <comment>Value of the Room animation row in the Android TV settings: blobs rising and sinking like a lava lamp. A name; leave it untranslated.</comment>
+  </data>
+  <data name="Tv_RoomStyleRPaMp" xml:space="preserve">
+    <value>RPaMp</value>
+    <comment>Value of the Room animation row in the Android TV settings: columns of light rising from a glowing floor, after the RPaMp player skin. A product name; never translate it.</comment>
+  </data>
   <data name="Tv_SettingsShowStats" xml:space="preserve">
     <value>Mostrar estadísticas de rendimiento</value>
     <comment>Row in the Android TV app's settings panel: whether frame rate, CPU and memory figures are shown at the top left of the screen. The value is On or Off; OK switches it.</comment>
@@ -9060,5 +9080,13 @@
   <data name="Deck_QueueEmpty" xml:space="preserve">
     <value>No hay nada en cola. Reproduce un disco o una canción y lo que viene después aparecerá aquí.</value>
     <comment>Player deck: the queue card's text when nothing is queued.</comment>
+  </data>
+  <data name="Tv_QueueAfterUpNext" xml:space="preserve">
+    <value>Después</value>
+    <comment>Small heading in the TV player's Now playing drawer, where the list that was playing continues after the songs the person added (which are under an "Up next" heading).</comment>
+  </data>
+  <data name="Tv_QueueRearrangeHint" xml:space="preserve">
+    <value>OK toma una canción, Arriba y Abajo la mueven, OK la deja.</value>
+    <comment>Line under the title of the TV player's Now playing drawer while rearranging is on. OK, Up and Down are the TV remote's keys.</comment>
   </data>
 </root>
