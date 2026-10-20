@@ -899,7 +899,10 @@
     <Copy SourceFiles="$(RpmFontsPro)%(RpmIconFont.Identity)"
           DestinationFolder="$(MSBuildThisFileDirectory)Assets\Fonts\"
           Condition="!Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)') And Exists('$(RpmFontsPro)%(RpmIconFont.Identity)')" />
-    <Warning Condition="!Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)')"
+    <!-- A release (RpmUpdates=true) with blank icons is not shipped. -->
+    <Error Condition="'$(RpmUpdates)' == 'true' And !Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)')"
+           Text="A release build (RpmUpdates=true) needs Assets/Fonts/%(RpmIconFont.Identity) from the private rpm-fonts-pro repo, checked out next to this repo or set in RpmFontsPro." />
+    <Warning Condition="'$(RpmUpdates)' != 'true' And !Exists('$(MSBuildThisFileDirectory)Assets\Fonts\%(RpmIconFont.Identity)')"
              Text="Assets/Fonts/%(RpmIconFont.Identity) is missing, so icons that use it are blank. It comes from the private rpm-fonts-pro repo, checked out next to this repo or set in RpmFontsPro." />
     <ItemGroup>
       <Content Remove="Assets\Fonts\%(RpmIconFont.Identity)"
