@@ -25,15 +25,26 @@ public class HttpCacheOffTheDrawingThreadTests
     /// <para>The handler decides whether it must leave the current thread by checking for a
     /// synchronization context, because in this app only the drawing thread has one. So the test
     /// sets one.</para>
+    ///
+    /// <para>Work posted to it runs with this context current, as work posted to the drawing thread
+    /// does. A continuation that comes back to the caller's context is then still "on the drawing
+    /// thread", and a store call made from it is seen.</para>
     /// </summary>
     private sealed class OwnedThread : SynchronizationContext
     {
         public override void Post(SendOrPostCallback d, object? state) =>
-            ThreadPool.QueueUserWorkItem(_ => d(state));
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                var was = Current;
+                SetSynchronizationContext(this);
+                try { d(state); }
+                finally { SetSynchronizationContext(was); }
+            });
     }
 
     /// <summary>
-    /// A store that records which synchronization context was current when it was read.
+    /// A store that records a synchronization context that was current during any read, renew or
+    /// write. Writes count as much as reads: a picture write is a SQLite write and a blob write.
     ///
     /// <para><b>The context, not the thread id.</b> Comparing thread ids does not work: a thread
     /// that queues work to the pool and then awaits returns to the pool, and can run its own work
@@ -46,15 +57,24 @@ public class HttpCacheOffTheDrawingThreadTests
         public bool Read_At_All { get; private set; }
         public SynchronizationContext? ContextAtRead { get; private set; }
 
+        public bool Written { get; private set; }
+
         public WebCacheEntry? Read(string key)
         {
             Read_At_All = true;
-            ContextAtRead = SynchronizationContext.Current;
+            Watch();
             return null;
         }
 
-        public void Write(WebCacheEntry entry) { }
-        public void Renew(string key, long fetchedUtcTicks, long expiresUtcTicks) { }
+        public void Write(WebCacheEntry entry)
+        {
+            Written = true;
+            Watch();
+        }
+
+        public void Renew(string key, long fetchedUtcTicks, long expiresUtcTicks) => Watch();
+
+        private void Watch() => ContextAtRead ??= SynchronizationContext.Current;
         public void Clear() { }
         public long BytesOnDisk() => 0;
     }
@@ -94,6 +114,7 @@ public class HttpCacheOffTheDrawingThreadTests
         }
 
         Assert.True(store.Read_At_All, "the cache was never consulted, so this proves nothing");
+        Assert.True(store.Written, "the answer was never filed, so the write was not checked");
         Assert.True(
             store.ContextAtRead is null,
             "the cache was read on a thread that belongs to somebody. On the drawing thread that is " +

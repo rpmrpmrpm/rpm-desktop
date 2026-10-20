@@ -170,7 +170,7 @@ public sealed class HttpCacheHandler : DelegatingHandler
             // caller, and only one result is kept. Ten callers on one key would make ten flights and throw
             // nine away. Each Flight starts a timer in its constructor, so the discarded flights would
             // leave nine live timers that nobody disposes.
-            var mine = new Flight(_flightTimeout, token => Fly(key, request, policy, refresh, token));
+            var mine = new Flight(_flightTimeout, token => Start(key, request, policy, refresh, token));
 
             var flight = _flights.GetOrAdd(key, mine);
             if (ReferenceEquals(flight, mine))
@@ -215,6 +215,21 @@ public sealed class HttpCacheHandler : DelegatingHandler
 
     private WebCachePolicy? Policy(HttpRequestMessage request) =>
         request.Options.TryGetValue(WebCache.PolicyOption, out var policy) ? policy : _default;
+
+    /// <summary>
+    /// Starts <see cref="Fly"/> for the caller that made the flight.
+    ///
+    /// <para>A caller with a synchronization context is the drawing thread. <see cref="Fly"/> reads,
+    /// renews and writes the store, and its awaits come back to the context they started on, so it is
+    /// started on the pool for that caller. Otherwise the store work would run on the drawing thread
+    /// after the request. The flight is already in the table at this point, so other callers still
+    /// join it while it starts. Callers without a context start it in place.</para>
+    /// </summary>
+    private Task<Fetched> Start(
+        string key, HttpRequestMessage original, WebCachePolicy policy, bool refresh, CancellationToken ct) =>
+        SynchronizationContext.Current is null
+            ? Fly(key, original, policy, refresh, ct)
+            : Task.Run(() => Fly(key, original, policy, refresh, ct), CancellationToken.None);
 
     /// <summary>The one request the waiting callers share.</summary>
     private async Task<Fetched> Fly(
