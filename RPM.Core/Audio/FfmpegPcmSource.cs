@@ -99,9 +99,12 @@ public sealed class FfmpegPcmSource : IPcmSource
     private string? _fault;
     private readonly object _endGate = new();
 
-    /// <summary>How long to wait for the process to exit after its output closed, before treating the
-    /// end as normal. Normally it has already exited, because ffmpeg closes stdout as it exits.</summary>
-    private const int ExitGraceMs = 500;
+    /// <summary>How long to wait for the process to exit after its output closed, and for its stderr to be
+    /// handed over, before treating the end as normal. Normally it has already exited, because ffmpeg
+    /// closes stdout as it exits, so the wait costs nothing. On a busy machine the exit and the hand-over
+    /// can take more than half a second, and a shorter wait reads a stream that was cut off as one that
+    /// ended. The wait is only paid in full when ffmpeg does not exit.</summary>
+    private const int ExitGraceMs = 2000;
 
     public FfmpegPcmSource(Options options)
     {

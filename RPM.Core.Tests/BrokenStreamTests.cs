@@ -126,7 +126,10 @@ public class BrokenStreamTests : IDisposable
         using var source = Open(server.Url);
         DrainAll(source);
 
-        Assert.Equal(PcmState.Failed, source.State);
+        // What ffmpeg wrote is in the message, so a failure here shows whether it complained at all
+        // or the complaint was not read in time.
+        Assert.True(source.State == PcmState.Failed,
+            $"a stream cut off after a third was read as {source.State}; ffmpeg said: {source.Said ?? "(nothing read)"}");
         Assert.False(string.IsNullOrWhiteSpace(source.Fault));
     }
 
