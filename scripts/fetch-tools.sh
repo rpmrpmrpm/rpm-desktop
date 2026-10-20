@@ -107,7 +107,8 @@ check_pinned() {
 # --- ffmpeg -----------------------------------------------------------------------------------
 echo "tools: downloading ffmpeg ${FFMPEG_VERSION}-rpm${RPM_FFMPEG_BUILD} for $RID ..."
 FFMPEG_URL="https://github.com/$RPM_TOOLS_REPO/releases/download/$FFMPEG_TAG/ffmpeg-$RID.gz"
-if ! curl -fsSL "$FFMPEG_URL" -o "$WORK/ffmpeg-$RID.gz"; then
+# Quiet: while the repository is private this fails, and its error line would read as a build error.
+if ! curl -fsL "$FFMPEG_URL" -o "$WORK/ffmpeg-$RID.gz" 2>/dev/null; then
   if ! command -v gh >/dev/null; then
     echo "fetch-tools: could not download $FFMPEG_URL. If $RPM_TOOLS_REPO is private, install the GitHub CLI and run gh auth login" >&2
     exit 1
