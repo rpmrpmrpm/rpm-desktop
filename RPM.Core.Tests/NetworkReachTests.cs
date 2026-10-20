@@ -607,19 +607,25 @@ public class NetworkReachTests
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var faults = new System.Collections.Concurrent.ConcurrentBag<Exception>();
 
+        // The callers stop on the clock, not only on the token. While the answer is held, AllowAsync
+        // returns without awaiting anything, so a caller that did not yield would keep a pool thread for
+        // the whole run. Ten of them on a small CI machine leave no thread to run the token's timer or the
+        // Task.Delay below, and the test then waits for the pool to grow instead of testing the gate.
+        var end = Environment.TickCount64 + 2000;
         var work = Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
         {
-            while (!stop.IsCancellationRequested)
+            while (!stop.IsCancellationRequested && Environment.TickCount64 < end)
             {
                 try { await reach.AllowAsync(stop.Token); }
                 catch (OperationCanceledException) { }
                 catch (Exception ex) { faults.Add(ex); }
+                await Task.Yield();
             }
         })).ToList();
 
         work.Add(Task.Run(async () =>
         {
-            while (!stop.IsCancellationRequested)
+            while (!stop.IsCancellationRequested && Environment.TickCount64 < end)
             {
                 try { reach.Doubt(); await Task.Delay(5, stop.Token); }
                 catch (OperationCanceledException) { }
@@ -629,7 +635,7 @@ public class NetworkReachTests
 
         work.Add(Task.Run(async () =>
         {
-            while (!stop.IsCancellationRequested)
+            while (!stop.IsCancellationRequested && Environment.TickCount64 < end)
             {
                 try { reach.AddressesChanged(); await Task.Delay(7, stop.Token); }
                 catch (OperationCanceledException) { }
