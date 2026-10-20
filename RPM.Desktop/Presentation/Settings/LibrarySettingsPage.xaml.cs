@@ -42,6 +42,7 @@ public sealed partial class LibrarySettingsPage : Page
         FingerprintToggle.IsOn = _settings.FingerprintLibrary;
         ShareListeningToggle.IsOn = _settings.ShareListening;
         AnalysisTagsToggle.IsOn = _settings.WriteAnalysisTags;
+        CatalogueFillToggle.IsOn = _settings.ImportFillFromCatalogue;
         _loading = false;
 
         BuildJumpLinks();
@@ -230,6 +231,17 @@ public sealed partial class LibrarySettingsPage : Page
         }
 
         _settings.ImportRequiredTags = chosen;
+    }
+
+    /// <summary>Whether added music has its missing genre and year looked up. The fill reads the setting before
+    /// each record, so turning it off stops a fill that is running at the next record, and nothing has to be
+    /// told.</summary>
+    private void OnCatalogueFillToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+
+        _settings.ImportFillFromCatalogue = CatalogueFillToggle.IsOn;
     }
 
     // Fingerprinting

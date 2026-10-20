@@ -362,4 +362,112 @@ public static class Genres
         // rather than filing the record nowhere.
         return Pick(genres, styles) is { } written ? new GenreChoice(written, null) : GenreChoice.None;
     }
+
+    /// <summary>Whether this is one of the shelves exactly as the list spells it, ignoring case. "Hip hop" is
+    /// not: it LEADS to a shelf (see <see cref="Read"/>), but it is not one, and a page that groups records by
+    /// their genre tag would give it a shelf of its own.</summary>
+    public static bool IsListed(string? genre)
+        => !string.IsNullOrWhiteSpace(genre)
+           && All.Contains(genre.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The shelf as the list spells it, for a tag that is one of the shelves in another case: "rock"
+    /// is "Rock". Null for anything that is not a shelf as written. See <see cref="IsListed"/>.</summary>
+    public static string? Listed(string? genre)
+        => string.IsNullOrWhiteSpace(genre)
+            ? null
+            : All.FirstOrDefault(g => g.Equals(genre.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The shelf and the style to file a record under, from a catalogue that gives ONE list of genres ranked
+    /// by its voters. This is MusicBrainz: "electronic, trip hop, downtempo", most votes first.
+    ///
+    /// <para><b>Why not <see cref="PickPair"/>.</b> PickPair is built for Discogs, which keeps its genres and
+    /// its styles apart, and it takes the first style it finds wherever that style hangs. Given one voted list,
+    /// "rock, indie rock" would come back as Rock with the style Indie Rock, which the style table hangs off
+    /// Indie. A pair whose style is not under its shelf is the one answer <see cref="GenreChoice"/> says can
+    /// never happen, and the genre pages and the mood lists read the two together.</para>
+    ///
+    /// <para><b>The rule.</b> The shelf is the first entry, in vote order, that the lists recognise
+    /// (<see cref="Read"/>). Most votes is what the record mostly is. If that entry is itself a style ("trip
+    /// hop" voted above "electronic"), it answers both halves. Otherwise the style is the first entry in vote
+    /// order that is a style UNDER that shelf: "electronic, trip hop" is Electronic / Dance and Trip Hop, and
+    /// "rock, alternative rock" is Rock and Alternative Rock. Failing that, a style on one of the shelf's own
+    /// kinds (see <see cref="Families"/>) moves the record down to that kind: "rock, indie rock" is Indie and
+    /// Indie Rock, and "electronic, deep house" is House and Deep House. The voters said which corner of the
+    /// broad word the record sits in, and the list files that corner on a shelf of its own. Nothing moves
+    /// sideways or up, so "rock, synth-pop" stays Rock with no style.</para>
+    ///
+    /// <para><see cref="GenreChoice.None"/> when nothing in the list is ours. Unlike <see cref="PickPair"/>,
+    /// this never hands back the catalogue's own word: a shelf the app does not have is a tag every genre page,
+    /// mood list and radio skips, and a blank says plainly that nobody has filed the record yet. The words
+    /// stay in <see cref="Providers.ReleaseDetail.Genres"/> for whoever wants them.</para>
+    /// </summary>
+    /// <param name="voted">The catalogue's genres, most votes first.</param>
+    public static GenreChoice PickVoted(IReadOnlyList<string>? voted)
+    {
+        if (voted is not { Count: > 0 })
+            return GenreChoice.None;
+
+        var lead = GenreChoice.None;
+        foreach (var value in voted)
+            if (Read(value) is { IsKnown: true } read)
+            {
+                lead = read;
+                break;
+            }
+
+        if (!lead.IsKnown || lead.HasSubgenre)
+            return lead;
+
+        if (StyleUnder(lead.Genre, voted) is { } style)
+            return new GenreChoice(lead.Genre, style);
+
+        var kinds = KindsOf(lead.Genre);
+        if (kinds.Count > 0)
+            foreach (var value in voted)
+                if (Subgenres.Match(value) is { } narrower && kinds.Contains(narrower.Genre))
+                    return new GenreChoice(narrower.Genre, narrower.Name);
+
+        return lead;
+    }
+
+    /// <summary>
+    /// The first of <paramref name="voted"/> that is a style under <paramref name="genre"/>, as the style table
+    /// spells it, or null when none is.
+    ///
+    /// <para>This is for a record whose shelf is already settled, by a person or by the file, and whose style is
+    /// still blank. A catalogue that files it somewhere else can still say which corner of THIS shelf it is: a
+    /// record a person put on Rock, voted "pop, soft rock", is Soft Rock. A style under a different shelf is
+    /// never taken, because a style only makes sense as a corner of its own shelf.</para>
+    ///
+    /// <para>The shelf's own styles are compared by name first, then the style table's reading of each entry.
+    /// The name pass is what finds a style that hangs off two shelves, which the table's lookup leaves to the
+    /// rest of the tag (see <see cref="Subgenres"/>).</para>
+    /// </summary>
+    public static string? StyleUnder(string? genre, IReadOnlyList<string>? voted)
+    {
+        if (string.IsNullOrWhiteSpace(genre) || voted is not { Count: > 0 })
+            return null;
+
+        var under = Subgenres.Under(genre);
+        if (under.Count == 0)
+            return null;
+
+        foreach (var value in voted)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+            var key = GenreText.Fold(value);
+            if (under.FirstOrDefault(s => GenreText.Fold(s.Name) == key) is { } named)
+                return named.Name;
+            if (Subgenres.Match(value) is { } style && style.Genre == genre)
+                return style.Name;
+        }
+        return null;
+    }
+
+    /// <summary>The shelves filed as kinds of this one, where it heads a family, and nothing otherwise. A kind is
+    /// never asked for its siblings or its head here. Only a step down is a narrower answer.</summary>
+    private static IReadOnlyList<string> KindsOf(string genre)
+        => [.. Families.Where(f => f[0].Equals(genre, StringComparison.OrdinalIgnoreCase)).SelectMany(f => f.Skip(1))];
 }

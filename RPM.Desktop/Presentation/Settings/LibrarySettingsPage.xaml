@@ -310,6 +310,16 @@
           <!-- Filled in code-behind: one tick per tag, from the store's own list of tags. A tag added there
                appears here without this page being edited. -->
           <StackPanel x:Name="RequiredTagsList" Spacing="2"/>
+
+          <!-- The other half of the same question: the tags the features need most, filled in from the
+               catalogue for whoever never fills them in by hand. Only blanks, and only on the queue's
+               proposal, so nothing reaches a file before the user imports. -->
+          <ToggleSwitch x:Name="CatalogueFillToggle"
+                        Header="{loc:Str Key=Settings_CatalogueFill}"
+                        Toggled="OnCatalogueFillToggled"
+                        OffContent="" OnContent="" />
+          <TextBlock Text="{loc:Str Key=Settings_CatalogueFillHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
 

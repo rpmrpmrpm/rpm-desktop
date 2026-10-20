@@ -255,7 +255,8 @@ public sealed class MusicBrainzClient
         string? Genre = null,
         string? Country = null,
         string? PrimaryType = null,
-        IReadOnlyList<string>? SecondaryTypes = null);
+        IReadOnlyList<string>? SecondaryTypes = null,
+        IReadOnlyList<string>? Genres = null);
 
     /// <summary>
     /// What a release lookup asks for.
@@ -377,7 +378,11 @@ public sealed class MusicBrainzClient
             Genre: MusicBrainzRelations.TopGenre(root, releaseGroup),
             Country: root.TryGetProperty("country", out var co) ? co.GetString() : null,
             PrimaryType: PrimaryTypeOf(releaseGroup),
-            SecondaryTypes: SecondaryTypesOf(releaseGroup));
+            SecondaryTypes: SecondaryTypesOf(releaseGroup),
+            // Every voted genre, not only the top one. The top vote is often the broad word ("electronic")
+            // and the second the one that says which corner ("trip hop"). The desktop reads the whole list
+            // against its own shelves and styles (Genres.PickVoted).
+            Genres: MusicBrainzRelations.VotedGenres(root, releaseGroup));
     }
 
     /// <summary>The release group's primary type ("Album", "EP", "Single"), or null where it has none. What
@@ -757,7 +762,8 @@ public sealed class MusicBrainzClient
         string? Format = null,
         string? DiscSubtitle = null,
         string? PrimaryType = null,
-        IReadOnlyList<string>? SecondaryTypes = null);
+        IReadOnlyList<string>? SecondaryTypes = null,
+        IReadOnlyList<string>? Genres = null);
 
     /// <summary>
     /// What a disc-id lookup asks for: the same includes as a release lookup.
@@ -828,7 +834,8 @@ public sealed class MusicBrainzClient
                 Format: format,
                 DiscSubtitle: subtitle,
                 PrimaryType: PrimaryTypeOf(releaseGroup),
-                SecondaryTypes: SecondaryTypesOf(releaseGroup));
+                SecondaryTypes: SecondaryTypesOf(releaseGroup),
+                Genres: MusicBrainzRelations.VotedGenres(release, releaseGroup));
 
         // A release can have several discs. Pick the medium that has this disc ID. After a fuzzy
         // lookup the ID does not appear, so fall back to the first medium.

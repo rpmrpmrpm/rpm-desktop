@@ -42,8 +42,20 @@ public sealed partial class MainModel
     /// a file that is already on the list is not added twice. Zero needs saying out loud. A folder with no
     /// music in it looks exactly like a scan that silently failed. See <see
     /// cref="MainPage.ScanSourcesAsync"/>.</para>
+    ///
+    /// <para>The records it adds have their missing genre, style and year looked up afterwards (see
+    /// <see cref="StartCatalogueFill"/>), because everything that calls this is the user adding music.</para>
     /// </summary>
-    public async Task<int> AddSourceAsync(string sourcePath)
+    public Task<int> AddSourceAsync(string sourcePath) => AddSourceAsync(sourcePath, fillFromCatalogue: true);
+
+    /// <inheritdoc cref="AddSourceAsync(string)"/>
+    /// <param name="fillFromCatalogue">Whether to look up what the added records lack. False only for the inbox
+    /// sweep that follows the library opening, because nothing in the background starts itself off the library
+    /// opening.</param>
+    /// <remarks>Private, and with no default value, on purpose: the reactive view-model generator wraps every
+    /// public method of this model, and it writes a <c>bool</c> default as <c>True</c>, which does not
+    /// compile.</remarks>
+    private async Task<int> AddSourceAsync(string sourcePath, bool fillFromCatalogue)
     {
         if (_scanning)
             return 0;
@@ -84,6 +96,12 @@ public sealed partial class MainModel
             // freezes.
             var queueRows = await Task.Run(() => BuildQueueTracks(tracks, sourcePath));
             await _queueSource.InsertAsync(queueRows);
+
+            // The rows are in the store and on screen. What they lack is asked about now, in the background,
+            // so the user sees the filled genre and year in the queue before they import. See
+            // MainModel.CatalogueFill.
+            if (fillFromCatalogue && queueRows.Count > 0)
+                StartCatalogueFill();
             return tracks.Count;
         }
         finally

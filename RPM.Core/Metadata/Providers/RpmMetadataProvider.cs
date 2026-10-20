@@ -113,13 +113,24 @@ public sealed class RpmMetadataProvider(IRpmMetadataApi api) : IMetadataProvider
                 .ToList();
         }
 
-        // The catalogue sends one genre string. For a dance record its most-voted answer is "deep house",
-        // which is a style, not a genre. Reading it as a pair gives both halves, at no cost, because it is
-        // the same string. If the server sends a style of its own, that is used as it is, without a second
-        // guess.
+        // A server that sends a style of its own is taken as it is, without a second guess. Otherwise the
+        // voted list is read against the app's own shelves and styles (Genres.PickVoted): the top vote is
+        // usually the broad word, "electronic", and the corner of it, "trip hop", is further down. An older
+        // server sends only the top vote. For a dance record that is often "deep house", which is a style, so
+        // it is still read as a pair, at no cost, because it is the same string.
+        var voted = details.Genres is { Count: > 0 } list ? list : null;
         var kind = details.Subgenre is { Length: > 0 }
             ? new GenreChoice(details.Genre ?? "", details.Subgenre)
-            : Genres.Read(details.Genre);
+            : voted is not null
+                ? Genres.PickVoted(voted)
+                : Genres.Read(details.Genre);
+
+        // What reaches the genre box when nothing mapped. With the whole list in hand and none of it ours, the
+        // answer is a blank: every word in it has been tried, and a shelf the app does not have is a tag that
+        // the genre pages, the mood lists and the radio all pass over. A blank leaves whatever the box already
+        // held, and the queue keeps marking the record as missing its genre, which is the truth. An older
+        // server's single word is kept as before, because it is the only answer there is to show.
+        var genre = kind.IsKnown ? kind.Genre : voted is null ? details.Genre : null;
 
         var formats = details.Media
             .Select(m => m.Format)
@@ -143,9 +154,10 @@ public sealed class RpmMetadataProvider(IRpmMetadataApi api) : IMetadataProvider
             Barcode: details.Barcode,
             Label: details.Label,
             CatalogNumber: details.CatalogNumber,
-            Genre: kind.IsKnown ? kind.Genre : details.Genre,
+            Genre: genre,
             Subgenre: kind.Subgenre,
-            ReleaseType: Library.ReleaseTypes.FromMusicBrainz(details.PrimaryType, details.SecondaryTypes));
+            ReleaseType: Library.ReleaseTypes.FromMusicBrainz(details.PrimaryType, details.SecondaryTypes),
+            Genres: voted);
     }
 
     /// <summary>One wire track as the app's own shape, for a listing that did not come through a search.

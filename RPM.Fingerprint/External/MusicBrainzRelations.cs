@@ -234,6 +234,45 @@ internal static class MusicBrainzRelations
         return best;
     }
 
+    /// <summary>
+    /// Every voted genre of a release and its release group, most votes first, capitalised the way
+    /// <see cref="TopGenre"/> capitalises its one answer.
+    ///
+    /// <para><b>Why the whole list.</b> <see cref="TopGenre"/> keeps one word, and the word with the most
+    /// votes is usually the broadest: "electronic" outvotes "trip hop" on most trip hop records. The broad
+    /// word gives a shelf and nothing narrower. The app files records under a shelf AND a style, and the
+    /// style is almost always further down the list. So the list goes over the wire, and the reader decides
+    /// which of it fits its own shelves.</para>
+    ///
+    /// <para><b>Votes are summed across the release and its group.</b> A pressing often carries no genres
+    /// of its own, or one or two, while the release group has the record's real tally. One genre voted on
+    /// both is one genre with the votes of both, not two entries. Ties keep the order the genres were first
+    /// met in, release before group, which is MusicBrainz's own order.</para>
+    /// </summary>
+    internal static IReadOnlyList<string> VotedGenres(params JsonElement[] elements)
+    {
+        var votes = new Dictionary<string, (string Name, int Count, int First)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty("genres", out var genres) || genres.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var genre in genres.EnumerateArray())
+            {
+                if (Str(genre, "name") is not { } raw || raw.Trim() is not { Length: > 0 } name)
+                    continue;
+                int count = genre.TryGetProperty("count", out var c) && c.TryGetInt32(out var ci) ? ci : 0;
+                votes[name] = votes.TryGetValue(name, out var had)
+                    ? had with { Count = had.Count + count }
+                    : (Capitalise(name), count, votes.Count);
+            }
+        }
+
+        return [.. votes.Values.OrderByDescending(v => v.Count).ThenBy(v => v.First).Select(v => v.Name)];
+    }
+
     /// <summary>MusicBrainz stores genres in lower case. Tag editors and other players show them
     /// capitalised, and a library that mixes "rock" and "Rock" shows two entries for one genre.</summary>
     private static string Capitalise(string name) =>

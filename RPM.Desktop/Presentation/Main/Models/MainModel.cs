@@ -583,8 +583,10 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     private async Task StartupLibraryPassAsync()
     {
         await SyncLibraryAsync();
+        // No catalogue fill here. This pass hangs off the library opening, and nothing in the background starts
+        // itself off that. The records it queues are filled after the next add the user makes.
         if (_inbox.InboxPath is { } path && _inbox.HasMusic())
-            await AddSourceAsync(path);
+            await AddSourceAsync(path, fillFromCatalogue: false);
     }
 
     /// <summary>Music has landed in the inbox while the app is running. It goes into the queue as an

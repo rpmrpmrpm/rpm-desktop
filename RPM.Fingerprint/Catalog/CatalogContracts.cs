@@ -73,6 +73,10 @@ public sealed record CatalogMedium(
 /// "Single"), and <paramref name="SecondaryTypes"/> its secondary ones ("Live", "Compilation",
 /// "Soundtrack", "Mixtape/Street"). What kind of release this is, which the import fills its release type
 /// from (ReleaseTypes.FromMusicBrainz). Null and empty when the catalogue does not say.</param>
+/// <param name="Genres">Every genre MusicBrainz's voters gave the release and its release group, most votes
+/// first (the votes of both summed). <see cref="Genre"/> is still the single most-voted one, for the
+/// clients that read only that. The desktop reads the whole list against its own shelves and styles, because the top vote
+/// is usually the broad word and the style is further down. Null from a server older than the list.</param>
 public sealed record CatalogReleaseDetail(
     string Id,
     string Title,
@@ -91,7 +95,8 @@ public sealed record CatalogReleaseDetail(
     string? Subgenre = null,
     string? Country = null,
     string? PrimaryType = null,
-    IReadOnlyList<string>? SecondaryTypes = null);
+    IReadOnlyList<string>? SecondaryTypes = null,
+    IReadOnlyList<string>? Genres = null);
 
 /// <summary>What a CD's table of contents resolved to: the matching medium's track list, and
 /// everything the catalogue knows about the pressing it belongs to. A rip is the one moment those
@@ -100,6 +105,10 @@ public sealed record CatalogReleaseDetail(
 /// "Single"), and <paramref name="SecondaryTypes"/> its secondary ones ("Live", "Compilation",
 /// "Soundtrack", "Mixtape/Street"). What kind of release this is, which the import fills its release type
 /// from (ReleaseTypes.FromMusicBrainz). Null and empty when the catalogue does not say.</param>
+/// <param name="Genres">Every genre MusicBrainz's voters gave the release and its release group, most votes
+/// first (the votes of both summed). <see cref="Genre"/> is still the single most-voted one, for the
+/// clients that read only that. The desktop reads the whole list against its own shelves and styles, because the top vote
+/// is usually the broad word and the style is further down. Null from a server older than the list.</param>
 public sealed record CatalogDisc(
     string ReleaseId,
     string Title,
@@ -121,7 +130,8 @@ public sealed record CatalogDisc(
     string? Format = null,
     string? DiscSubtitle = null,
     string? PrimaryType = null,
-    IReadOnlyList<string>? SecondaryTypes = null);
+    IReadOnlyList<string>? SecondaryTypes = null,
+    IReadOnlyList<string>? Genres = null);
 
 /// <summary>
 /// Where a release's front cover can be fetched from, once the server has looked.

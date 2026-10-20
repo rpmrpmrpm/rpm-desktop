@@ -168,6 +168,11 @@ public sealed record ReleaseTrackInfo(
 /// <see cref="IReleaseArtProvider.OtherImagesAsync"/> for what the pictures are.</param>
 /// <param name="ReleaseType">What kind of release it is, from the catalogue's own types, or null where it does
 /// not say. The import and the album editor fill their release type from it.</param>
+/// <param name="Genres">The catalogue's own genre words, most votes first, where it gives a ranked list
+/// (MusicBrainz, through a server new enough to send it). <see cref="Genre"/> and <see cref="Subgenre"/> are
+/// what the app's lists make of it (<see cref="Metadata.Genres.PickVoted"/>). The words are kept because a
+/// record whose shelf is already set by its file can still take its style from them
+/// (<see cref="Metadata.Genres.StyleUnder"/>). Null where the catalogue gives no such list.</param>
 public sealed record ReleaseDetail(
     ReleaseRef Ref,
     string Title,
@@ -187,7 +192,8 @@ public sealed record ReleaseDetail(
     string? Genre = null,
     string? Subgenre = null,
     int Photos = 0,
-    RPM.Core.Library.ReleaseType? ReleaseType = null);
+    RPM.Core.Library.ReleaseType? ReleaseType = null,
+    IReadOnlyList<string>? Genres = null);
 
 /// <summary>
 /// Somewhere that knows which records exist, such as MusicBrainz or Discogs. They answer the same two

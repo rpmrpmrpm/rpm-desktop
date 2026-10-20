@@ -137,6 +137,7 @@ public sealed partial class SettingsService
         string? ImportHiddenColumns = null,
         bool? ImportFilterStripOpen = null,
         string? ImportRequiredTags = null,
+        bool ImportFillFromCatalogue = true,
         string? AudioDevice = null,
         IReadOnlyList<EqProfile>? DeviceEq = null,
         IReadOnlyList<OutputVolume>? DeviceVolumes = null,
@@ -499,6 +500,25 @@ public sealed partial class SettingsService
             // set where both of them read it, not passed down two separate paths.
             RPM.Core.Library.QueueTags.Required = value ?? RPM.Core.Library.QueueTags.Default;
         }
+    }
+
+    /// <summary>
+    /// Whether music added to the import queue has its missing genre, style and year filled in from the
+    /// catalogue, one lookup per record, without anybody pressing Look up. See
+    /// <see cref="RPM.Core.Analysis.CatalogueFill"/>.
+    ///
+    /// <para>On unless somebody turns it off. The genre pages, the mood lists and the radio cannot see a record
+    /// whose genre is blank or not one of the app's own, and the people whose files are like that are exactly
+    /// the people who never open a tag editor. A switch they would have to find first would help nobody. It only
+    /// ever fills blanks, on the queue's proposal, so the user sees every value before it reaches a file.</para>
+    ///
+    /// <para>Saved quietly. The pass reads it before each record, so a change takes effect at the next one, and
+    /// nothing else in the app reacts to it.</para>
+    /// </summary>
+    public bool ImportFillFromCatalogue
+    {
+        get => _model.ImportFillFromCatalogue;
+        set => Update(_model with { ImportFillFromCatalogue = value }, notify: false);
     }
 
     /// <summary>The order the album wall is in. See <see cref="AlbumOrdering"/>. It is saved quietly, like
