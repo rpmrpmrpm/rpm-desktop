@@ -148,6 +148,26 @@ public sealed record CatalogDisc(
 /// </summary>
 public sealed record CatalogCover(string? Url);
 
+/// <summary>
+/// The sleeve of the record a song is on, for a song somebody only knows by name: what an internet
+/// radio station announces ("Artist - Title") and nothing more. Served by <c>GET /metadata/song</c>.
+///
+/// <para>Every field null is an answer, not a failure: nobody holds that song, or the announcement
+/// was a jingle, an advert or the station's own name. It is a 200 so the player can settle on the
+/// station logo and stop asking. A call that could not reach anybody is the request failing (a 503),
+/// for the same reason as <see cref="CatalogCover"/>.</para>
+///
+/// <para><see cref="Artist"/> and <see cref="Title"/> are the matched song's own spelling, which is
+/// usually tidier than the announcement's, and may be shown in its place. <see cref="Album"/> is the
+/// record the cover is of. Serialized camelCase like every other record here: <c>cover</c>,
+/// <c>album</c>, <c>artist</c>, <c>title</c>.</para>
+/// </summary>
+public sealed record CatalogSongCover(string? Cover, string? Album, string? Artist, string? Title)
+{
+    /// <summary>Nobody holds this song.</summary>
+    public static readonly CatalogSongCover None = new(null, null, null, null);
+}
+
 /// <summary>One music DVD a search turned up.</summary>
 public sealed record CatalogDvd(
     string ReleaseId,
