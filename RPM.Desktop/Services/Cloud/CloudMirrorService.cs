@@ -74,7 +74,28 @@ public sealed partial class CloudMirrorService : IDisposable
         _auth.Changed += OnAuthChanged;
         _library.Changed += OnLibraryChanged;
 
+        // A pass writes the whole catalogue into the library. It must be stopped before the library is
+        // closed, not left to find the connection closed under it.
+        _library.StopBeforeClose(CloseAsync);
+
         Shell.Background.Run(() => TickAsync());
+    }
+
+    /// <summary>
+    /// Stops this service for good before the library is closed. <see cref="LibraryService.Dispose"/> calls
+    /// it through <see cref="LibraryService.StopBeforeClose"/>, and waits for it.
+    ///
+    /// <para>The closing token is cancelled first. That stops the tick, cancels a catalogue read in the air,
+    /// and stops every later pass before it takes the gate. The gate is then taken, which waits for a pass
+    /// that is already writing (<see cref="Apply"/>) to finish its write. A write is not cut off half way:
+    /// the mirror commits it a batch of albums at a time, and the last step prunes against the whole
+    /// listing.</para>
+    /// </summary>
+    internal async Task CloseAsync()
+    {
+        _closing.Cancel();
+        await _gate.WaitAsync().ConfigureAwait(false);
+        _gate.Release();
     }
 
     /// <summary>Raised after a pass has changed something, so a page showing the library can draw again.
@@ -113,8 +134,14 @@ public sealed partial class CloudMirrorService : IDisposable
         // of the demo.
         if (GalleryMode.Active) return;
 
+        if (_closing.IsCancellationRequested) return;
         if (!_auth.IsLoggedIn || !_library.IsOpen) return;
         if (!CloudPassCadence.MirrorPassDue(force, _lastPass, DateTime.UtcNow)) return;
+
+        // Every pass stops when the library is about to be closed, whoever started it and with whatever token.
+        using var closingOrCaller = CancellationTokenSource.CreateLinkedTokenSource(ct, _closing.Token);
+        ct = closingOrCaller.Token;
+
         if (!await RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct)) return;
 
         if (!await _gate.WaitAsync(0, ct)) return;   // A pass is already running and sees the same data.
@@ -131,6 +158,10 @@ public sealed partial class CloudMirrorService : IDisposable
                 return;
             }
 
+            // Checked under the gate and before the write. CloseAsync waits for the gate, so a close that has
+            // begun is either seen here or waits for this write to finish.
+            ct.ThrowIfCancellationRequested();
+
             _lastPass = DateTime.UtcNow;
             Apply(catalog);
             CatalogRead?.Invoke(catalog);
@@ -140,7 +171,12 @@ public sealed partial class CloudMirrorService : IDisposable
                 // The store has filled in what it knew, and the rows in hand are now out of date. The
                 // catalogue is read once more, so the lengths, track numbers and formats are applied to
                 // this library now, not at the next tick.
-                try { Apply(await _cloud.ListAsync(CloudShelf.Own, ct)); }
+                try
+                {
+                    var again = await _cloud.ListAsync(CloudShelf.Own, ct);
+                    ct.ThrowIfCancellationRequested();
+                    Apply(again);
+                }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     _log.LogDebug(ex, "[Cloud] Could not re-read the catalog after the backfill");

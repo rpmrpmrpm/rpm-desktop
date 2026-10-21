@@ -1193,6 +1193,8 @@ public partial class App : Application
             try { Host?.Services.GetRequiredService<Services.Updates.AppUpdates>().Apply(restart: false); } catch { }
             try { Host?.Services.GetRequiredService<RPaMpService>().Shutdown(); } catch { }
             try { Host?.Services.GetRequiredService<PlaybackService>().Stop(); } catch { }
+            // This stops the passes that hold the library (the cloud sync run and the cloud mirror) and waits
+            // for them, for a few seconds at most, before it closes the library. See LibraryService.StopBeforeClose.
             try { Host?.Services.GetRequiredService<LibraryService>().Dispose(); } catch { }
 
             // The services are disposed here, which is what shuts down the native libraries that they hold.

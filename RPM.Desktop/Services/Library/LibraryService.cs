@@ -684,9 +684,70 @@ public sealed partial class LibraryService : IDisposable
 
     private LibraryDatabase Mirror(AlbumShelf shelf) => shelf is AlbumShelf.OnScreen ? Shelf : Db;
 
+    /// <summary>
+    /// The passes that hold the library across many calls, each with the call that stops it. See <see
+    /// cref="StopBeforeClose"/>.
+    /// </summary>
+    private readonly List<Func<Task>> _holders = [];
+
+    /// <summary>How long <see cref="Dispose"/> waits for the passes in <see cref="_holders"/> to stop before
+    /// it closes the library anyway. The window has already gone, so this is time the person does not see.
+    /// A pass that is still running after it is refused at the gate (<c>Gate.Take</c> throws
+    /// <see cref="ObjectDisposedException"/>), which is the last line of defence and not the plan.</summary>
+    internal TimeSpan HoldersWait { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Registers a pass that holds the library across many calls, such as the cloud sync run, with the call
+    /// that stops it. <see cref="Dispose"/> calls <paramref name="stop"/> and waits for the task it returns
+    /// before the library is closed. So a pass is never left in the middle of a read or a write on a
+    /// database that has been closed under it.
+    /// </summary>
+    /// <param name="stop">Stops new work, cancels the work in progress, and completes when the pass no
+    /// longer touches the library. It is run on a pool thread, and it must not need the UI thread: the
+    /// window's close waits for it there.</param>
+    public void StopBeforeClose(Func<Task> stop)
+    {
+        ArgumentNullException.ThrowIfNull(stop);
+        lock (_holders)
+            _holders.Add(stop);
+    }
+
+    /// <summary>Stops every pass registered with <see cref="StopBeforeClose"/>, and waits for them up to
+    /// <see cref="HoldersWait"/>. A stop that throws counts as stopped.</summary>
+    /// <returns>False when the wait ran out.</returns>
+    private bool StopHolders()
+    {
+        Func<Task>[] holders;
+        lock (_holders)
+            holders = [.. _holders];
+
+        if (holders.Length == 0)
+            return true;
+
+        // Each stop is started on the pool. A stop that ran on this thread and then needed it would wait for
+        // the wait below.
+        var stopping = Task.WhenAll(holders.Select(stop => Task.Run(async () =>
+        {
+            try { await stop().ConfigureAwait(false); }
+            catch { /* a stop that failed has still stopped asking for the library */ }
+        })));
+
+        if (stopping.Wait(HoldersWait))
+            return true;
+
+        RPM.Core.Diagnostics.Scope.Said("library",
+            $"a pass was still running {HoldersWait.TotalSeconds:0} s after the close asked it to stop");
+        return false;
+    }
+
     public void Dispose()
     {
         _auth.Changed -= OnAccountChanged;
+
+        // Before the library is closed, not after: a pass in the middle of a read or a write would otherwise
+        // find the connection closed under it.
+        StopHolders();
+
         lock (_gate)
         {
             _db?.Dispose();

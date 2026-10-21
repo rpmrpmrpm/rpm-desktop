@@ -209,6 +209,10 @@ public sealed partial class CloudSyncService : IDisposable
         _library.Changed += () => Shell.Background.Run(() => KickAsync());
         _library.Opened += OnLibraryOpened;
 
+        // The run holds the library for minutes. It must be stopped before the library is closed, not left to
+        // find the connection closed under it.
+        _library.StopBeforeClose(CloseAsync);
+
         // The metadata sync runs when the catalogue is read, not only when there is an upload to do. See
         // SyncMetadataAsync. The mirror service does not know about this. It announces what it read, and
         // this service listens.
@@ -221,19 +225,78 @@ public sealed partial class CloudSyncService : IDisposable
     /// <para>It is skipped while a sync run is going. That run reads its own listing and does the same work
     /// with it. Doing both would mean two passes writing the same rows.</para>
     /// </summary>
-    private async Task MetadataOnlyPassAsync(IReadOnlyList<CloudTrack> catalog)
+    private Task MetadataOnlyPassAsync(IReadOnlyList<CloudTrack> catalog)
     {
-        if (!_auth.IsLoggedIn || !_library.IsOpen) return;
-        if (_worker is { IsCompleted: false }) return;
+        // Started under the gate, the same as a run, so a close cannot start between the check and the
+        // record of the pass. CloseAsync waits for the pass that is recorded here.
+        lock (_metadataGate)
+        {
+            if (_closing.IsCancellationRequested) return Task.CompletedTask;
+            if (!_auth.IsLoggedIn || !_library.IsOpen) return Task.CompletedTask;
+            if (_worker is { IsCompleted: false }) return Task.CompletedTask;
+            if (_metadataRun is { IsCompleted: false }) return Task.CompletedTask;
 
+            var db = _library.Db;
+            return _metadataRun = Task.Run(async () =>
+            {
+                try
+                {
+                    await SyncMetadataAsync(db, catalog, _closing.Token);
+                }
+                catch (OperationCanceledException) when (_closing.IsCancellationRequested)
+                {
+                    // The app is closing. The pass runs again from the next catalogue read.
+                }
+                catch (Exception ex)
+                {
+                    _log.LogWarning(ex, "[Cloud] The metadata pass did not finish");
+                }
+            });
+        }
+    }
+
+    /// <summary>The metadata pass in progress, or a finished one. See <see cref="MetadataOnlyPassAsync"/>.
+    /// Guarded by <see cref="_metadataGate"/>.</summary>
+    private Task? _metadataRun;
+
+    private readonly object _metadataGate = new();
+
+    /// <summary>Cancelled once, when the library is about to be closed (<see cref="CloseAsync"/>). From then
+    /// on nothing starts: no run, no metadata pass and no retry wake.</summary>
+    private readonly CancellationTokenSource _closing = new();
+
+    /// <summary>
+    /// Stops this service for good before the library is closed. <see cref="LibraryService.Dispose"/> calls
+    /// it through <see cref="LibraryService.StopBeforeClose"/>, and waits for it.
+    ///
+    /// <para>The order matters. The closing token is cancelled first, so no new run, metadata pass or wake
+    /// can start. The gate is then taken, which waits for a kick that already passed its checks to finish
+    /// starting its run. Only then is the run read and cancelled, so the run that is waited for is the last
+    /// one. A run cancelled in the middle of a database call finishes that call and then stops.</para>
+    /// </summary>
+    internal async Task CloseAsync()
+    {
+        _closing.Cancel();
+        Interlocked.Exchange(ref _wake, null)?.Cancel();
+
+        await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            await SyncMetadataAsync(_library.Db, catalog, CancellationToken.None);
+            Stop();
         }
-        catch (Exception ex)
+        finally
         {
-            _log.LogWarning(ex, "[Cloud] The metadata pass did not finish");
+            _gate.Release();
         }
+
+        Task? metadata;
+        lock (_metadataGate)
+            metadata = _metadataRun;
+
+        if (_worker is { } worker)
+            try { await worker.ConfigureAwait(false); } catch { /* the run's own failure is not the close's business */ }
+        if (metadata is not null)
+            await metadata.ConfigureAwait(false);
     }
 
     /// <summary>A different collection was opened, so the run in progress is working on a library that
@@ -277,9 +340,23 @@ public sealed partial class CloudSyncService : IDisposable
         // kick. Then pressing pause would stop the upload for a few seconds, and it would start again on
         // its own.
         if (_paused) return;
+        if (_closing.IsCancellationRequested) return;
 
-        var db = _library.Db;
-        db.QueueForUpload(everything: _settings.CloudMode == CloudSyncMode.All);
+        // The queue is written under the gate, behind the closing check, for the same reason as the run
+        // below: CloseAsync takes the gate, so a kick that got past the check above cannot write after the
+        // close has finished waiting.
+        LibraryDatabase db;
+        await _gate.WaitAsync();
+        try
+        {
+            if (_closing.IsCancellationRequested || !_library.IsOpen) return;
+            db = _library.Db;
+            db.QueueForUpload(everything: _settings.CloudMode == CloudSyncMode.All);
+        }
+        finally
+        {
+            _gate.Release();
+        }
 
         // The queue is written either way. It lives in the database and records what is owed. But no worker
         // starts while the network is unreachable. A run that starts offline costs a quota round trip, a
@@ -290,6 +367,11 @@ public sealed partial class CloudSyncService : IDisposable
         await _gate.WaitAsync();
         try
         {
+            // Read under the gate. CloseAsync takes the gate after it has cancelled the token, so a kick
+            // that reaches this line after that sees it, and a kick that got here first has finished
+            // starting its run before CloseAsync reads the run to stop it.
+            if (_closing.IsCancellationRequested) return;
+
             if (_worker is { IsCompleted: false }) return;   // already running
 
             // The chip is raised here when it can be, not when the first track reaches the transcoder.
@@ -348,6 +430,7 @@ public sealed partial class CloudSyncService : IDisposable
     /// </summary>
     private void WakeForRetries(LibraryDatabase db)
     {
+        if (_closing.IsCancellationRequested) return;
         if (_paused || !_library.IsOpen || !ReferenceEquals(_library.Db, db)) return;
 
         // Nothing in the queue goes anywhere while the store is full. The run that frees room kicks the
@@ -789,6 +872,7 @@ public sealed partial class CloudSyncService : IDisposable
     {
         _settings.Changed -= OnSettingsChanged;
         _library.Opened -= OnLibraryOpened;
+        _closing.Cancel();
         _cts?.Cancel();
         _cts?.Dispose();
         _gate.Dispose();
