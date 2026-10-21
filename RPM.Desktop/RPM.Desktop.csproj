@@ -263,7 +263,11 @@
 
        The WebView2 version is the one that the runtime of Uno asks for. When Uno moves to another
        version, the warnings come back and name it. The other two follow the runtime version of the
-       SDK. -->
+       SDK.
+
+       The paths are built on RpmPackageRoot, not on NuGetPackageRoot directly. NuGetPackageRoot has no
+       trailing slash when NUGET_PACKAGES is set without one, and then every path below names a folder
+       that does not exist, the globs match nothing, and the warnings come back with no other sign. -->
   <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
     <RpmWebView2ForUnoScan>1.0.2592.51</RpmWebView2ForUnoScan>
   </PropertyGroup>
@@ -274,10 +278,13 @@
   </ItemGroup>
   <Target Name="RpmLendToUnoScan" BeforeTargets="_UnoGenerateLinkerDescriptors"
           Condition="$(TargetFramework.EndsWith('-desktop')) And '$(PublishAot)' == 'true'">
+    <PropertyGroup>
+      <RpmPackageRoot>$([MSBuild]::EnsureTrailingSlash('$(NuGetPackageRoot)'))</RpmPackageRoot>
+    </PropertyGroup>
     <ItemGroup>
-      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)microsoft.web.webview2/$(RpmWebView2ForUnoScan)/lib/netcoreapp3.0/Microsoft.Web.WebView2.*.dll" />
-      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/*.dll" />
-      <_RpmLentToUnoScan Include="$(NuGetPackageRoot)system.io.ports/$(BundledNETCoreAppPackageVersion)/lib/net10.0/System.IO.Ports.dll" />
+      <_RpmLentToUnoScan Include="$(RpmPackageRoot)microsoft.web.webview2/$(RpmWebView2ForUnoScan)/lib/netcoreapp3.0/Microsoft.Web.WebView2.*.dll" />
+      <_RpmLentToUnoScan Include="$(RpmPackageRoot)microsoft.windowsdesktop.app.ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/*.dll" />
+      <_RpmLentToUnoScan Include="$(RpmPackageRoot)system.io.ports/$(BundledNETCoreAppPackageVersion)/lib/net10.0/System.IO.Ports.dll" />
       <ReferencePath Include="@(_RpmLentToUnoScan)" />
     </ItemGroup>
   </Target>
