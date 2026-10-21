@@ -520,11 +520,17 @@ public sealed partial class AudioEngine
     /// the only thread that runs transitions, so they run in order.</summary>
     private void Post(Action command)
     {
+        // After Dispose there is no worker to run it. Without this check, a command posted during the
+        // teardown (the pump's end of track, for one) would find no worker and start a new one, which would
+        // then read a queue that has been disposed.
+        if (_disposed)
+            return;
+
         if (_worker is null)
         {
             lock (_workerGate)
             {
-                if (_worker is null)
+                if (_worker is null && !_disposed)
                 {
                     _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "RPaMp audio commands" };
                     _worker.Start();

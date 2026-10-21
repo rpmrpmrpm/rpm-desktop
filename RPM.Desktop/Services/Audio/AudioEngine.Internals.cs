@@ -399,8 +399,15 @@ public sealed partial class AudioEngine
             pump.Join(1000);
     }
 
+    /// <summary>Set first in <see cref="Dispose"/>, under the worker's lock, so that <see cref="Post"/> never
+    /// starts a worker after it.</summary>
+    private volatile bool _disposed;
+
     public void Dispose()
     {
+        lock (_workerGate)
+            _disposed = true;
+
         Interlocked.Increment(ref _gen);
         _running = false;
         lock (_gate) { _playing = null; _paused = false; }
