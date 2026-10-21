@@ -100,10 +100,10 @@ public sealed class FfmpegPcmSource : IPcmSource
     private readonly object _endGate = new();
 
     /// <summary>How long to wait for the process to exit after its output closed, and for its stderr to be
-    /// handed over, before treating the end as normal. Normally it has already exited, because ffmpeg
-    /// closes stdout as it exits, so the wait costs nothing. On a busy machine the exit and the hand-over
-    /// can take more than half a second, and a shorter wait reads a stream that was cut off as one that
-    /// ended. The wait is only paid in full when ffmpeg does not exit.</summary>
+    /// handed over. Normally it has already exited, because ffmpeg closes stdout as it exits, so the wait
+    /// costs nothing. On a busy machine the exit and the hand-over can take longer than this. A network
+    /// stream whose evidence has not arrived by then is read as failed, not as ended (see
+    /// <see cref="Settle"/>). The wait is only paid in full when ffmpeg does not exit.</summary>
     private const int ExitGraceMs = 2000;
 
     public FfmpegPcmSource(Options options)
@@ -166,6 +166,13 @@ public sealed class FfmpegPcmSource : IPcmSource
     /// <b>zero</b> after delivering only the part of the record that it managed to read. So the
     /// message is what is trusted. At <c>-loglevel error</c> ffmpeg prints nothing for a decode that
     /// went well, so any line of output is meaningful.</para>
+    ///
+    /// <para>An end is read as normal only on evidence: ffmpeg exited, its stderr was read, and it said
+    /// nothing and exited with zero. When the exit or the stderr has not arrived within
+    /// <see cref="ExitGraceMs"/>, the end is read as failed. That is the safe answer. The player treats a
+    /// stream that reached its declared end as played out whatever this says, and reopens one that stopped
+    /// short at the place it reached. Read as ended, a stream cut off on a busy machine would be taken for
+    /// the end of the record, and the rest of it would be lost.</para>
     /// </summary>
     private PcmState Settle(out string? fault)
     {
@@ -181,14 +188,22 @@ public sealed class FfmpegPcmSource : IPcmSource
             // last of stderr cannot be read until the process has actually exited.
             process.WaitForExit(ExitGraceMs);
             if (!process.HasExited)
-                return PcmState.Ended;
+            {
+                fault = $"ffmpeg had not exited {ExitGraceMs} ms after its output closed";
+                return PcmState.Failed;
+            }
         }
         catch
         {
             return PcmState.Ended;
         }
 
-        var complaint = LastComplaint();
+        if (!TryLastComplaint(out var complaint))
+        {
+            fault = $"what ffmpeg said was not read within {ExitGraceMs} ms";
+            return PcmState.Failed;
+        }
+
         if (complaint is null && process.ExitCode == 0)
             return PcmState.Ended;
 
@@ -204,7 +219,7 @@ public sealed class FfmpegPcmSource : IPcmSource
     /// example, adeclick reports the share of samples it judged to be clicks. That report is not an error.
     /// ffmpeg also prints ordinary closing messages after the report, so the report is not always the last
     /// line. This is read only after the stream has ended, with the same time limit, for the reasons
-    /// given at <see cref="LastComplaint"/>.</para>
+    /// given at <see cref="TryLastComplaint"/>.</para>
     /// </summary>
     public string? Said
     {
@@ -235,29 +250,33 @@ public sealed class FfmpegPcmSource : IPcmSource
     /// the fault this class must detect, and it would only show under load.</para>
     ///
     /// <para>The wait is limited by the same grace as the exit. The pipe is already closed when this
-    /// is called, so the wait is only a hand-over and not a read. If the wait does not finish, the
-    /// result is the same as ffmpeg saying nothing.</para>
+    /// is called, so the wait is only a hand-over and not a read.</para>
     /// </summary>
-    private string? LastComplaint()
+    /// <param name="complaint">The last line, or null when ffmpeg wrote nothing.</param>
+    /// <returns>False when the stderr was not handed over within the grace. That is not the same as
+    /// ffmpeg saying nothing, and <see cref="Settle"/> does not read it as such.</returns>
+    private bool TryLastComplaint(out string? complaint)
     {
+        complaint = null;
         if (_errors is not { } errors)
-            return null;
+            return true;
 
         try
         {
             if (!errors.Wait(ExitGraceMs) || !errors.IsCompletedSuccessfully)
-                return null;
+                return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return null;
+            return false;
         }
 
         var line = errors.Result
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .LastOrDefault();
 
-        return string.IsNullOrWhiteSpace(line) ? null : line;
+        complaint = string.IsNullOrWhiteSpace(line) ? null : line;
+        return true;
     }
 
     /// <summary>Whether a source is read over the network and not from a disk: a presigned cloud URL,
@@ -301,7 +320,7 @@ public sealed class FfmpegPcmSource : IPcmSource
         // reports the share of samples it took to be clicks at INFO level, and `error` hides that.
         //
         // The level is raised only when a filter was requested. At `error` level anything ffmpeg prints is
-        // a fault. That is why the single line that Settle reads can be trusted (see LastComplaint). This
+        // a fault. That is why the single line that Settle reads can be trusted (see TryLastComplaint). This
         // is safe because Settle reads stderr only for a network source or a piped one, and the filter
         // is used only for the vinyl render, which reads a local file.
         bool filtered = !string.IsNullOrWhiteSpace(_options.AudioFilter);
