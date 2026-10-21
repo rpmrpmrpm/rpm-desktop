@@ -621,24 +621,33 @@ public class LibrarySynchronizerTests : IDisposable
     [Fact]
     public void A_library_folder_that_is_not_mounted_does_not_empty_the_mirror()
     {
-        Touch("Artist/Album/01 - a.mp3");
-        Touch("Artist/Album/02 - b.mp3");
-        Sync();
-        Assert.Equal(2, _db.Count);
+        // A music folder on a network share, so its database is kept on this computer. The whole folder can
+        // then go away while the database stays open. A database inside the folder cannot stand in for this:
+        // Windows does not delete a folder that holds an open file.
+        string share = Path.Combine(_root, "Share");
+        Directory.CreateDirectory(share);
+        using var db = new LibraryDatabase(
+            MirrorLocation.For(share, Path.Combine(_root, "ThisComputer"), DriveType.Network));
+        SyncResult SyncShare() => LibrarySynchronizer.Sync(db, FakeRead, stampId: FakeStamp, keepId: FakeKeep);
 
-        // The external drive is unplugged. Every file "vanishes" at once.
-        Directory.Delete(Path.Combine(_root, "Artist"), recursive: true);
-        Directory.Delete(Path.Combine(_root, LibraryDatabase.DataFolderName), recursive: true);
-        Directory.Delete(_root, recursive: true);
+        Touch("Share/Artist/Album/01 - a.mp3");
+        Touch("Share/Artist/Album/02 - b.mp3");
+        SyncShare();
+        Assert.Equal(2, db.Count);
 
-        Assert.Throws<DirectoryNotFoundException>(Sync);
+        // The share drops. Every file "vanishes" at once.
+        Directory.Delete(share, recursive: true);
 
-        // Nothing was touched. Plugging the drive back in gets the library back.
-        Directory.CreateDirectory(_root);
-        Touch("Artist/Album/01 - a.mp3");
-        Touch("Artist/Album/02 - b.mp3");
-        Sync();
-        Assert.Equal(2, _db.Count);
+        Assert.Throws<DirectoryNotFoundException>(() => SyncShare());
+        Assert.Equal(2, db.Count);
+
+        // Nothing was touched. When the share is back, the same rows are found again and none is added.
+        Touch("Share/Artist/Album/01 - a.mp3");
+        Touch("Share/Artist/Album/02 - b.mp3");
+        var back = SyncShare();
+        Assert.Equal(0, back.Added);
+        Assert.Equal(0, back.Removed);
+        Assert.Equal(2, db.Count);
     }
 
     /// <summary>A folder the scan could not list (permissions, a share that dropped) says nothing
