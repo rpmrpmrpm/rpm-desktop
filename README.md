@@ -30,7 +30,10 @@ dotnet build RPM.Desktop/RPM.Desktop.csproj -f net10.0-desktop
 dotnet run --project RPM.Desktop/RPM.Desktop.csproj -f net10.0-desktop
 ```
 
-The first build downloads the analysis models and tools (about 200 MB).
+The first build downloads the analysis models (about 214 MB, from `updates.rpmrpmrpm.com`) and the
+tools it needs from GitHub releases: ffmpeg (this repo), fpcalc (`acoustid/chromaprint`) and the
+ANGLE graphics library (`kivy/angle-builder`). Behind a firewall, allow `updates.rpmrpmrpm.com`,
+`github.com` and `objects.githubusercontent.com`.
 
 Some tests read files that all apps share, such as `strings.json`. Clone the
 [`rpm`](https://github.com/rpmrpmrpm/rpm) repo next to this one for them:

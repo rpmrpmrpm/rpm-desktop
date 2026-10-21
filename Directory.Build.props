@@ -11,5 +11,14 @@
       PRI257: Ignore default language (en) not being one of the included resources (eg en-us, en-uk)
     -->
     <NoWarn>$(NoWarn);NU1507;NETSDK1201;PRI257</NoWarn>
+
+    <!--
+      Switch expressions over an enum have no fallback arm, so that a new enum value is named in every
+      switch or the build fails. CS8509 (a named value is not handled) is that check, so it is an error.
+      CS8524 (an unnamed value such as (MoodRecipeMood)4 is not handled) would ask for the fallback arm
+      that hides the CS8509 check, so it is off.
+    -->
+    <NoWarn>$(NoWarn);CS8524</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);CS8509</WarningsAsErrors>
   </PropertyGroup>
 </Project>

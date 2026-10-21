@@ -122,8 +122,11 @@ body why the change is needed if that is not obvious.
 
 See the README for the build commands. Before you open a pull request:
 
-- `dotnet build` must finish with no new warnings. The analyzers in `RPM.Analyzers` check rpm's
-  own rules and report them as warnings or errors.
+- The app build (`dotnet build RPM.Desktop/RPM.Desktop.csproj -f net10.0-desktop`) has no warnings.
+  Without `rpm-fonts-pro` it has two, one for each missing icon font, and that is expected. Keep it
+  that way: a pull request adds no warnings. The test projects still have some older warnings; do
+  not add to them. The analyzers in `RPM.Analyzers` check rpm's own rules and report them as
+  warnings or errors.
 - Run the tests of the projects you changed.
 - `RPM.Core` and `RPM.Fingerprint` are also built by the rpm server. Do not change a public type or
   the format of stored data without discussing it first.
