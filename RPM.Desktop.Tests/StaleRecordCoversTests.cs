@@ -129,6 +129,36 @@ public class StaleRecordCoversTests
     }
 
     [Fact]
+    public void A_folder_gone_from_a_windows_drive_that_is_there_is_stale()
+    {
+        var node = RecordsNode(14, @"D:\Music\Retagged Away");
+
+        var stale = StaleRecordCovers.Find([node], path => path == @"D:\");
+
+        Assert.Equal([14L], stale);
+    }
+
+    [Fact]
+    public void A_folder_on_a_windows_drive_that_is_unplugged_is_not_stale()
+    {
+        // Neither the folder nor the drive answers: the USB drive is not plugged in.
+        var node = RecordsNode(15, @"E:\Music\Some Album");
+
+        var stale = StaleRecordCovers.Find([node], _ => false);
+
+        Assert.Empty(stale);
+    }
+
+    [Fact]
+    public void A_folder_on_a_network_share_that_cannot_be_reached_is_not_stale()
+    {
+        var node = RecordsNode(16, @"\\nas\music\Some Album");
+
+        Assert.Empty(StaleRecordCovers.Find([node], _ => false));
+        Assert.Equal([16L], StaleRecordCovers.Find([node], path => path == @"\\nas\music"));
+    }
+
+    [Fact]
     public void A_folder_gone_from_a_mounted_mnt_volume_is_stale()
     {
         var node = RecordsNode(13, "/mnt/Backup/Music/Some Album");

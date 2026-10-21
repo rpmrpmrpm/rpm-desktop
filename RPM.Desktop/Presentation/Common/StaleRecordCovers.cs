@@ -76,27 +76,49 @@ internal static class StaleRecordCovers
     /// path that does not, which <see cref="IsGenuinelyGone"/> reads as "the machine's own disk".
     ///
     /// <para>This is based on naming conventions. It is not a real mount table lookup. It recognises
-    /// the layouts that removable drives use for this app's users: macOS's <c>/Volumes</c>, and Linux's
-    /// <c>/run/media</c>, <c>/media</c> and <c>/mnt</c>. Nothing more general is recognised. A general
-    /// check, "is this path a mount point?", has no portable answer. It would need <c>/proc/mounts</c>
-    /// or each platform's own volume API. A path that does not match one of these four prefixes is read
-    /// as being on the machine's own disk. That is right for the ordinary case. It is wrong only for a
-    /// removable drive mounted somewhere this code does not look.</para>
+    /// the layouts that removable drives use for this app's users: a Windows drive letter or network
+    /// share, macOS's <c>/Volumes</c>, and Linux's <c>/run/media</c>, <c>/media</c> and <c>/mnt</c>.
+    /// Nothing more general is recognised. A general check, "is this path a mount point?", has no
+    /// portable answer. It would need <c>/proc/mounts</c> or each platform's own volume API. A path that
+    /// does not match one of these is read as being on the machine's own disk. That is right for the
+    /// ordinary case. It is wrong only for a removable drive mounted somewhere this code does not
+    /// look.</para>
+    ///
+    /// <para>The answer comes from the shape of the path, not from the system this runs on. A path names
+    /// its own kind of volume, so the same path gets the same answer everywhere, and every rule here can be
+    /// tested on every system.</para>
     /// </summary>
     private static string? VolumeRootOf(string path)
     {
-        if (OperatingSystem.IsWindows())
-        {
-            // Path.GetPathRoot returns "C:\" for any path on that drive. Checking that the root exists
-            // is cheap, and it exists unless the machine itself is gone.
-            var root = Path.GetPathRoot(path);
-            return string.IsNullOrEmpty(root) ? null : root;
-        }
+        if (WindowsRootOf(path) is { } windows)
+            return windows;
 
         return MountRoot(path, MacVolumePrefix, segments: 1)
             ?? MountRoot(path, LinuxRunMediaPrefix, segments: 2)
             ?? MountRoot(path, LinuxMediaPrefix, segments: 2)
             ?? MountRoot(path, LinuxMntPrefix, segments: 1);
+    }
+
+    /// <summary>The drive or network share at the start of a Windows path: <c>D:\</c> for
+    /// <c>D:\Music\Album</c>, and <c>\\nas\music</c> for <c>\\nas\music\Album</c>. Null for any other
+    /// path. A drive that is unplugged, or a share that cannot be reached, does not exist, so its folders
+    /// are not counted as gone.</summary>
+    private static string? WindowsRootOf(string path)
+    {
+        if (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/')
+            return path[..3];
+
+        if (path.Length > 2 && path[0] is '\\' or '/' && path[1] is '\\' or '/')
+        {
+            // A network share: the root is the server and the share, the first two segments.
+            char[] separators = ['\\', '/'];
+            var server = path.IndexOfAny(separators, 2);
+            if (server < 0) return null;
+            var share = path.IndexOfAny(separators, server + 1);
+            return share < 0 ? path : path[..share];
+        }
+
+        return null;
     }
 
     /// <summary>The mount point named by <paramref name="prefix"/>, plus the next <paramref
