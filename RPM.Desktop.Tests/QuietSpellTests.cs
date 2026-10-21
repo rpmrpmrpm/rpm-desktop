@@ -10,6 +10,7 @@ namespace RPM.Desktop.Tests;
 /// upload run raises the library's change for every record it finishes, and a cut is every offered list
 /// queried. The rule being tested is that a run of changes costs one cut, taken after the run.</para>
 /// </summary>
+[Collection(TimingCollection.Name)]
 public class QuietSpellTests
 {
     /// <summary>
@@ -52,10 +53,13 @@ public class QuietSpellTests
     public async Task A_run_of_changes_is_one_answer_and_it_comes_after_the_run()
     {
         // Tried until one run can be read all the way through. A run the scheduler stalled proves
-        // nothing either way and is not a failure; see RunOfChanges.
-        for (var attempt = 0; attempt < 5; attempt++)
+        // nothing either way and is not a failure; see RunOfChanges. Each attempt doubles the time scale.
+        // The rule does not depend on the scale, and a machine busy enough to break a run at one scale
+        // keeps to a slower one, so a later attempt can be read through.
+        var quiet = Quiet;
+        for (var attempt = 0; attempt < 5; attempt++, quiet *= 2)
         {
-            if (await RunOfChanges())
+            if (await RunOfChanges(quiet))
                 return;
         }
 
@@ -79,9 +83,9 @@ public class QuietSpellTests
     /// Under the full suite, a 100 ms delay sometimes came back after more than 300 ms. The test then
     /// failed about one run in three, although the spell was correct.</para>
     /// </summary>
-    private static async Task<bool> RunOfChanges()
+    private static async Task<bool> RunOfChanges(TimeSpan quiet)
     {
-        using var spell = new QuietSpell(Quiet);
+        using var spell = new QuietSpell(quiet);
         var clock = Stopwatch.StartNew();
 
         var waiting = spell.WaitAsync(CancellationToken.None);
@@ -92,10 +96,10 @@ public class QuietSpellTests
             var nudgedAt = clock.Elapsed;
             spell.Nudge();
 
-            await Task.Delay(Quiet / 3);
+            await Task.Delay(quiet / 3);
 
             var ended = waiting.IsCompleted;
-            if (clock.Elapsed - nudgedAt >= Quiet)
+            if (clock.Elapsed - nudgedAt >= quiet)
             {
                 readThrough = false;
                 break;
@@ -106,7 +110,7 @@ public class QuietSpellTests
 
         // Whatever the clock did, the changes have stopped, and a run that has stopped must end the
         // wait. Waited for here in both cases, which also means the spell is not disposed under it.
-        await waiting.WaitAsync(Quiet * 10);
+        await waiting.WaitAsync(quiet * 10);
         Assert.True(waiting.IsCompletedSuccessfully);
 
         return readThrough;

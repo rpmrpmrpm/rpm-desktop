@@ -54,7 +54,7 @@ public sealed class CastServer : IDisposable
     /// <summary>How long a request for a cover waits for a cover that is still being read from disk.
     /// It is longer than reading a picture from a tag normally takes, and short enough that a receiver
     /// asking for a cover that will never arrive does not wait on the connection for long.</summary>
-    private static readonly TimeSpan ArtworkWait = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan ArtworkWait = TimeSpan.FromSeconds(5);
 
     /// <summary>Set while the cover is being read and cleared when it has been read. See
     /// <see cref="ExpectArtwork"/>.</summary>

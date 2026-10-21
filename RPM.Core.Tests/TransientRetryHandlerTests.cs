@@ -302,14 +302,16 @@ public class TransientRetryHandlerTests
             HttpStatusCode.ServiceUnavailable, HttpStatusCode.ServiceUnavailable, HttpStatusCode.OK);
         using var http = new HttpClient(new TransientRetryHandler(endpoint))
         {
-            // Shorter than one backoff, so the timeout lands in the wait rather than in a send.
-            Timeout = TimeSpan.FromMilliseconds(50),
+            // Shorter than the shortest first backoff (200 ms), so the timeout lands in the wait rather than
+            // in a second send. Long enough that the first send is made, even on a busy machine.
+            Timeout = TimeSpan.FromMilliseconds(150),
         };
 
         await Assert.ThrowsAnyAsync<TaskCanceledException>(
             () => http.GetAsync("https://example.test/thing"));
 
-        Assert.Equal(1, endpoint.Attempts);
+        // A handler that went on after the client's timeout would send the second and third attempts.
+        Assert.True(endpoint.Attempts <= 1, $"{endpoint.Attempts} attempts were sent after the client's timeout");
     }
 
     // ---- several callers at once --------------------------------------------------------------

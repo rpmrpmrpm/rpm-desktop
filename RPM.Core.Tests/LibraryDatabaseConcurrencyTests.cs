@@ -9,6 +9,7 @@ namespace RPM.Core.Tests;
 /// and writes shared one connection, the album wall's queries would wait behind the sync's batch and
 /// the whole shelf would appear at once when the pass finished.
 /// </summary>
+[Collection(TimingCollection.Name)]
 public class LibraryDatabaseConcurrencyTests : IDisposable
 {
     private readonly string _root;

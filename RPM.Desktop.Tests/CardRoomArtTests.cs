@@ -17,6 +17,7 @@ namespace RPM.Desktop.Tests;
 /// at a tenth of each side. If the home screen or a tracklist ever feels slow, look at this figure
 /// first.</para>
 /// </summary>
+[Collection(TimingCollection.Name)]
 public class CardRoomArtTests(ITestOutputHelper output)
 {
     /// <summary>The room as it is tuned: no zoom and no shift. It is named here rather than written out at
@@ -192,6 +193,10 @@ public class CardRoomArtTests(ITestOutputHelper output)
     /// that the clock actually delivers, with the drawing thread's other work still to do. The limit is
     /// half of that. A timer that uses its whole interval slips late, so a request for 15 frames a second
     /// delivers about 11.
+    ///
+    /// <para>The cost is the fastest of several batches, not one batch. The other tests run at the same time
+    /// on the same cores, and a batch that was pre-empted measures them, not the drawing. A drawing that
+    /// really costs too much is slow in every batch, so the fastest still fails.</para>
     /// </remarks>
     [Fact]
     public void Three_rooms_fit_inside_one_tick()
@@ -201,12 +206,18 @@ public class CardRoomArtTests(ITestOutputHelper output)
         pass.Draw(RoomPalette.Fallback, 0f, Straight.Zoom, Straight.Shift);
 
         const int Frames = 20;
-        var clock = Stopwatch.StartNew();
-        for (var i = 0; i < Frames; i++)
-            pass.Draw(RoomPalette.Fallback, i * 0.03f, Straight.Zoom, Straight.Shift);
-        clock.Stop();
+        const int Batches = 5;
+        var fastest = double.MaxValue;
+        for (var batch = 0; batch < Batches; batch++)
+        {
+            var clock = Stopwatch.StartNew();
+            for (var i = 0; i < Frames; i++)
+                pass.Draw(RoomPalette.Fallback, i * 0.03f, Straight.Zoom, Straight.Shift);
+            clock.Stop();
+            fastest = Math.Min(fastest, clock.Elapsed.TotalMilliseconds);
+        }
 
-        var each = clock.Elapsed.TotalMilliseconds / Frames;
+        var each = fastest / Frames;
         var three = each * 3;
         output.WriteLine($"{w}x{h}: {each:0.00} ms a frame, {three:0.00} ms for three");
         Assert.True(three < 15, $"three rooms cost {three:0.00} ms of a 31 ms tick");

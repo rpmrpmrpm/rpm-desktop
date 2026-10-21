@@ -7,6 +7,10 @@ namespace RPM.Core.Tests;
 /// The volume conversation with a cast speaker: who is believed when the two ends disagree, and what
 /// actually goes on the wire.
 /// </summary>
+// The sender waits with Task.Delay and needs a pool thread to carry on. Beside the other tests, which block
+// pool threads of their own, that thread can be seconds coming, and the count of sends depends on the
+// sender's pace against the interval. So these run with nothing beside them.
+[Collection(TimingCollection.Name)]
 public class CastVolumeTests
 {
     /// <summary>A speaker that records what it was told, and can be waited on.</summary>

@@ -420,7 +420,7 @@ public class CastSinkTests
 
             receiver.RefuseArtwork();
 
-            Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0),
+            Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0, AnswerWait),
                         "the receiver asked about the cover and was never answered");
             Assert.NotNull(receiver.ArtworkSent);
             Assert.True(receiver.ArtworkSent!.Length > 0,
@@ -465,7 +465,7 @@ public class CastSinkTests
 
         receiver.RefuseArtwork();
 
-        Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0),
+        Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0, AnswerWait),
                     "the receiver asked about the cover and was never answered");
         Assert.Equal(sleeve, receiver.ArtworkSent);
 
@@ -574,7 +574,7 @@ public class CastSinkTests
         receiver.RefuseArtwork();
 
         // Answered, and answered with nothing, which is the part that clears the screen.
-        Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0),
+        Assert.True(SpinFor(() => Volatile.Read(ref receiver.ArtworkAnswers) > 0, AnswerWait),
                     "the receiver asked about the cover and was never answered");
         Assert.Null(receiver.ArtworkSent);
 
@@ -586,15 +586,24 @@ public class CastSinkTests
         => await Task.WhenAny(task, Task.Delay(within)) == task;
 
     /// <summary>Waits briefly for something that happens on another thread.</summary>
-    private static bool SpinFor(Func<bool> until)
+    private static bool SpinFor(Func<bool> until) => SpinFor(until, TimeSpan.FromSeconds(2));
+
+    /// <summary>Waits up to <paramref name="within"/> for something that happens on another thread.</summary>
+    private static bool SpinFor(Func<bool> until, TimeSpan within)
     {
-        for (int i = 0; i < 100; i++)
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < within)
         {
             if (until()) return true;
             Thread.Sleep(20);
         }
-        return false;
+        return until();
     }
+
+    /// <summary>How long the sink may take to answer the receiver about the cover. It answers once the
+    /// cover has been read, and at the latest after <see cref="CastServer.ArtworkWait"/>, then sends. The
+    /// rest is room for a busy machine, where the read and the send run behind the other tests.</summary>
+    private static readonly TimeSpan AnswerWait = CastServer.ArtworkWait + TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// The speaker is given as much as it will take, and the transport decides how much that is.

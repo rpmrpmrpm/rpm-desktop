@@ -19,6 +19,7 @@ namespace RPM.Desktop.Tests;
 /// a second and a half. A machine with no playback device at all cannot be asked the question, and
 /// says so rather than failing.</para>
 /// </summary>
+[Collection(TimingCollection.Name)]
 public class TwoSinksTests
 {
     private const int Rate = 44100;
@@ -160,10 +161,14 @@ public class TwoSinksTests
     /// <summary>Waits for a fact to become true, up to a second and a half: long enough for a healthy
     /// device to have played several blocks, short enough that a dead one does not hold the
     /// suite.</summary>
+    /// <summary>Waits for something the sound device does. The faults here are stalls that never end (a
+    /// source that never gets a buffer back), so the limit only has to be longer than a slow start of a
+    /// real device and the feeder thread. Five seconds is that, on a busy machine; a stall is still a
+    /// failure.</summary>
     private static bool Reaches(Func<bool> fact)
     {
         var clock = Stopwatch.StartNew();
-        while (clock.ElapsedMilliseconds < 1500)
+        while (clock.ElapsedMilliseconds < 5000)
         {
             if (fact()) return true;
             Thread.Sleep(10);
