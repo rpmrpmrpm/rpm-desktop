@@ -11,7 +11,10 @@ namespace RPM.Desktop.Services.Cloud;
 /// </summary>
 public sealed partial class CloudSyncService
 {
-    public async Task RestoreAsync(LibraryTrack track, CancellationToken ct = default)
+    public Task RestoreAsync(LibraryTrack track, CancellationToken ct = default) =>
+        ErrandAsync(work => RestoreOneCoreAsync(track, work), ct);
+
+    private async Task RestoreOneCoreAsync(LibraryTrack track, CancellationToken ct)
     {
         if (!_library.IsOpen) return;
         if (!RPM.Core.Metadata.RpmTag.IsId(track.RpmId)) return;
@@ -42,8 +45,12 @@ public sealed partial class CloudSyncService
     /// <para>A track that will not come down does not stop the others. Its row says so, the reason is
     /// logged, and the rest of the record still arrives.</para>
     /// </summary>
-    public async Task<(int Restored, int Failed)> RestoreAsync(
-        IReadOnlyList<LibraryTrack> tracks, CancellationToken ct = default)
+    public Task<(int Restored, int Failed)> RestoreAsync(
+        IReadOnlyList<LibraryTrack> tracks, CancellationToken ct = default) =>
+        ErrandAsync(work => RestoreManyCoreAsync(tracks, work), ct);
+
+    private async Task<(int Restored, int Failed)> RestoreManyCoreAsync(
+        IReadOnlyList<LibraryTrack> tracks, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tracks);
         if (!_library.IsOpen) return (0, 0);
@@ -153,7 +160,10 @@ public sealed partial class CloudSyncService
     /// missing on disk keeps its cloud copy, because "my drive was not plugged in" and "delete my music"
     /// look exactly alike from here.
     /// </summary>
-    public async Task RemoveFromCloudAsync(LibraryTrack track, CancellationToken ct = default)
+    public Task RemoveFromCloudAsync(LibraryTrack track, CancellationToken ct = default) =>
+        ErrandAsync(work => RemoveFromCloudCoreAsync(track, work), ct);
+
+    private async Task RemoveFromCloudCoreAsync(LibraryTrack track, CancellationToken ct)
     {
         if (!_library.IsOpen) return;
 
@@ -241,7 +251,10 @@ public sealed partial class CloudSyncService
     /// <para>A track that will not delete does not stop the rest. The reason is shown on
     /// <see cref="Status"/>, and the album's other tracks still go.</para>
     /// </summary>
-    public async Task DeleteFromCloudAsync(IReadOnlyList<LibraryTrack> tracks, CancellationToken ct = default)
+    public Task DeleteFromCloudAsync(IReadOnlyList<LibraryTrack> tracks, CancellationToken ct = default) =>
+        ErrandAsync(work => DeleteFromCloudCoreAsync(tracks, work), ct);
+
+    private async Task DeleteFromCloudCoreAsync(IReadOnlyList<LibraryTrack> tracks, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tracks);
         if (!_library.IsOpen) return;
@@ -324,7 +337,10 @@ public sealed partial class CloudSyncService
     /// anything in "selected" mode. In "all" mode the album is already going up. In "none" mode the menu
     /// that calls this is not shown.
     /// </summary>
-    public async Task AddAlbumToCloudAsync(IReadOnlyList<long> trackIds)
+    public Task AddAlbumToCloudAsync(IReadOnlyList<long> trackIds) =>
+        ErrandAsync(_ => AddAlbumToCloudCoreAsync(trackIds), CancellationToken.None);
+
+    private async Task AddAlbumToCloudCoreAsync(IReadOnlyList<long> trackIds)
     {
         if (!_library.IsOpen || trackIds.Count == 0) return;
         // The album is pinned, because the user picked it. It stays up even if a synced playlist that
@@ -341,7 +357,10 @@ public sealed partial class CloudSyncService
     /// <para>The track is pinned, like an album's tracks. The user asked for this file by name, so it stays
     /// up even if a synced playlist that included it is later taken back out.</para>
     /// </summary>
-    public async Task AddTrackToCloudAsync(long trackId)
+    public Task AddTrackToCloudAsync(long trackId) =>
+        ErrandAsync(_ => AddTrackToCloudCoreAsync(trackId), CancellationToken.None);
+
+    private async Task AddTrackToCloudCoreAsync(long trackId)
     {
         if (!_library.IsOpen) return;
         _library.Db.SetCloudSelected([trackId], selected: true, pinned: true);

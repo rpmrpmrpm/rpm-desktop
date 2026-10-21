@@ -582,7 +582,7 @@ public sealed partial class CloudSyncService
         // The listing is the whole catalogue and it is in hand. The records that this machine does not have
         // are as much a part of the user's library as the ones it does. So they are adopted here, rather
         // than waiting for the mirror service's own clock to come round.
-        _mirror.Adopt(cloud);
+        _mirror.Adopt(cloud, ct);
 
         await SyncMetadataAsync(db, cloud, ct);
     }

@@ -732,8 +732,14 @@ public sealed partial class LibraryService : IDisposable
             catch { /* a stop that failed has still stopped asking for the library */ }
         })));
 
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         if (stopping.Wait(HoldersWait))
+        {
+            // Said on every close, so the wait above can be judged against real closes.
+            RPM.Core.Diagnostics.Scope.Said("library",
+                $"{holders.Length} passes stopped in {watch.ElapsedMilliseconds} ms before the close");
             return true;
+        }
 
         RPM.Core.Diagnostics.Scope.Said("library",
             $"a pass was still running {HoldersWait.TotalSeconds:0} s after the close asked it to stop");

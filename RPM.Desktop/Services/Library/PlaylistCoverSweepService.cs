@@ -44,6 +44,10 @@ public sealed class PlaylistCoverSweepService
     {
         library.Opened += root => Queue(library, peers, root);
 
+        // A sweep reads the library's playlist tree. It is waited for before the library is closed, and none
+        // starts after that close has begun (see Shell.PassLife).
+        library.StopBeforeClose(_life.CloseAsync);
+
         // This service can be created after a library is already open. Without this check, that library
         // would never get its first sweep. InboxWatchService does the same catch-up. This code runs on the
         // UI thread, like the Opened handler above, so the same synchronous capture applies.
@@ -67,12 +71,19 @@ public sealed class PlaylistCoverSweepService
     /// that window is judged against the same staleness that a peer's own tree already has everywhere
     /// else.</para>
     /// </summary>
-    private static void Queue(LibraryService library, PeerBook peers, string root)
+    private void Queue(LibraryService library, PeerBook peers, string root)
     {
         var db = library.Db;
         var peerIds = peers.Peers.Select(p => p.DeviceId).ToList();
-        _ = Task.Run(() => Run(db, peerIds, root));
+        _ = _life.Run(() =>
+        {
+            Run(db, peerIds, root);
+            return Task.CompletedTask;
+        });
     }
+
+    /// <summary>The sweeps, waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     private static void Run(LibraryDatabase db, IReadOnlyList<string> peerIds, string root)
     {

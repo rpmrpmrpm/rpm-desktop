@@ -102,6 +102,30 @@ public class CloudLibraryMirrorTests : IDisposable
         Assert.Contains(("Band/Record", 2), _db.QueryFolderTrackCounts());
     }
 
+    /// <summary>A pass that is stopped forgets nothing. It has not finished reading what the cloud holds,
+    /// so a row missing from its listing says nothing about the catalogue.</summary>
+    [Fact]
+    public void A_stopped_pass_forgets_nothing()
+    {
+        _db.MirrorCloudLibrary([
+            Cloud("gid-1", "Band/Record/01 One.flac"),
+            Cloud("gid-2", "Other/Album/01 Two.flac", artist: "Other", album: "Album"),
+        ]);
+        Assert.Equal(2, _db.CountAdopted());
+
+        using var stop = new CancellationTokenSource();
+        stop.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            _db.MirrorCloudLibrary([Cloud("gid-1", "Band/Record/01 One.flac")], stop.Token));
+
+        Assert.Equal(2, _db.CountAdopted());
+
+        // The next whole pass does the prune.
+        Assert.Equal(1, _db.MirrorCloudLibrary([Cloud("gid-1", "Band/Record/01 One.flac")]).Forgotten);
+        Assert.Equal(1, _db.CountAdopted());
+    }
+
     [Fact]
     public void RunningTwiceChangesNothing()
     {

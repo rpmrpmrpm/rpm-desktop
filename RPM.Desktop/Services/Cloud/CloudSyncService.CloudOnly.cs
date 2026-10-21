@@ -46,7 +46,10 @@ public sealed partial class CloudSyncService
     /// collection. Only the first set comes back. See <see cref="LibraryDatabase.QueryOffloadedHere"/>.
     /// </para>
     /// </summary>
-    public async Task<(int Restored, int Failed)> RestoreOffloadedHereAsync(CancellationToken ct = default)
+    public Task<(int Restored, int Failed)> RestoreOffloadedHereAsync(CancellationToken ct = default) =>
+        ErrandAsync(RestoreOffloadedHereCoreAsync, ct);
+
+    private async Task<(int Restored, int Failed)> RestoreOffloadedHereCoreAsync(CancellationToken ct)
     {
         if (!_library.IsOpen || !_auth.IsLoggedIn) return (0, 0);
         if (RestoreRunning) return (0, 0);

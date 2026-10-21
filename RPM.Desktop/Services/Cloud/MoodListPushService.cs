@@ -95,7 +95,17 @@ public sealed partial class MoodListPushService : IDisposable
         // a track gains its RPM id when it reaches the cloud.
         _library.Changed += _settled.Nudge;
         _mirror.Changed += _settled.Nudge;
+
+        // The worker cuts the lists from the library. It is stopped and waited for before the library is
+        // closed (see Shell.PassLife), including a worker that was stopped for an older collection and has
+        // not ended yet.
+        _library.StopBeforeClose(_life.CloseAsync);
     }
+
+    /// <summary>The workers, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
+
+    private readonly object _starting = new();
 
     /// <summary>
     /// How long to let the measuring settle before the first cut.
@@ -141,32 +151,38 @@ public sealed partial class MoodListPushService : IDisposable
     /// that reaches it can fire more than once, and most of them fire when nothing has changed.</summary>
     public void Start()
     {
-        // Signed out, or no collection open: there is nothing to send, and nobody to send it as. A worker
-        // still running is for a shelf the app is not showing, so it is stopped.
-        if (!_library.IsOpen || !_auth.IsLoggedIn)
+        // Under a lock: the library, the account and the settings page all call this, and two calls must not
+        // both find no worker and start two.
+        lock (_starting)
         {
+            // Signed out, or no collection open: there is nothing to send, and nobody to send it as. A worker
+            // still running is for a shelf the app is not showing, so it is stopped.
+            if (!_library.IsOpen || !_auth.IsLoggedIn)
+            {
+                StopWorker();
+                return;
+            }
+
+            var db = _library.Db;
+
+            if (_worker is { IsCompleted: false } && ReferenceEquals(_on, db))
+                return;
+
             StopWorker();
-            return;
+
+            _stop = _life.Linked();
+            var ct = _stop.Token;
+
+            _on = db;
+
+            // A different collection gives a different cut, and a different account has a different store.
+            // What was sent last says nothing about either.
+            _pushed = null;
+            _pictured.Clear();
+
+            // Refused once the library is about to close; the token is cancelled by that close as well.
+            _worker = _life.Run(() => RunAsync(db, ct));
         }
-
-        var db = _library.Db;
-
-        if (_worker is { IsCompleted: false } && ReferenceEquals(_on, db))
-            return;
-
-        StopWorker();
-
-        _stop = new CancellationTokenSource();
-        var ct = _stop.Token;
-
-        _on = db;
-
-        // A different collection gives a different cut, and a different account has a different store. What
-        // was sent last says nothing about either.
-        _pushed = null;
-        _pictured.Clear();
-
-        _worker = Task.Run(() => RunAsync(db, ct), ct);
     }
 
     private void StopWorker()

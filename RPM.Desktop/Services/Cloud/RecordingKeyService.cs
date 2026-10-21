@@ -73,10 +73,17 @@ public sealed partial class RecordingKeyService : IDisposable
         _library.Changed += OnLibraryChanged;
         _auth.Changed += OnAuthChanged;
 
+        // The backfill pages through the library. It is stopped and waited for before the library is closed
+        // (see Shell.PassLife). The drain loop sends over the network and does not touch the library.
+        _library.StopBeforeClose(_life.CloseAsync);
+
         // The library may already be open, and the user may already be signed in, when this object is
         // built.
         Consider();
     }
+
+    /// <summary>The backfill's worker, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     // ── the one-off pass ──────────────────────────────────────────────────────
 
@@ -105,7 +112,16 @@ public sealed partial class RecordingKeyService : IDisposable
         {
             if (_backfilling is { IsCompleted: false })
                 return;
-            _backfilling = Task.Run(() => BackfillAsync(_stopping.Token));
+
+            // Refused once the library is about to close; the pass stops for that close or for Dispose.
+            var stop = _life.Linked(_stopping.Token);
+            _backfilling = _life.Run(async () =>
+            {
+                using (stop)
+                    await BackfillAsync(stop.Token).ConfigureAwait(false);
+            });
+            if (_backfilling is null)
+                stop.Dispose();
         }
     }
 

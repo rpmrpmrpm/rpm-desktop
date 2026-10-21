@@ -11,7 +11,10 @@ namespace RPM.Desktop.Services.Cloud;
 /// </summary>
 public sealed partial class CloudSyncService
 {
-    public async Task AddPlaylistToCloudAsync(long playlistNodeId)
+    public Task AddPlaylistToCloudAsync(long playlistNodeId) =>
+        ErrandAsync(_ => AddPlaylistToCloudCoreAsync(playlistNodeId), CancellationToken.None);
+
+    private async Task AddPlaylistToCloudCoreAsync(long playlistNodeId)
     {
         if (!_library.IsOpen) return;
         var db = _library.Db;
@@ -34,7 +37,10 @@ public sealed partial class CloudSyncService
     /// Takes a playlist out of the cloud, and with it every track that was only up there for its sake. A
     /// track the user picked by hand, or one that another synced playlist still plays, stays.
     /// </summary>
-    public async Task RemovePlaylistFromCloudAsync(long playlistNodeId)
+    public Task RemovePlaylistFromCloudAsync(long playlistNodeId) =>
+        ErrandAsync(_ => RemovePlaylistFromCloudCoreAsync(playlistNodeId), CancellationToken.None);
+
+    private async Task RemovePlaylistFromCloudCoreAsync(long playlistNodeId)
     {
         if (!_library.IsOpen) return;
         var db = _library.Db;

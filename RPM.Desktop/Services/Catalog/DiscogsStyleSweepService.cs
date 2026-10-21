@@ -46,6 +46,10 @@ public sealed partial class DiscogsStyleSweepService : IDisposable
         _sweep = governor.Pass(
             "discogs styles", Shell.Lane.Network, Shell.Wave.Last, notBefore: Shell.Phase.Ready);
         _library.Opened += _ => Start();
+
+        // The sweep holds the library between its requests. It is stopped and waited for before the library
+        // is closed (see Shell.PassLife).
+        _library.StopBeforeClose(_life.CloseAsync);
     }
 
     /// <summary>What this pass asks before each unit of work. See Governor. Nothing in the background
@@ -76,19 +80,29 @@ public sealed partial class DiscogsStyleSweepService : IDisposable
     /// rate.</summary>
     public void Start()
     {
-        if (_worker is { IsCompleted: false })
-            return;
+        // Under a lock, so two Opened events cannot both find no worker and start two.
+        lock (_starting)
+        {
+            if (_worker is { IsCompleted: false })
+                return;
 
-        _stop?.Dispose();
-        _stop = new CancellationTokenSource();
-        var ct = _stop.Token;
+            _stop?.Dispose();
+            _stop = _life.Linked();
+            var ct = _stop.Token;
 
-        if (!_library.IsOpen)
-            return;
+            if (!_library.IsOpen)
+                return;
 
-        var db = _library.Db;
-        _worker = Task.Run(() => RunAsync(db, ct), ct);
+            // Refused once the library is about to close; the token is cancelled by that close as well.
+            var db = _library.Db;
+            _worker = _life.Run(() => RunAsync(db, ct));
+        }
     }
+
+    private readonly object _starting = new();
+
+    /// <summary>The pass's worker, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     private async Task RunAsync(LibraryDatabase db, CancellationToken ct)
     {

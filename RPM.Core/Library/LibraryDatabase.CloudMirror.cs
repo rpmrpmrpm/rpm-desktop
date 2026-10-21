@@ -70,9 +70,26 @@ public sealed partial class LibraryDatabase
     /// written whole before any batch runs, so it cannot forget a row because it saw half a
     /// catalogue.</para>
     /// </remarks>
-    public CloudMirrorResult MirrorCloudLibrary(IReadOnlyList<CloudTrack> cloud, bool prune = true)
+    public CloudMirrorResult MirrorCloudLibrary(IReadOnlyList<CloudTrack> cloud, bool prune = true) =>
+        MirrorCloudLibrary(cloud, CancellationToken.None, prune);
+
+    /// <summary>
+    /// <see cref="MirrorCloudLibrary(IReadOnlyList{CloudTrack}, bool)"/>, which can be stopped between two
+    /// batches of albums.
+    /// </summary>
+    /// <param name="cloud">The whole catalogue. See the other overload.</param>
+    /// <param name="ct">Checked before each batch and before the last step. A stop is never inside a
+    /// batch, so a record is never half mirrored. The batches before the stop stay committed, and the
+    /// last step (taking over local copies, and the prune) does not run. That is the same state as a pass
+    /// that died between two batches, which the remarks on the other overload describe as valid: the
+    /// next pass finishes the job. In particular nothing is forgotten because the pass saw only part of
+    /// the catalogue.</param>
+    /// <param name="prune">See the other overload.</param>
+    /// <exception cref="OperationCanceledException"><paramref name="ct"/> was cancelled.</exception>
+    public CloudMirrorResult MirrorCloudLibrary(IReadOnlyList<CloudTrack> cloud, CancellationToken ct, bool prune = true)
     {
         ArgumentNullException.ThrowIfNull(cloud);
+        ct.ThrowIfCancellationRequested();
 
         // One row per library path and one per track id, decided before the database is touched.
         // See CloudLibraryMirror.OneRowPerTrack.
@@ -117,6 +134,7 @@ public sealed partial class LibraryDatabase
         // gets in. The loop takes it again on the next turn.
         for (var from = 0; from < albums.Count; from += MirrorBatchAlbums)
         {
+            ct.ThrowIfCancellationRequested();
             using (_gate.Take())
             {
                 // Somebody else wrote while the gate was free. The three sets describe a library that
@@ -138,6 +156,7 @@ public sealed partial class LibraryDatabase
         }
 
         // ── what this machine has taken over, and what has left the cloud ────────────────────────
+        ct.ThrowIfCancellationRequested();
         using (_gate.Take())
         {
             using var tx = _connection.BeginTransaction();

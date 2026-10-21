@@ -94,7 +94,15 @@ public sealed partial class TrackAnalysisService : IDisposable
     {
         _library = library;
         _models = models;
+
+        // Every worker here reads and writes the library: the sweep, the upgrade, the wait for the store, and
+        // each single analysis. They are stopped and waited for before the library is closed (see
+        // Shell.PassLife). The handlers of Analyzed run on these workers, so their reads are covered too.
+        _library.StopBeforeClose(_life.CloseAsync);
     }
+
+    /// <summary>The workers, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     private readonly DjModelService _models;
 
@@ -203,18 +211,20 @@ public sealed partial class TrackAnalysisService : IDisposable
 
         // One job per file: two playlists containing the same track, or a re-entrant caller, wait on the
         // same decode rather than starting a second one.
-        return _running.GetOrAdd(absolutePath, path => Task.Run(async () =>
+        // Refused once the library is about to close, and stopped by that close as well as by the caller.
+        return _running.GetOrAdd(absolutePath, path => _life.Run<TrackAnalysis?>(async () =>
         {
+            using var stop = _life.Linked(ct);
             try
             {
-                if (!await Cancellable.WaitAsync(_slots, ct).ConfigureAwait(false))
+                if (!await Cancellable.WaitAsync(_slots, stop.Token).ConfigureAwait(false))
                     return null;
-                try { return Analyze(path, ct); }
+                try { return Analyze(path, stop.Token); }
                 finally { _slots.Release(); }
             }
             catch (OperationCanceledException) { return null; }
             finally { _running.TryRemove(path, out _); }
-        }));
+        }) ?? Task.FromResult<TrackAnalysis?>(null));
     }
 
     /// <summary>
@@ -248,7 +258,7 @@ public sealed partial class TrackAnalysisService : IDisposable
         // another thread for as long as the sweep lasts.
         var wanted = absolutePaths.Where(path => Cached(path) is null).ToList();
 
-        var fresh = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var fresh = _life.Linked(ct);
         var previous = Interlocked.Exchange(ref _sweep, fresh);
         Abandon(previous);
 
@@ -261,7 +271,8 @@ public sealed partial class TrackAnalysisService : IDisposable
             return;
         }
 
-        _ = Task.Run(() => SweepAsync(wanted, urgent, fresh.Token), fresh.Token);
+        // Refused once the library is about to close; the token is cancelled by that close as well.
+        _ = _life.Run(() => SweepAsync(wanted, urgent, fresh.Token));
     }
 
     /// <summary>Stops a sweep and lets go of its handle. Cancelling a source somebody is still inside is
@@ -402,7 +413,11 @@ public sealed partial class TrackAnalysisService : IDisposable
         }
 
         if (away.Count > 0)
-            _ = Task.Run(() => AwaitStoreAsync(away, ct));
+            _ = _life.Run(async () =>
+            {
+                using var stop = _life.Linked(ct);
+                await AwaitStoreAsync(away, stop.Token).ConfigureAwait(false);
+            });
     }
 
     /// <summary>How long the store is given to read a set's cloud records. A blob it already holds is a
@@ -613,7 +628,11 @@ public sealed partial class TrackAnalysisService : IDisposable
         if (wanted.Count == 0)
             return;
 
-        _ = Task.Run(() => UpgradeAsync(wanted, ct));
+        _ = _life.Run(async () =>
+        {
+            using var stop = _life.Linked(ct);
+            await UpgradeAsync(wanted, stop.Token).ConfigureAwait(false);
+        });
     }
 
     /// <summary>Whether this track has a stored reading that a model would improve on.</summary>

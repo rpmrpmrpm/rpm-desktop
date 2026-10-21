@@ -140,6 +140,30 @@ public sealed partial class SharingService : IDisposable
         // a different collection on offer.
         _library.Opened += _ => RestartSoon();
         _settings.Changed += OnSettingsChanged;
+
+        // The catalogue loop and the pulls write other computers' listings into the library, and the server
+        // reads it to answer them. All of that is stopped before the library is closed.
+        _library.StopBeforeClose(CloseAsync);
+    }
+
+    /// <summary>The catalogue loop and the pulls, stopped and waited for before the library is
+    /// closed.</summary>
+    private readonly Shell.PassLife _life = new();
+
+    /// <summary>
+    /// Stops sharing for good before the library is closed. <see cref="LibraryService.Dispose"/> calls it
+    /// through <see cref="LibraryService.StopBeforeClose"/>, and waits for it.
+    ///
+    /// <para>The workers are refused and cancelled first, so no pull or restart starts after this. The server
+    /// and the beacon are then stopped, under the same lock as a restart, so nothing on the network is
+    /// answered from a library that is about to close. Last, the loop and every pull are waited for.</para>
+    /// </summary>
+    internal async Task CloseAsync()
+    {
+        var waiting = _life.CloseAsync();
+        lock (_restarting)
+            Stop();
+        await waiting.ConfigureAwait(false);
     }
 
     /// <summary>Raised when the set of peers, what is known about them, or any pairing changes. It can be
@@ -216,7 +240,8 @@ public sealed partial class SharingService : IDisposable
     {
         Stop();
 
-        if (!ShouldServe)
+        // Not after the library has begun to close: there is nothing left to serve.
+        if (!ShouldServe || _life.IsClosing)
         {
             // This computer is no longer on the network, so nothing it asked for can be answered.
             EndRuns();
@@ -274,15 +299,16 @@ public sealed partial class SharingService : IDisposable
         lock (_gate)
         {
             _server = server;
-            _cts = new CancellationTokenSource();
+            _cts = _life.Linked();
         }
 
         _beaconName = _settings.ShareName;
         _beaconFace = _settings.ShareFace;
         _discovery.Start(identity, port, _beaconName);
 
+        // Refused once the library is about to close; the token is cancelled by that close as well.
         var token = _cts.Token;
-        _ = Task.Run(() => CatalogLoopAsync(token));
+        _ = _life.Run(() => CatalogLoopAsync(token));
         Shell.Background.Run(() => SyncAccountAsync());
     }
 
@@ -1753,6 +1779,29 @@ public sealed partial class SharingService : IDisposable
     /// <para>A second request is merged into one repeat rather than queued, because two passes would read
     /// the same catalogue. See <see cref="RPM.Core.Sharing.PullGate"/>.</para>
     /// </summary>
+    /// <summary>Pulls one peer's listing now, outside the loop's round. It is refused once the library is
+    /// about to close, and stopped and waited for by that close. A failure is only a failed pull: the loop
+    /// tries again on its next round.</summary>
+    private void PullSoon(string deviceId)
+    {
+        _ = _life.Run(async () =>
+        {
+            try
+            {
+                if (_book.Find(deviceId) is { } peer)
+                    await PullOnceAsync(peer, _life.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The library is about to close.
+            }
+            catch (Exception ex)
+            {
+                _log.LogDebug(ex, "[Sharing] A pull did not finish");
+            }
+        });
+    }
+
     private async Task PullOnceAsync(TrustedPeer peer, CancellationToken cancellation)
     {
         if (peer is null || !_pulls.Begin(peer.DeviceId))
@@ -1918,12 +1967,12 @@ public sealed partial class SharingService : IDisposable
                 // Its address may have changed while it was away; the client is rebuilt against
                 // whatever the beacon says now.
                 DropClient(peer.DeviceId);
-                Shell.Background.Run(() => PullOnceAsync(_book.Find(peer.DeviceId)!, CancellationToken.None));
+                PullSoon(peer.DeviceId);
                 break;
 
             case PeerVerdict.AutoTrust:
                 Trust(peer.DeviceId, peer.PublicKey, peer.Name, face: "");
-                Shell.Background.Run(() => PullOnceAsync(_book.Find(peer.DeviceId)!, CancellationToken.None));
+                PullSoon(peer.DeviceId);
                 break;
 
             // Ask: nothing to do here. It gets a row under "On this network" from Nearby, which the

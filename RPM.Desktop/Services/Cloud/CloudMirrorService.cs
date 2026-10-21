@@ -86,10 +86,10 @@ public sealed partial class CloudMirrorService : IDisposable
     /// it through <see cref="LibraryService.StopBeforeClose"/>, and waits for it.
     ///
     /// <para>The closing token is cancelled first. That stops the tick, cancels a catalogue read in the air,
-    /// and stops every later pass before it takes the gate. The gate is then taken, which waits for a pass
-    /// that is already writing (<see cref="Apply"/>) to finish its write. A write is not cut off half way:
-    /// the mirror commits it a batch of albums at a time, and the last step prunes against the whole
-    /// listing.</para>
+    /// stops a write in <see cref="Apply"/> at its next batch of albums, and stops every later pass before it
+    /// takes the gate. The gate is then taken, which waits for a pass that is inside to reach that point and
+    /// let go. A stopped write leaves whole batches committed and does not prune (see
+    /// <c>LibraryDatabase.MirrorCloudLibrary</c>); the next pass finishes it.</para>
     /// </summary>
     internal async Task CloseAsync()
     {
@@ -142,7 +142,7 @@ public sealed partial class CloudMirrorService : IDisposable
         using var closingOrCaller = CancellationTokenSource.CreateLinkedTokenSource(ct, _closing.Token);
         ct = closingOrCaller.Token;
 
-        if (!await RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct)) return;
+        if (!await NetworkAllows(ct)) return;
 
         if (!await _gate.WaitAsync(0, ct)) return;   // A pass is already running and sees the same data.
         try
@@ -163,7 +163,7 @@ public sealed partial class CloudMirrorService : IDisposable
             ct.ThrowIfCancellationRequested();
 
             _lastPass = DateTime.UtcNow;
-            Apply(catalog);
+            Apply(catalog, ct);
             CatalogRead?.Invoke(catalog);
 
             if (await BackfilledAsync(ct))
@@ -175,7 +175,7 @@ public sealed partial class CloudMirrorService : IDisposable
                 {
                     var again = await _cloud.ListAsync(CloudShelf.Own, ct);
                     ct.ThrowIfCancellationRequested();
-                    Apply(again);
+                    Apply(again, ct);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -231,13 +231,16 @@ public sealed partial class CloudMirrorService : IDisposable
     /// The same pass, over a catalogue that somebody else has already fetched. This is the sync run's own
     /// listing, which is the whole thing and at most a few minutes old. One listing does for both.
     /// </summary>
-    public void Adopt(IReadOnlyList<CloudTrack> catalog)
+    /// <param name="catalog">The whole catalogue.</param>
+    /// <param name="ct">The caller's stop. The write stops at its next batch of albums when it is
+    /// cancelled.</param>
+    public void Adopt(IReadOnlyList<CloudTrack> catalog, CancellationToken ct)
     {
         if (GalleryMode.Active) return;
         if (!_auth.IsLoggedIn || !_library.IsOpen) return;
 
         _lastPass = DateTime.UtcNow;
-        Apply(catalog);
+        Apply(catalog, ct);
     }
 
     /// <summary>
@@ -267,7 +270,15 @@ public sealed partial class CloudMirrorService : IDisposable
 
     private readonly object _byHashGate = new();
 
-    private void Apply(IReadOnlyList<CloudTrack> catalog)
+    /// <summary>Whether a pass may go to the network now. <see cref="RPM.Core.Net.NetworkReach.Shared"/> in
+    /// the app; a test stands in its own answer, because the shared gate measures the real internet.</summary>
+    internal Func<CancellationToken, ValueTask<bool>> NetworkAllows { get; init; } =
+        ct => RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct);
+
+    /// <param name="catalog">The whole catalogue.</param>
+    /// <param name="ct">Stops the write at its next batch of albums. A stop is not a failure: it is thrown
+    /// on, not logged.</param>
+    private void Apply(IReadOnlyList<CloudTrack> catalog, CancellationToken ct)
     {
         var byHash = new Dictionary<string, string>(catalog.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var track in catalog)
@@ -283,9 +294,9 @@ public sealed partial class CloudMirrorService : IDisposable
         CloudMirrorResult result;
         try
         {
-            result = _library.Db.MirrorCloudLibrary(catalog);
+            result = _library.Db.MirrorCloudLibrary(catalog, ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _log.LogWarning(ex, "[Cloud] Could not mirror the catalog into the library");
             return;
@@ -301,6 +312,29 @@ public sealed partial class CloudMirrorService : IDisposable
             result.Adopted, result.Updated, result.Forgotten);
 
         Notify();
+    }
+
+    /// <summary>
+    /// <see cref="Forget"/>, under the same gate as a pass and stopped by the same close.
+    ///
+    /// <para>Under the gate, because a pass that read the catalogue before the sign-out would otherwise write
+    /// it into the library after the rows were removed. The pass finishes first, and then its rows go too.
+    /// Stopped by the close, because the library is about to be closed: a close that has begun is seen
+    /// either before the gate is taken (the wait is cancelled) or by <see cref="CloseAsync"/>, which waits
+    /// for the gate.</para>
+    /// </summary>
+    private async Task ForgetAsync()
+    {
+        await _gate.WaitAsync(_closing.Token).ConfigureAwait(false);
+        try
+        {
+            if (_closing.IsCancellationRequested || _auth.IsLoggedIn) return;
+            Forget();
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <summary>
@@ -356,7 +390,7 @@ public sealed partial class CloudMirrorService : IDisposable
         if (_auth.IsLoggedIn)
             Shell.Background.Run(() => RefreshAsync(force: true));
         else
-            Forget();
+            Shell.Background.Run(ForgetAsync);
     }
 
     /// <summary>

@@ -69,7 +69,14 @@ public sealed partial class AnalysisTagService : IDisposable
         _log = log;
 
         _analysis.Analyzed += OnAnalyzed;
+
+        // The writes after each analysis and the backfill read the library. They are stopped and waited for
+        // before the library is closed (see Shell.PassLife).
+        _library.StopBeforeClose(_life.CloseAsync);
     }
+
+    /// <summary>The workers, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     /// <summary>How many analysed tracks still have measurements that are not in their files. The
     /// result is zero when the library is fully tagged, when nothing has been analysed yet, and when no
@@ -102,7 +109,8 @@ public sealed partial class AnalysisTagService : IDisposable
         if (!_settings.WriteAnalysisTags || GalleryMode.Active || !_library.IsOpen)
             return;
 
-        _ = Task.Run(async () =>
+        // Refused once the library is about to close. The wait for a turn ends with that close too.
+        _ = _life.Run(async () =>
         {
             try
             {
@@ -111,11 +119,15 @@ public sealed partial class AnalysisTagService : IDisposable
                 // thread pool task blocked for that whole time. A track that gives up here is not
                 // lost. Its row still says the tags are missing, so the running backfill or the next
                 // one writes them.
-                if (!await _writing.WaitAsync(WaitForTurn).ConfigureAwait(false))
+                if (!await _writing.WaitAsync(WaitForTurn, _life.Token).ConfigureAwait(false))
                     return;
 
                 try { WriteOne(analysis.FilePath, overwrite: false); }
                 finally { _writing.Release(); }
+            }
+            catch (OperationCanceledException)
+            {
+                // The library is about to close. The row still says the tags are missing.
             }
             catch (Exception ex)
             {
@@ -140,10 +152,11 @@ public sealed partial class AnalysisTagService : IDisposable
         bool overwrite = false, IProgress<AnalysisTagProgress>? progress = null,
         CancellationToken ct = default)
     {
-        if (!_library.IsOpen || GalleryMode.Active)
+        if (!_library.IsOpen || GalleryMode.Active || _life.IsClosing)
             return 0;
 
-        var fresh = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        // Stopped by the caller, by a newer backfill, and by the library being about to close.
+        var fresh = _life.Linked(ct);
         var previous = Interlocked.Exchange(ref _backfill, fresh);
         if (previous is not null)
         {
@@ -170,7 +183,8 @@ public sealed partial class AnalysisTagService : IDisposable
             // would come back every time and the loop would never end.
             var skipped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            await Task.Run(async () =>
+            // Refused once the library is about to close, and waited for by that close.
+            await (_life.Run(async () =>
             {
                 while (!token.IsCancellationRequested)
                 {
@@ -202,7 +216,7 @@ public sealed partial class AnalysisTagService : IDisposable
 
                     Progressed?.Invoke();
                 }
-            }).ConfigureAwait(false);
+            }) ?? Task.CompletedTask).ConfigureAwait(false);
 
             _log.LogInformation(
                 "[analysis-tags] backfill done: {Written} written, {Looked} looked at, {Skipped} left for later, {Seconds:F1}s",

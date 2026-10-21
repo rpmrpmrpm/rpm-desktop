@@ -87,7 +87,14 @@ public sealed partial class FingerprintService : IDisposable
         _library.Changed += () => Shell.Background.Run(() => KickAsync());
         // A sign-in makes submission possible; fingerprints made while signed out are waiting.
         _auth.Changed += () => Shell.Background.Run(() => KickAsync());
+
+        // The pass holds the library for as long as a library takes. It is stopped and waited for before the
+        // library is closed (see Shell.PassLife).
+        _library.StopBeforeClose(_life.CloseAsync);
     }
+
+    /// <summary>The pass's workers, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     /// <summary>Starts, or lets run, the background pass. Safe to call as often as needed. A run that is
     /// already under way keeps going.</summary>
@@ -110,9 +117,10 @@ public sealed partial class FingerprintService : IDisposable
         {
             if (_worker is { IsCompleted: false }) return;   // Already running, so there is nothing to do.
 
-            _cts = new CancellationTokenSource();
+            // Refused once the library is about to close; the token is cancelled by that close as well.
+            _cts = _life.Linked();
             var ct = _cts.Token;
-            _worker = Task.Run(() => RunAsync(db, ct));
+            _worker = _life.Run(() => RunAsync(db, ct));
         }
         finally
         {

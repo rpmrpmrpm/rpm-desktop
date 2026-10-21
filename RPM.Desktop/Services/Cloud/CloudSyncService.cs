@@ -290,14 +290,60 @@ public sealed partial class CloudSyncService : IDisposable
         }
 
         Task? metadata;
+        Task[] errands;
         lock (_metadataGate)
+        {
             metadata = _metadataRun;
+            errands = [.. _errands];
+        }
 
         if (_worker is { } worker)
             try { await worker.ConfigureAwait(false); } catch { /* the run's own failure is not the close's business */ }
         if (metadata is not null)
             await metadata.ConfigureAwait(false);
+        await Task.WhenAll(errands).ConfigureAwait(false);
     }
+
+    /// <summary>The work a person started (a restore, a playlist added, a settings change) that has not ended.
+    /// Guarded by <see cref="_metadataGate"/>. <see cref="CloseAsync"/> waits for every one of them.</summary>
+    private readonly HashSet<Task> _errands = [];
+
+    /// <summary>
+    /// Runs work that a person started, so that <see cref="CloseAsync"/> can stop it and wait for it.
+    ///
+    /// <para>Refused once the close has begun: the work throws <see cref="OperationCanceledException"/> and
+    /// never touches the library. Otherwise it is recorded under the same lock as the close's check, and
+    /// runs on a token that the close cancels as well as the caller's.</para>
+    /// </summary>
+    private async Task<T> ErrandAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct)
+    {
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_metadataGate)
+        {
+            _closing.Token.ThrowIfCancellationRequested();
+            _errands.Add(done.Task);
+        }
+
+        try
+        {
+            using var closingOrCaller = CancellationTokenSource.CreateLinkedTokenSource(ct, _closing.Token);
+            return await work(closingOrCaller.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_metadataGate)
+                _errands.Remove(done.Task);
+            done.SetResult();
+        }
+    }
+
+    /// <inheritdoc cref="ErrandAsync{T}"/>
+    private Task ErrandAsync(Func<CancellationToken, Task> work, CancellationToken ct) =>
+        ErrandAsync(async token =>
+        {
+            await work(token).ConfigureAwait(false);
+            return true;
+        }, ct);
 
     /// <summary>A different collection was opened, so the run in progress is working on a library that
     /// does not belong to the user.
@@ -506,7 +552,10 @@ public sealed partial class CloudSyncService : IDisposable
     /// last one, and nothing writes the rows while they are reset. When signed in, a kick could start a new
     /// run between the wait and the reset. This method is reached through <see
     /// cref="Account.AccountDeletion"/>.</remarks>
-    public async Task ForgetDeletedAccountAsync()
+    public Task ForgetDeletedAccountAsync() =>
+        ErrandAsync(_ => ForgetDeletedAccountCoreAsync(), CancellationToken.None);
+
+    private async Task ForgetDeletedAccountCoreAsync()
     {
         if (_auth.IsLoggedIn)
             throw new InvalidOperationException("The account is forgotten after signing out, not before.");
@@ -549,7 +598,7 @@ public sealed partial class CloudSyncService : IDisposable
         var reaction = CloudSyncReaction.For(_mode, _settings.CloudMode);
 
         if (reaction.HasFlag(CloudReaction.ApplyMode))
-            Shell.Background.Run(() => ApplyModeAsync(_settings.CloudMode));
+            Shell.Background.Run(() => ErrandAsync(_ => ApplyModeAsync(_settings.CloudMode), CancellationToken.None));
 
         if (reaction.HasFlag(CloudReaction.KickQueue))
             Shell.Background.Run(() => KickAsync());

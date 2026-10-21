@@ -81,7 +81,14 @@ public sealed partial class LoudnessService : IDisposable
         // object is built. Waiting for an event that has already happened would mean the pass never
         // starts.
         Shell.Background.Run(() => KickAsync());
+
+        // The pass holds the library for as long as a library takes. It is stopped and waited for before the
+        // library is closed (see Shell.PassLife).
+        _library.StopBeforeClose(_life.CloseAsync);
     }
+
+    /// <summary>The pass's workers, stopped and waited for before the library is closed.</summary>
+    private readonly Shell.PassLife _life = new();
 
     /// <summary>How many tracks are still waiting for a measurement. The value is zero when every track
     /// is measured, and when no library is open. The result is unanswered when the database refuses the
@@ -123,9 +130,10 @@ public sealed partial class LoudnessService : IDisposable
             if (_worker is { IsCompleted: false })
                 return;
 
-            _cts = new CancellationTokenSource();
+            // Refused once the library is about to close; the token is cancelled by that close as well.
+            _cts = _life.Linked();
             var ct = _cts.Token;
-            _worker = Task.Run(() => RunAsync(db, ct));
+            _worker = _life.Run(() => RunAsync(db, ct));
         }
         finally
         {
