@@ -29,7 +29,7 @@ namespace RPM.Desktop.Presentation.Common;
 /// a path: where the assets sit is <see cref="PlaylistPhotos"/>'s business and it is the
 /// only thing that knows it.</param>
 /// <param name="Alt">What the picture is, in words, as Pexels describes it. Nothing draws
-/// this; it is here so the next person to open the table can tell the seventy-nine apart
+/// this; it is here so the next person to open the table can tell the eighty-four apart
 /// without looking at them.</param>
 /// <param name="By">Who took it. The licence asks for no credit and this is the credit
 /// anyway.</param>
@@ -50,6 +50,10 @@ internal static partial class PlaylistPhotos
             "calm-rock.jpg",
             "A tranquil beach campfire glowing at sunset, offering warmth and serenity.",
             "Николай Шарлай"),
+        new(new(SmartPlaylistKind.Calm, "Indie", 0),
+            "calm-indie.jpg",
+            "Retro tape cassettes scattered on a wooden cabinet, evoking nostalgia and vintage vibes.",
+            "Esra Erdem"),
         new(new(SmartPlaylistKind.Calm, "Pop", 0),
             "calm-pop.jpg",
             "Silhouette of a room with a lamp against a bright window in black and white.",
@@ -70,10 +74,18 @@ internal static partial class PlaylistPhotos
             "calm-rb.jpg",
             "Luxurious interior featuring ornate gold design and classic furniture in a regal setting.",
             "Alexandros Chatzidimos"),
+        new(new(SmartPlaylistKind.Calm, "Rap", 0),
+            "calm-rap.jpg",
+            "A detailed black-and-white close-up image of a speaker, highlighting its intricate design.",
+            "Guillaume Meurice"),
         new(new(SmartPlaylistKind.Calm, "Hip-Hop / Rap", 0),
             "calm-hiphoprap.jpg",
             "A moody night scene of Saint Petersburg with raindrops on a window and blurred city lights.",
             "Viktoria Alipatova"),
+        new(new(SmartPlaylistKind.Calm, "House", 0),
+            "calm-house.jpg",
+            "A serene sunrise over Paris rooftops, capturing the warm morning glow.",
+            "Riccardo Bertolo"),
         new(new(SmartPlaylistKind.Calm, "Electronic / Dance", 0),
             "calm-electronicdance.jpg",
             "An enchanting view of clouds resembling ocean waves during twilight.",
@@ -139,6 +151,10 @@ internal static partial class PlaylistPhotos
             "energetic-rb.jpg",
             "Bright and vibrant silk fabrics showcasing rich colors and luxurious textures.",
             "Rafael Minguet Delgado"),
+        new(new(SmartPlaylistKind.Energetic, "Rap", 0),
+            "energetic-rap.jpg",
+            "Two performers engage the audience during a vibrant rap concert with striking smoke effects.",
+            "Sami TÜRK"),
         new(new(SmartPlaylistKind.Energetic, "Hip-Hop / Rap", 0),
             "energetic-hiphoprap.jpg",
             "Black-and-white alley in Melbourne with vibrant graffiti and waste bins.",
@@ -216,6 +232,10 @@ internal static partial class PlaylistPhotos
             "danceable-house.jpg",
             "A woman silhouetted against lights, enjoying a night out at a lively club.",
             "Maor Attias"),
+        new(new(SmartPlaylistKind.Danceable, "Club", 0),
+            "danceable-club.jpg",
+            "Illuminated entrance of a nightclub with neon red lights and a vintage scooter.",
+            "mali maeder"),
         new(new(SmartPlaylistKind.Danceable, "Electronic / Dance", 0),
             "danceable-electronicdance.jpg",
             "Dynamic long exposure photo capturing colorful nightclub lights and motion.",
