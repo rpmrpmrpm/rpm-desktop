@@ -750,6 +750,11 @@ public sealed partial class TrackInfoView : UserControl
             var next = await App.Services.GetRequiredService<LyricsService>()
                 .AnotherAsync(artist, title, album, seconds);
 
+            // The choice is kept for this record whether or not it is still on screen, so the other
+            // devices are told about it in both cases.
+            if (next.IsSynced)
+                App.Services.GetRequiredService<LyricSheetShare>().Chosen(path, next);
+
             // The record changed while the question was in the air. The answer belongs to a song that
             // is no longer on screen, and there is nothing to say about it: nobody is waiting on it
             // now.
@@ -844,6 +849,8 @@ public sealed partial class TrackInfoView : UserControl
             // right.
             var taken = App.Services.GetRequiredService<LyricsService>()
                 .Adopt(artist, title, album, seconds, sheet);
+            if (taken.IsSynced)
+                App.Services.GetRequiredService<LyricSheetShare>().Chosen(path, taken);
 
             if (!taken.IsSynced || !string.Equals(path, _path, StringComparison.Ordinal))
                 return;

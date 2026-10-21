@@ -931,6 +931,8 @@ public sealed partial class PegasusPlayer : UserControl
         {
             var next = await App.Services.GetRequiredService<LyricsService>()
                 .AnotherAsync(deck.Artist, deck.Title, deck.Album, deck.DurationSeconds);
+            if (next.IsSynced)
+                App.Services.GetRequiredService<LyricSheetShare>().Chosen(deck.FilePath, next);
 
             // An empty answer means there was nothing else to show. This is the only sheet anybody has, or the lookup
             // could not be reached. Say so out loud. The screen is about to look exactly as it did before the press,

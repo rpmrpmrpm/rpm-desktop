@@ -867,6 +867,18 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         => SendAsync<object>(HttpMethod.Put, $"cloud/lyric-timing/{Uri.EscapeDataString(rpmId)}",
             JsonContent.Create(new LyricTimingRequest(lines), RpmCloudJson.Default.LyricTimingRequest), ct);
 
+    /// <summary>Keeps the lyric sheet the user chose for a track, as LRC text
+    /// (<c>PUT cloud/lyric-sheet/{rpmId}</c>), so the user's other devices show the same sheet. The store
+    /// also forgets the word timing kept for the track, which belonged to the sheet this one replaces.</summary>
+    public Task PutLyricSheetAsync(string rpmId, string lrc, CancellationToken ct = default)
+        => SendAsync<object>(HttpMethod.Put, $"cloud/lyric-sheet/{Uri.EscapeDataString(rpmId)}",
+            JsonContent.Create(new LyricSheetRequest(lrc), RpmCloudJson.Default.LyricSheetRequest), ct);
+
+    /// <summary>Forgets the lyric sheet the user chose for a track (<c>DELETE cloud/lyric-sheet/{rpmId}</c>).
+    /// The other devices then use the sheet LRCLIB gives.</summary>
+    public Task DeleteLyricSheetAsync(string rpmId, CancellationToken ct = default)
+        => SendAsync<object>(HttpMethod.Delete, $"cloud/lyric-sheet/{Uri.EscapeDataString(rpmId)}", null, ct);
+
     /// <summary>Takes a share back.</summary>
     public Task RevokeShareAsync(string granteeId, CancellationToken ct = default)
         => SendAsync<object>(HttpMethod.Delete, $"cloud/shares/{granteeId}", null, ct);
@@ -1721,6 +1733,8 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
 
     private sealed record LyricTimingRequest(IReadOnlyList<LyricTimingLineBody> Lines);
 
+    private sealed record LyricSheetRequest(string Lrc);
+
     private sealed record KeyBundle(IReadOnlyList<string> Keys);
 
     private sealed record KeyBundlesRequest(IReadOnlyList<KeyBundle> Bundles);
@@ -1819,6 +1833,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(PlaylistPutRequest))]
     [JsonSerializable(typeof(AlbumMarkRequest))]
     [JsonSerializable(typeof(LyricTimingRequest))]
+    [JsonSerializable(typeof(LyricSheetRequest))]
     [JsonSerializable(typeof(AlbumClassicalRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(MoodListsPayload))]
