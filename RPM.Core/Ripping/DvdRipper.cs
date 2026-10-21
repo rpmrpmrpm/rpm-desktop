@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using RPM.Core.Files;
 using RPM.Core.Metadata;
 using RPM.Core.Models;
 using RPM.Core.Import;
@@ -247,7 +248,9 @@ public sealed class DvdRipper
         }
         catch
         {
-            try { process.Kill(); } catch { }
+            // Waited for, not only killed. The caller deletes the partly written chapter, and Windows does not
+            // delete a file that ffmpeg still holds open.
+            ChildProcess.StopAndWait(process);
             throw;
         }
 

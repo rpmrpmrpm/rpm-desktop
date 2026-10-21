@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using RPM.Core.Audio;
+using RPM.Core.Files;
 using RPM.Fingerprint;
 
 namespace RPM.Core.Recording;
@@ -108,8 +109,7 @@ public static class VinylRestorer
         {
             // A half-rendered album must never be mistaken for a finished one: the splitter would cut
             // a record that stops in the middle.
-            try { if (encoder is { HasExited: false }) encoder.Kill(); } catch { }
-            try { if (File.Exists(destPath)) File.Delete(destPath); } catch { }
+            Abandon(encoder, destPath);
             throw;
         }
         finally
@@ -186,8 +186,7 @@ public static class VinylRestorer
         }
         catch
         {
-            try { if (!encoder.HasExited) encoder.Kill(); } catch { }
-            try { if (File.Exists(destPath)) File.Delete(destPath); } catch { }
+            Abandon(encoder, destPath);
             throw;
         }
         finally { encoder.Dispose(); }
@@ -242,6 +241,14 @@ public static class VinylRestorer
         }
         await stdin.WriteAsync(pcm.AsMemory(0, b), ct);
         return frames;
+    }
+
+    /// <summary>Stops the encoder and deletes what it wrote so far. The encoder must have exited first, or
+    /// Windows refuses the delete (see <see cref="ChildProcess"/>).</summary>
+    private static void Abandon(Process? encoder, string destPath)
+    {
+        ChildProcess.StopAndWait(encoder);
+        try { if (File.Exists(destPath)) File.Delete(destPath); } catch { }
     }
 
     private static Process StartEncoder(string outputPath, bool wav = false)

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using RPM.Core.Files;
 using RPM.Core.Metadata;
 using RPM.Core.Models;
 using RPM.Core.Import;
@@ -337,7 +338,9 @@ public static class AlbumFileSplitter
         {
             if (ct.IsCancellationRequested)
             {
-                try { proc.Kill(); } catch { }
+                // Waited for, not only killed. The caller deletes the temp folder, and Windows does not delete a
+                // file that ffmpeg still holds open.
+                ChildProcess.StopAndWait(proc);
                 ct.ThrowIfCancellationRequested();
             }
         }

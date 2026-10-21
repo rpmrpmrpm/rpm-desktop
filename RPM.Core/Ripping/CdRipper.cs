@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using RPM.Core.Files;
 using RPM.Core.Metadata;
 using RPM.Core.Models;
 using RPM.Core.Import;
@@ -327,7 +328,9 @@ public sealed class CdRipper(IDiscReader reader)
         }
         catch
         {
-            try { process.Kill(); } catch { }
+            // Waited for, not only killed. The caller deletes the partly written track, and Windows does not
+            // delete a file that ffmpeg still holds open.
+            ChildProcess.StopAndWait(process);
             throw;
         }
 
