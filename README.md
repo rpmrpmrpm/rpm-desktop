@@ -46,6 +46,13 @@ git clone https://github.com/rpmrpmrpm/rpm-desktop
 The icon font (Font Awesome 5 Pro) is licensed and cannot be published, so it is not in the repo.
 Without it the app works and some icons are blank; the build says so.
 
+A build from source uses the same settings, sign-in and libraries as an installed rpm on the same
+computer (the `RPM` folder in the local application data folder). Quit the installed rpm before you
+run your build, and expect your build to work on your real library.
+
+The sharing tests listen on the local network. On Windows the first `dotnet test` run brings up a
+Windows Firewall prompt for `testhost`. The tests pass whether you allow it or press Cancel.
+
 Run the tests:
 
 ```
