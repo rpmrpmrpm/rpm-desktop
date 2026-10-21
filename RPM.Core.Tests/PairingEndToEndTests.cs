@@ -109,9 +109,14 @@ public class PairingEndToEndTests : IDisposable
     }
 
     /// <summary>Waits for a condition, sweeping both boards as the app's timer does.</summary>
-    private static async Task Eventually(Func<bool> condition, params Computer[] sweep)
+    private static Task Eventually(Func<bool> condition, params Computer[] sweep) =>
+        Eventually(condition, TimeSpan.FromSeconds(5), sweep);
+
+    /// <summary>Waits up to <paramref name="limit"/> for a condition, sweeping both boards as the app's timer
+    /// does.</summary>
+    private static async Task Eventually(Func<bool> condition, TimeSpan limit, params Computer[] sweep)
     {
-        var until = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        var until = DateTime.UtcNow + limit;
         while (DateTime.UtcNow < until)
         {
             foreach (var computer in sweep)
@@ -123,7 +128,7 @@ public class PairingEndToEndTests : IDisposable
             await Task.Delay(20);
         }
 
-        Assert.True(condition(), "the condition did not hold within five seconds");
+        Assert.True(condition(), $"the condition did not hold within {limit.TotalSeconds:0.#} seconds");
     }
 
     [Fact]
@@ -283,7 +288,15 @@ public class PairingEndToEndTests : IDisposable
 
         asked.Server.Dispose();
 
-        await Eventually(() => asking.StateWith(asked) is PairingState.Lost);
+        // The asking side reads Lost once its status calls have failed for LostAfter. On Windows a call to a port
+        // that is no longer listening takes about two seconds to fail, and a call can be in flight when the server
+        // stops. So the wait is LostAfter, two failed calls and the retry between them, and room for a busy
+        // machine.
+        var failedCall = TimeSpan.FromSeconds(2);
+        var busyMachine = TimeSpan.FromSeconds(5);
+        await Eventually(
+            () => asking.StateWith(asked) is PairingState.Lost,
+            Times.LostAfter + failedCall + PairingRun.Retry + failedCall + busyMachine);
     }
 
     [Fact]

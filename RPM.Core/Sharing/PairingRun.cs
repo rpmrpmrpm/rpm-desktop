@@ -14,7 +14,7 @@ namespace RPM.Core.Sharing;
 public sealed class PairingRun : IDisposable
 {
     /// <summary>How long to wait before retrying a failed status call.</summary>
-    private static readonly TimeSpan Retry = TimeSpan.FromSeconds(1);
+    internal static readonly TimeSpan Retry = TimeSpan.FromSeconds(1);
 
     private readonly PairingBoard _board;
     private readonly PeerClient _client;
@@ -100,6 +100,10 @@ public sealed class PairingRun : IDisposable
 
         while (!token.IsCancellationRequested && _board.IsCurrent(DeviceId, Attempt))
         {
+            // The failure is counted from when the call was made, not from when it came back. A call to a
+            // computer that has stopped listening can take seconds to fail: Windows tries a refused connection
+            // again for about two seconds. Counted from the answer, LostAfter would start that much late.
+            var asked = _now();
             var status = await _client.PairStatusAsync(_id, rev, token);
             if (token.IsCancellationRequested)
                 return;
@@ -107,7 +111,7 @@ public sealed class PairingRun : IDisposable
             if (status is null)
             {
                 var now = _now();
-                failingSince ??= now;
+                failingSince ??= asked;
                 if (now - failingSince.Value >= _board.Times.LostAfter)
                 {
                     _board.Lose(DeviceId, Attempt);
