@@ -628,10 +628,15 @@ public class CastSinkTests
             sink.Begin(Track(240.0) with { Path = source }, Rate, Channels);
             Assert.True(receiver.WaitForLoad(TimeSpan.FromSeconds(5)));
 
-            Thread.Sleep(9000);
-            var given = Interlocked.Read(ref receiver.BytesTaken) / BytesPerSecond;
+            // Far past a fixed lead of 25 s, or of 50 s. A stream held by a lead stops there and never
+            // reaches 100 s. How fast it gets there depends only on how fast ffmpeg encodes on this
+            // machine, so the test waits for the amount and not for a fixed time.
+            double Given() => Interlocked.Read(ref receiver.BytesTaken) / BytesPerSecond;
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+            while (Given() <= 100 && DateTime.UtcNow < deadline)
+                Thread.Sleep(100);
 
-            // Far past a fixed lead of 25 s, or of 50 s.
+            var given = Given();
             Assert.True(given > 100,
                         $"the stream stopped at {given:F1}s to a speaker that was still drinking");
 
