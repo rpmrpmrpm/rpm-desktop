@@ -275,7 +275,10 @@ public class DjMixEndToEndTests : IDisposable
         var last = Analyse(WriteTrack("plays-too", 124, 20, 330), 124);
         last = last with { Analysis = last.Analysis! with { OutroStartSeconds = 8 } };
 
-        using var dj = new Dj(new DjCrate([first, gone, last]), Rate, Channels);
+        // In this order, without the planner. The planner chooses by what is playing at the moment of the
+        // choice, so with it the missing record sometimes comes last, and then nothing follows it to prove
+        // anything. The case is a missing record with a record after it.
+        using var dj = new Dj(new DjCrate([first, gone, last], plan: false), Rate, Channels);
         // Wall clock, not a frame count: while a decoder opens, the DJ outputs silence, and this loop
         // (with no sound device pacing it) reads those blocks as fast as it can.
         var block = new float[1024 * Channels];
@@ -284,7 +287,8 @@ public class DjMixEndToEndTests : IDisposable
 
         Assert.True(dj.HasFinished);
         // The record that is not there produces nothing; the one after it still gets played.
-        Assert.Contains(dj.Played, t => t.Title == "plays-too");
+        Assert.True(dj.Played.Any(t => t.Title == "plays-too"),
+            $"played {string.Join(", ", dj.Played.Select(t => t.Title))}; the set ended: {dj.EndedBecause}");
     }
 
     [Fact]

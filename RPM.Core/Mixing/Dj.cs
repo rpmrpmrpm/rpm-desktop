@@ -219,6 +219,8 @@ public sealed class Dj : IPcmSource, INowPlayingSource
     private readonly System.Diagnostics.Stopwatch _holdClock = new();
     private const double MaxHoldSeconds = 5;
 
+
+
     /// <summary>Raised on the audio thread when the record the set is on changes. This happens when the
     /// first record drops, and at the end of each changeover.</summary>
     public event Action<MixTrack>? TrackChanged;
@@ -372,6 +374,11 @@ public sealed class Dj : IPcmSource, INowPlayingSource
 
     /// <summary>True once the crate is empty and the last record has played out.</summary>
     public bool HasFinished => _finished;
+
+    /// <summary>Why the set ended, with the state that led there, once <see cref="HasFinished"/> is true.
+    /// The same line goes to the log. It is kept here as well so that a test that sees a set end too early
+    /// can say why.</summary>
+    public string? EndedBecause { get; private set; }
 
     /// <summary>The set as played so far, in order.</summary>
     public IReadOnlyList<MixTrack> Played => _crate.Played;
@@ -581,11 +588,18 @@ public sealed class Dj : IPcmSource, INowPlayingSource
         // point past the end of the file, or a decoder that took too long to open. Put the next record on
         // and carry on. Losing the remaining records because one of them ended early is far worse than the
         // seam this makes.
-        if (RecoverFromRunOut())
+        //
+        // Again when the record put on has nothing in it either: a file moved or deleted since the set was
+        // built is cued and loaded like any other, and runs out on its first block. Stopping at the first
+        // try would end the set there with records still in the crate. Each try takes a record out of the
+        // crate, or promotes the one already taken, so this ends.
+        while (RecoverFromRunOut())
         {
             written = Mix(buffer, frames);
             if (written > 0)
                 return written;
+            if (!_live.HasRunOut)
+                break;
         }
 
         // A record is on its way, but its decoder has not opened yet. Hold the line with a block of silence
@@ -1964,6 +1978,7 @@ public sealed class Dj : IPcmSource, INowPlayingSource
     {
         if (_finished)
             return;
+        EndedBecause = why;
         _finished = true;
 
         // This can run on the audio thread. The write is queued to the thread pool. Said does a lock and a
