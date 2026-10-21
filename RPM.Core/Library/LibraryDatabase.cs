@@ -1902,6 +1902,13 @@ public sealed partial class LibraryDatabase : IDisposable
         Execute("CREATE INDEX IF NOT EXISTS idx_listen_at ON listen(at_utc_ticks DESC)");
         Execute("CREATE INDEX IF NOT EXISTS idx_listen_path ON listen(relative_path, at_utc_ticks DESC)");
 
+        // The fingerprints not yet offered to the recognition service, oldest first, which is exactly what
+        // QueryFingerprintsNeedingSubmission asks for. Without it the query scans every fingerprint row,
+        // blob and all, and sorts in a temp B-tree, while it holds the read gate. Measured on a 28,068-row
+        // table with 1,211 unsubmitted: 190 ms with a warm cache and 5.4 s in the app with a cold one,
+        // against 7 ms with this index. The 5.4 s hold was longer than the wait at the app's close.
+        Execute("CREATE INDEX IF NOT EXISTS idx_track_fingerprint_unsubmitted ON track_fingerprint(submitted_utc_ticks, fingerprinted_utc_ticks)");
+
         if (version != SchemaVersion)
             Execute($"PRAGMA user_version = {SchemaVersion}");
     }
