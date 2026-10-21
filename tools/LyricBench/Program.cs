@@ -56,6 +56,9 @@ internal static class Program
         if (args.Contains("--voice"))
             return Voice.Run(placement, pairs, args.Contains("--quiet"));
 
+        if (args.Contains("--offset"))
+            return Offset.Run(placement, pairs, Arg(args, "--move"), Arg(args, "--cache"));
+
         if (Arg(args, "--words") is { } range)
             return Words(placement, pairs[0], range);
 
@@ -102,6 +105,12 @@ internal static class Program
                       record for the blank's probability and set it against the breaks the sheet's
                       own wordless lines mark. A different question from the rest of this bench,
                       and the only one here with outside ground truth. See Voice.
+          --offset    Find how far the whole sheet is out of time with the record (SheetOffset), as
+                      the transcoder does before it places the lines.
+          --move      With --offset: move every stamp of the sheet by these seconds first, e.g.
+                      -8,-3,0,3,8. The search should find minus each amount. See Offset.
+          --cache     With --offset: a folder to keep each record's reading in, so a second run
+                      does not hear it again.
           --quiet     Totals only, no per-record lines.
 
         Nothing here writes anything. It reads records, prints numbers, and exits.
