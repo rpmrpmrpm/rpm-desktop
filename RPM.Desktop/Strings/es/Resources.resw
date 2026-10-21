@@ -8917,6 +8917,10 @@
     <value>Letras de karaoke</value>
     <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
   </data>
+  <data name="Tv_SettingsMixtapeAfter" xml:space="preserve">
+    <value>Mixtape al acabar un disco</value>
+    <comment>Row in the Android TV app's settings: whether a mixtape like the album or playlist that just finished starts by itself when it ends.</comment>
+  </data>
   <data name="MoodMaker_New" xml:space="preserve">
     <value>Nueva lista de estado de ánimo…</value>
     <comment>Desktop: menu item in the playlist pane that opens the window for making a mood playlist.</comment>
