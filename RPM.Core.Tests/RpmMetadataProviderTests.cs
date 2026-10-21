@@ -253,5 +253,8 @@ public class RpmMetadataProviderTests
 
         public Task<Asked<string?>> GetCoverUrlAsync(string releaseId, int maxSize, CancellationToken ct = default)
             => throw new NotSupportedException();
+
+        public Task<Asked<CatalogSongCover>> GetSongCoverAsync(string artist, string title, int size, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 }

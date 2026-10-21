@@ -537,6 +537,10 @@ public partial class App : Application
                         .AddSingleton<PlayReportService>()
                         .AddSingleton<RPM.Core.Metadata.Providers.IRpmMetadataApi, RpmMetadataApi>()
                         .AddSingleton<RPM.Core.Metadata.Providers.ICoverSearchApi, RpmCoverSearchApi>()
+                        // The covers of the songs radio stations announce. One for the app, so a song is
+                        // asked about once however many surfaces show it.
+                        .AddSingleton(sp => new RPM.Core.Radio.SongCovers(
+                            sp.GetRequiredService<RPM.Core.Metadata.Providers.IRpmMetadataApi>()))
                         .AddSingleton<CatalogService>()
                         .AddSingleton<TrackInfoService>()
                         .AddSingleton<SaliencyService>()

@@ -332,6 +332,9 @@ public class ReleaseSearchTests
         public Task<Asked<string?>> GetCoverUrlAsync(string releaseId, int maxSize, CancellationToken ct = default)
             => Task.FromResult(Fails ? Asked.Failed<string?>("HTTP 502") : Asked.Answer(url));
 
+        public Task<Asked<CatalogSongCover>> GetSongCoverAsync(string artist, string title, int size, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
         /// <summary>The cover request does not answer.</summary>
         public bool Fails { get; init; }
     }

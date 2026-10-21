@@ -145,6 +145,20 @@ public sealed partial class RpmMetadataApi : IRpmMetadataApi
                 CatalogWireJson.Default.CatalogCover, NotFound.IsAFailure, ct))
             .Then(cover => cover.Url);
 
+    /// <summary>The server answers a song nobody holds with 200 and every field null, never with a 404. So a
+    /// 404, an empty body or a 503 (the song could not be looked up in time) is a failure, and the song is
+    /// asked again the next time it plays.</summary>
+    public async Task<Asked<CatalogSongCover>> GetSongCoverAsync(
+        string artist, string title, int size, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title))
+            return Asked.Answer(CatalogSongCover.None);
+
+        var q = $"metadata/song?artist={Uri.EscapeDataString(artist.Trim())}"
+              + $"&title={Uri.EscapeDataString(title.Trim())}&size={size}";
+        return Bodied(await AskAsync(q, CatalogWireJson.Default.CatalogSongCover, NotFound.IsAFailure, ct));
+    }
+
     // ── what came off the wire, made usable ───────────────────────────────
     //
     // Three of these shapes declare a list that cannot be null, and their callers read it without checking.

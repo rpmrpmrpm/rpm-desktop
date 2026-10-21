@@ -98,7 +98,8 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
                     App.Services.GetRequiredService<ArtworkService>(),
                     App.Services.GetRequiredService<LibraryService>(),
                     App.Services.GetRequiredService<BackdropPreselector>(),
-                    () => App.Services.GetRequiredService<Services.Shell.SettingsService>().HeaderArtistPhoto);
+                    () => App.Services.GetRequiredService<Services.Shell.SettingsService>().HeaderArtistPhoto,
+                    App.Services.GetRequiredService<RPM.Core.Radio.SongCovers>());
                 art.Controller = _art;
             }
 

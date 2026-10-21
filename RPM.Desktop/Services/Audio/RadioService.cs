@@ -134,6 +134,25 @@ public sealed partial class RadioService : IRadioTuner, IDisposable
         get { lock (_gate) return _tuned?.Title; }
     }
 
+    /// <summary>
+    /// The artist and title of the song the station is playing, the way the header shows them: in the
+    /// order IcyOrders settled for this station. The artist is null for an advert, a jingle, the station's
+    /// own name, or a line that does not name one (see RadioStreamSource.NowPlayingTrack). Both are null
+    /// with nothing tuned.
+    /// </summary>
+    public (string? Artist, string? Title) NowPlayingSong
+    {
+        get
+        {
+            RadioStreamSource? tuned;
+            lock (_gate) tuned = _tuned;
+
+            // Read outside the lock. Reading the order may ask the collection (KnowsArtist), which takes the
+            // same lock.
+            return tuned?.NowPlayingTrack is { } now ? (now.Artist, now.Title) : (null, null);
+        }
+    }
+
     /// <summary>Raised when the tuned station changes, when it announces another track, and when it drops
     /// or comes back. This can happen on a background thread.</summary>
     public event Action? Changed;

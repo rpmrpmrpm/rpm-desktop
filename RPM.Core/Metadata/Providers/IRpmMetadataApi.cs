@@ -97,4 +97,16 @@ public interface IRpmMetadataApi
     /// <remarks>The address is never a guess. The server composes it and checks it. A release with no art
     /// gives null, not a URL that returns 404 when something finally tries to draw it.</remarks>
     Task<Asked<string?>> GetCoverUrlAsync(string releaseId, int maxSize, CancellationToken ct = default);
+
+    /// <summary>
+    /// The cover of the record a song is on, found by the artist and title alone. This is what an internet
+    /// radio station announces, and it is all a radio player has to go on.
+    /// </summary>
+    /// <param name="size">The edge of the square wanted, in pixels. The server clamps it.</param>
+    /// <returns><see cref="CatalogSongCover.None"/> (every field null) when nobody holds the song, which is
+    /// also the answer for a jingle or an advert. <see cref="Asked{T}.Unanswered"/> when the API could not
+    /// be asked or did not answer. The server says "busy" with a 503 for a song it could not look up in
+    /// time, and that is unanswered too.</returns>
+    Task<Asked<CatalogSongCover>> GetSongCoverAsync(
+        string artist, string title, int size, CancellationToken ct = default);
 }

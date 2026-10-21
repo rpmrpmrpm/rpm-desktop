@@ -293,20 +293,25 @@ internal sealed class ArtworkManager : IArtController
     private readonly LibraryService? _library;
     private readonly BackdropPreselector? _preselector;
     private readonly Func<bool> _headerArtistPhoto;
+    private readonly RPM.Core.Radio.SongCovers? _songCovers;
 
     /// <param name="headerArtistPhoto">Whether the header wears a photograph of the artist. Asked rather
     /// than handed over, and asked again on every show: it is a standing preference the listener can change
     /// mid-track, so a value taken at wiring time would be the answer as it was when the app started. A
     /// question rather than the settings object because that is the whole of what this needs from it, and
     /// it is what lets a test say "off" without a store to say it in.</param>
+    /// <param name="songCovers">Where the cover of the song a radio station announces is asked for. Null
+    /// shows the station's logo for every song, which is what the tests use.</param>
     public ArtworkManager(IArtStage stage, ArtworkService? artwork, LibraryService? library,
-        BackdropPreselector? preselector, Func<bool> headerArtistPhoto)
+        BackdropPreselector? preselector, Func<bool> headerArtistPhoto,
+        RPM.Core.Radio.SongCovers? songCovers = null)
     {
         _stage = stage;
         _artwork = artwork;
         _library = library;
         _preselector = preselector;
         _headerArtistPhoto = headerArtistPhoto;
+        _songCovers = songCovers;
     }
 
     // What wants to be shown.
@@ -513,6 +518,24 @@ internal sealed class ArtworkManager : IArtController
                     : await App.Services.GetRequiredService<CloudArtService>()
                         .CoverAsync(null, track.Artist, track.Album, null, ct);
                 if (gen != _gen) return;
+            }
+
+            if (localBytes is null && track.CoverUrl is { Length: > 0 })
+            {
+                // The song comes before the station. Where the station names an artist and a title, the
+                // record that song is on has a sleeve, and the sleeve says more than the station's logo
+                // does. The source leaves the artist out for an advert, a jingle or the station's own name
+                // (see RadioStreamSource.NowPlayingTrack), and SongCovers asks nothing about those. A song
+                // nobody has a cover for, or an ask that failed, gives null, and the station's logo is
+                // shown instead. The answers are kept per song, so a song the station plays again costs no
+                // second request.
+                if (_songCovers is not null
+                    && await _songCovers.CoverAsync(track.Artist, track.Title, ct) is { } songCover)
+                {
+                    // It is a sleeve, so it fills the square like any record's and is not marked as a logo.
+                    localBytes = (await _stage.LoadRemoteCoverAsync(songCover, ct)).Match(found => found, _ => null);
+                    if (gen != _gen) return;
+                }
             }
 
             // Nothing on disk, but the source named a picture: a radio station's logo. It is the closest

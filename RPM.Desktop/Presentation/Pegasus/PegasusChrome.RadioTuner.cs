@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Radio;
 using RPM.Core.Threading;
+using RPM.Desktop.Presentation.Common;
 using RPM.Desktop.Presentation.Main.Home;
 using RPM.Desktop.Presentation.Main.LeftPane.Models;
 using Loc = RPM.Desktop.Strings.Loc;
@@ -81,6 +82,17 @@ public sealed partial class PegasusChrome
     /// <summary>Which station the player's well and room were last asked for, so an answer about another
     /// station is dropped.</summary>
     private string? _tunerPlayerFor;
+
+    /// <summary>Which song the player's well was last asked for (SongCovers.KeyOf), or null for none, so an
+    /// answer about another song is dropped.</summary>
+    private string? _tunerSongFor;
+
+    /// <summary>The station's logo as the well last drew it, kept so it can go back up when a song with no
+    /// cover follows one with a cover.</summary>
+    private RadioStationItem.FoundLogo _tunerLogo;
+
+    /// <summary>Whether the well is showing the song's cover rather than the station's logo.</summary>
+    private bool _tunerShowsSong;
 
     /// <summary>The station the keys moved the needle to and have not tuned yet. Tuned when the key comes
     /// up (see CommitDialStep).</summary>
@@ -354,8 +366,64 @@ public sealed partial class PegasusChrome
         if (shown?.Uuid != _tunerPlayerFor)
         {
             _tunerPlayerFor = shown?.Uuid;
+            _tunerSongFor = null;
+            _tunerShowsSong = false;
             _ = PaintTunerMarkAsync(shown);
         }
+
+        // The song's cover over the station's logo, as the header shows it. Asked only when the song
+        // changes, not on every change of the tuner.
+        var (songArtist, songTitle) = station is null ? (null, null) : radio.NowPlayingSong;
+        var song = station is not null && SongCovers.Asks(songArtist, songTitle)
+            ? SongCovers.KeyOf(songArtist!, songTitle!)
+            : null;
+        if (song != _tunerSongFor)
+        {
+            _tunerSongFor = song;
+            _ = PaintTunerSongAsync(song, songArtist, songTitle);
+        }
+    }
+
+    /// <summary>
+    /// The player's well for one song: the cover of the record it is on, filling the well as a sleeve does.
+    /// With no song (an advert, a jingle, the station's own name), with no cover found, or with an ask that
+    /// failed, the station's logo goes back up. Every answer is dropped if the song has changed meanwhile.
+    /// </summary>
+    private async Task PaintTunerSongAsync(string? song, string? artist, string? title)
+    {
+        if (_tunerWell is not { } well)
+            return;
+
+        try
+        {
+            if (song is not null
+                && await App.Services.GetRequiredService<SongCovers>().CoverAsync(artist, title) is { } cover
+                && _tunerSongFor == song
+                && (await RemoteImage.BytesAsync(cover)).Answers(out var bytes, out _) && bytes is { Length: > 0 }
+                && _tunerSongFor == song)
+            {
+                var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
+                var drawn = double.IsNaN(well.Root.Width) ? 256 : well.Root.Width;
+                var picture = await RemoteImage.DecodeArtAsync(bytes, (int)Math.Ceiling(drawn * raster));
+                if (_tunerSongFor != song)
+                    return;
+
+                _tunerShowsSong = true;
+                well.Show(picture, null, fills: true);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A cover that fails to arrive says nothing about the song. The station's logo stands.
+            RPM.Core.Diagnostics.Scope.Said("radio", $"tuner's player, song cover: {ex.GetType().Name}");
+        }
+
+        if (_tunerSongFor != song || !_tunerShowsSong)
+            return;
+
+        _tunerShowsSong = false;
+        well.Show(_tunerLogo);
     }
 
     /// <summary>
@@ -377,6 +445,7 @@ public sealed partial class PegasusChrome
 
         var uuid = station.Uuid;
         TunerRoom.Palette = new StationFace(station).Room;
+        _tunerLogo = default;
         well.Show(default);
 
         try
@@ -393,7 +462,12 @@ public sealed partial class PegasusChrome
             var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
             var drawn = double.IsNaN(well.Root.Width) ? 256 : well.Root.Width;
             var found = await RadioStationItem.LogoForAsync(station, (int)Math.Ceiling(drawn * raster));
-            if (_tunerPlayerFor == uuid)
+            if (_tunerPlayerFor != uuid)
+                return;
+
+            // Kept for when the song has no cover. A song's cover that is already up stays up.
+            _tunerLogo = found;
+            if (!_tunerShowsSong)
                 well.Show(found);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
