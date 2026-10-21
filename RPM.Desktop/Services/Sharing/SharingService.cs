@@ -2167,6 +2167,13 @@ public sealed partial class SharingService : IDisposable
                 if (already.Contains(theirs))
                     continue;
 
+                // A guest can be signed into this machine's own account: it proved the account, but it is
+                // not on the account's list of installs that this machine holds, which is what decides the
+                // kind (PeerAppraisal). It needs no grant. An account always reaches its own cloud records,
+                // and the server refuses a grant to itself.
+                if (string.Equals(theirs, MyAccount(), StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 if (await _cloud.GrantShareAsync(theirs, peer.Name, cancellation))
                     Said.Line("sharing", $"{Who(peer.DeviceId)} may now hear this collection's cloud copies");
                 else
@@ -2206,9 +2213,16 @@ public sealed partial class SharingService : IDisposable
             }
 
             // This is stored with the peer. A borrowed cloud record is asked for under this account once
-            // everybody has left the network. Asking again at that point is not possible.
+            // everybody has left the network. Asking again at that point is not possible. Written through
+            // Noted, which changes the book's current record under its lock, so an older copy of the rest of
+            // the record is not put back.
             if (_book.Find(deviceId) is { } known)
-                _book.Add(known with { AccountUserId = theirs.UserId });
+                Noted(known, theirs.UserId);
+
+            // Signed into this machine's own account: no grant is needed, and the server refuses one. See
+            // EnsureGrantsAsync.
+            if (string.Equals(theirs.UserId, MyAccount(), StringComparison.OrdinalIgnoreCase))
+                return;
 
             if (!await _cloud.GrantShareAsync(theirs.UserId, name))
                 Said.Line("sharing", "This collection already reaches five places");
