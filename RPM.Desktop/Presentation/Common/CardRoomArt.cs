@@ -138,7 +138,7 @@ internal static partial class CardRoomArt
             // card's own business and neither touches the drift, so two cards that differ in these are
             // the same room seen from two places rather than two rooms.
             //
-            // Divided, so a larger uZoom is closer in. uZoom is never zero — CardRoom.Zoom floors it —
+            // Divided, so a larger uZoom is closer in. uZoom is never zero (CardRoom.Zoom floors it),
             // and a zero here would collapse the whole plane onto one colour.
             float2 p = (flipped - 0.5 * uResolution) / uResolution.y / uZoom + uShift;
 
