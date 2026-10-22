@@ -3112,6 +3112,10 @@
     <value>Dieses iPhone</value>
     <comment>The entry in the speaker picker that brings playback back to the phone.</comment>
   </data>
+  <data name="Rpm_Cast_ThisAndroidPhone" xml:space="preserve">
+    <value>Dieses Telefon</value>
+    <comment>Row in the Android phone's speaker picker that plays on the phone itself. Rpm_Cast_ThisPhone says iPhone.</comment>
+  </data>
   <data name="Tv_Cast_ThisTv" xml:space="preserve">
     <value>Dieser Fernseher</value>
     <comment>Android TV: the first entry in the cast menu over the player. Picking it brings the music back to the TV from a Cast device.</comment>
@@ -7949,6 +7953,10 @@
     <value>Dieses Album vom iPhone entfernen? Es bleibt in deiner Cloud-Bibliothek.</value>
     <comment>Title of the dialog that removes one downloaded album from the iPhone.</comment>
   </data>
+  <data name="Phone_Download_RemoveQuestion" xml:space="preserve">
+    <value>Dieses Album vom Handy entfernen? Es bleibt in deiner Cloud-Bibliothek.</value>
+    <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
+  </data>
   <data name="Rpm_Downloads_Title" xml:space="preserve">
     <value>Downloads</value>
     <comment>Heading of the downloads card on the iPhone profile tab, and of the downloads list.</comment>
@@ -7996,6 +8004,10 @@
   <data name="Rpm_Downloads_RemoveQuestion" xml:space="preserve">
     <value>{0} Alben vom iPhone entfernen? Sie bleiben in deiner Cloud-Bibliothek.</value>
     <comment>Title of the dialog that removes several downloaded albums from the iPhone.</comment>
+  </data>
+  <data name="Phone_Downloads_RemoveQuestion" xml:space="preserve">
+    <value>{0} Alben vom Handy entfernen? Sie bleiben in deiner Cloud-Bibliothek.</value>
+    <comment>Android phone: title of the dialog that removes several downloaded albums from the phone. {0} is how many. Rpm_Downloads_RemoveQuestion says iPhone.</comment>
   </data>
   <data name="Rpm_Downloads_Empty" xml:space="preserve">
     <value>Noch keine Downloads. Öffne ein Album und tippe auf die Download-Taste, um es ohne Internetverbindung zu hören.</value>

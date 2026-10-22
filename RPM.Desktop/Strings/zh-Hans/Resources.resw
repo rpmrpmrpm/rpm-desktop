@@ -3112,6 +3112,10 @@
     <value>这台 iPhone</value>
     <comment>The entry in the speaker picker that brings playback back to the phone.</comment>
   </data>
+  <data name="Rpm_Cast_ThisAndroidPhone" xml:space="preserve">
+    <value>这台手机</value>
+    <comment>Row in the Android phone's speaker picker that plays on the phone itself. Rpm_Cast_ThisPhone says iPhone.</comment>
+  </data>
   <data name="Tv_Cast_ThisTv" xml:space="preserve">
     <value>这台电视</value>
     <comment>Android TV: the first entry in the cast menu over the player. Picking it brings the music back to the TV from a Cast device.</comment>
@@ -7949,6 +7953,10 @@
     <value>要从 iPhone 移除这张专辑吗？它仍会保留在你的云端音乐库中。</value>
     <comment>Title of the dialog that removes one downloaded album from the iPhone.</comment>
   </data>
+  <data name="Phone_Download_RemoveQuestion" xml:space="preserve">
+    <value>要从手机移除这张专辑吗？它仍会保留在你的云端音乐库中。</value>
+    <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
+  </data>
   <data name="Rpm_Downloads_Title" xml:space="preserve">
     <value>下载</value>
     <comment>Heading of the downloads card on the iPhone profile tab, and of the downloads list.</comment>
@@ -7996,6 +8004,10 @@
   <data name="Rpm_Downloads_RemoveQuestion" xml:space="preserve">
     <value>要从 iPhone 移除 {0} 张专辑吗？它们仍会保留在你的云端音乐库中。</value>
     <comment>Title of the dialog that removes several downloaded albums from the iPhone.</comment>
+  </data>
+  <data name="Phone_Downloads_RemoveQuestion" xml:space="preserve">
+    <value>要从手机移除 {0} 张专辑吗？它们仍会保留在你的云端音乐库中。</value>
+    <comment>Android phone: title of the dialog that removes several downloaded albums from the phone. {0} is how many. Rpm_Downloads_RemoveQuestion says iPhone.</comment>
   </data>
   <data name="Rpm_Downloads_Empty" xml:space="preserve">
     <value>还没有下载。打开一张专辑并轻点下载按钮，即可在没有网络时播放。</value>

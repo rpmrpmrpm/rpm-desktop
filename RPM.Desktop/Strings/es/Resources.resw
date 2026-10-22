@@ -3112,6 +3112,10 @@
     <value>Este iPhone</value>
     <comment>The entry in the speaker picker that brings playback back to the phone.</comment>
   </data>
+  <data name="Rpm_Cast_ThisAndroidPhone" xml:space="preserve">
+    <value>Este teléfono</value>
+    <comment>Row in the Android phone's speaker picker that plays on the phone itself. Rpm_Cast_ThisPhone says iPhone.</comment>
+  </data>
   <data name="Tv_Cast_ThisTv" xml:space="preserve">
     <value>Este televisor</value>
     <comment>Android TV: the first entry in the cast menu over the player. Picking it brings the music back to the TV from a Cast device.</comment>
@@ -7949,6 +7953,10 @@
     <value>¿Eliminar este álbum de tu iPhone? Seguirá en tu biblioteca en la nube.</value>
     <comment>Title of the dialog that removes one downloaded album from the iPhone.</comment>
   </data>
+  <data name="Phone_Download_RemoveQuestion" xml:space="preserve">
+    <value>¿Eliminar este álbum de tu teléfono? Seguirá en tu biblioteca en la nube.</value>
+    <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
+  </data>
   <data name="Rpm_Downloads_Title" xml:space="preserve">
     <value>Descargas</value>
     <comment>Heading of the downloads card on the iPhone profile tab, and of the downloads list.</comment>
@@ -7996,6 +8004,10 @@
   <data name="Rpm_Downloads_RemoveQuestion" xml:space="preserve">
     <value>¿Eliminar {0} álbumes de tu iPhone? Seguirán en tu biblioteca en la nube.</value>
     <comment>Title of the dialog that removes several downloaded albums from the iPhone.</comment>
+  </data>
+  <data name="Phone_Downloads_RemoveQuestion" xml:space="preserve">
+    <value>¿Eliminar {0} álbumes de tu teléfono? Seguirán en tu biblioteca en la nube.</value>
+    <comment>Android phone: title of the dialog that removes several downloaded albums from the phone. {0} is how many. Rpm_Downloads_RemoveQuestion says iPhone.</comment>
   </data>
   <data name="Rpm_Downloads_Empty" xml:space="preserve">
     <value>Aún no hay descargas. Abre un álbum y toca el botón de descarga para escucharlo sin conexión a Internet.</value>
