@@ -87,6 +87,8 @@ public sealed class MirrorLocation
     /// <exception cref="DirectoryNotFoundException">The music folder is not there.</exception>
     /// <exception cref="InvalidDataException">The folder's <c>.rpm/library.json</c> does not hold a library
     /// id, and the id is needed to find the database.</exception>
+    /// <exception cref="IOException">The id file is empty or locked, because another open is writing it.
+    /// Opening again recovers.</exception>
     /// <remarks>Reaches the disk. It moves a <c>.grooves</c> folder to <c>.rpm</c>, asks for the folder's
     /// volume, and reads the id file. The first time a network folder is opened, it also writes the id
     /// file.</remarks>
@@ -203,6 +205,7 @@ public sealed class MirrorLocation
 
         /// <summary>The folder's id, or null when it has no id file.</summary>
         /// <exception cref="InvalidDataException">The file is there and does not hold an id.</exception>
+        /// <exception cref="IOException">The file is empty: another open may be writing it.</exception>
         public static string? Read(string libraryRoot)
         {
             var path = PathIn(libraryRoot);
@@ -224,8 +227,14 @@ public sealed class MirrorLocation
                 return null;
             }
 
+            // **An I/O failure, not a broken file.** An empty file is one that another open has created
+            // and not yet written, or one whose writer ended in between. The two cannot be told apart
+            // without waiting, and a wait is a time window, so both refuse the open the way meeting the
+            // winner's lock does, and Try again recovers from the first. On Linux the winner's lock is
+            // taken after the create, so a racing reader can find the file empty. Read as unreadable,
+            // a first open of a network folder would say the library's data could not be read.
             if (text.Length == 0)
-                throw new InvalidDataException(
+                throw new IOException(
                     $"{path} is empty. Another open may be writing it; try again. If it stays empty, delete it.");
 
             return Parse(text)

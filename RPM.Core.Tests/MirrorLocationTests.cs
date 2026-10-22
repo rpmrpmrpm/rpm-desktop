@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
+using RPM.Core.Diagnostics;
 using RPM.Core.Library;
 
 namespace RPM.Core.Tests;
@@ -380,7 +381,6 @@ public class MirrorLocationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("")]
     [InlineData("not json")]
     [InlineData("{}")]
     [InlineData("{\"id\":42}")]
@@ -405,6 +405,27 @@ public class MirrorLocationTests : IDisposable
         File.WriteAllText(IdFile, "not json");
 
         Assert.Equal(["A/B/01.flac"], Paths(OnLocalDisk()));
+    }
+
+    /// <summary>
+    /// The window a racing open falls into: the winner has created the file and not yet written the
+    /// id. That is a write in progress and refuses the open as one, the same way the winner's lock does,
+    /// so the head offers Try again. Read as a broken file, a first open of a network folder would say
+    /// that the library's data could not be read. On Linux this window is wide enough to hit, because
+    /// the winner's lock is taken after the file is created.
+    /// </summary>
+    [Fact]
+    public void An_empty_id_file_refuses_the_open_as_one_still_being_written()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(IdFile)!);
+        File.WriteAllText(IdFile, "");
+
+        var refused = Assert.ThrowsAny<IOException>(() => OnNetwork());
+        Assert.Contains(IdFile, refused.Message);
+        Assert.NotEqual(Fault.Unreadable, Faults.Read(refused));
+
+        // Not replaced: the open that is writing it owns it.
+        Assert.Equal("", File.ReadAllText(IdFile));
     }
 
     [Fact]
