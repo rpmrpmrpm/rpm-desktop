@@ -7497,6 +7497,74 @@
     <value>专辑、曲目与发行信息。</value>
     <comment>About screen: what SonoVault is asked for.</comment>
   </data>
+  <data name="Credits_Kotlin_Use" xml:space="preserve">
+    <value>Android 应用的编写语言及其标准库。</value>
+    <comment>About screen, Android app: what Kotlin is used for.</comment>
+  </data>
+  <data name="Credits_KotlinxCoroutines_Use" xml:space="preserve">
+    <value>在后台运行应用的工作，让界面无需等待。</value>
+    <comment>About screen, Android app: what kotlinx.coroutines is used for.</comment>
+  </data>
+  <data name="Credits_KotlinxSerialization_Use" xml:space="preserve">
+    <value>读取 rpm 服务器发送的数据，并写入应用保存的内容。</value>
+    <comment>About screen, Android app: what kotlinx.serialization is used for.</comment>
+  </data>
+  <data name="Credits_Compose_Use" xml:space="preserve">
+    <value>Android 应用所依据的界面框架。</value>
+    <comment>About screen, Android app: what Jetpack Compose is used for.</comment>
+  </data>
+  <data name="Credits_AndroidX_Use" xml:space="preserve">
+    <value>Android 的支持库：应用的生命周期、浏览器标签页中的登录页面，以及让应用快速启动的配置文件。</value>
+    <comment>About screen, Android app: what the AndroidX libraries is used for.</comment>
+  </data>
+  <data name="Credits_Media3_Use" xml:space="preserve">
+    <value>播放每首歌曲和每个电台，并在锁屏以及耳机和车载控制上显示正在播放的内容。</value>
+    <comment>About screen, Android app: what AndroidX Media3 is used for.</comment>
+  </data>
+  <data name="Credits_Media3Ffmpeg_Use" xml:space="preserve">
+    <value>将 Android 自身无法解码的歌曲交给 FFmpeg。</value>
+    <comment>About screen, Android app: what Media3's FFmpeg decoder is used for.</comment>
+  </data>
+  <data name="Credits_FfmpegAndroid_Use" xml:space="preserve">
+    <value>解码从家庭网络中的电脑播放的 ALAC、AC-3 和 E-AC-3 文件。</value>
+    <comment>About screen, Android app: what FFmpeg, as built into the Android app is used for.</comment>
+  </data>
+  <data name="Credits_Guava_Use" xml:space="preserve">
+    <value>Media3 所依赖的工具库。</value>
+    <comment>About screen, Android app: what Guava is used for.</comment>
+  </data>
+  <data name="Credits_OkHttp_Use" xml:space="preserve">
+    <value>应用发送给 rpm 服务器和各目录服务的每个请求。</value>
+    <comment>About screen, Android app: what OkHttp is used for.</comment>
+  </data>
+  <data name="Credits_Okio_Use" xml:space="preserve">
+    <value>OkHttp 和图片加载器底层的读写。</value>
+    <comment>About screen, Android app: what Okio is used for.</comment>
+  </data>
+  <data name="Credits_PublicSuffixList_Use" xml:space="preserve">
+    <value>告诉 OkHttp 网址中哪一部分是站点名称。</value>
+    <comment>About screen, Android app: what the Public Suffix List, inside OkHttp is used for.</comment>
+  </data>
+  <data name="Credits_Coil_Use" xml:space="preserve">
+    <value>加载并缓存封面、照片和电台标志。</value>
+    <comment>About screen, Android app: what Coil is used for.</comment>
+  </data>
+  <data name="Credits_AndroidSvg_Use" xml:space="preserve">
+    <value>绘制以 SVG 图形发布的电台标志。</value>
+    <comment>About screen, Android app: what AndroidSVG is used for.</comment>
+  </data>
+  <data name="Credits_DrawablePainter_Use" xml:space="preserve">
+    <value>让图片加载器在 Compose 中绘制图片。</value>
+    <comment>About screen, Android app: what Accompanist Drawable Painter is used for.</comment>
+  </data>
+  <data name="Credits_MlKitFaces_Use" xml:space="preserve">
+    <value>在手机上识别艺人照片中的面孔，让裁剪时面孔保持在画面内。</value>
+    <comment>About screen, Android app: what ML Kit face detection is used for.</comment>
+  </data>
+  <data name="Credits_MlKitParts_Use" xml:space="preserve">
+    <value>ML Kit 所依赖的组件之一。</value>
+    <comment>About screen, Android app: what the libraries ML Kit needs (Firebase components, javax.inject) is used for.</comment>
+  </data>
   <data name="Wizard_StepOf" xml:space="preserve">
     <value>第 {0} 步，共 {1} 步</value>
     <comment>Kicker above the heading on every setup wizard step.</comment>

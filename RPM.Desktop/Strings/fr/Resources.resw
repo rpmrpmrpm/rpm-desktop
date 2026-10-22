@@ -7497,6 +7497,74 @@
     <value>Informations sur les albums, les morceaux et les éditions.</value>
     <comment>About screen: what SonoVault is asked for.</comment>
   </data>
+  <data name="Credits_Kotlin_Use" xml:space="preserve">
+    <value>Le langage dans lequel l'application Android est écrite, et sa bibliothèque standard.</value>
+    <comment>About screen, Android app: what Kotlin is used for.</comment>
+  </data>
+  <data name="Credits_KotlinxCoroutines_Use" xml:space="preserve">
+    <value>Exécute le travail de l'application en arrière-plan, pour que l'écran n'attende jamais.</value>
+    <comment>About screen, Android app: what kotlinx.coroutines is used for.</comment>
+  </data>
+  <data name="Credits_KotlinxSerialization_Use" xml:space="preserve">
+    <value>Lit ce qu'envoie le serveur de rpm et écrit ce que l'application conserve.</value>
+    <comment>About screen, Android app: what kotlinx.serialization is used for.</comment>
+  </data>
+  <data name="Credits_Compose_Use" xml:space="preserve">
+    <value>Le framework d'interface sur lequel l'application Android est écrite.</value>
+    <comment>About screen, Android app: what Jetpack Compose is used for.</comment>
+  </data>
+  <data name="Credits_AndroidX_Use" xml:space="preserve">
+    <value>Les bibliothèques de support d'Android : le cycle de vie de l'application, la page de connexion dans un onglet du navigateur et les profils qui la font démarrer vite.</value>
+    <comment>About screen, Android app: what the AndroidX libraries is used for.</comment>
+  </data>
+  <data name="Credits_Media3_Use" xml:space="preserve">
+    <value>Lit chaque morceau et chaque station, et affiche la lecture en cours sur l'écran de verrouillage et sur les commandes des écouteurs et de la voiture.</value>
+    <comment>About screen, Android app: what AndroidX Media3 is used for.</comment>
+  </data>
+  <data name="Credits_Media3Ffmpeg_Use" xml:space="preserve">
+    <value>Confie à FFmpeg les morceaux qu'Android ne sait pas décoder lui-même.</value>
+    <comment>About screen, Android app: what Media3's FFmpeg decoder is used for.</comment>
+  </data>
+  <data name="Credits_FfmpegAndroid_Use" xml:space="preserve">
+    <value>Décode les fichiers ALAC, AC-3 et E-AC-3 lus depuis un ordinateur de votre réseau domestique.</value>
+    <comment>About screen, Android app: what FFmpeg, as built into the Android app is used for.</comment>
+  </data>
+  <data name="Credits_Guava_Use" xml:space="preserve">
+    <value>Des utilitaires sur lesquels repose Media3.</value>
+    <comment>About screen, Android app: what Guava is used for.</comment>
+  </data>
+  <data name="Credits_OkHttp_Use" xml:space="preserve">
+    <value>Chaque requête que l'application envoie au serveur de rpm et aux catalogues.</value>
+    <comment>About screen, Android app: what OkHttp is used for.</comment>
+  </data>
+  <data name="Credits_Okio_Use" xml:space="preserve">
+    <value>La lecture et l'écriture sous OkHttp et le chargeur d'images.</value>
+    <comment>About screen, Android app: what Okio is used for.</comment>
+  </data>
+  <data name="Credits_PublicSuffixList_Use" xml:space="preserve">
+    <value>Indique à OkHttp quelle partie d'une adresse web désigne le site.</value>
+    <comment>About screen, Android app: what the Public Suffix List, inside OkHttp is used for.</comment>
+  </data>
+  <data name="Credits_Coil_Use" xml:space="preserve">
+    <value>Charge et conserve les pochettes, les photographies et les logos des stations.</value>
+    <comment>About screen, Android app: what Coil is used for.</comment>
+  </data>
+  <data name="Credits_AndroidSvg_Use" xml:space="preserve">
+    <value>Dessine les logos de stations publiés sous forme de dessins SVG.</value>
+    <comment>About screen, Android app: what AndroidSVG is used for.</comment>
+  </data>
+  <data name="Credits_DrawablePainter_Use" xml:space="preserve">
+    <value>Permet au chargeur d'images de dessiner ses images dans Compose.</value>
+    <comment>About screen, Android app: what Accompanist Drawable Painter is used for.</comment>
+  </data>
+  <data name="Credits_MlKitFaces_Use" xml:space="preserve">
+    <value>Repère les visages sur les photos des artistes, sur le téléphone, pour qu'un recadrage les garde visibles.</value>
+    <comment>About screen, Android app: what ML Kit face detection is used for.</comment>
+  </data>
+  <data name="Credits_MlKitParts_Use" xml:space="preserve">
+    <value>Fait partie de ce sur quoi repose ML Kit.</value>
+    <comment>About screen, Android app: what the libraries ML Kit needs (Firebase components, javax.inject) is used for.</comment>
+  </data>
   <data name="Wizard_StepOf" xml:space="preserve">
     <value>Étape {0} sur {1}</value>
     <comment>Kicker above the heading on every setup wizard step.</comment>
