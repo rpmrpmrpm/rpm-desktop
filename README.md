@@ -6,6 +6,19 @@ server.
 Part of [rpm](https://github.com/rpmrpmrpm/rpm). Ideas and questions go to the
 [discussions](https://github.com/rpmrpmrpm/rpm/discussions) there.
 
+<p align="center">
+  <img src="docs/screenshots/playing.jpg" alt="rpm on a Mac, playing an album with Track Info open beside the album wall">
+</p>
+<p align="center">
+  <img src="docs/screenshots/home.jpg" width="32%" alt="Home, with a banner of records to play">
+  <img src="docs/screenshots/album-wall.jpg" width="32%" alt="The album wall">
+  <img src="docs/screenshots/pegasus.jpg" width="32%" alt="Pegasus, the full-screen player, playing an album">
+</p>
+
+Playing an album with Track Info open; Home; the album wall; Pegasus, the full-screen player. More
+on [rpmrpmrpm.com](https://rpmrpmrpm.com). The record covers and photographs in the screenshots
+belong to their owners; the code licence does not cover them.
+
 ## What is here
 
 | Folder | What it is |
