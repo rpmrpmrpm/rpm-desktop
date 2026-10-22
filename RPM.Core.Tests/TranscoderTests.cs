@@ -179,6 +179,96 @@ public class TranscoderTests
         }
     }
 
+    // ── the length a live stream states beside itself ──
+
+    [Fact]
+    public void Reads_the_length_a_container_states()
+    {
+        Assert.Equal(245.32, Transcoding.StatedLength(
+            "Input #0, flac, from 'a.flac':\n  Duration: 00:04:05.32, start: 0.000000, bitrate: 912 kb/s"));
+        Assert.Equal(3723.5, Transcoding.StatedLength("  Duration: 01:02:03.50, start: 0.000000"));
+    }
+
+    /// <summary>
+    /// An estimate is not a length. An MP3 with no Xing header is read by bitrate, and the estimate can
+    /// be seconds out. Stated beside a stream, a long estimate makes a complete record look cut off and
+    /// sends the phone back for a part that does not exist.
+    /// </summary>
+    [Fact]
+    public void Gives_no_length_for_an_estimate_or_for_nothing()
+    {
+        Assert.Null(Transcoding.StatedLength(
+            "[in#0/mp3 @ 0x8df014000] Estimating duration from bitrate, this may be inaccurate\n" +
+            "  Duration: 00:00:10.96, start: 0.000000, bitrate: 35 kb/s"));
+        Assert.Null(Transcoding.StatedLength("  Duration: N/A, bitrate: N/A"));
+        Assert.Null(Transcoding.StatedLength("a.flac: No such file or directory"));
+    }
+
+    [Fact]
+    public void Measures_a_real_file()
+    {
+        if (!FfmpegAvailable) return;
+
+        var source = Tone(seconds: 12);
+        if (source is null) return;
+
+        try
+        {
+            var length = Transcoding.LengthOf(source);
+
+            Assert.NotNull(length);
+            Assert.InRange(length.Value, 11.95, 12.05);
+        }
+        finally
+        {
+            File.Delete(source);
+        }
+    }
+
+    [Fact]
+    public void Gives_no_length_for_an_mp3_that_does_not_state_one()
+    {
+        if (!FfmpegAvailable) return;
+
+        var source = Tone(seconds: 12);
+        if (source is null) return;
+
+        var mp3 = Path.ChangeExtension(source, ".mp3");
+
+        try
+        {
+            // VBR with no Xing header: the file holds no length, so ffmpeg can only estimate one.
+            // An ffmpeg built without LAME cannot make the fixture, and then there is nothing to check.
+            if (!Ffmpeg("-i", source, "-c:a", "libmp3lame", "-q:a", "4", "-write_xing", "0", mp3)) return;
+
+            Assert.Null(Transcoding.LengthOf(mp3));
+        }
+        finally
+        {
+            File.Delete(source);
+            File.Delete(mp3);
+        }
+    }
+
+    /// <summary>Runs ffmpeg quietly and says whether it succeeded.</summary>
+    private static bool Ffmpeg(params string[] args)
+    {
+        var psi = new ProcessStartInfo("ffmpeg")
+        {
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-y" }.Concat(args))
+            psi.ArgumentList.Add(arg);
+
+        using var p = Process.Start(psi);
+        p!.StandardError.ReadToEnd();
+        p.WaitForExit();
+        return p.ExitCode == 0;
+    }
+
     // ── the same encode, served as it is made ──
 
     /// <summary>

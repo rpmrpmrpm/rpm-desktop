@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 namespace RPM.Fingerprint;
 
 /// <summary>
@@ -27,7 +28,7 @@ namespace RPM.Fingerprint;
 /// no desktop can make. Neither may bring in the other's dependencies.
 /// </para>
 /// </summary>
-public static class Transcoding
+public static partial class Transcoding
 {
     /// <summary>
     /// The first <see cref="AudioLadder.HeadSeconds"/> of a track, as bytes ready to be stored and played.
@@ -77,6 +78,67 @@ public static class Transcoding
             Delete(to);
         }
     }
+
+    /// <summary>
+    /// How long the record in <paramref name="path"/> is, in seconds, as its container states it.
+    ///
+    /// <para>
+    /// The live path sends this beside the stream. ADTS carries no length, and an encode that fails
+    /// part way closes the stream the same way the end of the record does, so the length is how the
+    /// listener tells the two apart.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Null rather than an estimate.</b> When a container does not state its length (an MP3 with
+    /// no Xing header), ffmpeg estimates it from the bitrate and says so, and the estimate can be
+    /// seconds short or long. A length that is too long makes a complete stream look cut off, which
+    /// is worse than no length. Null as well when ffmpeg cannot read the file.
+    /// </para>
+    /// </summary>
+    public static double? LengthOf(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = ToolPaths.Ffmpeg,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        // No output is named, so ffmpeg reads the header, prints what it found and exits with an
+        // error. The exit code says nothing here; the Duration line is the answer.
+        psi.ArgumentList.Add("-hide_banner");
+        psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(path);
+
+        using var proc = Process.Start(psi);
+        if (proc is null) return null;
+
+        var said = proc.StandardError.ReadToEnd();
+        proc.WaitForExit();
+
+        return StatedLength(said);
+    }
+
+    /// <summary>The length in what <c>ffmpeg -i</c> printed, or null when it printed none or only
+    /// an estimate. Separate from the process so it can be tested on text.</summary>
+    internal static double? StatedLength(string said)
+    {
+        if (said.Contains("Estimating duration from bitrate", StringComparison.Ordinal)) return null;
+
+        var found = DurationLine().Match(said);
+        if (!found.Success) return null;
+
+        var seconds = int.Parse(found.Groups[1].Value, CultureInfo.InvariantCulture) * 3600
+            + int.Parse(found.Groups[2].Value, CultureInfo.InvariantCulture) * 60
+            + double.Parse(found.Groups[3].Value, CultureInfo.InvariantCulture);
+
+        return seconds > 0 ? seconds : null;
+    }
+
+    [GeneratedRegex(@"Duration: (\d+):(\d\d):(\d\d(?:\.\d+)?)")]
+    private static partial Regex DurationLine();
 
     /// <summary>
     /// The whole track at one rate, written to <paramref name="to"/> while it is encoded, and kept as
