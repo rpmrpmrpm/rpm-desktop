@@ -146,9 +146,13 @@
          the edge of its row (see CardRoomAround). The rows, and the covers in a row, are spaced 6 instead
          of 22, and the wall's inset is 8 less (LayOutLibraryTop), so every cover is at the same place as
          without the padding. -->
+    <!-- The Grid around the button is where the remote's line goes: when the button is first loaded, a
+         RemoteLine takes its place in the Grid with the button inside it, so a held OK opens the record's
+         menu (see PegasusChrome.LibraryCard_Loaded). A pooled card keeps its line. -->
     <DataTemplate x:Key="PegasusCardTemplate">
+      <Grid VerticalAlignment="Top">
       <Button Style="{StaticResource PegasusPlainButton}" Click="LibraryCard_Click" CornerRadius="8"
-              Padding="8" VerticalAlignment="Top">
+              Padding="8" VerticalAlignment="Top" Loaded="LibraryCard_Loaded">
       <Grid Width="{Binding Metrics.Edge}" Background="Transparent">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -203,6 +207,7 @@
         </StackPanel>
       </Grid>
       </Button>
+      </Grid>
     </DataTemplate>
 
     <!-- One artist on the artists screen (see PegasusChrome.Artists): the photograph in a circle, the

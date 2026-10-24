@@ -1241,12 +1241,40 @@ public sealed partial class PegasusChrome
     /// <para>The library window unfolds the record under its row instead. See the note on RecordLayer
     /// in the XAML for why this screen does not.</para>
     ///
-    /// <para>A Click, from the card's plain button: a press of the mouse, or OK on the remote.</para>
+    /// <para>A Click, from the card's plain button: a press of the mouse. OK on the remote presses the
+    /// line around the button, which does the same (see <see cref="LibraryCard_Loaded"/>).</para>
     /// </summary>
     private void LibraryCard_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is PegasusAlbumCard card)
             ShowRecordAsync(card);
+    }
+
+    /// <summary>
+    /// A card's button is loaded: the first time, a line for the remote is put around it (see
+    /// RemoteLine.Around). OK on the line opens the record, as a click does, and a held OK opens the
+    /// record's menu away from its page, Play and the record page's own entries (see
+    /// <see cref="RecordMenuOf(PegasusAlbumCard)"/>), as on the TV. The Menu key stays the side menu's on
+    /// the wall (see PegasusPlayer.MenuKey).
+    ///
+    /// <para>Both read the record the card shows when they run, not when the line is made: the repeater
+    /// pools its cards and hands a card to another record as the wall scrolls. A pooled card is loaded
+    /// again inside its line, and then has no panel of its own to be put in, so it keeps the line it
+    /// has.</para>
+    /// </summary>
+    private void LibraryCard_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Parent: Grid } key)
+            return;
+
+        RemoteLine.Around(
+            key,
+            press: () =>
+            {
+                if (key.DataContext is PegasusAlbumCard card)
+                    ShowRecordAsync(card);
+            },
+            menu: () => key.DataContext is PegasusAlbumCard card ? RecordMenuOf(card) : null);
     }
 
     /// <summary>The mini player's cover: a press, or OK on the remote, goes to the record turning, as a

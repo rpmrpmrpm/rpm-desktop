@@ -142,9 +142,10 @@ public sealed partial class PegasusChrome
     private bool EdgeOpensMenu =>
         MenuKeyOpensMenu || (RadioHomeInFront && !FocusWithin(QueuePanel));
 
-    /// <summary>The Menu key, when the focused element has no menu of its own (the host asks that first;
-    /// see PegasusPlayer.MenuKey): opens the side menu on the screens where it opens from. Returns true
-    /// if it did.</summary>
+    /// <summary>The Menu key (see PegasusPlayer.MenuKey): opens the side menu on the screens where it opens
+    /// from, whatever the focus is on, as on the TV. A row there that has a menu of its own opens it on a
+    /// held OK. Returns true if it did. Where it did not, the host opens the focused row's menu, if the row
+    /// has one.</summary>
     public bool OpenMenuByMenuKey()
     {
         if (!MenuKeyOpensMenu)

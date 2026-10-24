@@ -755,29 +755,31 @@ public sealed partial class PegasusPlayer
     }
 
     /// <summary>
-    /// The Menu key, handed over by the shell. It opens the focused line's menu, if the line has one.
-    /// Otherwise, on home, the wall and the artists and genres lists, it opens the side menu, as the TV's
-    /// Menu key does (see PegasusChrome.OpenMenuByMenuKey). Returns false to let the key go on to the
-    /// focused control.
+    /// The Menu key, handed over by the shell. On home, the wall and the artists and genres lists it opens
+    /// the side menu, as the TV's Menu key does (see PegasusChrome.OpenMenuByMenuKey). It does so there
+    /// even on a line with a menu of its own, such as a quick song on home or a record on the wall, whose
+    /// menu a held OK opens. Elsewhere it opens the focused line's menu, if the line has one: a track, a
+    /// popular song on an artist's or a genre's page, a station on radio. Returns false to let the key go
+    /// on to the focused control.
     /// </summary>
     public bool MenuKey(object? focused, VirtualKey key, bool repeat)
     {
-        if (focused is not RemoteLine { HasMenu: true } line)
+        // The rest of a press that opened a menu.
+        if (repeat)
+            return _chrome?.LibraryMenuOpen == true || focused is RemoteLine { HasMenu: true };
+
+        if (_chrome?.OpenMenuByMenuKey() == true)
         {
-            if (repeat)
-                return _chrome?.LibraryMenuOpen == true;   // the rest of a press that opened it
-            if (_chrome?.OpenMenuByMenuKey() != true)
-                return false;
             EndHold();
             Say("menu key: opened the side menu");
             return true;
         }
 
-        if (!repeat)
-        {
-            EndHold();
-            OpenLineMenu(line, key);
-        }
+        if (focused is not RemoteLine { HasMenu: true } line)
+            return false;
+
+        EndHold();
+        OpenLineMenu(line, key);
         return true;
     }
 

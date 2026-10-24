@@ -1292,7 +1292,8 @@ public sealed partial class PegasusChrome
     /// </list>
     ///
     /// <para>Built when it opens, so the favourite's wording and the ticked rating are what is true at that
-    /// moment. At this view's size, see <see cref="ForThisView"/>.</para>
+    /// moment. At this view's size, see <see cref="ForThisView"/>. The same entries, with Play before them,
+    /// make the record's menu away from its page (see <see cref="RecordMenuOf(PegasusAlbumCard)"/>).</para>
     /// </summary>
     /// <param name="card">The record, or null for a list.</param>
     /// <param name="name">What the line at the foot of the screen calls it after a queue entry.</param>
@@ -1300,36 +1301,193 @@ public sealed partial class PegasusChrome
     /// <see cref="RecordBorrowed"/>): no Favourite album and no Rate album.</param>
     private void ShowRecordMenu(Button at, PegasusAlbumCard? card, string name, bool borrowed)
     {
-        var menu = new MenuFlyout
-        {
-            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
-        };
+        var (menu, _, _) = BuildRecordMenu(
+            new RecordMenuSubject(
+                name,
+                IsList: card is null,
+                Marks: card is not null && !borrowed,
+                Favorite: _recordFavorite,
+                Stars: (int)Math.Round(_recordStars?.Value ?? 0),
+                WithSongs: use => use(_recordTracks, RecordSleeve()),
+                ToggleFavorite: () =>
+                {
+                    if (card is not null)
+                        ToggleRecordFavorite(card);
+                },
+                Rate: given =>
+                {
+                    if (card is null)
+                        return;
+                    SaveRecordRating(card.Folder, given);
+                    if (_recordStars is { } row)
+                        row.Value = given;
+                }),
+            withPlay: false);
 
-        menu.Items.Add(MenuEntry(Strings.Loc.Get(card is null ? "AlbumMenu_Shuffle" : "AlbumGrid_Shuffle"),
-                                 () => PlayShuffledList(_recordTracks, RecordSleeve())));
-        menu.Items.Add(MenuEntry(Strings.Loc.Get("Tv_Album_AddToQueue"), () => QueueRecord(next: false, name)));
-        menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_PlayNext"), () => QueueRecord(next: true, name)));
-
-        if (card is not null && !borrowed)
-        {
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuEntry(
-                Strings.Loc.Get(_recordFavorite ? "Album_UnsetFavorite" : "AlbumMenu_Favorite"),
-                () => ToggleRecordFavorite(card)));
-            menu.Items.Add(RateRecordMenu(card));
-        }
-
+        menu.Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft;
         ForThisView(menu).ShowAt(at);
     }
 
     /// <summary>
-    /// Rate album: five entries, one to five stars, drawn as stars and not as words, with the rating the
-    /// record has now ticked. The remote reaches them with Up, Down and OK, where the stars row on the page
-    /// needs Left and Right on it. The choice is saved as the stars row saves it, and the row moves to it.
+    /// The menu of a record away from its page: Play, then the record page's own entries (see
+    /// <see cref="ShowRecordMenu"/>), as the TV's record menu away from its page (TrackPage.kt,
+    /// albumChoices). It is built and not shown, at this view's size, for whatever opens it: a held OK on a
+    /// card of the album wall or of home's rows (see RemoteLine), or the album carousel. Each of them asks
+    /// here and nowhere else, so the record's menu is one menu wherever it opens.
+    ///
+    /// <para>Nothing is read to build it, so it opens at once. The songs are read off the collection when an
+    /// entry that needs them is chosen. The favourite's wording starts from the card, and the favourite
+    /// and the ticked rating are corrected from the record's stored row when that read lands, which is
+    /// usually before the menu is looked at.</para>
     /// </summary>
-    private MenuFlyoutSubItem RateRecordMenu(PegasusAlbumCard card)
+    private MenuFlyout RecordMenuOf(PegasusAlbumCard card) => RecordMenuAway(card.Folder, card.Name, card);
+
+    /// <summary>The same menu for a record known by its folder and its name, such as a card in home's rows.
+    /// The wall's own card is used where the wall has been read this run, so its heart stays true.</summary>
+    private MenuFlyout RecordMenuOf(string folder, string name) =>
+        RecordMenuAway(folder, name, _libraryByFolder.GetValueOrDefault(folder));
+
+    private MenuFlyout RecordMenuAway(string folder, string name, PegasusAlbumCard? card)
     {
-        var rate = new MenuFlyoutSubItem
+        var favored = card?.IsFavorite ?? false;
+        var marks = !RecordBorrowed;
+
+        var (menu, favorite, rate) = BuildRecordMenu(
+            new RecordMenuSubject(
+                name,
+                IsList: false,
+                Marks: marks,
+                Favorite: favored,
+                Stars: 0,
+                WithSongs: use => UseRecordSongsAsync(folder, card, use),
+                ToggleFavorite: () =>
+                {
+                    // False means there was nowhere to write it: nothing is said, as on the page's heart.
+                    var next = !favored;
+                    if (!Library.SetAlbumFavorite(folder, next, AlbumShelf.Own))
+                        return;
+                    favored = next;
+                    if (card is not null)
+                        card.IsFavorite = next;
+                    Announced?.Invoke(string.Format(
+                        Strings.Loc.Get(next ? "Viz_FavoriteAdded" : "Viz_FavoriteRemoved"), name));
+                },
+                Rate: given => SaveRecordRating(folder, given)),
+            withPlay: true);
+
+        if (favorite is not null && rate is not null)
+            CorrectRecordMarksAsync(favorite, rate);
+
+        return ForThisView(menu);
+
+        // The stored row, read off the thread that draws the view. A menu closed before the read lands is
+        // only written to, which nobody sees.
+        async void CorrectRecordMarksAsync(MenuFlyoutItem favoriteEntry, MenuFlyoutSubItem rateEntry)
+        {
+            var library = Library;
+            if (!library.IsOpen)
+                return;
+
+            var db = library.Db;
+            try
+            {
+                var asked = await Task.Run(() => library.Read(db, "a record's marks for Pegasus's menu",
+                                                               mirror => mirror.GetAlbumMeta(folder)));
+                if (!asked.Answers(out var meta, out _))
+                    return;
+
+                favored = meta.IsFavorite;
+                favoriteEntry.Text = Strings.Loc.Get(favored ? "Album_UnsetFavorite" : "AlbumMenu_Favorite");
+                var stars = 0;
+                foreach (var item in rateEntry.Items.OfType<ToggleMenuFlyoutItem>())
+                    item.IsChecked = ++stars == meta.Rating;
+            }
+            catch (Exception ex)
+            {
+                // Not expected: the read answers through Asked. It is noted, and the menu keeps what the
+                // card said. Otherwise the exception would reach the dispatcher from an async void method.
+                RPM.Core.Diagnostics.Faults.Note("pegasus", "a record's marks for its menu", ex);
+            }
+        }
+    }
+
+    /// <summary>A record's songs read off the collection, in play order, handed to <paramref name="use"/>
+    /// with the card's cover as the sleeve in hand where the card has one. Nothing happens where the read
+    /// does not answer.</summary>
+    private static async void UseRecordSongsAsync(
+        string folder, PegasusAlbumCard? card, Action<List<TrackInfo>, SleeveInHand> use)
+    {
+        if (await ReadRecordAsync(folder) is not { } found)
+            return;
+
+        var songs = found.Rows.Select(t => t.ToTrackInfo(found.Root)).ToList();
+        SleeveInHand sleeve = (card?.Sharp ?? card?.Cover) is { } picture
+            ? new SleeveInHand.Of(picture, RecordFiles.Of(songs))
+            : new SleeveInHand.None();
+        use(songs, sleeve);
+    }
+
+    /// <summary>What a record's menu acts on.</summary>
+    /// <param name="Name">What the line at the foot of the screen calls it after a queue entry.</param>
+    /// <param name="IsList">A list on the record screen rather than a record: its Shuffle has a list's
+    /// words.</param>
+    /// <param name="Marks">Favourite album and Rate album are offered: a record of the listener's own
+    /// collection (see <see cref="RecordBorrowed"/>).</param>
+    /// <param name="Favorite">Whether it is a favourite now, for the favourite's wording.</param>
+    /// <param name="Stars">The rating ticked when the menu opens, or 0 for none.</param>
+    /// <param name="WithSongs">Hands the songs, in play order, and the sleeve in hand to what an entry
+    /// does with them.</param>
+    /// <param name="ToggleFavorite">What Favourite album (or Remove from favourites) does.</param>
+    /// <param name="Rate">What a choice under Rate album does with the stars chosen.</param>
+    private sealed record RecordMenuSubject(
+        string Name,
+        bool IsList,
+        bool Marks,
+        bool Favorite,
+        int Stars,
+        Action<Action<List<TrackInfo>, SleeveInHand>> WithSongs,
+        Action ToggleFavorite,
+        Action<int> Rate);
+
+    /// <summary>The entries of a record's menu, at the desktop's menu size (see <see cref="ShowRecordMenu"/>),
+    /// with Play first where <paramref name="withPlay"/> is set. The favourite entry and Rate album are
+    /// handed back too, or null where they are not offered, so a caller can correct them later.</summary>
+    private (MenuFlyout Menu, MenuFlyoutItem? Favorite, MenuFlyoutSubItem? Rate) BuildRecordMenu(
+        RecordMenuSubject on, bool withPlay)
+    {
+        var menu = new MenuFlyout();
+
+        if (withPlay)
+            menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_Play"),
+                                     () => on.WithSongs((songs, sleeve) => PlayFromDrawer(songs, 0, sleeve))));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get(on.IsList ? "AlbumMenu_Shuffle" : "AlbumGrid_Shuffle"),
+                                 () => on.WithSongs(PlayShuffledList)));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("Tv_Album_AddToQueue"),
+                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: false, on.Name))));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_PlayNext"),
+                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: true, on.Name))));
+
+        if (!on.Marks)
+            return (menu, null, null);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var favorite = MenuEntry(Strings.Loc.Get(on.Favorite ? "Album_UnsetFavorite" : "AlbumMenu_Favorite"),
+                                 on.ToggleFavorite);
+        menu.Items.Add(favorite);
+        var rate = RateRecordMenu(on.Stars, on.Rate);
+        menu.Items.Add(rate);
+        return (menu, favorite, rate);
+    }
+
+    /// <summary>
+    /// Rate album: five entries, one to five stars, drawn as stars and not as words, with the rating the
+    /// record has now (<paramref name="now"/>) ticked. The remote reaches them with Up, Down and OK, where
+    /// the stars row on the page needs Left and Right on it. The choice goes to <paramref name="rate"/>,
+    /// which saves it as the stars row saves it.
+    /// </summary>
+    private static MenuFlyoutSubItem RateRecordMenu(int now, Action<int> rate)
+    {
+        var sub = new MenuFlyoutSubItem
         {
             Text = Strings.Loc.Get("Tv_Album_Rate"),
             FontSize = 12,
@@ -1337,7 +1495,6 @@ public sealed partial class PegasusChrome
             Padding = new Thickness(11, 3, 11, 4),
         };
 
-        var now = (int)Math.Round(_recordStars?.Value ?? 0);
         for (var stars = 1; stars <= 5; stars++)
         {
             var given = stars;
@@ -1349,20 +1506,15 @@ public sealed partial class PegasusChrome
                 MinHeight = 26,
                 Padding = new Thickness(11, 3, 11, 4),
             };
-            item.Click += (_, _) =>
-            {
-                SaveRecordRating(card.Folder, given);
-                if (_recordStars is { } row)
-                    row.Value = given;
-            };
-            rate.Items.Add(item);
+            item.Click += (_, _) => rate(given);
+            sub.Items.Add(item);
         }
 
-        return rate;
+        return sub;
     }
 
     /// <summary>
-    /// The whole record or list into the queue: after the song that is playing (Play next), or at the end
+    /// A whole record or list into the queue: after the song that is playing (Play next), or at the end
     /// (Add to queue). The same two inserts the main window's menus make on the same queue
     /// (RPaMpModel.InsertNext and AddTracks), so nothing that is playing is interrupted. With nothing on
     /// the deck, "next" is the end of an empty queue.
@@ -1370,12 +1522,12 @@ public sealed partial class PegasusChrome
     /// <para>Said in words at the foot of the screen, as a swiped song is: full screen, there is no queue
     /// in view to watch it land in.</para>
     /// </summary>
-    private void QueueRecord(bool next, string name)
+    private void QueueSongs(List<TrackInfo> songs, bool next, string name)
     {
-        if (_amp is not { } amp || _recordTracks.Count == 0)
+        if (_amp is not { } amp || songs.Count == 0)
             return;
 
-        var tracks = _recordTracks.ToList();
+        var tracks = songs.ToList();
         if (next)
             amp.InsertNext(tracks);
         else

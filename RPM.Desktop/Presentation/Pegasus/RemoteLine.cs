@@ -48,6 +48,43 @@ public sealed partial class RemoteLine : ContentControl
         HorizontalAlignment = HorizontalAlignment.Stretch;
     }
 
+    /// <summary>
+    /// A line around a button that already exists, for a button that should keep its look and its mouse
+    /// press but gain a menu for the remote: a card on the album wall, a quick song on home. The line takes
+    /// the button's place in its panel, if it stands in one, with the button inside it. The button stops
+    /// being a stop for the keys, so the line takes the focus, and OK, a held OK and the Menu key all arrive
+    /// on one element. A click with the mouse still lands on the button.
+    ///
+    /// <para>The line takes the button's alignment and corner radius, so it stands where the button stood
+    /// and the focus ring follows the button's corners. A caller that changes the button's corner later
+    /// writes it to the line too.</para>
+    ///
+    /// <para>A button that is the root of a DataTemplate has no panel to stand in. Such a template puts a
+    /// Grid around the button, and the line is made when the button is loaded (see HomeView and
+    /// PegasusChrome.Library).</para>
+    /// </summary>
+    /// <param name="press">What OK does: what a click on the button does.</param>
+    /// <param name="menu">Builds the menu for a held OK or the Menu key, as in the constructor.</param>
+    public static RemoteLine Around(Button key, Action press, Func<MenuFlyout?> menu)
+    {
+        var panel = key.Parent as Panel;
+        var at = panel?.Children.IndexOf(key) ?? -1;
+        if (at >= 0)
+            panel!.Children.RemoveAt(at);
+
+        key.IsTabStop = false;
+        var line = new RemoteLine(key, press, menu, turn: null)
+        {
+            HorizontalAlignment = key.HorizontalAlignment,
+            VerticalAlignment = key.VerticalAlignment,
+            CornerRadius = key.CornerRadius,
+        };
+
+        if (at >= 0)
+            panel!.Children.Insert(at, line);
+        return line;
+    }
+
     /// <summary>Whether a held OK or the Menu key opens anything here.</summary>
     public bool HasMenu => _menu is not null;
 
