@@ -90,7 +90,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Home => _home is null || _home.IsAtTop ? 0 : _homeScrolled,
         CollectionScreen.Radio => RadioScroll.VerticalOffset,
         CollectionScreen.Artists or CollectionScreen.Genres or CollectionScreen.Artist or CollectionScreen.Genre
-            => ArtistsGenresScroll.VerticalOffset,
+            or CollectionScreen.Playlists => ArtistsGenresScroll.VerticalOffset,
         _ => LibraryScroll.VerticalOffset,
     };
 

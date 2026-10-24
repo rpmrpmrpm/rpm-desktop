@@ -1130,6 +1130,23 @@
                            IsHitTestVisible="False"/>
       </Grid>
 
+      <!-- ═══ playlists ═══ the generated lists under "Made for you", then the user's own lists, as cards
+           with their covers, as many to a row as the wall's covers (see PegasusChrome.PlaylistsScreen).
+           Opened by the side menu's Playlists. The headings and the cards are built in code. -->
+      <Grid x:Name="PlaylistsScreen" Visibility="Collapsed" Opacity="0">
+        <ScrollViewer x:Name="PlaylistsScroll" VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                      ViewChanged="PageScroll_ViewChanged">
+          <StackPanel x:Name="PlaylistsContent"/>
+        </ScrollViewer>
+        <TextBlock x:Name="PlaylistsEmpty" Visibility="Collapsed"
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0,40,0"/>
+        <ctl:RecordSpinner x:Name="PlaylistsSpinner" Width="46" Height="46" Spinning="False"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+      </Grid>
+
       <!-- ═══ one artist ═══ the photograph and the name at the head, then the albums on shelves (see
            PegasusChrome.ArtistPage). Built in code when it is opened. -->
       <Grid x:Name="ArtistPageScreen" Visibility="Collapsed" Opacity="0">
@@ -1455,9 +1472,9 @@
                  sizes are set in SizeSideMenu. As the Apple TV's sidebar lists them: Now playing first,
                  only while something is loaded, which goes to the turning record; then Home; Albums opens
                  the wall, Search opens the wall's search field, Artists and Genres open their lists (see
-                 PegasusChrome.ArtistsGenres) and Internet Radio opens the radio screen. Playlists has no
-                 screen in Pegasus yet. The focus starts on the entry of the screen in front (see
-                 MenuEntryInFront). -->
+                 PegasusChrome.ArtistsGenres), Playlists opens the playlists screen (see
+                 PegasusChrome.PlaylistsScreen) and Internet Radio opens the radio screen. The focus starts on
+                 the entry of the screen in front (see MenuEntryInFront). -->
             <StackPanel x:Name="SideMenuItems" Grid.Row="1">
               <Button x:Name="SideMenuNowPlaying" Style="{StaticResource PegasusSideButton}" Click="SideMenuNowPlaying_Click"
                       Visibility="Collapsed">
@@ -1496,7 +1513,7 @@
                   <TextBlock Text="{loc:Str Key=Viz_MenuGenres}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Style="{StaticResource PegasusSideButton}">
+              <Button x:Name="SideMenuPlaylists" Style="{StaticResource PegasusSideButton}" Click="SideMenuPlaylists_Click">
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="&#xf8c9;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
                   <TextBlock Text="{loc:Str Key=Viz_MenuPlaylists}" FontWeight="SemiBold" VerticalAlignment="Center"/>

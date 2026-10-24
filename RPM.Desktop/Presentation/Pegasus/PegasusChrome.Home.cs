@@ -50,6 +50,10 @@ public enum CollectionScreen
     /// <summary>One genre's page. Back goes to the screen it was opened from. See
     /// PegasusChrome.GenrePage.</summary>
     Genre,
+
+    /// <summary>The generated lists, then the listener's own, as cards. Opened by the side menu's
+    /// Playlists; Back goes to home. See PegasusChrome.PlaylistsScreen.</summary>
+    Playlists,
 }
 
 /// <summary>
@@ -121,6 +125,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Radio => RadioIsReady,
         CollectionScreen.Artists or CollectionScreen.Genres or CollectionScreen.Artist or CollectionScreen.Genre
             => _shelf is not null,
+        CollectionScreen.Playlists => PlaylistsAreRead,
         _ => LibraryIsFilled,
     };
 
@@ -354,6 +359,7 @@ public sealed partial class PegasusChrome
             case CollectionScreen.Genres:
             case CollectionScreen.Artist:
             case CollectionScreen.Genre:
+            case CollectionScreen.Playlists:
                 LeaveArtistsGenresScreen(from);
                 break;
         }
