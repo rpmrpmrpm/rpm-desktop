@@ -101,9 +101,39 @@ public sealed partial class PegasusChrome
     /// after it failed, so the next visit asks again.</summary>
     private long _radioAnsweredAt;
 
-    /// <summary>Whether a reading has landed at all, answered or not. What the view's opening cover waits
-    /// on when it opens onto radio (see CollectionIsReady).</summary>
+    /// <summary>Whether radio has opened: a reading has landed, answered or not, and the page has been shown
+    /// (see the opening, in ReadRadioAsync). What the view's opening cover waits on when it opens onto
+    /// radio (see CollectionIsReady).</summary>
     private bool RadioIsReady { get; set; }
+
+    /// <summary>Whether the page has been shown once. Until then only the background shows, and the record
+    /// turning after <see cref="RadioSpinnerWaitMs"/> (see <see cref="ReadRadioAsync"/>). Kept for the life
+    /// of the chrome, so coming back to radio, or a later reading, does not open it again; a later reading
+    /// builds the page in place, as before.</summary>
+    private bool _radioOpened;
+
+    /// <summary>The page's own fade for the opening: radio's scroller, inside the screen's fade.</summary>
+    private Fader _radioOpenFade = null!;
+
+    /// <summary>The faces' errands of the last build: their colours, marks, lines and card pictures. The
+    /// opening waits on them, capped, so the page comes up whole (see <see cref="WarmRadioAsync"/>).</summary>
+    private readonly List<Task> _radioWarming = [];
+
+    /// <summary>The TV's opening (Radio.kt, OPEN_READ_MS, OPEN_WARM_MS, OPEN_FADE_MS, SPINNER_WAIT_MS): the
+    /// most the opening waits for the essential stations, and then for their pictures, colours and lines;
+    /// how long the page takes to fade in; and how long before the turning record shows at all, so a quick
+    /// opening shows none.</summary>
+    private const int RadioOpenReadMs = 2500;
+    private const int RadioOpenWarmMs = 2500;
+    private const int RadioOpenFadeMs = 360;
+    private const int RadioSpinnerWaitMs = 150;
+
+    /// <summary>How many favourites' faces the opening waits for: the ones on the first screen, as the TV's
+    /// WARM_FAVORITES.</summary>
+    private const int RadioWarmFavorites = 6;
+
+    /// <summary>An essential card's width, written in SizeRadio: what its card picture is decoded for.</summary>
+    private double _radioEssentialWidth;
 
     /// <summary>The errands drawing the faces of the screen as it was last built. Cancelled when it is
     /// built again.</summary>
@@ -123,9 +153,6 @@ public sealed partial class PegasusChrome
 
     private Fader _radioScreenFade = null!;
 
-    /// <summary>An essential card's width, written in SizeRadio: what its card picture is decoded for.</summary>
-    private double _radioEssentialWidth;
-
     private static RadioService Radio => App.Services.GetRequiredService<RadioService>();
 
     /// <summary>Whether radio is the screen the collection shows.</summary>
@@ -142,6 +169,11 @@ public sealed partial class PegasusChrome
     {
         _radioScreenFade = new Fader(RadioScreen);
         _radioSearchFade = new Fader(RadioSearchLayer);
+
+        // The page is hidden until its opening (see ReadRadioAsync): only the background shows.
+        RadioScroll.Opacity = 0;
+        RadioScroll.IsHitTestVisible = false;
+        _radioOpenFade = new Fader(RadioScroll);
 
         var icons = (FontFamily)Resources["PegasusFa"];
         for (var i = 0; i < _bannerHosts.Length; i++)
@@ -199,7 +231,7 @@ public sealed partial class PegasusChrome
             // The favourites row is the one part of the screen a press elsewhere changes (the heart in the
             // tuner), so it follows them; the banner keeps the stations it was read with until the next
             // reading, so a heart does not rearrange it under the listener.
-            if (RadioIsReady)
+            if (_radioLastReading is not null)
                 BuildFavoritesRow();
 
             // A favourite taken away from its own card's menu goes with its card, and the focus with it:
@@ -276,19 +308,57 @@ public sealed partial class PegasusChrome
     /// What radio shows: the stations heard most and the favourites, which are on this computer, and the
     /// essential stations, which the directory answers on a worker. The screen is built once the
     /// directory has answered or failed; a failure still builds the banner and the favourites.
+    ///
+    /// <para><b>The first reading opens the page whole</b>, as the TV's radio does (Radio.kt, e65f7de):
+    /// until the essential stations are read and every face on the first screen has its colours, its mark,
+    /// its line and its card picture, only the background shows, with the turning record once the wait
+    /// has taken <see cref="RadioSpinnerWaitMs"/>. Then the page fades in over it. Neither wait is longer
+    /// than its cap: a directory slower than <see cref="RadioOpenReadMs"/> opens the page with what is on
+    /// this computer, and the essential row is built in when the directory answers; faces slower than
+    /// <see cref="RadioOpenWarmMs"/> fill in on the page as they arrive, as every face did before.</para>
     /// </summary>
     private async void ReadRadioAsync()
     {
         var read = ++_radioRead;
-        var radio = Radio;
 
-        // The server's word on hidden stations and changed logos. Asked at most once an hour, and nothing
-        // waits on it (see RadioState).
+        // The server's word on hidden stations, changed logos and card pictures. Asked at most once an
+        // hour, and nothing waits on it (see RadioState).
         RadioState.Refresh();
 
         var (code, country) = ListenerCountry();
-        RadioSpinner.Spinning = _radioBanner.Count == 0;
+        var search = SearchEssentialAsync(code, country);
 
+        if (!_radioOpened)
+        {
+            ShowRadioSpinnerLater(read);
+            if (await Task.WhenAny(search, Task.Delay(RadioOpenReadMs)) != search)
+            {
+                if (read != _radioRead)
+                    return;
+
+                // The directory is slow: the page opens without the essential row, which follows.
+                LandRadio(new RadioReading([], Answered: true, Country: null), "the directory is slow, opening without the essential stations");
+                await OpenRadioAsync(read);
+            }
+        }
+
+        var reading = await search;
+        if (read != _radioRead)
+            return;
+
+        _radioAnsweredAt = reading.Answered ? Environment.TickCount64 : 0;
+        LandRadio(reading, $"directory {(reading.Answered ? "answered" : "failed")}");
+
+        if (!_radioOpened)
+            await OpenRadioAsync(read);
+    }
+
+    /// <summary>The essential stations from the directory, folded: the most played in the listener's
+    /// country, or everywhere where it lists nothing there. A failure is a reading too, with nothing in
+    /// it and not answered.</summary>
+    private static async Task<RadioReading> SearchEssentialAsync(string? code, string country)
+    {
+        var radio = Radio;
         IReadOnlyList<RadioStation> found = [];
         var answered = true;
         try
@@ -315,23 +385,65 @@ public sealed partial class PegasusChrome
             RPM.Core.Diagnostics.Scope.Said("radio", $"essential stations: the directory did not answer ({ex.GetType().Name})");
         }
 
-        if (read != _radioRead)
+        return new RadioReading(RadioResults.OnePerStation(found), answered, code is null ? null : country);
+    }
+
+    /// <summary>Builds the screen from a reading that has landed, and says so.</summary>
+    private void LandRadio(RadioReading reading, string how)
+    {
+        _radioLastReading = reading;
+        var (heard, favorites, essential) = BuildRadioFrom(reading);
+        RPM.Core.Diagnostics.Scope.Said(
+            "radio",
+            $"read: {heard} heard, {favorites} favourites, {essential} essential in {reading.Country ?? "every country"}, {how}");
+    }
+
+    /// <summary>
+    /// The opening's last step: waits for the faces of the build, capped, then fades the page in over the
+    /// background and stops the record. The focus goes to the banner's card if radio is still in front.
+    /// A newer reading that has started in the meantime opens it instead.
+    /// </summary>
+    private async Task OpenRadioAsync(int read)
+    {
+        await WarmRadioAsync();
+        if (read != _radioRead || _radioOpened)
             return;
 
+        _radioOpened = true;
         RadioSpinner.Spinning = false;
-        _radioAnsweredAt = answered ? Environment.TickCount64 : 0;
-
-        _radioLastReading = new RadioReading(RadioResults.OnePerStation(found), answered, code is null ? null : country);
-        var (heard, favorites, essential) = BuildRadioFrom(_radioLastReading);
+        RadioScroll.IsHitTestVisible = true;
+        _radioOpenFade.To(1, RadioOpenFadeMs, null);
+        if (_radioBannerKey is { } key)
+            key.IsTabStop = _radioBanner.Count > 0;
         RadioIsReady = true;
 
         // The view's opening cover waits on this when the view opened onto radio (see CollectionIsReady).
         if (RadioUp)
             LibraryFilled?.Invoke();
 
-        RPM.Core.Diagnostics.Scope.Said(
-            "radio",
-            $"read: {heard} heard, {favorites} favourites, {essential} essential in {code ?? "every country"}, directory {(answered ? "answered" : "failed")}");
+        if (RadioHomeInFront)
+            FocusScreenLater(null);   // with the remote in use: the banner's card
+
+        RPM.Core.Diagnostics.Scope.Said("radio", "opened");
+    }
+
+    /// <summary>Waits for every face's errands of the last build, for <see cref="RadioOpenWarmMs"/> at
+    /// most. The errands keep running past the cap, and what they bring is drawn as it lands.</summary>
+    private async Task WarmRadioAsync()
+    {
+        if (_radioWarming.Count == 0)
+            return;
+        var all = Task.WhenAll([.. _radioWarming]);
+        await Task.WhenAny(all, Task.Delay(RadioOpenWarmMs));
+    }
+
+    /// <summary>The turning record over the background, once the opening has taken
+    /// <see cref="RadioSpinnerWaitMs"/>, so a quick opening shows none.</summary>
+    private async void ShowRadioSpinnerLater(int read)
+    {
+        await Task.Delay(RadioSpinnerWaitMs);
+        if (read == _radioRead && !_radioOpened)
+            RadioSpinner.Spinning = true;
     }
 
     /// <summary>One reading of the directory, folded: what the screen is built from, kept so a change
@@ -374,7 +486,7 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void RadioStateChanged()
     {
-        if (!RadioIsReady || _radioLastReading is not { } reading)
+        if (_radioLastReading is not { } reading)
             return;
 
         var (heard, favorites, essential) = BuildRadioFrom(reading);
@@ -466,16 +578,24 @@ public sealed partial class PegasusChrome
         ShowWhatRadioPlays();
 
         // Every face on the screen is asked for once: its colours and mark, the banner's and the essential
-        // cards' lines, and the essential cards' pictures. The banner's card in front is also asked what it
-        // is playing (see AskRadioOnAir).
+        // cards' lines, and the essential cards' pictures. The opening waits on the ones on the first screen
+        // (see WarmRadioAsync); the favourites past the first screen are not waited for. The banner's card in
+        // front is also asked what it is playing (see AskRadioOnAir).
+        _radioWarming.Clear();
+        var firstFavorites = _radioFavoriteCards.Take(RadioWarmFavorites).Select(c => c.Face).ToHashSet();
+        var essentialFaces = _radioEssentialCards.Select(c => c.Face).ToHashSet();
         foreach (var face in _radioFaces.Values)
-            _ = LoadFaceAsync(face, ct);
-        foreach (var face in _radioBanner)
-            _ = LoadLineAsync(face, ct);
-        foreach (var card in _radioEssentialCards)
         {
-            _ = LoadLineAsync(card.Face, ct);
-            _ = LoadCardPictureAsync(card.Face, ct);
+            var asked = LoadFaceAsync(face, ct);
+            if (_radioBanner.Contains(face) || essentialFaces.Contains(face) || firstFavorites.Contains(face))
+                _radioWarming.Add(asked);
+        }
+        foreach (var face in _radioBanner)
+            _radioWarming.Add(LoadLineAsync(face, ct));
+        foreach (var face in essentialFaces)
+        {
+            _radioWarming.Add(LoadLineAsync(face, ct));
+            _radioWarming.Add(LoadCardPictureAsync(face, ct));
         }
         AskRadioOnAir();
     }
@@ -740,8 +860,9 @@ public sealed partial class PegasusChrome
         RadioBannerDots.Visibility = stepping;
         PaintBannerDots();
 
+        // Not a stop before the page has opened: it is not drawn yet (see ReadRadioAsync).
         if (_radioBannerKey is { } key)
-            key.IsTabStop = n > 0;
+            key.IsTabStop = n > 0 && _radioOpened;
         PlaceBanner();
     }
 
@@ -834,6 +955,10 @@ public sealed partial class PegasusChrome
             PlaceBanner();
         }
 
+        // The page fading in at its opening. Ticked here rather than with the chrome's faders, as it is
+        // radio's own.
+        _radioOpenFade?.Tick(dt);
+
         TickRadioWheel(dt);
         TickTuner();
     }
@@ -891,6 +1016,10 @@ public sealed partial class PegasusChrome
     /// <summary>Where the focus starts on radio: the banner's card, else the first card of a row.</summary>
     private Control? RadioFocusTarget()
     {
+        // Nothing before the page has opened: it is not drawn yet. The opening gives the focus when it shows
+        // the page (see OpenRadioAsync).
+        if (!_radioOpened)
+            return null;
         if (_radioBannerKey is { IsTabStop: true } key)
             return key;
         if (_radioEssentialCards.Count > 0)
