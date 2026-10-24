@@ -602,11 +602,138 @@ public sealed partial class PegasusChrome
     /// right-click on a line of an album page, and by a held OK or the Menu key on any track line (see
     /// RemoteLine).
     /// </summary>
-    private MenuFlyout? TrackMenu(TrackInfo song) =>
-        TrackMenuHooks is { } hooks
-            ? ForThisView(TrackMenuFactory.Build(
-                song, hooks, (FontFamily)Resources["PegasusFa"], (FontFamily)Resources["PegasusFaRegular"]))
-            : null;
+    /// <remarks>
+    /// Two changes are made to the factory's menu here, in Pegasus only, to follow the TV's song menu. The
+    /// main window's menu is left as it is.
+    /// <list type="bullet">
+    /// <item>On somebody else's collection (see <see cref="RecordBorrowed"/>) the favourite is taken out.
+    /// The factory already leaves out Add to playlist there.</item>
+    /// <item>Add to playlist starts with New playlist, so somebody with many playlists does not have to go
+    /// past all of them to make one, and a tick shows on each playlist that already holds the song (see
+    /// <see cref="PegasusPlaylistMenu"/>).</item>
+    /// </list>
+    /// </remarks>
+    private MenuFlyout? TrackMenu(TrackInfo song)
+    {
+        if (TrackMenuHooks is not { } hooks)
+            return null;
+
+        var menu = TrackMenuFactory.Build(
+            song, hooks, (FontFamily)Resources["PegasusFa"], (FontFamily)Resources["PegasusFaRegular"]);
+
+        // Before ForThisView, which takes the icons off: the favourite is found by its heart.
+        if (RecordBorrowed)
+            DropFavoriteEntry(menu.Items);
+        else
+            PegasusPlaylistMenu(menu.Items, song, hooks);
+
+        return ForThisView(menu);
+    }
+
+    /// <summary>The heart the factory draws on its favourite entry (TrackMenuFactory.Build). The entry is
+    /// found by it rather than by its words, which change with the language and with the mark.</summary>
+    private const string FavoriteGlyph = "";
+
+    /// <summary>Takes a song's favourite entry out of its menu, with the rule the factory puts above it,
+    /// so no two rules are left next to each other.</summary>
+    private static void DropFavoriteEntry(IList<MenuFlyoutItemBase> items)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i] is not MenuFlyoutItem { Icon: FontIcon { Glyph: FavoriteGlyph } })
+                continue;
+
+            items.RemoveAt(i);
+            if (i > 0 && items[i - 1] is MenuFlyoutSeparator)
+                items.RemoveAt(i - 1);
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Fills the factory's Add to playlist again, the TV's way: New playlist first, a rule, then the
+    /// playlists, each with a tick where it already holds the song.
+    ///
+    /// <para>The entries do what the factory's do, through the same hooks (NewPlaylistFromTrack,
+    /// AddTrackToPlaylist), on the same list of playlists (PlaylistEntries). Choosing a ticked playlist
+    /// adds the song as the main window does, which asks first about a song that is already there.</para>
+    ///
+    /// <para>The ticks are read off the thread that draws the view and land when the read does, usually
+    /// before the submenu is opened. Until then no playlist is ticked. A menu closed before the read lands
+    /// is not touched again.</para>
+    /// </summary>
+    private void PegasusPlaylistMenu(IList<MenuFlyoutItemBase> items, TrackInfo song, TrackMenuHooks hooks)
+    {
+        var heading = Strings.Loc.Get("Playlists_AddToPlaylist");
+        if (items.OfType<MenuFlyoutSubItem>().FirstOrDefault(s => s.Text == heading) is not { } playlists)
+            return;
+
+        var entries = hooks.PlaylistEntries?.Invoke() ?? Array.Empty<(long, string, int)>();
+        playlists.Items.Clear();
+
+        if (hooks.NewPlaylistFromTrack is { } create)
+        {
+            playlists.Items.Add(MenuEntry(Strings.Loc.Get("Playlists_NewPlaylistFrom"), () => create(song)));
+            if (entries.Count > 0)
+                playlists.Items.Add(new MenuFlyoutSeparator());
+        }
+
+        var byId = new Dictionary<long, ToggleMenuFlyoutItem>();
+        foreach (var (id, name, depth) in entries)
+        {
+            var playlistId = id;
+            var entry = new ToggleMenuFlyoutItem
+            {
+                Text = new string(' ', depth * 2) + name,
+                FontSize = 12,
+                MinHeight = 26,
+                Padding = new Thickness(11, 3, 11, 4),
+            };
+            entry.Click += (_, _) => hooks.AddTrackToPlaylist?.Invoke(song, playlistId);
+            playlists.Items.Add(entry);
+            byId[playlistId] = entry;
+        }
+
+        if (byId.Count > 0)
+            TickPlaylistsHoldingAsync(song, byId);
+    }
+
+    /// <summary>Ticks the playlists that already hold the song, from one read of the listener's own
+    /// playlists (LibraryDatabase.PlaylistsHolding), by its RPM id and by its path, the two keys a playlist
+    /// entry is kept by. Nothing is ticked if the read does not answer.</summary>
+    private static async void TickPlaylistsHoldingAsync(TrackInfo song, Dictionary<long, ToggleMenuFlyoutItem> byId)
+    {
+        var library = Library;
+        if (!library.IsOpen || library.Root is not { } root)
+            return;
+
+        var db = library.Db;
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        if (song.RpmId is { Length: > 0 } rpmId)
+            ids.Add(rpmId);
+
+        // Forward-slashed and relative to the root, which is how a playlist entry stores a path.
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Path.GetRelativePath(root, song.FilePath).Replace(Path.DirectorySeparatorChar, '/'),
+        };
+
+        try
+        {
+            var asked = await Task.Run(() => library.Read(db, "the playlists holding a song, for Pegasus's menu",
+                                                           mirror => mirror.PlaylistsHolding(ids, paths)));
+            if (!asked.Answers(out var holding, out _))
+                return;
+
+            foreach (var list in holding)
+                if (byId.TryGetValue(list.NodeId, out var entry))
+                    entry.IsChecked = true;
+        }
+        catch
+        {
+            // A collection that closed under the read. The menu is left without ticks.
+        }
+    }
 
     // ── menus at this view's size ──
 
