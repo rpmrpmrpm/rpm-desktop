@@ -199,6 +199,43 @@ public sealed partial class LibraryDatabase
     }
 
     /// <summary>
+    /// Every song under some records that the world has played, with how often, most played first.
+    ///
+    /// <para>For an artist's popular songs (<see cref="ArtistPopular"/>), which unlike a genre's are not one
+    /// per record: an artist's best known songs are often three off the same album. Songs nobody has
+    /// counted, or counted at nought, are not in the answer. Ties come back in path order, so the list does
+    /// not reshuffle between two reads that agree.</para>
+    /// </summary>
+    /// <param name="folders">The album folders to look under. An empty list gives nothing.</param>
+    public IReadOnlyList<(LibraryTrack Track, long Plays)> QueryWorldPlaysUnder(IReadOnlyList<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        if (folders.Count == 0)
+            return [];
+
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT tracks.*
+                FROM tracks
+                JOIN json_each($folders) shelf ON shelf.value = tracks.folder
+                WHERE tracks.world_plays > 0
+                ORDER BY tracks.world_plays DESC, tracks.relative_path ASC
+                """;
+            cmd.Parameters.AddWithValue("$folders", JsonList(folders));
+
+            using var reader = cmd.ExecuteReader();
+            var plays = reader.GetOrdinal("world_plays");
+            var songs = new List<(LibraryTrack, long)>();
+            while (reader.Read())
+                songs.Add((ReadTrack(reader), reader.GetInt64(plays)));
+            return songs;
+        }
+    }
+
+    /// <summary>
     /// The next records nobody has asked the world about, biggest first.
     ///
     /// <para>Biggest first, because a lookup costs the same three requests whatever is on the record. So
