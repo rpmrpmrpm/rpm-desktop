@@ -1607,9 +1607,10 @@
       </Grid>
 
       <!-- ═══ radio's search ═══ over radio, with radio blurred behind it: one field in the light glass,
-           centred, and under it a card of the same glass that holds what the directory found, asked again
-           as the words change. OK on a station tunes it and closes the search. Sizes are set in
-           SizeRadioSearch. -->
+           centred while it is empty and at the top once there is a query, and under it then a card of the
+           same glass that holds what the directory found, asked again as the words change. OK on a station
+           tunes it and closes the search. Sizes are set in SizeRadioSearch, the field's place in
+           PlaceRadioSearchField. -->
       <Grid x:Name="RadioSearchLayer" Visibility="Collapsed" Opacity="0" Background="Transparent">
         <Border IsHitTestVisible="False">
           <Border.Background>

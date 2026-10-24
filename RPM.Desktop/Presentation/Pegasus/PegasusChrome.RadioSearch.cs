@@ -8,8 +8,9 @@ using RPM.Desktop.Presentation.Main.LeftPane.Models;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// Radio's search: one field in the light glass in the middle of the screen, radio blurred behind it, and
-/// under the field a card of the same glass holding the stations the directory found. OK on the remote
+/// Radio's search: one field in the light glass in the middle of the screen, radio blurred behind it. Once
+/// there is a query the field moves to the top, and under it a card of the same glass holds the stations
+/// the directory found. OK on the remote
 /// lets the listener type. The most relevant results are listed in the card and read again when a
 /// character is typed. When nothing is found, the card says so in its middle. The arrow keys choose a
 /// station, and OK on it plays the station and closes the search.
@@ -113,11 +114,34 @@ public sealed partial class PegasusChrome
         RadioResultsNote.Visibility = note is { Length: > 0 } ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Each letter typed: the model asks the directory once the typing stops.</summary>
+    /// <summary>Each letter typed: the model asks the directory once the typing stops. The first letter
+    /// takes the field to the top and brings the results card up under it; clearing the field takes it
+    /// back to the middle (see PlaceRadioSearchField).</summary>
     private void RadioSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_searchModel is { } model)
             model.SearchText = RadioSearchBox.Text;
+        PlaceRadioSearchField();
+    }
+
+    /// <summary>The search's height and scale as SizeRadioSearch last had them, so a letter typed can
+    /// place the field without a resize.</summary>
+    private double _radioSearchHeight, _radioSearchScale = 1;
+
+    /// <summary>
+    /// Where the field stands: in the middle of the screen while it is empty, with nothing under it, and
+    /// at the top of the screen once there is a query, with the results card from under it to near the
+    /// foot, so the stations found get most of the screen. The TV's search does the same (StationSearch):
+    /// a field left in the middle gave the results only the lower half.
+    /// </summary>
+    private void PlaceRadioSearchField()
+    {
+        var scale = _radioSearchScale;
+        var field = 64 * scale;
+        var asked = RadioSearchBox.Text.Trim().Length > 0;
+        var top = asked ? HomeTopPad : Math.Max(HomeTopPad, _radioSearchHeight / 2 - field / 2);
+        RadioSearchColumn.Margin = new Thickness(0, top, 0, 34 * scale);
+        RadioResultsCard.Visibility = asked ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>OK (Enter) in the field asks at once, rather than after the typing pause.</summary>
@@ -162,7 +186,7 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// The search's sizes, off the window and the collection's scale: the column half the screen wide with
-    /// the field's middle on the screen's middle, and the results card from
+    /// the field where PlaceRadioSearchField puts it, and the results card from
     /// under the field to near the foot of the screen, four tiles across.
     /// </summary>
     private void SizeRadioSearch(double scale, double width, double height)
@@ -172,7 +196,9 @@ public sealed partial class PegasusChrome
         var gap = 12 * scale;
 
         RadioSearchColumn.Width = column;
-        RadioSearchColumn.Margin = new Thickness(0, Math.Max(HomeTopPad, height / 2 - field / 2), 0, 34 * scale);
+        _radioSearchHeight = height;
+        _radioSearchScale = scale;
+        PlaceRadioSearchField();
 
         RadioSearchField.Height = field;
         var corner = new CornerRadius(12 * scale);
