@@ -28,7 +28,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <item><b>The list</b> is the radio pane's model and its rows, drawn larger (see PegasusStationRow): a
 /// copy of the model of its own, so the main window's pane keeps its query. Search, country, order,
 /// filter and favourites are the pane's; the country, order and filter open menus at this view's
-/// size.</item>
+/// size. While the favourites are on, the country key is dimmed and takes no focus. Down from the dial or
+/// the tools always reaches the first station, the list scrolled back to its top first.</item>
 /// <item><b>The player</b> shows the station tuned: its logo in a well as the pane's rows draw it, in a
 /// small room of its own colours, what it is playing, and the key that plays or stops it.</item>
 /// </list>
@@ -248,9 +249,7 @@ public sealed partial class PegasusChrome
         switch (direction)
         {
             case FocusNavigationDirection.Down when ReferenceEquals(from, _tunerDialKey) || Inside(from, TunerTools):
-                return TunerRows.TryGetElement(0) is PegasusStationRow { MainKey: var first } && CanTakeFocus(first)
-                    ? first
-                    : next;
+                return _tunerModel is { Stations.Count: > 0 } ? FirstTunerStation() : next;
 
             case FocusNavigationDirection.Right when Inside(from, TunerBrowser)
                                                      && (next is null || !Inside(next, TunerBrowser)):
@@ -259,6 +258,34 @@ public sealed partial class PegasusChrome
             default:
                 return next;
         }
+    }
+
+    /// <summary>
+    /// The list's first station, for Down from the dial or the tools, always: with the list scrolled down,
+    /// the repeater has let the first row go and finding it found nothing, so Down landed on whatever row
+    /// stood under the key, or nowhere. The list goes back to its top and the first row is made again.
+    /// Where it is laid out at once it is returned; a row made new is not loaded until the next frames, so
+    /// the focus is asked for it there instead (see TickFocus) and null is returned, and the remote bounces
+    /// once as the list moves. Not the row the search by layout found meanwhile: the focus moving there
+    /// would drop the request. The TV's tuner does the same (RadioTuner.kt, toList). Asked only with
+    /// stations listed.
+    /// </summary>
+    private Control? FirstTunerStation()
+    {
+        if (TunerRows.TryGetElement(0) is PegasusStationRow { MainKey: var shown } && CanTakeFocus(shown)
+            && TunerScroll.VerticalOffset < 0.5)
+            return shown;
+
+        TunerScroll.ChangeView(null, 0, null, disableAnimation: true);
+        if (TunerRows.GetOrCreateElement(0) is not PegasusStationRow { MainKey: var first })
+            return null;
+
+        TunerScroll.UpdateLayout();
+        if (CanTakeFocus(first))
+            return first;
+
+        FocusScreenLater(first);
+        return null;
     }
 
     // ── the model ──
@@ -312,6 +339,13 @@ public sealed partial class PegasusChrome
         var on = model.FavoritesOnly;
         TunerFavoritesMark.FontFamily = (FontFamily)Resources[on ? "PegasusFa" : "PegasusFaRegular"];
         TunerFavoritesMark.Foreground = (Brush)Application.Current.Resources[on ? "FavoriteMarkBrush" : "FavoriteMarkIdleBrush"];
+
+        // The saved stations are listed whatever their country, so while they are the country key is
+        // dimmed and out of reach: the remote passes over it and a press does nothing (the TV's tuner,
+        // 2026-10-24). Only the favourites key turns this on, and it holds the focus as it does.
+        TunerCountry.IsTabStop = !on;
+        TunerCountry.IsHitTestVisible = !on;
+        TunerCountry.Opacity = on ? 0.35 : 1;
 
         var empty = model.Stations.Count == 0;
         TunerSpinner.Spinning = model.IsBusy && empty;
