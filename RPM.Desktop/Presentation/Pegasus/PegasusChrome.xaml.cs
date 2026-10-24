@@ -3009,7 +3009,6 @@ public sealed partial class PegasusChrome : UserControl
         TickDrag(dt);
         TickSwipe(dt);   // …and a swiped line coming home
         TickWheel(dt);   // …and the collection travelling under the wheel
-        TickRecordDisc(dt);   // …and the record turning out of its sleeve on the record screen
         TickRadio(dt);   // …and radio's banner stepping, its wheel turning, and the tuner's waiting menu
         TickArtistsGenres();   // …and the artists list's photographs, three asked at a time
 

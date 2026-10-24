@@ -78,10 +78,10 @@ public sealed partial class PegasusChrome
     /// The page, the gap down the middle of it, the record's panel and the sleeve's edge, all four off
     /// the window, because all four are answers about how much screen there is.
     ///
-    /// <para>The page is the whole window, not a column down the middle of it. The two halves stand at
-    /// the two SIDES of the screen with real space between them, and the width of that space is the
-    /// separation. A page capped in the middle of a wide monitor would put the panels next to each other
-    /// with the gap only drawn between them.</para>
+    /// <para>The page is worked out from the whole window, and the Grid that holds it is centred in the
+    /// window. The gap between the two halves is a share of that width with a small cap (see
+    /// <see cref="RecordColumnGap"/>), so on a wide screen the record and its running order stand close
+    /// together in the middle, and the spare room is at the outside edges.</para>
     ///
     /// <para>Everything after the page is worked out from what the gap leaves, so widening the gap takes
     /// from both halves rather than from the running order alone. The panel has a floor under it because
@@ -157,17 +157,18 @@ public sealed partial class PegasusChrome
     /// do not look better past this width; they only get further apart.</summary>
     private const double RecordInfoCap = 640;
 
-    /// <summary>The space left either side of the page. Small: the two panels are meant to reach the
-    /// edges of the screen, and this stops them touching it.</summary>
+    /// <summary>The space left either side of the page. Small: it only matters on a narrow window, where
+    /// it stops the two panels touching the edges of the screen.</summary>
     private const double RecordPageInset = 40;
 
     /// <summary>The most that ever stands between the two panels, and what the gap settles at on an
-    /// ordinary desktop screen.</summary>
-    private const double RecordColumnGap = 300;
+    /// ordinary desktop screen: about 110 at 1920 wide. Close enough that the record and its running order
+    /// read as one page, as on the TV's record page, which uses the same two figures.</summary>
+    private const double RecordColumnGap = 120;
 
     /// <summary>How much of the page the gap takes before it reaches its cap. What keeps a small window
     /// readable: the gap gives way with the screen instead of eating the running order.</summary>
-    private const double RecordGapShare = 0.16;
+    private const double RecordGapShare = 0.06;
 
     /// <summary>How much narrower the running order is than the half it would otherwise have taken. A
     /// list of titles does not improve with room the way a sleeve does, past a point the number at one
@@ -1073,29 +1074,23 @@ public sealed partial class PegasusChrome
     // ── the record out of its sleeve ──
     //
     // Everything below is the composition's own centrepiece at this screen's size. See Relayout, which
-    // works the same geometry out for the record that is playing. The speed is deliberately different.
+    // works the same geometry out for the record that is playing.
+    //
+    // This record stands still. It is a record being looked at and not heard: only a quarter of it shows
+    // past the sleeve and its label is under the sleeve, so a turn would hardly be seen, and it would be
+    // one more thing moving on a page where somebody is reading a tracklist. The TV's record page keeps
+    // its record still for the same reason.
 
     private RecordDisc? _recordDisc;
     private TranslateTransform? _recordDiscShift;
-    private double _recordDiscAngle;
-
-    /// <summary>
-    /// One turn of the record on THIS screen: four seconds, which is fifteen a minute.
-    ///
-    /// <para>The composition turns once in 1.8 seconds, which is the 33⅓ a record actually plays at.
-    /// This one is slower on purpose. The disc behind the composition IS the record playing, so it turns
-    /// at playing speed. This disc is a record being looked at and not heard, so a spin at playing speed
-    /// under a page where somebody is reading a tracklist would look urgent. At fifteen turns a minute
-    /// it clearly turns and does not pull attention.</para>
-    /// </summary>
-    private const double RecordRevolutionSeconds = 4.0;
 
     /// <summary>
     /// The disc's geometry off the sleeve's edge, exactly as the composition works out its own.
     ///
     /// <para>The control's box holds the disc AND everywhere its shadow can land, so the halo is not
     /// clipped square along the edges it overhangs; everything inside is then placed from the host's
-    /// top-left corner, which keeps the spin turning about the disc's centre rather than the box's.</para>
+    /// top-left corner, which keeps the disc's centre where the composition puts it rather than at the
+    /// box's.</para>
     /// </summary>
     private void SizeRecordDisc(double edge)
     {
@@ -1155,18 +1150,6 @@ public sealed partial class PegasusChrome
             record.Stand.Vinyl.Source = source;
     }
 
-    /// <summary>The turn itself, off the chrome's own tick with everything else that moves a frame at a
-    /// time. A rotation and nothing else, written to the composition only, so a record turning under a page
-    /// never causes a layout pass.</summary>
-    private void TickRecordDisc(double dt)
-    {
-        if (!RecordUp || _recordDisc is not { } record)
-            return;
-
-        _recordDiscAngle = (_recordDiscAngle + (360.0 / RecordRevolutionSeconds * dt)) % 360.0;
-        record.Rotate.Angle = _recordDiscAngle;
-    }
-
     // ── the sleeve, at the size it is actually drawn ──
 
     /// <summary>
@@ -1217,8 +1200,8 @@ public sealed partial class PegasusChrome
             // Cut out exactly as the header and the album page cut it (ArtDisplay.DecodeDiscBytesAsync,
             // AlbumDetailView.DiscScan): a photograph of a CD on a table becomes a round disc centred on
             // the picture, and Round says whether it is the whole disc or a vinyl label, which decides
-            // whether it wears the CD overlay. Drawn as it came, a photograph would turn about the middle
-            // of its frame and not the middle of the disc, and it would wobble.
+            // whether it wears the CD overlay. Drawn as it came, a photograph would show the table around
+            // the disc, and the disc would sit off the centre of the drawn record it replaces.
             var cut = await Task.Run(
                 () => DiscStamp.Round(ThumbCache.Get(bytes, ArtScaler.TileEdge), vinyl: false));
             var bitmap = await DecodeArtAsync(cut.Bytes, edge);
