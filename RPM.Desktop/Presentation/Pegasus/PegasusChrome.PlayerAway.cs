@@ -15,12 +15,18 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// layer down with the card in it.</para>
 ///
 /// <para><b>It goes</b> after five seconds of nothing playing (on home; see below for the other screens),
-/// and at once when the screen is scrolled down, whatever is playing. <b>It comes back</b> when
+/// and at once when the screen is scrolled down past <see cref="FirstFocusAllowance"/>, whatever is
+/// playing. <b>It comes back</b> when
 /// something comes on, when the collection changes screen (home to the wall or back) or comes up again,
 /// when the screen is scrolled back to its top, and from the top edge of the screen until the screen is
 /// next scrolled. Scrolling up short of the top does not bring it back. Back at the top counts as
 /// arriving again: with nothing playing the card goes five seconds later, as when the screen first
 /// comes up.</para>
+///
+/// <para><b>The allowance.</b> The remote's first focus on a screen scrolls it a little to bring that
+/// element into view, and the card went with it on any scroll over half a point: home opened from the
+/// remote without its mini player. Within <see cref="FirstFocusAllowance"/> of the top the screen still
+/// counts as at its top, as the TV's home does (FOBO 7569f0da1).</para>
 ///
 /// <para><b>Nothing playing</b> is the card holding the app's mark: no record on the deck and no station
 /// tuned (<see cref="LibraryPlayerOn"/>). A paused record or a paused station does not start the five
@@ -65,16 +71,32 @@ public sealed partial class PegasusChrome
     /// there can be told from the frames it stays there.</summary>
     private bool _wasAtTop = true;
 
-    /// <summary>Whether the screen in front is scrolled to its top, read off its scroller: home's, the
-    /// wall's or radio's. A home not built yet is at its top.</summary>
-    private bool CollectionAtTop => _collection switch
+    /// <summary>How far down the screen in front may be scrolled, in points, and still count as at its top
+    /// for the card: the scroll the remote's first focus makes to bring that element into view (the TV's
+    /// NUDGE, 120).</summary>
+    private const double FirstFocusAllowance = 120;
+
+    /// <summary>How far home is scrolled down, summed from the moves its scroller reports
+    /// (HomeView.Scrolled), which are exact differences of its offset. Back to 0 whenever home says it is
+    /// at its top, so a move missed while another screen was in front cannot leave it adrift for
+    /// long.</summary>
+    private double _homeScrolled;
+
+    /// <summary>How far the screen in front is scrolled down, read off its scroller: home's (summed, see
+    /// <see cref="_homeScrolled"/>), the wall's, radio's or the artists and genres screens'. A home not
+    /// built yet is at its top.</summary>
+    private double CollectionScrolled => _collection switch
     {
-        CollectionScreen.Home => _home?.IsAtTop ?? true,
-        CollectionScreen.Radio => RadioScroll.VerticalOffset < 0.5,
+        CollectionScreen.Home => _home is null || _home.IsAtTop ? 0 : _homeScrolled,
+        CollectionScreen.Radio => RadioScroll.VerticalOffset,
         CollectionScreen.Artists or CollectionScreen.Genres or CollectionScreen.Artist or CollectionScreen.Genre
-            => ArtistsGenresScroll.VerticalOffset < 0.5,
-        _ => LibraryScroll.VerticalOffset < 0.5,
+            => ArtistsGenresScroll.VerticalOffset,
+        _ => LibraryScroll.VerticalOffset,
     };
+
+    /// <summary>Whether the screen in front is at its top for the card: scrolled no further than
+    /// <see cref="FirstFocusAllowance"/>.</summary>
+    private bool CollectionAtTop => CollectionScrolled <= FirstFocusAllowance;
 
     /// <summary>The screen the three figures above were gathered on. A different screen in front starts
     /// them again, the way a fresh visit does.</summary>
@@ -217,17 +239,22 @@ public sealed partial class PegasusChrome
 
     /// <summary>The screen in front moved, by <paramref name="moved"/> points, positive down: home's
     /// scroller (HomeView.Scrolled) or the wall's (LibraryScroll_ViewChanged). Any move ends a reveal
-    /// from the top edge; a move down sends the card away whatever is playing.</summary>
+    /// from the top edge; a move down past <see cref="FirstFocusAllowance"/> sends the card away whatever
+    /// is playing. A move down within it (the remote's first focus bringing its element into view) leaves
+    /// the card where it is.</summary>
     private void Collection_Scrolled(double moved)
     {
-        var down = moved > 0;
+        if (_collection == CollectionScreen.Home)
+            _homeScrolled = _home is null || _home.IsAtTop ? 0 : Math.Max(0, _homeScrolled + moved);
+
+        var down = moved > 0 && !CollectionAtTop;
         if (!_peek && (!down || _scrolledAway))
             return;
 
         _peek = false;
         if (down)
             _scrolledAway = true;
-        SayPlayerAway(down ? "scrolled down" : "scrolled up, reveal ended");
+        SayPlayerAway(down ? "scrolled down" : "scrolled, reveal ended");
     }
 
     /// <summary>One line on the home channel: what happened, and the facts the card is decided
