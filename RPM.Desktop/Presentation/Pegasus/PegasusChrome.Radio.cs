@@ -973,7 +973,7 @@ public sealed partial class PegasusChrome
         var heading = new Thickness(0, 30 * scale, 0, 12 * scale);
         RadioEssentialHeading.FontSize = RadioFavoritesHeading.FontSize = 22 * scale;
         RadioEssentialHeading.Margin = RadioFavoritesHeading.Margin = heading;
-        RadioEssentialNote.FontSize = RadioFavoritesNote.FontSize = 14 * scale;
+        RadioEssentialNote.FontSize = RadioFavoritesNote.FontSize = 18 * scale;   // the TV's couch size
 
         SizeRadioWheel(scale, height);
         SizeRadioSearch(scale, width, height);

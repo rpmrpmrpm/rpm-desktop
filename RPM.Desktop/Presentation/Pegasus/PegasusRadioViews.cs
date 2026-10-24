@@ -492,8 +492,10 @@ internal sealed class RadioRowCard
         Room.CornerRadius = corner;
         _well.Size(height * 0.5);
 
-        _name.FontSize = 14 * scale;
-        _detail.FontSize = 12 * scale;
+        // The TV's couch sizes for a card's two lines (CARD_TITLE_TEXT and CARD_LINE_TEXT), up from the
+        // desktop's 14 and 12, so they read from across a room.
+        _name.FontSize = 17 * scale;
+        _detail.FontSize = 15 * scale;
     }
 
     private void Paint()

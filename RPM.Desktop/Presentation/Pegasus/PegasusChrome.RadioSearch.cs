@@ -224,7 +224,7 @@ public sealed partial class PegasusChrome
         var edge = Math.Floor((column - pad * 2 - between * 3) / 4);
         RadioResultsScroll.Padding = new Thickness(pad);
         RadioResultsLayout.MinItemWidth = edge;
-        RadioResultsLayout.MinItemHeight = edge + (10 + 15 * 1.4) * scale;
+        RadioResultsLayout.MinItemHeight = edge + (10 + 17 * 1.4) * scale;
         RadioResultsLayout.MinColumnSpacing = between;
         RadioResultsLayout.MinRowSpacing = 22 * scale;
 

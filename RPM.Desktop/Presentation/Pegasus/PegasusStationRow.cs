@@ -335,7 +335,7 @@ public sealed partial class PegasusStationTile : Grid
         _well!.Size(look.Edge);
         _stack.Width = look.Edge;
         _stack.Spacing = 10 * look.Scale;
-        _name.FontSize = 15 * look.Scale;
+        _name.FontSize = 17 * look.Scale;   // the TV's couch size for a card's title
         _name.MaxWidth = look.Edge;
         Key.CornerRadius = _press.CornerRadius = new CornerRadius(look.Edge * 6 / 51);
 
