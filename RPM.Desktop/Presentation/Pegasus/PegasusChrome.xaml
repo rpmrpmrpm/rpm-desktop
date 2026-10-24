@@ -206,10 +206,10 @@
     </DataTemplate>
 
     <!-- One artist on the artists screen (see PegasusChrome.Artists): the photograph in a circle, the
-         artist's first letter under it until the photograph arrives, and the name and the number of
-         albums under the circle. It is a keyed resource for the reason PegasusCardTemplate gives: one
-         template, one pool. Both lines keep their height whether or not they have text, so every row has
-         the same height. -->
+         artist's first letter under it until the photograph arrives, and the name under the circle, with
+         no count of albums, as on the Android TV app. It is a keyed resource for the reason
+         PegasusCardTemplate gives: one template, one pool. The name keeps its height whether or not it
+         has text, so every row has the same height. -->
     <DataTemplate x:Key="PegasusArtistTemplate">
       <!-- Padding 8: the space that every card carries so that the remote's grow effect is not cut off at
            the edge of its row (see CardRoomAround). The rows are spaced 6 instead of 22, and the wall's
@@ -242,9 +242,6 @@
           <StackPanel Grid.Row="1" Margin="0,9,0,0" Spacing="5" local:FocusLift.Part="Below">
             <TextBlock Text="{Binding Name}" FontSize="{Binding Metrics.Title}" FontWeight="SemiBold"
                        Foreground="#F2FFFFFF" MinHeight="{Binding Metrics.TitleBox}" TextAlignment="Center"
-                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding Line}" FontSize="{Binding Metrics.Line}" Foreground="#99FFFFFF"
-                       MinHeight="{Binding Metrics.LineBox}" TextAlignment="Center"
                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
         </Grid>

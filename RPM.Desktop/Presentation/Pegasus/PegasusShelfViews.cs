@@ -43,7 +43,7 @@ public sealed partial class PegasusFaceMetrics : INotifyPropertyChanged
             if (value <= 0 || Math.Abs(_scale - value) < 0.001)
                 return;
             _scale = value;
-            Raise(nameof(Title), nameof(TitleBox), nameof(Line), nameof(LineBox));
+            Raise(nameof(Title), nameof(TitleBox));
         }
     }
 
@@ -66,11 +66,6 @@ public sealed partial class PegasusFaceMetrics : INotifyPropertyChanged
     /// <summary>The height of the name's line. It is kept whether or not there is a name, so every row has
     /// the same height (see PegasusCardTemplate).</summary>
     public double TitleBox => 19 * _scale;
-
-    /// <summary>The count under the name.</summary>
-    public double Line => 12 * _scale;
-
-    public double LineBox => 16 * _scale;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -98,9 +93,9 @@ internal enum FaceState
 }
 
 /// <summary>
-/// One act on the artists screen: the name, how many records are theirs, and the photograph once it has
-/// been fetched. The photograph is requested while the card's row is realized (see
-/// PegasusChrome.PumpArtistFaces).
+/// One act on the artists screen: the name, and the photograph once it has been fetched. No count of
+/// records: the Android TV app leaves it out, and the act's page says it. The photograph is requested while
+/// the card's row is realized (see PegasusChrome.PumpArtistFaces).
 /// </summary>
 [RpmBindable]
 public sealed partial class PegasusArtistCard : INotifyPropertyChanged
@@ -108,9 +103,6 @@ public sealed partial class PegasusArtistCard : INotifyPropertyChanged
     // Each property is init-only and has a default, not required. Uno's bindable metadata generator creates
     // an instance with no arguments to describe the type. A required member would stop it from doing that.
     public string Name { get; init; } = "";
-
-    /// <summary>For example "12 albums": the records filed under the act, alone or with other artists.</summary>
-    public string Line { get; init; } = "";
 
     /// <summary>The first letter of the name, drawn where there is no photograph. Empty for the
     /// compilations shelf, which wears <see cref="Glyph"/> instead.</summary>

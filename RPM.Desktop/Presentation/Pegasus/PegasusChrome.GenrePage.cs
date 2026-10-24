@@ -207,12 +207,12 @@ public sealed partial class PegasusChrome
             var column = 0;
             foreach (var act in acts)
             {
-                var own = act.Albums.Count + act.Together.Count;
                 var compilations = RPM.Core.Metadata.Providers.ArtistCredit.IsVariousArtists(act.Name);
                 ShelfCard? card = null;
+                // The name alone, with no count of records under it, as on the artists list.
                 card = new ShelfCard(
                     act.Name,
-                    own == 1 ? Loc.Get("Stats_AlbumsOne") : Loc.Format("Stats_Albums", own),
+                    line: null,
                     CardShape.Round, isExplicit: false,
                     // The compilations shelf is nobody in particular: the people glyph, as on the list.
                     stand: compilations ? "\uf0c0" : ArtistWall.Initial(act.Name).ToString(),

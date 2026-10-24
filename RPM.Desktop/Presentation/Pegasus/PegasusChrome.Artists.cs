@@ -13,8 +13,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
 /// The artists list in Pegasus: every act the collection files a record under, as a round photograph with
-/// the name and the number of records under it, six to a row at a scale of 1. OK on one opens the artist's
-/// page (PegasusChrome.ArtistPage).
+/// the name under it (no count of records, as on the Android TV app), six to a row at a scale of 1. OK on
+/// one opens the artist's page (PegasusChrome.ArtistPage).
 ///
 /// <para><b>Like the desktop artists wall, for a remote.</b> It uses the same acts in the same name order
 /// (<see cref="ArtistWall.Build"/>), the same photographs (<see cref="ArtistPortraits"/>) and a search
@@ -134,14 +134,12 @@ public sealed partial class PegasusChrome
     private PegasusArtistCard MakeArtistCard(ArtistWallItem act, LibraryAlbumIndex.ArtistShelf shelf)
     {
         var compilations = ArtistCredit.IsVariousArtists(act.Name);
-        var own = act.Albums.Count + act.Together.Count;
-        var first = act.Own.Select(f => shelf.AlbumFacts.TryGetValue(f, out var facts) ? facts.Album : null)
+        var first =act.Own.Select(f => shelf.AlbumFacts.TryGetValue(f, out var facts) ? facts.Album : null)
                            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
 
         var card = new PegasusArtistCard
         {
             Name = act.Name,
-            Line = own == 1 ? Loc.Get("Stats_AlbumsOne") : Loc.Format("Stats_Albums", own),
             Letter = compilations ? "" : ArtistWall.Initial(act.Name).ToString(),
             Glyph = compilations ? "\uf0c0" : "",
             Metrics = _artistMetrics,
