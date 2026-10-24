@@ -123,6 +123,9 @@ public sealed partial class PegasusChrome
 
     private Fader _radioScreenFade = null!;
 
+    /// <summary>An essential card's width, written in SizeRadio: what its card picture is decoded for.</summary>
+    private double _radioEssentialWidth;
+
     private static RadioService Radio => App.Services.GetRequiredService<RadioService>();
 
     /// <summary>Whether radio is the screen the collection shows.</summary>
@@ -462,12 +465,18 @@ public sealed partial class PegasusChrome
         ApplyRadioShown();
         ShowWhatRadioPlays();
 
-        // Every face on the screen is asked for once. The banner's card in front is also asked what it is
-        // playing (see AskRadioOnAir).
+        // Every face on the screen is asked for once: its colours and mark, the banner's and the essential
+        // cards' lines, and the essential cards' pictures. The banner's card in front is also asked what it
+        // is playing (see AskRadioOnAir).
         foreach (var face in _radioFaces.Values)
             _ = LoadFaceAsync(face, ct);
         foreach (var face in _radioBanner)
             _ = LoadLineAsync(face, ct);
+        foreach (var card in _radioEssentialCards)
+        {
+            _ = LoadLineAsync(card.Face, ct);
+            _ = LoadCardPictureAsync(card.Face, ct);
+        }
         AskRadioOnAir();
     }
 
@@ -547,10 +556,15 @@ public sealed partial class PegasusChrome
 
             // Unanswered, or answered with no mark: the room keeps the colours the name chose. The walk is
             // asked again by the next build, which is the next reading.
+            // The mark's main colour is read with the room: an essential card's picture is washed in it.
             if (answer.Answers(out var mark, out _) && mark is { Length: > 0 }
-                && await Cancellable.RunAsync(() => CoverRoom.Of(mark), ct) is { Ran: true, Value: var painted }
+                && await Cancellable.RunAsync(() => (Room: CoverRoom.Of(mark), Tint: CoverColor.Dominant(mark)), ct)
+                    is { Ran: true, Value: var painted }
                 && !ct.IsCancellationRequested)
-                face.ShowRoom(painted);
+            {
+                face.ShowRoom(painted.Room);
+                face.ShowTint(painted.Tint);
+            }
 
             var found = await RadioStationItem.LogoForAsync(face.Station, RadioMarkEdge());
             if (ct.IsCancellationRequested)
@@ -566,6 +580,47 @@ public sealed partial class PegasusChrome
             // A station's site that fails to answer says nothing about the station. Its colour stands.
             RPM.Core.Diagnostics.Scope.Said("radio", $"face of {face.Station.Display}: {ex.GetType().Name}");
         }
+    }
+
+    /// <summary>
+    /// An essential card's picture, the 16:9 one the admin chose for it, where the server lists one (see
+    /// RadioState.CardAddress): fetched through the app's picture cache, where it is kept for thirty days
+    /// under its stamped address, and decoded at the card's size. A station with none asks nothing.
+    /// </summary>
+    private async Task LoadCardPictureAsync(StationFace face, CancellationToken ct)
+    {
+        if (face.PictureAsked || RadioState.CardAddress(face.Station) is not { } address)
+            return;
+        face.PictureAsked = true;
+
+        try
+        {
+            var answer = await RemoteImage.BytesAsync(address, ct);
+            if (ct.IsCancellationRequested || !answer.Answers(out var bytes, out _) || bytes is not { Length: > 0 })
+                return;
+
+            var picture = await RemoteImage.DecodeArtAsync(bytes, RadioCardPictureEdge());
+            if (!ct.IsCancellationRequested)
+                face.ShowPicture(picture);
+        }
+        catch (OperationCanceledException)
+        {
+            // Built again, or the view closed.
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A picture that fails leaves the card as it is without one: the room and the logo.
+            RPM.Core.Diagnostics.Scope.Said("radio", $"card picture of {face.Station.Display}: {ex.GetType().Name}");
+        }
+    }
+
+    /// <summary>The pixel edge an essential card's picture is decoded at: the card's height, its short side,
+    /// on this display, in steps of 64 so a small resize does not need another decode.</summary>
+    private int RadioCardPictureEdge()
+    {
+        var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
+        var drawn = Math.Max(_radioEssentialWidth, 240 * QueueScale) * 9 / 16 * raster;
+        return (int)(Math.Ceiling(drawn / 64) * 64);
     }
 
     /// <summary>The pixel edge every mark on this screen is decoded at: the banner's, which is the largest
@@ -964,6 +1019,7 @@ public sealed partial class PegasusChrome
         var gap = 22 * scale;
         var essential = (strip - gap * 3) / 4;
         var favorite = (strip - gap * 5) / 6;
+        _radioEssentialWidth = essential;
         RadioEssentialRow.Spacing = RadioFavoritesRow.Spacing = gap;
         foreach (var card in _radioEssentialCards)
             card.Size(essential, scale);

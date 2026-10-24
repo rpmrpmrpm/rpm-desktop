@@ -28,6 +28,12 @@ namespace RPM.Desktop.Services.Catalog;
 /// on the drawing thread. A property there that awaited anything would stall the list. Before the first
 /// answer arrives they say "nothing is hidden" and "no stamp", so the app shows the list as it would
 /// without this state.</para>
+///
+/// <para><b>The essential cards' pictures.</b> The answer also lists the stations the admin gave a 16:9
+/// card picture for the essential row (<c>cards</c>), with a stamp that moves whenever one changes
+/// (<c>cardStamp</c>). The picture itself is served at <c>radio/card/{uuid}</c> (see
+/// <see cref="CardAddress"/>). The TV reads the same two fields (core/radio, RadioRepository and
+/// StationCards).</para>
 /// </summary>
 internal static partial class RadioState
 {
@@ -39,12 +45,12 @@ internal static partial class RadioState
     /// Kept for one hour, then checked again. Everything else in this cache is kept for thirty days. A
     /// document whose job is to say what has gone stale cannot itself be kept for a month.
     ///
-    /// <para>The key is "state-v2" because the answer now includes the station edits. A v1 answer on disk
-    /// has no edits, but its ETag still matches while the admin's file is unchanged. Under the old key, a
-    /// 304 would keep serving the answer from before the edits existed.</para>
+    /// <para>The key is "state-v3" because the answer now includes the card pictures (v2 added the station
+    /// edits). An older answer on disk has neither, but its ETag still matches while the admin's file is
+    /// unchanged. Under the old key, a 304 would keep serving the answer from before they existed.</para>
     /// </summary>
     private static readonly WebCachePolicy Policy =
-        new("radio", Fresh, TimeSpan.FromMinutes(5)) { Vary = "state-v2" };
+        new("radio", Fresh, TimeSpan.FromMinutes(5)) { Vary = "state-v3" };
 
     /// <summary>Built the same way <see cref="RadioLogoApi"/> builds its URLs: the dev override first, then
     /// the shipped deployment. This way the state and the logos it describes always use the same
@@ -55,12 +61,15 @@ internal static partial class RadioState
     /// <summary>The whole answer, replaced as one. A reader sees either the old snapshot or the new one,
     /// never a hidden list from one answer with a stamp from another.</summary>
     private sealed record Snapshot(
-        string Logos, IReadOnlySet<string> Hidden, IReadOnlySet<string> ByHand)
+        string Logos, IReadOnlySet<string> Hidden, IReadOnlySet<string> ByHand,
+        IReadOnlySet<string> Cards, string CardStamp)
     {
         public static readonly Snapshot Nothing = new(
             "",
             new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            "");
     }
 
     private static Snapshot _now = Snapshot.Nothing;
@@ -94,6 +103,30 @@ internal static partial class RadioState
     /// </summary>
     public static bool IsByHand(string? uuid)
         => uuid is { Length: > 0 } && Volatile.Read(ref _now).ByHand.Contains(uuid);
+
+    /// <summary>
+    /// The address of this station's card picture, the 16:9 picture the admin chose for its card in the
+    /// essential row, or null where it has none (most stations, and every station before the first answer).
+    ///
+    /// <para>A station is several directory rows folded into one, and the admin saves the picture under
+    /// every row of it, so its own uuid is asked first and then the folded ones, as the TV does
+    /// (StationCards.addressOf). The stamp goes on the address, as on a logo's (see RadioLogoApi.For): the
+    /// app's cache keeps a picture for thirty days, so a changed picture has to be a new address.</para>
+    /// </summary>
+    public static string? CardAddress(RadioStation station)
+    {
+        var now = Volatile.Read(ref _now);
+        if (now.Cards.Count == 0 || station is null)
+            return null;
+
+        var uuid = new[] { station.Uuid }.Concat(station.AlsoFiledAs)
+            .FirstOrDefault(u => u is { Length: > 0 } && now.Cards.Contains(u));
+        if (uuid is null || !Guid.TryParse(uuid, out var id))
+            return null;
+
+        var url = RpmApi.BaseUrl() + $"radio/card/{id:D}";
+        return now.CardStamp is { Length: > 0 } stamp ? url + "?v=" + Uri.EscapeDataString(stamp) : url;
+    }
 
     /// <summary>Whether this station has been taken out of the app.</summary>
     public static bool IsHidden(string? uuid)
@@ -200,7 +233,9 @@ internal static partial class RadioState
             var next = new Snapshot(
                 read.Logos ?? "",
                 new HashSet<string>(read.Hidden ?? [], StringComparer.OrdinalIgnoreCase),
-                new HashSet<string>(read.ByHand ?? [], StringComparer.OrdinalIgnoreCase));
+                new HashSet<string>(read.ByHand ?? [], StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>((read.Cards ?? []).Select(c => c.Trim()), StringComparer.OrdinalIgnoreCase),
+                read.CardStamp ?? "");
 
             var was = Volatile.Read(ref _now);
             Volatile.Write(ref _now, next);
@@ -214,13 +249,15 @@ internal static partial class RadioState
             var moved = was.Logos != next.Logos
                         || !was.Hidden.SetEquals(next.Hidden)
                         || !was.ByHand.SetEquals(next.ByHand)
+                        || !was.Cards.SetEquals(next.Cards)
+                        || was.CardStamp != next.CardStamp
                         || edited;
 
             // This is printed when RPM_RADIO_DIAG=1 is set. The output answers three questions: whether the
             // server was asked, what came back, and whether the list was drawn again. Without them, a
             // station hidden in the admin that is still listed cannot be traced.
             Say($"answered: {next.Hidden.Count} hidden, {next.ByHand.Count} chosen by hand, " +
-                $"{StationEdits.Now.Count} edited, stamp \"{next.Logos}\"" +
+                $"{StationEdits.Now.Count} edited, {next.Cards.Count} card pictures, stamp \"{next.Logos}\"" +
                 (moved ? " (changed, redrawing)" : " (no change)"));
 
             // Changed is raised only when something actually moved. The hourly ask is the common case, and
@@ -249,6 +286,8 @@ internal static partial class RadioState
         [JsonPropertyName("hidden")] public string[]? Hidden { get; init; }
         [JsonPropertyName("byHand")] public string[]? ByHand { get; init; }
         [JsonPropertyName("edits")] public Dictionary<string, EditAnswer>? Edits { get; init; }
+        [JsonPropertyName("cards")] public string[]? Cards { get; init; }
+        [JsonPropertyName("cardStamp")] public string? CardStamp { get; init; }
     }
 
     /// <summary>One station's edit as the API sends it. Null values are the directory's own.</summary>

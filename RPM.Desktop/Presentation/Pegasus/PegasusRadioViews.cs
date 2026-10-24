@@ -44,6 +44,18 @@ internal sealed class StationFace
     /// <summary>The lookup found no mark. The antenna is shown from then on.</summary>
     public bool LogoMissing { get; private set; }
 
+    /// <summary>The main colour of its mark, as the mark's own pixels have it (CoverColor.Dominant), or null
+    /// until the mark has been read or where it has no colour to give. An essential card's picture is washed
+    /// in it (see RadioRowCard).</summary>
+    public Color? Tint { get; private set; }
+
+    /// <summary>The card picture the admin chose for its card in the essential row, decoded at the card's
+    /// size, or null where it has none or it has not arrived (see RadioState.CardAddress).</summary>
+    public ImageSource? Picture { get; private set; }
+
+    /// <summary>Set before the first await of the card picture's fetch, so a face asks only once.</summary>
+    public bool PictureAsked { get; set; }
+
     /// <summary>What the station says it is, or what Wikipedia says about it. Null for most
     /// stations.</summary>
     public string? Blurb { get; private set; }
@@ -76,6 +88,18 @@ internal sealed class StationFace
     public void ShowRoom(RoomPalette room)
     {
         Room = room;
+        Changed?.Invoke();
+    }
+
+    public void ShowTint(Color? tint)
+    {
+        Tint = tint;
+        Changed?.Invoke();
+    }
+
+    public void ShowPicture(ImageSource picture)
+    {
+        Picture = picture;
         Changed?.Invoke();
     }
 
@@ -117,6 +141,12 @@ internal sealed class StationFace
     /// <summary>The line under the name in a row: where it broadcasts from and how it is served. The main
     /// window's radio pane shows the same line (RadioStationItem.Detail).</summary>
     public string Detail => new RadioStationItem(Station).Detail;
+
+    /// <summary>The line under an essential card's name, as the TV's (Radio.kt, WideStationCard): what the
+    /// station is (<see cref="Blurb"/>), else the country it broadcasts from, else nothing.</summary>
+    public string Says => Blurb is { Length: > 0 } blurb
+        ? blurb
+        : RadioCountries.Short(Station.Country, Station.CountryCode);
 }
 
 /// <summary>
@@ -402,6 +432,13 @@ internal sealed class RadioBannerHost
 /// station's name and where it broadcasts from under it. Essential stations stand in a wide room, favourite
 /// stations in a square one.
 ///
+/// <para><b>An essential card is dressed as the TV's</b> (Radio.kt, WideStationCard, 2026-10-20): where the
+/// admin chose a 16:9 card picture for the station, the card shows that picture, cropped to the card,
+/// washed in the main colour of the station's mark (at 0.55; a plain dark veil until that colour is read),
+/// over the room, and no logo, because the admin's pictures carry the station's own mark and a logo over
+/// them showed it twice. Under it, centred, the name and what the station is, else its country. A station
+/// with no card picture keeps the room and the logo well, with the same centred lines.</para>
+///
 /// <para>The remote stops on a line around a plain button (see RemoteLine): OK tunes the station, and a held
 /// OK or the Menu key opens its menu (Play, and Add to or Remove from favourites; see
 /// PegasusChrome.StationMenu). The button inside takes the pointer's press and is not a stop itself.</para>
@@ -429,6 +466,18 @@ internal sealed class RadioRowCard
     private readonly StackPanel _stack = new();
     private readonly bool _wide;
 
+    /// <summary>An essential card's picture and the wash over it. Collapsed until the picture arrives, and on
+    /// a favourite's card for good. The picture is the border's brush, not an Image inside it: a Border
+    /// rounds its own background on both heads, and a Grid does not clip what it holds on WinUI.</summary>
+    private readonly Border _picture = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+    private readonly Border _wash = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+
+    /// <summary>Laid over a card picture while the mark's colour is not known: the TV's CARD_PICTURE_VEIL.</summary>
+    private static readonly SolidColorBrush PictureVeil = StationWell.Ink(0x40000000);
+
+    /// <summary>How strongly a card picture is washed in the mark's colour: the TV's PICTURE_TINT, 0.55.</summary>
+    private const byte PictureTint = 140;
+
     public RadioRowCard(
         StationFace face, bool wide, Style plain, FontFamily icons,
         Action<RadioStation> tune, Func<RadioStation, MenuFlyout?> menu)
@@ -438,6 +487,8 @@ internal sealed class RadioRowCard
         _well = new StationWell(icons);
 
         _art.Children.Add(Room);
+        _art.Children.Add(_picture);
+        _art.Children.Add(_wash);
         _art.Children.Add(_well.Root);
         _well.Root.HorizontalAlignment = HorizontalAlignment.Center;
         _well.Root.VerticalAlignment = VerticalAlignment.Center;
@@ -461,6 +512,12 @@ internal sealed class RadioRowCard
 
         _name.Text = face.Station.Display;
         _detail.Text = face.Detail;
+        if (wide)
+        {
+            // Centred under the card, as on the TV.
+            _name.TextAlignment = _detail.TextAlignment = TextAlignment.Center;
+            _name.HorizontalAlignment = _detail.HorizontalAlignment = HorizontalAlignment.Stretch;
+        }
         face.Changed += Paint;
         Paint();
     }
@@ -490,6 +547,7 @@ internal sealed class RadioRowCard
         var corner = new CornerRadius(10 * scale);
         Root.CornerRadius = _press.CornerRadius = corner;
         Room.CornerRadius = corner;
+        _wash.CornerRadius = _picture.CornerRadius = corner;
         _well.Size(height * 0.5);
 
         // The TV's couch sizes for a card's two lines (CARD_TITLE_TEXT and CARD_LINE_TEXT), up from the
@@ -502,6 +560,23 @@ internal sealed class RadioRowCard
     {
         Room.Palette = Face.Room;
         _well.Show(Face.Logo);
+
+        if (!_wide)
+            return;
+
+        var picture = Face.Picture;
+        var shows = picture is null ? Visibility.Collapsed : Visibility.Visible;
+        if (picture is not null && (_picture.Background as ImageBrush)?.ImageSource != picture)
+            _picture.Background = new ImageBrush { ImageSource = picture, Stretch = Stretch.UniformToFill };
+        _picture.Visibility = _wash.Visibility = shows;
+        _wash.Background = Face.Tint is { } tint
+            ? new SolidColorBrush(Color.FromArgb(PictureTint, tint.R, tint.G, tint.B))
+            : PictureVeil;
+
+        // The picture carries the station's own mark, so the logo is not drawn over it.
+        _well.Root.Visibility = picture is null ? Visibility.Visible : Visibility.Collapsed;
+        _detail.Text = Face.Says;
+        _detail.Visibility = _detail.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Stops following the face. Used when a row is built again.</summary>
