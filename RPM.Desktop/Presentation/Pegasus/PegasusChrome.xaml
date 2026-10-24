@@ -1980,7 +1980,10 @@
           </Grid>
 
           <!-- The player: the station's mark in the middle of a small room in the mark's own colours,
-               what it is playing under it, and the key that plays or stops it. -->
+               what it is playing under it, and the key that plays or stops it. The room is under a
+               #5C000000 veil, dark enough for the keys and lines over it to read, and the glass is only
+               its rim: no smoke over the room, which washed its colours out white (the TV's tuner,
+               2026-10-18). -->
           <Grid x:Name="TunerPlayer" Grid.Column="1" VerticalAlignment="Top">
             <Border x:Name="TunerPlayerFrost" IsHitTestVisible="False">
               <Border.Background>
@@ -1988,10 +1991,9 @@
               </Border.Background>
             </Border>
             <ui:CardRoom x:Name="TunerRoom" Shown="False"/>
-            <Border x:Name="TunerPlayerVeil" Background="#33000000" IsHitTestVisible="False"/>
+            <Border x:Name="TunerPlayerVeil" Background="#5C000000" IsHitTestVisible="False"/>
             <Border x:Name="TunerPlayerGlass" IsHitTestVisible="False" BorderThickness="1"
-                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
-                    LightSmokeRimBrush}"/>
+                    BorderBrush="{StaticResource LightSmokeRimBrush}"/>
             <StackPanel x:Name="TunerPlayerBody" HorizontalAlignment="Center" VerticalAlignment="Center">
               <Grid x:Name="TunerWellHost" HorizontalAlignment="Center"/>
               <TextBlock x:Name="TunerTitle" FontWeight="Bold" Foreground="#FFFFFFFF" TextAlignment="Center"
