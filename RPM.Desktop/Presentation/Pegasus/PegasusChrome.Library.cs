@@ -44,6 +44,10 @@ public sealed partial class PegasusAlbumCard : INotifyPropertyChanged, Services.
 
     public int Plays { get; set; }
 
+    /// <summary>The record's year by <see cref="AlbumSort.YearFrom"/>, or zero where none is known. Read
+    /// only for the By date order, which is the only thing that uses it; zero otherwise.</summary>
+    public int Year { get; set; }
+
     /// <summary>Whether the listener has loved this record, what the heart in the tools narrows the wall
     /// to. Re-read on every fill rather than carried, because a mark made on the record screen does not
     /// rebuild the collection.</summary>
@@ -548,6 +552,10 @@ public sealed partial class PegasusChrome
         var db = library.Db;
         var search = string.IsNullOrWhiteSpace(_librarySearch) ? null : _librarySearch;
 
+        // The years are a fourth question, asked only for the By date order. Counting every track's year
+        // is a pass over the whole tracks table, which no other order needs.
+        var byDate = _libraryOrdering == AlbumOrdering.Date;
+
         // The three questions in one hop off the thread that is driving the shader. All three take
         // the SEARCH, the mirror does the narrowing, so a question about a collection of thousands
         // is still one indexed query and the wall never sees the records it is not about.
@@ -557,11 +565,12 @@ public sealed partial class PegasusChrome
                 // The same mirror the two questions above it are asked of. This wall lists the
                 // listener's OWN records whatever the window is browsing, and reading the hearts off
                 // the shelf instead put a friend's marks on this collection's sleeves.
-                mirror.FavoriteAlbumFolders()))))
+                mirror.FavoriteAlbumFolders(),
+                byDate ? YearsOf(mirror, search) : null))))
             // Unanswered is an empty wall. A refusal has put the problem screen up over the app and
             // taken Pegasus down; a closed mirror is followed by a Changed that fills the wall again.
             .Match(found => found,
-                _ => new LibraryRead([], [], new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+                _ => new LibraryRead([], [], new HashSet<string>(StringComparer.OrdinalIgnoreCase), null));
 
         if (read != _libraryRead)
             return;
@@ -656,11 +665,32 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>What one pass over the mirror comes back with: every record the question matched, which
-    /// of them hold an explicit track, and which the listener has loved.</summary>
+    /// of them hold an explicit track, which the listener has loved, and, for the By date order only,
+    /// each record's year (null otherwise).</summary>
     private readonly record struct LibraryRead(
         IReadOnlyList<LibraryDatabase.AlbumFactsRow> Facts,
         HashSet<string> Explicit,
-        IReadOnlySet<string> Favorites);
+        IReadOnlySet<string> Favorites,
+        IReadOnlyDictionary<string, int>? Years);
+
+    /// <summary>Each record's year, by the rule every other surface uses (<see cref="AlbumSort.YearFrom"/>),
+    /// so a record sorts by the year the window and home print for it. A record with no year tag is not
+    /// in the answer.</summary>
+    private static Dictionary<string, int> YearsOf(LibraryDatabase mirror, string? search)
+    {
+        var counted = new Dictionary<string, List<(int Year, int Count)>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, year, count) in mirror.QueryAlbumYearCounts(search))
+        {
+            if (!counted.TryGetValue(folder, out var list))
+                counted[folder] = list = [];
+            list.Add((year, count));
+        }
+
+        var years = new Dictionary<string, int>(counted.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, list) in counted)
+            years[folder] = AlbumSort.YearFrom(list);
+        return years;
+    }
 
     /// <summary>
     /// The records a read matched, as cards, in the order the listener asked for.
@@ -710,6 +740,7 @@ public sealed partial class PegasusChrome
             card.IsFavorite = favorite;
             card.AddedAt = row.AddedAt;
             card.Plays = row.Plays;
+            card.Year = answer.Years?.GetValueOrDefault(row.Folder) ?? 0;
 
             all.Add(card);
             if (!_libraryFavoritesOnly || favorite)
@@ -722,7 +753,7 @@ public sealed partial class PegasusChrome
         // in folder order and nothing downstream of it cares.
         var wall = AlbumSort.By(
             cards, _libraryOrdering,
-            c => new AlbumFacts(c.Name, c.Under ?? "", c.AddedAt, 0, c.Plays)).ToList();
+            c => new AlbumFacts(c.Name, c.Under ?? "", c.AddedAt, c.Year, c.Plays)).ToList();
 
         return (all, wall);
     }

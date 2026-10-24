@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
+using RPM.Desktop.Services.Shell;
 
 namespace RPM.Desktop.Presentation.Pegasus;
 
@@ -29,9 +30,24 @@ public sealed partial class PegasusChrome
     /// settling.</summary>
     private string _librarySearch = "";
 
-    /// <summary>The order the wall is in. Artist to begin with, which is the order a shelf is in and the
-    /// order the window's wall opens on.</summary>
-    private AlbumOrdering _libraryOrdering = AlbumOrdering.Artist;
+    /// <summary>The order the wall is in: the one chosen last time, kept across launches as the Android TV
+    /// app keeps its own (see <see cref="SavedLibraryOrdering"/>). Artist on a first visit, which is the
+    /// order a shelf is in and the order the window's wall opens on.</summary>
+    private AlbumOrdering _libraryOrdering = SavedLibraryOrdering();
+
+    /// <summary>The orders the sort key offers, in the menu's order. The window's Year order is not one of
+    /// them: the TV screens sort by date the other way round, oldest first.</summary>
+    private static readonly AlbumOrdering[] LibraryOrderings =
+        [AlbumOrdering.Album, AlbumOrdering.Artist, AlbumOrdering.Added, AlbumOrdering.Date, AlbumOrdering.Plays];
+
+    /// <summary>The order saved by the last choice on the sort key, in settings.json under its own name
+    /// (<see cref="SettingsService.PegasusAlbumOrdering"/>), not the window's. An order this wall does not
+    /// offer is read as Artist.</summary>
+    private static AlbumOrdering SavedLibraryOrdering()
+    {
+        var saved = App.Services.GetRequiredService<SettingsService>().PegasusAlbumOrdering;
+        return Array.IndexOf(LibraryOrderings, saved) >= 0 ? saved : AlbumOrdering.Artist;
+    }
 
     /// <summary>Whether the wall is narrowed to the records the listener has loved.</summary>
     private bool _libraryFavoritesOnly;
@@ -101,8 +117,9 @@ public sealed partial class PegasusChrome
     // ── the order ──
 
     /// <summary>
-    /// The order the wall is in: by the record's name, by whose record it is, by when it arrived, or by
-    /// how much it has been listened to.
+    /// The order the wall is in: by the record's name, by whose record it is, by when it arrived, by when
+    /// it came out (oldest first), or by how much it has been listened to. The choice is saved, so the wall
+    /// opens in it on the next launch.
     ///
     /// <para>A menu rather than a row of chips, exactly as in the window and on the phone: it is a choice
     /// made rarely, and four chips across the top of a wall of album art would always be in the way.</para>
@@ -120,6 +137,7 @@ public sealed partial class PegasusChrome
         Add(AlbumOrdering.Album, "AlbumSort_Album", "");     // the record itself
         Add(AlbumOrdering.Artist, "AlbumSort_Artist", "");   // a person
         Add(AlbumOrdering.Added, "AlbumSort_Added", "");     // a date, with something new on it
+        Add(AlbumOrdering.Date, "AlbumSort_Date", "\uf073");   // a calendar
         Add(AlbumOrdering.Plays, "AlbumSort_Plays", "");     // headphones
 
         menu.ShowAt(LibrarySortButton);
@@ -147,6 +165,7 @@ public sealed partial class PegasusChrome
                 if (_libraryOrdering == ordering)
                     return;   // the order it is already in is not a change to re-chunk the wall for
                 _libraryOrdering = ordering;
+                App.Services.GetRequiredService<SettingsService>().PegasusAlbumOrdering = ordering;
                 RefillLibrary();
             };
             menu.Items.Add(item);

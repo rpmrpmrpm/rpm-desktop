@@ -116,6 +116,7 @@ public sealed partial class SettingsService
         double PlaylistTileSize = 150,
         bool LockedListsHidden = false,
         AlbumOrdering AlbumOrdering = AlbumOrdering.Artist,
+        AlbumOrdering PegasusAlbumOrdering = AlbumOrdering.Artist,
         AlbumGrouping AlbumGrouping = AlbumGrouping.None,
         ArtistTrackGrouping ArtistTrackGrouping = ArtistTrackGrouping.Letter,
         string? CustomBackgroundPath = null,
@@ -528,6 +529,16 @@ public sealed partial class SettingsService
     {
         get => _model.AlbumOrdering;
         set => Update(_model with { AlbumOrdering = value }, notify: false);
+    }
+
+    /// <summary>The order Pegasus's album wall is in, kept apart from the window's wall: the two offer
+    /// different orders (Pegasus has <see cref="AlbumOrdering.Date"/>, the window has
+    /// <see cref="AlbumOrdering.Year"/>), as the Android TV app keeps its own. Saved quietly, for the same
+    /// reason as the window's.</summary>
+    public AlbumOrdering PegasusAlbumOrdering
+    {
+        get => _model.PegasusAlbumOrdering;
+        set => Update(_model with { PegasusAlbumOrdering = value }, notify: false);
     }
 
     /// <summary>What the album list gathers its records under. See <see cref="AlbumGrouping"/>. It is saved
