@@ -15,6 +15,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// </summary>
 /// <param name="Scale">The scale that the main window's radio pane sizes are multiplied by.</param>
 /// <param name="Edge">A search tile's side, in points.</param>
+/// <param name="Menu">A search tile's menu for a held OK or the Menu key, built unshown (see
+/// PegasusChrome.StationMenu). Null where a held OK only presses, as on the tuner's rows.</param>
 internal sealed record PegasusRadioLook(
     double Scale,
     double Edge,
@@ -22,7 +24,8 @@ internal sealed record PegasusRadioLook(
     FontFamily Icons,
     FontFamily IconsRegular,
     Action<RadioStationItem> Press,
-    Action<RadioStationItem> Heart);
+    Action<RadioStationItem> Heart,
+    Func<RadioStationItem, MenuFlyout?>? Menu = null);
 
 /// <summary>
 /// One station in the tuner's list, drawn the way the main window's radio pane draws one (RadioView.xaml):
@@ -261,18 +264,23 @@ public sealed partial class PegasusStationRow : Grid
 }
 
 /// <summary>
-/// One station in radio's search results: its logo in a well, and its name under it. It is a plain button.
-/// The remote stops on it. OK on it tunes the station and closes the search (see
-/// PegasusChrome.RadioSearch). The results are laid out as a grid of squares, each with the station's name
-/// under it.
+/// One station in radio's search results: its logo in a well, and its name under it. The results are laid
+/// out as a grid of squares, each with the station's name under it.
+///
+/// <para>The remote stops on its line (see <see cref="Key"/>, a RemoteLine): OK tunes the station and
+/// closes the search (see PegasusChrome.RadioSearch), and a held OK or the Menu key opens the station's
+/// menu. Inside the line a plain button takes the pointer's press; it is not a stop itself. The tile is a
+/// panel around the line because a RemoteLine is given what OK does when it is made, and the repeater
+/// makes a tile with nothing: the line asks the tile's look and station each time instead.</para>
 ///
 /// <para>It reads the station it is handed when it is realized, as a tuner row does. It asks for its logo at
 /// the tile's own size, not at the pane's 102 pixels. At this tile size, a 102 pixel logo would be drawn
 /// soft. An answer for a station that the tile has since been handed away from is dropped.</para>
 /// </summary>
-public sealed partial class PegasusStationTile : Button
+public sealed partial class PegasusStationTile : Grid
 {
     private readonly StackPanel _stack = new();
+    private readonly Button _press = new() { IsTabStop = false };
 
     private readonly TextBlock _name = new()
     {
@@ -289,10 +297,25 @@ public sealed partial class PegasusStationTile : Button
 
     public PegasusStationTile()
     {
-        Content = _stack;
+        _press.Content = _stack;
+        _press.Click += (_, _) => Press();
+        Key = new RemoteLine(
+            _press,
+            Press,
+            () => _item is { } item ? _look?.Menu?.Invoke(item) : null,
+            turn: null);
+        Children.Add(Key);
         VerticalAlignment = VerticalAlignment.Top;
-        Click += (_, _) => { if (_item is { } item) _look?.Press(item); };
         DataContextChanged += (_, _) => Follow(DataContext as RadioStationItem);
+    }
+
+    /// <summary>The remote's stop: OK tunes the station, a held OK or the Menu key opens its menu.</summary>
+    internal RemoteLine Key { get; }
+
+    private void Press()
+    {
+        if (_item is { } item)
+            _look?.Press(item);
     }
 
     internal void Wear(PegasusRadioLook look)
@@ -302,6 +325,7 @@ public sealed partial class PegasusStationTile : Button
 
         if (_look is null)
         {
+            _press.Style = look.Plain;
             _well = new StationWell(look.Icons);
             _stack.Children.Add(_well.Root);
             _stack.Children.Add(_name);
@@ -313,7 +337,7 @@ public sealed partial class PegasusStationTile : Button
         _stack.Spacing = 10 * look.Scale;
         _name.FontSize = 15 * look.Scale;
         _name.MaxWidth = look.Edge;
-        CornerRadius = new CornerRadius(look.Edge * 6 / 51);
+        Key.CornerRadius = _press.CornerRadius = new CornerRadius(look.Edge * 6 / 51);
 
         // The tile was realized before its look arrived, so its station is followed again now that the look is set.
         var item = _item;

@@ -384,7 +384,11 @@ internal sealed class RadioBannerHost
 /// <summary>
 /// One card in one of radio's rows: the station's logo well in a still room of the mark's colours, with the
 /// station's name and where it broadcasts from under it. Essential stations stand in a wide room, favourite
-/// stations in a square one. It is a plain button. The remote stops on it, and OK tunes it.
+/// stations in a square one.
+///
+/// <para>The remote stops on a line around a plain button (see RemoteLine): OK tunes the station, and a held
+/// OK or the Menu key opens its menu (Play, and Add to or Remove from favourites; see
+/// PegasusChrome.StationMenu). The button inside takes the pointer's press and is not a stop itself.</para>
 /// </summary>
 internal sealed class RadioRowCard
 {
@@ -409,7 +413,9 @@ internal sealed class RadioRowCard
     private readonly StackPanel _stack = new();
     private readonly bool _wide;
 
-    public RadioRowCard(StationFace face, bool wide, Style plain, FontFamily icons, Action<RadioStation> tune)
+    public RadioRowCard(
+        StationFace face, bool wide, Style plain, FontFamily icons,
+        Action<RadioStation> tune, Func<RadioStation, MenuFlyout?> menu)
     {
         Face = face;
         _wide = wide;
@@ -424,13 +430,18 @@ internal sealed class RadioRowCard
         _stack.Children.Add(_name);
         _stack.Children.Add(_detail);
 
-        Root = new Button
+        _press = new Button
         {
             Style = plain,
             Content = _stack,
+            IsTabStop = false,
+        };
+        _press.Click += (_, _) => tune(face.Station);
+
+        Root = new RemoteLine(_press, () => tune(face.Station), () => menu(face.Station), turn: null)
+        {
             VerticalAlignment = VerticalAlignment.Top,
         };
-        Root.Click += (_, _) => tune(face.Station);
 
         _name.Text = face.Station.Display;
         _detail.Text = face.Detail;
@@ -438,7 +449,11 @@ internal sealed class RadioRowCard
         Paint();
     }
 
-    public Button Root { get; }
+    /// <summary>The remote's stop: OK tunes, a held OK or the Menu key opens the station's menu.</summary>
+    public RemoteLine Root { get; }
+
+    /// <summary>The pointer's press, inside the stop.</summary>
+    private readonly Button _press;
 
     /// <summary>A still room: it is drawn once, in the station's colours. Twenty drifting rooms on one screen
     /// would cost the drawing thread several milliseconds a frame each (see CardRoom).</summary>
@@ -457,7 +472,7 @@ internal sealed class RadioRowCard
         _stack.Spacing = 7 * scale;
 
         var corner = new CornerRadius(10 * scale);
-        Root.CornerRadius = corner;
+        Root.CornerRadius = _press.CornerRadius = corner;
         Room.CornerRadius = corner;
         _well.Size(height * 0.5);
 

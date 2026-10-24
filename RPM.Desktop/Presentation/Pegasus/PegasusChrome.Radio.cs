@@ -26,8 +26,11 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <item><b>Essential stations</b> are the directory's most played stations in the listener's country (the
 /// system's region), or everywhere where that is not known or lists nothing.</item>
 /// <item><b>Favourite stations</b> are the ones saved with the heart, in the tuner or in the main window's
-/// radio pane.</item>
+/// radio pane, or with a station's menu here.</item>
 /// </list>
+///
+/// <para>A held OK or the Menu key on any station card, the banner's included, opens the station's menu:
+/// Play, and Add to or Remove from favourites (see StationMenu).</para>
 ///
 /// <para>Left held for two seconds opens the side menu, as on home; Right held for two seconds opens
 /// radio's wheel (see PegasusChrome.RadioWheel), which leads to the tuner and the search. Back goes to
@@ -62,8 +65,9 @@ public sealed partial class PegasusChrome
     /// front.</summary>
     private readonly RadioBannerHost[] _bannerHosts = new RadioBannerHost[5];
 
-    /// <summary>The remote's one stop over the card in front: OK tunes it, Left and Right step the banner.
-    /// It takes no pointer input; a press on a card is its own (see BannerHost_Tapped).</summary>
+    /// <summary>The remote's one stop over the card in front: OK tunes it, Left and Right step the banner,
+    /// and a held OK or the Menu key opens the station's menu (see StationMenu). It takes no pointer input;
+    /// a press on a card is its own (see BannerHost_Tapped).</summary>
     private RemoteLine? _radioBannerKey;
 
     /// <summary>The stations on the banner, in order, and which of them is in front.</summary>
@@ -137,7 +141,11 @@ public sealed partial class PegasusChrome
             RadioBanner.Children.Add(host.Root);
         }
 
-        _radioBannerKey = new RemoteLine(new Grid(), TuneBannerFront, menu: null, turn: StepRadioBanner)
+        _radioBannerKey = new RemoteLine(
+            new Grid(),
+            TuneBannerFront,
+            () => _radioBanner.Count > 0 ? StationMenu(_radioBanner[_radioFront].Station, TuneBannerFront) : null,
+            turn: StepRadioBanner)
         {
             IsHitTestVisible = false,
             HorizontalAlignment = HorizontalAlignment.Left,
@@ -159,6 +167,10 @@ public sealed partial class PegasusChrome
             // reading, so a heart does not rearrange it under the listener.
             if (RadioIsReady)
                 BuildFavoritesRow();
+
+            // A favourite taken away from its own card's menu goes with its card, and the focus with it:
+            // the screen's default takes it once the menu has closed.
+            RefocusIfLost();
         });
 
         BuildRadioWheel();
@@ -464,7 +476,8 @@ public sealed partial class PegasusChrome
         var icons = (FontFamily)Resources["PegasusFa"];
         foreach (var station in stations)
         {
-            var card = new RadioRowCard(FaceFor(station), wide, plain, icons, TuneFromRadio);
+            var card = new RadioRowCard(FaceFor(station), wide, plain, icons, TuneFromRadio,
+                s => StationMenu(s, () => TuneFromRadio(s)));
             cards.Add(card);
             row.Children.Add(card.Root);
         }
@@ -710,6 +723,30 @@ public sealed partial class PegasusChrome
     {
         Radio.Tune(station);
         Announced?.Invoke(Loc.Format("Radio_TunedTo", station.Display));
+    }
+
+    /// <summary>
+    /// A station's menu, for a held OK or the Menu key on any station card: the banner's card in front,
+    /// the essential and favourite stations, and the search's results (see RemoteLine). Play does what OK
+    /// on the card does (<paramref name="play"/>: the search's also closes it), and the second entry keeps
+    /// the station in the favourites or lets it go, as the tuner's heart does. The TV's radio has the same
+    /// two (Radio.kt, openMenu). Built at this view's size, unshown, for the host to open.
+    /// </summary>
+    private MenuFlyout StationMenu(RadioStation station, Action play)
+    {
+        var favorites = Radio.Favorites;
+        var kept = favorites.Contains(station.Uuid);
+        var menu = new MenuFlyout();
+        menu.Items.Add(MenuEntry(Loc.Get("Radio_PlayStation"), play));
+        menu.Items.Add(MenuEntry(
+            Loc.Get(kept ? "Tv_Radio_RemoveFavorite" : "Tv_Radio_AddFavorite"),
+            () =>
+            {
+                favorites.Toggle(station);
+                RPM.Core.Diagnostics.Scope.Said(
+                    "radio", $"{(kept ? "removed from" : "added to")} favourites from its menu: {station.Display}");
+            }));
+        return ForThisView(menu);
     }
 
     // ── the remote ──

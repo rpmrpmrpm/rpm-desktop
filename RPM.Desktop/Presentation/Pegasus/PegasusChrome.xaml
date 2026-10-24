@@ -128,7 +128,7 @@
       <local:PegasusStationRow/>
     </DataTemplate>
     <DataTemplate x:Key="RadioTileTemplate">
-      <local:PegasusStationTile Style="{StaticResource PegasusPlainButton}"/>
+      <local:PegasusStationTile/>
     </DataTemplate>
 
     <!-- One album on the wall.

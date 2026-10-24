@@ -23,7 +23,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// window's pane keeps its query: the directory's most played stations matching the words, most played
 /// first, asked again 450 ms after the typing stops (RadioModel.TypingPause). The directory is
 /// volunteer-run, and asking on every key would be a request per letter.</item>
-/// <item><b>OK on a result</b> tunes it, says so along the foot, and closes the search.</item>
+/// <item><b>OK on a result</b> tunes it, says so along the foot, and closes the search. A held OK or the
+/// Menu key opens its menu (see StationMenu), whose Play does the same.</item>
 /// </list>
 ///
 /// <para>Back closes the search (see PegasusPlayer.TakeBack). The query is kept for the next time.</para>
@@ -181,7 +182,9 @@ public sealed partial class PegasusChrome
             || !(ReferenceEquals(from, RadioSearchBox) || ReferenceEquals(from, RadioSearchGo)))
             return next;
 
-        return RadioSearchTiles.TryGetElement(0) is Control first && CanTakeFocus(first) ? first : next;
+        return RadioSearchTiles.TryGetElement(0) is PegasusStationTile { Key: var first } && CanTakeFocus(first)
+            ? first
+            : next;
     }
 
     /// <summary>
@@ -236,7 +239,8 @@ public sealed partial class PegasusChrome
             (FontFamily)Resources["PegasusFa"],
             (FontFamily)Resources["PegasusFaRegular"],
             PickSearchResult,
-            Heart: static _ => { });
+            Heart: static _ => { },
+            Menu: item => StationMenu(item.Station, () => PickSearchResult(item)));
 
         var count = RadioSearchTiles.ItemsSourceView?.Count ?? 0;
         for (var i = 0; i < count; i++)
