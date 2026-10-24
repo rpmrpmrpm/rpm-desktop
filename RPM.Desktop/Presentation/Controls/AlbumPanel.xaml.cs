@@ -87,7 +87,8 @@ public sealed partial class AlbumPanel : UserControl
         PlayButton.IsEnabled = _tracks.Count > 0;
         ShuffleButton.IsEnabled = _tracks.Count > 0;
         var meta = db.GetAlbumMeta(folder);
-        TrackList.ItemsSource = AlbumTrackItem.Build(_tracks, meta.Classical == true);
+        TrackList.ItemsSource = AlbumTrackItem.Build(
+            _tracks, meta.Classical == true || AlbumTracklist.ClassicalByGenre(_tracks));
 
         ApplyMeta(meta);
     }

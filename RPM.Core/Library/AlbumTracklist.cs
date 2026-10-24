@@ -105,6 +105,95 @@ public static class AlbumTracklist
     public static List<(string? Work, List<TrackInfo> Tracks)> ByWork(IReadOnlyList<TrackInfo> tracks)
         => ByWork(tracks, t => t.Work);
 
+    /// <summary>
+    /// What a movement's own line says, under a work heading that already gives the rest of the name.
+    ///
+    /// <para>A file's title carries the whole name, such as "Sonata In C Major, KV. 330: Allegretto", because
+    /// every program that does not know about works reads that field. Under the heading, the sonata's name
+    /// would then appear on every line. So the movement is shown alone: the movement tag where the file has
+    /// one, and otherwise what is left of the title once the work in front of it is removed.</para>
+    ///
+    /// <para>A movement tag that repeats the work is cut in the same way. MusicBrainz Picard writes
+    /// "Der Rosenkavalier, op. 59: Akt I. Einleitung" as the movement of the work
+    /// "Der Rosenkavalier, op. 59: Akt I", so without the cut every movement would say the whole title
+    /// again. The marks that part the work from the movement (see <see cref="WorkSeparators"/>) go with
+    /// it.</para>
+    /// </summary>
+    /// <param name="movementName">The file's MOVEMENTNAME tag, or null.</param>
+    /// <param name="title">The file's title, or null.</param>
+    /// <param name="work">The work the track is a movement of. Null gives null: a track that is not part of
+    /// a work has no movement to show.</param>
+    /// <returns>The movement alone, or null when neither the tag nor the title says one.</returns>
+    public static string? MovementOf(string? movementName, string? title, string? work)
+    {
+        if (string.IsNullOrWhiteSpace(work))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(movementName))
+            return AfterWork(movementName, work) ?? movementName;
+
+        return AfterWork(title, work);
+    }
+
+    /// <summary>The same for an album's own track.</summary>
+    public static string? MovementOf(TrackInfo track, string? work)
+        => MovementOf(track.MovementName, track.Title, work);
+
+    /// <summary>The marks that stand between a work and its movement in a title: "Work: Movement",
+    /// "Work. Movement", "Work - Movement" and the like. Taken off the front of what is left.</summary>
+    private static readonly char[] WorkSeparators = [' ', '.', ',', ':', ';', '-', '–', '—'];
+
+    /// <summary>What <paramref name="text"/> has left once <paramref name="work"/> in front of it and the
+    /// marks after the work are removed. Null when the text does not start with the work, or when nothing
+    /// is left.</summary>
+    private static string? AfterWork(string? text, string work)
+    {
+        if (text is null || !text.StartsWith(work, StringComparison.CurrentCultureIgnoreCase))
+            return null;
+
+        var rest = text[work.Length..].TrimStart(WorkSeparators);
+        return rest.Length > 0 ? rest : null;
+    }
+
+    /// <summary>The genres whose records are classical music, by the shelf
+    /// <see cref="Metadata.Genres.Match"/> puts a tag on.</summary>
+    private static readonly string[] ClassicalShelves = ["Classical", "Opera"];
+
+    /// <summary>
+    /// Whether most of a record's tracks are filed under classical music or opera by their genre.
+    ///
+    /// <para>A record is listed as works with their movements when its owner marked it classical, or when
+    /// this is true. The work tags alone never decide: MusicBrainz names a work for many pop songs too, so a
+    /// pop record can have runs of a work. A genre does decide, because a record filed under Classical or
+    /// Opera is classical music whatever else its tags say. Few records are marked by hand, and many more
+    /// carry one of these two genres.</para>
+    ///
+    /// <para>"Most" is more than half. So one classical bonus track does not change a pop record, and one
+    /// untagged track does not stop a symphony being read as one.</para>
+    /// </summary>
+    /// <param name="genreOf">The genre tag of a track, as the file gives it. It is read through
+    /// <see cref="Metadata.Genres.Match"/>, so the shelf decides and not the exact spelling.</param>
+    public static bool ClassicalByGenre<T>(IReadOnlyList<T> tracks, Func<T, string?> genreOf)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+        ArgumentNullException.ThrowIfNull(genreOf);
+
+        if (tracks.Count == 0)
+            return false;
+
+        var filed = 0;
+        foreach (var track in tracks)
+            if (Metadata.Genres.Match(genreOf(track)) is { } shelf
+                && Array.IndexOf(ClassicalShelves, shelf) >= 0)
+                filed++;
+
+        return filed * 2 > tracks.Count;
+    }
+
+    /// <summary>The same for an album's own tracks.</summary>
+    public static bool ClassicalByGenre(IReadOnlyList<TrackInfo> tracks)
+        => ClassicalByGenre(tracks, t => t.Genre);
+
     /// <summary>Every track of the album in reading order: disc 1 in full, then disc 2. Play all, the
     /// queue and Add to playlist all use this order.
     /// </summary>

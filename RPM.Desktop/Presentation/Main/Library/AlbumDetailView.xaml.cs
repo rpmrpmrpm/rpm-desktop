@@ -299,10 +299,12 @@ public sealed partial class AlbumDetailView : UserControl
         _ = FillCopyrightAsync(folder, _tracks);
 
         LoadCover(root);
-        // The album's own answer, and nothing else. A record marked classical is drawn as works and movements,
-        // whatever its tags look like. Every other record is a plain numbered list.
+        // A record marked classical, or one filed under Classical or Opera, is drawn as works and movements.
+        // The work tags alone decide nothing (see AlbumTracklist.ClassicalByGenre). Every other record is a
+        // plain numbered list.
         TrackList.ItemsSource = AlbumTrackItem.Build(
-            _tracks, db.GetAlbumMeta(folder).Classical == true, Cloud.UploadsStopped, Shelf);
+            _tracks, db.GetAlbumMeta(folder).Classical == true || AlbumTracklist.ClassicalByGenre(_tracks),
+            Cloud.UploadsStopped, Shelf);
 
         // The star on the track the world plays most is a mark ON those lines, so it waits for them to exist.
         // The record is named here, from the tags in hand. It is not read from _identity. That is filled by the

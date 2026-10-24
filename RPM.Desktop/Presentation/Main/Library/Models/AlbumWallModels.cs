@@ -774,9 +774,12 @@ public sealed partial class AlbumTrackItem : INotifyPropertyChanged, RPM.Desktop
     /// of each disc when the album has more than one. Single-disc albums, nearly all of them, get the
     /// plain track list with no divider.
     /// </summary>
-    /// <param name="classical">Whether the album is classical, as its owner set it. A record is classical
-    /// only because somebody said so, never because its tags look the part. A classical record is drawn
-    /// the way it is published: a list of works, each with its movements under it.</param>
+    /// <param name="classical">Whether the album is classical: its owner marked it so, or most of its
+    /// tracks are filed under Classical or Opera (see <see cref="AlbumTracklist.ClassicalByGenre"/>). The
+    /// work tags alone never make a record classical, because many pop songs name a work too. A classical
+    /// record is drawn the way it is published: a list of works, each with its movements under it. The
+    /// album list passes the mark alone, because the room it reserves for a record before its tracks are
+    /// read counts work headers from the mark only (see LibraryDatabase.QueryAlbumHeaderLines).</param>
     /// <param name="uploadsStopped">Whether the cloud engine is sending nothing, for example because the
     /// store is full. It is passed to <see cref="ApplyCloud"/>. So a record drawn while the queue is stopped
     /// is drawn at rest, and does not start a pulse that the next cloud change would have to stop.</param>
@@ -877,28 +880,9 @@ public sealed partial class AlbumTrackItem : INotifyPropertyChanged, RPM.Desktop
         return AlbumArtistFill.IsVariousArtists(tracks) ? t => t.Artist : _ => null;
     }
 
-    /// <summary>
-    /// What a movement's own line says, under a work that has already said the rest.
-    ///
-    /// <para>A file's title carries the whole name, such as "Sonata In C Major, KV. 330: Allegretto". Every
-    /// program that does not know about works reads that field. Under the heading the sonata's name would
-    /// appear three times. So the movement is shown alone: the movement tag where the file has one, and
-    /// otherwise what is left of the title once the work in front of it is removed.</para>
-    /// </summary>
-    private static string? MovementOf(TrackInfo track, string? work)
-    {
-        if (work is null)
-            return null;
-
-        if (!string.IsNullOrWhiteSpace(track.MovementName))
-            return track.MovementName;
-
-        var title = track.Title;
-        return title is not null && title.Length > work.Length &&
-               title.StartsWith(work, StringComparison.CurrentCultureIgnoreCase)
-            ? title[work.Length..].TrimStart(' ', ':', '-', '\u2013', '\u2014')
-            : null;
-    }
+    /// <summary>What a movement's own line says, under a work that has already said the rest. The rule is
+    /// shared with Pegasus's record page (see <see cref="AlbumTracklist.MovementOf(TrackInfo, string?)"/>).</summary>
+    private static string? MovementOf(TrackInfo track, string? work) => AlbumTracklist.MovementOf(track, work);
 
     /// <summary>The divider's caption: the disc's own title after its number when the release names
     /// it ("CD 2: B-Sides"), the number alone otherwise.</summary>

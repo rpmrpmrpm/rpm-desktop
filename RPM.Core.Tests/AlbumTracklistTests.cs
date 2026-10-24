@@ -245,4 +245,75 @@ public class AlbumTracklistTests
         Assert.True(left >= right);
         Assert.InRange(left, (units.Sum() + 1) / 2, (units.Sum() + 1) / 2 + 1);
     }
+
+    // ── a movement under its work ──
+
+    private const string Fifth = "Symphony No. 5 in C minor, Op. 67";
+
+    [Fact]
+    public void MovementOf_takes_the_movement_tag_before_the_title()
+        => Assert.Equal("Allegro con brio",
+                        AlbumTracklist.MovementOf("Allegro con brio", $"{Fifth} - 1st movement", Fifth));
+
+    [Fact]
+    public void MovementOf_cuts_the_work_off_the_front_of_the_title()
+        => Assert.Equal("I. Allegro con brio",
+                        AlbumTracklist.MovementOf(null, $"{Fifth}: I. Allegro con brio", Fifth));
+
+    /// <summary>How MusicBrainz Picard writes it: the whole title in the movement tag.</summary>
+    [Theory]
+    [InlineData("Der Rosenkavalier, op. 59: Akt I. Einleitung")]
+    [InlineData("Der Rosenkavalier, op. 59: Akt I: Einleitung")]
+    [InlineData("Der Rosenkavalier, op. 59: Akt I, Einleitung")]
+    [InlineData("Der Rosenkavalier, op. 59: Akt I; Einleitung")]
+    [InlineData("Der Rosenkavalier, op. 59: Akt I – Einleitung")]
+    [InlineData("DER ROSENKAVALIER, OP. 59: AKT I. Einleitung")]
+    public void MovementOf_cuts_a_movement_tag_that_repeats_its_work(string tag)
+        => Assert.Equal("Einleitung",
+                        AlbumTracklist.MovementOf(tag, tag, "Der Rosenkavalier, op. 59: Akt I"));
+
+    [Fact]
+    public void MovementOf_keeps_a_movement_tag_that_is_only_the_work_as_it_is()
+        => Assert.Equal(Fifth, AlbumTracklist.MovementOf(Fifth, Fifth, Fifth));
+
+    [Fact]
+    public void MovementOf_says_nothing_for_a_title_that_does_not_start_with_the_work()
+        => Assert.Null(AlbumTracklist.MovementOf(null, "Allegro con brio", Fifth));
+
+    [Fact]
+    public void MovementOf_says_nothing_outside_a_work()
+        => Assert.Null(AlbumTracklist.MovementOf("Allegro con brio", "Allegro con brio", null));
+
+    // ── classical by its genre ──
+
+    private static TrackInfo G(string? genre) => new()
+    {
+        FilePath = $"/m/{Guid.NewGuid():N}.flac",
+        Extension = ".flac",
+        Genre = genre,
+    };
+
+    [Fact]
+    public void A_record_mostly_filed_under_Classical_is_classical()
+        => Assert.True(AlbumTracklist.ClassicalByGenre([G("Classical"), G("Classical"), G(null)]));
+
+    [Fact]
+    public void A_record_filed_under_Opera_is_classical()
+        => Assert.True(AlbumTracklist.ClassicalByGenre([G("Opera")]));
+
+    [Fact]
+    public void Half_a_record_under_Classical_is_not_enough()
+        => Assert.False(AlbumTracklist.ClassicalByGenre([G("Soul"), G("Classical")]));
+
+    [Fact]
+    public void A_record_with_no_genre_is_not_classical()
+        => Assert.False(AlbumTracklist.ClassicalByGenre([G(null), G("")]));
+
+    [Fact]
+    public void An_empty_record_is_not_classical()
+        => Assert.False(AlbumTracklist.ClassicalByGenre(Array.Empty<TrackInfo>()));
+
+    [Fact]
+    public void ClassicalByGenre_reads_any_row_type_through_its_genre()
+        => Assert.True(AlbumTracklist.ClassicalByGenre(["Opera", "Opera", "Rock"], g => g));
 }

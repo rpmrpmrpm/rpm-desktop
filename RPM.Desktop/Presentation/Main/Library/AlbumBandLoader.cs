@@ -165,8 +165,10 @@ public static class AlbumBandLoader
 
             // Disc order, with a divider per disc (multi-disc only). The band cuts these into its one or
             // two columns and breaks at a disc boundary where it can. A double album reads disc 1 | disc 2.
+            // Classical by its mark or by the genre of the WHOLE record, not of this reader's share of it.
             var items = AlbumTrackItem.Build(
-                tracks, sources.Classical?.Invoke(band.Card.Folder) == true,
+                tracks,
+                sources.Classical?.Invoke(band.Card.Folder) == true || AlbumTracklist.ClassicalByGenre(whole),
                 sources.UploadsStopped?.Invoke() == true,
                 sources.Shelf?.Invoke() ?? ShelfReading.Own);
 
