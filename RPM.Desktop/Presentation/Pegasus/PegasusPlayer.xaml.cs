@@ -1457,9 +1457,10 @@ public sealed partial class PegasusPlayer : UserControl
 
     // ── leaving ──
 
-    /// <summary>How close together two presses of Back have to be to leave the view from home. This is the system's
-    /// own double-click time on a default Windows install.</summary>
-    private const long DoubleEscapeMs = 500;
+    /// <summary>How close together two presses of Back have to be to leave the view from the side menu over home: the
+    /// TV's EXIT_WINDOW_MS. It was half a second, the system's double-click time, when two quick presses on home were
+    /// the only way out; the first press now shows a notice, and two seconds is time to read it and press again.</summary>
+    private const long DoubleEscapeMs = 2000;
 
     /// <summary>When Back last asked to leave and found nothing else to go back from, in
     /// <see cref="Environment.TickCount64"/> milliseconds. It is far in the past until then, and again after a leave.
@@ -1480,8 +1481,10 @@ public sealed partial class PegasusPlayer : UserControl
     /// are carrying, the wall's menu, the drawer, the search field, a record's or a list's page, and the greeting. A
     /// record open in the drawer goes back to the drawer's shelf before the drawer closes. Then the screen itself goes
     /// up one level. The lyric view goes back to the record turning, the wall goes back to home, and the record turning
-    /// goes back to home. On home, with nothing left above it, two presses within half a second leave the view. With
-    /// the close key gone, that is the only way out, and one stray press must not take the view away.</para>
+    /// goes back to home. On home, with nothing left above it, Back opens the side menu, as on the TV. In the menu over
+    /// home, Back does not close it: the first press says along the foot that a second leaves, and a second within two
+    /// seconds leaves the view. The menu's Exit leaves at once. One stray press must not take the view away, and the
+    /// notice says why the first press did nothing.</para>
     ///
     /// <para>The shell takes this on the way DOWN, from the window's root. It is not taken by this view on the way up
     /// from the focused control. On the way up, the key reached this view only while the focus was inside it. After a
@@ -1514,6 +1517,11 @@ public sealed partial class PegasusPlayer : UserControl
         if (_chrome?.CloseMenuPanel() == true)
         {
             Stepped("closed the menu's panel");
+            return;
+        }
+        if (_chrome is { MenuOverHome: true })
+        {
+            BackTowardsLeaving("in the menu over home");
             return;
         }
         if (_chrome is { LibraryMenuOpen: true })
@@ -1596,18 +1604,35 @@ public sealed partial class PegasusPlayer : UserControl
             return;
         }
 
-        // Home, with nothing above it: the view itself, on the second press.
-        var now = Environment.TickCount64;
-        if (now - _escapeAt <= DoubleEscapeMs)
+        // Home, with nothing above it: the side menu, where Back twice leaves. A press before this one does not
+        // pair with the next: the count starts in the menu.
+        if (_chrome?.OpenMenuByBack() == true)
         {
             _escapeAt = long.MinValue / 2;
-            Say("back: second press, leaving");
-            Leave();
+            Stepped("home: opened the side menu");
+            return;
         }
-        else
+
+        // Nowhere to open the menu (no collection to stand it on): the view itself, on the second press.
+        BackTowardsLeaving("with nothing above");
+
+        // The second press within the window leaves the view; the first says so along the foot and waits.
+        void BackTowardsLeaving(string where)
         {
+            var now = Environment.TickCount64;
+            if (now - _escapeAt <= DoubleEscapeMs)
+            {
+                _escapeAt = long.MinValue / 2;
+                Say($"back: second press {where}, leaving");
+                Leave();
+                return;
+            }
+
             _escapeAt = now;
-            Say("back: first press, waiting for a second");
+            ShowFlash(Strings.Loc.Get("Viz_ExitDoublePress"));
+            ShowKeys();
+            RestartIdle();
+            Say($"back: first press {where}, waiting for a second");
         }
 
         void Stepped(string what)

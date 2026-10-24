@@ -1368,9 +1368,11 @@
            way out of Pegasus and the key to its settings. Back or Backspace closes it. The corner key
            also opens it, for the mouse.
 
-           The remote opens it with Left held for two seconds on home or radio (see
-           PegasusChrome.HoldOpens and PegasusPlayer.SideKey). A press outside the panels closes it (the
-           ground under it), and so does Back. Sizes are set in SizeSideMenu, at the collection's scale. -->
+           The remote opens it with Back on home, the Menu key, Left with nothing further left (or on the
+           mini player), and Left held for two seconds on home or radio (see PegasusChrome.SideMenu). A
+           press outside the panels closes it (the ground under it), and so does Back, except over home,
+           where a second Back leaves Pegasus. Sizes are set in SizeSideMenu, at the collection's
+           scale. -->
       <Grid x:Name="LibraryMenu" Visibility="Collapsed" Opacity="0">
         <Grid Background="Transparent" Tapped="LibraryMenuGround_Tapped"/>
 

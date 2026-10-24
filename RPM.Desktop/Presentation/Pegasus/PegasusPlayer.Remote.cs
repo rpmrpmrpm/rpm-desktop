@@ -44,9 +44,21 @@ public sealed partial class PegasusPlayer
             : RemoteSearch.Next(from, direction, new RemoteScreen(Root, notDrawn: []));
 
     /// <summary>An arrow that found nothing to move to. Returns true when the chrome handled it (Right in
-    /// the side menu closes it; see PegasusChrome.TakeEdgeKey). Returns false when the host should
-    /// bounce.</summary>
-    public bool TakeEdgeKey(FocusNavigationDirection direction) => _chrome?.TakeEdgeKey(direction) == true;
+    /// the side menu closes it, Left at the edge of home, the wall, the lists and radio opens it; see
+    /// PegasusChrome.TakeEdgeKey). Returns false when the host should bounce.</summary>
+    public bool TakeEdgeKey(FocusNavigationDirection direction)
+    {
+        if (_chrome?.TakeEdgeKey(direction) != true)
+            return false;
+        if (direction == FocusNavigationDirection.Left && _chrome.LibraryMenuOpen)
+            _swallowLeft = true;
+        return true;
+    }
+
+    /// <summary>A Left that opened the side menu (at the edge, or on the mini player) is still down. Its
+    /// repeats are swallowed, as the TV swallows the rest of that press, so a held key does not go on to
+    /// bounce in the menu it opened. Cleared by the key's release or the next fresh press.</summary>
+    private bool _swallowLeft;
 
     /// <summary>Whether the screen shown while a collection is switched to is up. The shell takes the
     /// remote's keys and does nothing with them while it is up, so nothing moves or is pressed behind
@@ -704,6 +716,9 @@ public sealed partial class PegasusPlayer
     /// </summary>
     public bool KeyReleased(VirtualKey key, bool sideways)
     {
+        if (sideways)
+            _swallowLeft = false;
+
         // Left or Right was released before its menu opened, so nothing opens.
         if (_sideHeld?.Pressed == key)
             EndSideHold();
@@ -723,12 +738,22 @@ public sealed partial class PegasusPlayer
 
     /// <summary>
     /// The Menu key, handed over by the shell. It opens the focused line's menu, if the line has one.
-    /// Returns false to let the key go on to the focused control.
+    /// Otherwise, on home, the wall and the artists and genres lists, it opens the side menu, as the TV's
+    /// Menu key does (see PegasusChrome.OpenMenuByMenuKey). Returns false to let the key go on to the
+    /// focused control.
     /// </summary>
     public bool MenuKey(object? focused, VirtualKey key, bool repeat)
     {
         if (focused is not RemoteLine { HasMenu: true } line)
-            return false;
+        {
+            if (repeat)
+                return _chrome?.LibraryMenuOpen == true;   // the rest of a press that opened it
+            if (_chrome?.OpenMenuByMenuKey() != true)
+                return false;
+            EndHold();
+            Say("menu key: opened the side menu");
+            return true;
+        }
 
         if (!repeat)
         {
@@ -799,6 +824,20 @@ public sealed partial class PegasusPlayer
     /// </summary>
     public bool SideKey(VirtualKey key, FocusNavigationDirection way, bool repeat)
     {
+        // The rest of a Left that opened the side menu.
+        if (_swallowLeft && repeat && way == FocusNavigationDirection.Left)
+            return true;
+        _swallowLeft = false;
+
+        // Left on the mini player opens the side menu, whatever lies to the card's left.
+        if (!repeat && way == FocusNavigationDirection.Left && _chrome?.OpenMenuFromMiniPlayer() == true)
+        {
+            EndSideHold();
+            _swallowLeft = true;
+            Say("left on the mini player: opened the side menu");
+            return true;
+        }
+
         if (_chrome?.HoldOpens(way) != true)
         {
             EndSideHold();

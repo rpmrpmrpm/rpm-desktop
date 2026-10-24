@@ -12,8 +12,19 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// The side menu on home: who the collection on screen belongs to and a key to switch collections, the
 /// collection's screens, the way out of Pegasus, and Pegasus's own settings. It overlays the screen in
 /// the same way as the mini player and uses the same smoked glass effect. The panels are in the
-/// chrome's XAML under LibraryMenu. It opens when Left is held for two seconds on home or on radio (see
-/// <see cref="HoldOpens"/>), and from the corner key.
+/// chrome's XAML under LibraryMenu.
+///
+/// <para><b>How it opens</b>, as on the TV, where every remote must have a way in (the Shield passes no
+/// Menu key, and nobody finds a held Left): Back on home (see PegasusPlayer.TakeBack); the Menu key on
+/// home, the wall and the artists and genres lists when the focused element has no menu of its own (see
+/// <see cref="OpenMenuByMenuKey"/>); Left with nothing further left on those screens and on radio, and
+/// Left on the mini player (see <see cref="TakeEdgeKey"/> and <see cref="OpenMenuFromMiniPlayer"/>);
+/// Left held for two seconds on home or on radio (see <see cref="HoldOpens"/>); and the corner
+/// key.</para>
+///
+/// <para><b>Leaving from it.</b> Over home, Back in the menu does not close it: the first press says at
+/// the foot of the screen that a second leaves, and a second within two seconds leaves Pegasus (see
+/// PegasusPlayer.TakeBack and <see cref="MenuOverHome"/>). Over any other screen Back closes it.</para>
 ///
 /// <para><b>One panel at a time over the menu.</b> The collections list and the settings are panels the
 /// menu opens (<see cref="MenuPanel"/>); while one is open the arrows search it alone (see
@@ -90,10 +101,15 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// An arrow key that found nothing to move to (see PegasusPlayer.NextFocus): Right in the menu closes
-    /// it. Returns true when the key did that. Returns false when the host should show its bounce. Left
-    /// at the left edge of home or radio does not open the menu; the menu opens on a held Left (see
-    /// <see cref="HoldOpens"/>).
+    /// it, and Left with nothing further left opens it on the screens where the edge does (see
+    /// <see cref="EdgeOpensMenu"/>). Returns true when the key did one of those. Returns false when the
+    /// host should show its bounce.
     /// </summary>
+    /// <remarks>
+    /// Left at the edge is the TV's way in that every remote has (FOBO 92b589fbb). The first Left still
+    /// moves where there is something to move to: the banner still steps, a row still scrolls back to its
+    /// first card. Only the Left that finds nothing opens the menu.
+    /// </remarks>
     public bool TakeEdgeKey(FocusNavigationDirection direction)
     {
         if (direction == FocusNavigationDirection.Right && LibraryMenuOpen && _menuPanel == MenuPanel.None)
@@ -101,8 +117,66 @@ public sealed partial class PegasusChrome
             ShowLibraryMenu(false);
             return true;
         }
+        if (direction == FocusNavigationDirection.Left && EdgeOpensMenu)
+        {
+            ShowLibraryMenu(true);
+            return true;
+        }
         return false;
     }
+
+    /// <summary>
+    /// The screens where the Menu key opens the side menu: home, the wall and the artists and genres
+    /// lists, with no page, tuner or menu over them, and not while the focus is in the drawer. Not radio,
+    /// where the Menu key is a station's menu, nor an artist's or a genre's page, where it is a track's.
+    /// One line here for each further screen that should (the TV lists its playlists screen too).
+    /// </summary>
+    private bool MenuKeyOpensMenu =>
+        CollectionInFront && !LibraryMenuOpen && !FocusWithin(QueuePanel)
+        && _collection is CollectionScreen.Home or CollectionScreen.Wall
+                       or CollectionScreen.Artists or CollectionScreen.Genres;
+
+    /// <summary>The screens where Left with nothing further left opens the side menu: those where the Menu
+    /// key does, and radio while its stations are in front (the TV's edgeOpensSideMenu).</summary>
+    private bool EdgeOpensMenu =>
+        MenuKeyOpensMenu || (RadioHomeInFront && !FocusWithin(QueuePanel));
+
+    /// <summary>The Menu key, when the focused element has no menu of its own (the host asks that first;
+    /// see PegasusPlayer.MenuKey): opens the side menu on the screens where it opens from. Returns true
+    /// if it did.</summary>
+    public bool OpenMenuByMenuKey()
+    {
+        if (!MenuKeyOpensMenu)
+            return false;
+        ShowLibraryMenu(true);
+        return true;
+    }
+
+    /// <summary>Left while the remote stands on the mini player: the side menu opens, wherever the card
+    /// stands and whatever is to its left, on the screens where the edge opens it (the TV's MiniPlayer
+    /// onLeft). Returns true if it did; otherwise Left moves as any arrow does.</summary>
+    public bool OpenMenuFromMiniPlayer()
+    {
+        if (!KeyboardDriven || !EdgeOpensMenu || !FocusWithin(LibraryPlayer))
+            return false;
+        ShowLibraryMenu(true);
+        return true;
+    }
+
+    /// <summary>Back on home with nothing over it: the side menu opens (the TV's Back on home). Returns
+    /// true if it did; false where home is not the screen in front.</summary>
+    public bool OpenMenuByBack()
+    {
+        if (!HomeInFront || TunerUp || LibraryMenuOpen)
+            return false;
+        ShowLibraryMenu(true);
+        return true;
+    }
+
+    /// <summary>Whether the menu is open over home, with no panel over it, where Back leaves Pegasus on a
+    /// second press instead of closing the menu (see PegasusPlayer.TakeBack). Over any other screen Back
+    /// closes it.</summary>
+    public bool MenuOverHome => LibraryMenuOpen && !MenuPanelOpen && HomeInFront;
 
     /// <summary>
     /// Whether Left or Right held for two seconds opens a menu on the screen in front: Left opens the
@@ -112,7 +186,8 @@ public sealed partial class PegasusChrome
     /// its rows.
     /// </summary>
     /// <remarks>
-    /// Both sides count a hold of two seconds. Neither opens when a key reaches the edge of a row.
+    /// Both sides count a hold of two seconds. Left at the edge of a screen also opens the side menu, at
+    /// once (see <see cref="TakeEdgeKey"/>); the hold stays for a Left that has somewhere to go.
     /// </remarks>
     public bool HoldOpens(FocusNavigationDirection way) => way switch
     {
