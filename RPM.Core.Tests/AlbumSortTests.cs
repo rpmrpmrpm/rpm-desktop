@@ -112,6 +112,57 @@ public class AlbumSortTests
         Assert.Equal(["Rumours", "Zoo"], Names(wall, AlbumOrdering.Year));
     }
 
+    // ── date ──
+
+    [Fact]
+    public void By_date_puts_the_oldest_release_first()
+    {
+        List<AlbumFacts> wall =
+        [
+            Facts("Newer", "A", year: 1994),
+            Facts("Older", "B", year: 1971),
+        ];
+
+        Assert.Equal(["Older", "Newer"], Names(wall, AlbumOrdering.Date));
+    }
+
+    /// <summary>Oldest first must not mean year zero first: an untagged record is not from before
+    /// everything else.</summary>
+    [Fact]
+    public void By_date_albums_with_no_year_go_last()
+    {
+        List<AlbumFacts> wall =
+        [
+            Facts("Untagged", "A"),
+            Facts("Newer", "B", year: 2001),
+            Facts("Older", "C", year: 1971),
+        ];
+
+        Assert.Equal(["Older", "Newer", "Untagged"], Names(wall, AlbumOrdering.Date));
+    }
+
+    [Fact]
+    public void By_date_albums_of_the_same_year_fall_back_to_the_shelf_order()
+    {
+        List<AlbumFacts> wall =
+        [
+            Facts("Zoo", "Wire", year: 1977),
+            Facts("Rumours", "Fleetwood Mac", year: 1977),
+        ];
+
+        Assert.Equal(["Rumours", "Zoo"], Names(wall, AlbumOrdering.Date));
+    }
+
+    /// <summary>Saved by name: a new ordering must come back as itself, not as whatever number it had.</summary>
+    [Fact]
+    public void Date_is_saved_by_name()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(AlbumOrdering.Date);
+
+        Assert.Equal("\"Date\"", json);
+        Assert.Equal(AlbumOrdering.Date, System.Text.Json.JsonSerializer.Deserialize<AlbumOrdering>(json));
+    }
+
     // ── plays ──
 
     [Fact]

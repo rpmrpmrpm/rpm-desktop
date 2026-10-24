@@ -24,6 +24,11 @@ public enum AlbumOrdering
 
     /// <summary>Most played first. Records never played go to the end.</summary>
     Plays,
+
+    /// <summary>Oldest release first, so the wall reads as a history of the collection. Records with no
+    /// year go to the end, as with <see cref="Year"/>. This is the TV screens' "By date" (the Android TV
+    /// app and Pegasus). The library window offers <see cref="Year"/> instead.</summary>
+    Date,
 }
 
 /// <summary>What an ordering needs to know about one album, whatever type is holding it.</summary>
@@ -76,6 +81,10 @@ public static class AlbumSort
             // otherwise always open on its own unlabelled half.
             AlbumOrdering.Year =>
                 ByName(wall.OrderBy(a => a.Facts.Year == 0).ThenByDescending(a => a.Facts.Year)),
+
+            // The same rule for the untagged, the other way round for the rest.
+            AlbumOrdering.Date =>
+                ByName(wall.OrderBy(a => a.Facts.Year == 0).ThenBy(a => a.Facts.Year)),
 
             AlbumOrdering.Plays => ByName(wall.OrderByDescending(a => a.Facts.Plays)),
 
