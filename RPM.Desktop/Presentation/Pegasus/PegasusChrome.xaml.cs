@@ -976,28 +976,48 @@ public sealed partial class PegasusChrome : UserControl
     ///
     /// <para>A guessed line has no measured end to rely on. It falls through to the sheet's own stamps.
     /// This is the behaviour it has always had.</para>
+    ///
+    /// <para><b>A line waits for its voice.</b> A line measured to start well after its stamp would take
+    /// over at the stamp and stand there unlit until the singer reached it. So the line before it stays up
+    /// until the light is about to arrive on the new line's first word (<see cref="VoiceLead"/> before it),
+    /// but never longer than <see cref="VoiceWaitLongest"/> past the stamp. A measurement that went astray
+    /// cannot hold the sheet back for longer than that.</para>
     /// </summary>
     private int SungAt(double pos)
     {
         var at = _sheet.IndexAt(pos);
-        if (at <= 0)
+        if (at < 0)
             return at;
+
+        // Where the line on the sheet actually begins: its first measured word where it has been measured,
+        // and its own stamp otherwise, which is all there is to go on.
+        double? measuredStart = at < _lyricWordMeasured.Length && _lyricWordMeasured[at]
+                                && at < _lyricWordSpans.Length && _lyricWordSpans[at] is { Length: > 0 } next
+            ? next[0].From
+            : null;
+        var stamp = _sheet.Lines[at].Seconds;
 
         var last = at - 1;
-        if (last >= _lyricWordMeasured.Length || !_lyricWordMeasured[last]
-            || _lyricWordSpans[last] is not { Length: > 0 } previous
-            || pos >= previous[^1].To)
-            return at;
+        if (last >= 0 && last < _lyricWordMeasured.Length && _lyricWordMeasured[last]
+            && _lyricWordSpans[last] is { Length: > 0 } previous
+            && pos < previous[^1].To)
+            return pos < (measuredStart ?? stamp) ? last : at;
 
-        // The line on the sheet has not actually begun yet. Its start is measured where it has been
-        // measured, and otherwise it uses its own stamp, which is all there is to go on.
-        var begins = at < _lyricWordMeasured.Length && _lyricWordMeasured[at]
-                     && _lyricWordSpans[at] is { Length: > 0 } next
-            ? next[0].From
-            : _sheet.Lines[at].Seconds;
+        // The line before is done (or was never measured), and this one is measured to start well after its
+        // stamp. The line before stays up until the light is about to reach this one, within the limit.
+        if (measuredStart is { } starts && pos < starts - VoiceLead && pos < stamp + VoiceWaitLongest)
+            return last;
 
-        return pos < begins ? last : at;
+        return at;
     }
+
+    /// <summary>How long before its first measured word a line takes over, in seconds: about when the
+    /// light starts to arrive on it (see <see cref="MeasuredArrival"/> and <see cref="GlyphSoftness"/>).
+    /// The TV waits the same.</summary>
+    private const double VoiceLead = 0.35;
+
+    /// <summary>The longest a line waits past its own stamp for its first measured word, in seconds.</summary>
+    private const double VoiceWaitLongest = 4.0;
 
     /// <summary>
     /// Brings the words of the sung line up as the singer reaches them.
@@ -1516,8 +1536,16 @@ public sealed partial class PegasusChrome : UserControl
 
         ShapeGlow(dt, at);
 
+        // The lines on their way to their new strength since the last change of line.
+        TickLineFades(dt);
+
         if (at == _lyricAt)
             return;
+
+        // A repaint asked for from outside (a new sheet, a new layout) puts every line straight at its
+        // strength. So does a first frame. Only a change of line that the singer made is faded.
+        var fade = _lyricAt != -2 && dt > 0;
+        var leaving = _lyricAt;
         _lyricAt = at;
 
         // The line that has arrived, and the one after it, are measured from the record where this machine
@@ -1525,13 +1553,20 @@ public sealed partial class PegasusChrome : UserControl
         // about once.
         AlignLines(at);
 
+        if (_lineFadeFrom.Length != _lyricLines.Length)
+        {
+            _lineFadeFrom = new double[_lyricLines.Length];
+            _lineFadeTo = new double[_lyricLines.Length];
+        }
+        _lineFadeAt = 0;
+
         // Only on a change of line, which is a few times a minute. The sung line is lit and the ones
         // around it fall away, so the eye is told where it is without the rest becoming a wall of text.
         for (int i = 0; i < _lyricLines.Length; i++)
         {
             var distance = Math.Abs(i - at);
             var block = _lyricLines[i];
-            block.Opacity = at < 0
+            var strength = at < 0
                 ? (i == 0 ? 0.55 : Math.Max(0, 0.34 - i * 0.10))
                 : distance switch
                 {
@@ -1546,7 +1581,33 @@ public sealed partial class PegasusChrome : UserControl
             // sit there as one more dimmed line competing with the verse. Its ROW stays, though. Removing
             // the space at once would move every line under it at the end of every phrase.
             if (i < _lyricAside.Length && _lyricAside[i] && at >= 0 && i < at)
-                block.Opacity = 0;
+                strength = 0;
+
+            var words = _lyricWordRuns.Length > i ? _lyricWordRuns[i] : null;
+
+            // Where the fade starts: the strength the line shows now, so a line already on its way carries
+            // on from where it is rather than jumping.
+            //
+            // The line that is handing over has its sweep flattened below. Its letters were at their own
+            // strengths, and a line cut short by the next one still had letters at rest. Flattened to full
+            // and faded from the line's full strength, it would flash white before it fell away. So its fade
+            // starts from the strength its letters were showing on average.
+            var from = block.Opacity;
+            if (i == leaving && words is { Length: > 0 })
+                from *= MeanInk(words);
+
+            // The sung line arrives whole when it is swept. Its letters before the light are at rest, which
+            // is the strength it showed as the next line, so nothing jumps as it takes over, and no fade can
+            // leave it half lit. A line with no sweep fades up like the others.
+            if (distance == 0 && at >= 0 && words is { Length: > 0 })
+                from = strength;
+
+            if (!fade)
+                from = strength;
+
+            _lineFadeFrom[i] = from;
+            _lineFadeTo[i] = strength;
+            block.Opacity = from;
             block.Foreground = distance == 0 && at >= 0 ? _lyricInk.Lit : _lyricInk.Dim;
 
             // A second voice is read with the line it belongs to, so it is dimmed with that line. It is
@@ -1563,10 +1624,58 @@ public sealed partial class PegasusChrome : UserControl
             // with one strength across all its words. A line nobody is singing must not show a
             // half-finished sweep, because that would claim the sheet is somewhere it is not. Its dimming
             // is the block's own opacity, as it is for a line with no words.
-            if ((distance != 0 || at < 0) && _lyricWordRuns.Length > i && _lyricWordRuns[i] is { } words)
+            if ((distance != 0 || at < 0) && words is not null)
                 foreach (var word in words)
                     Light(word, 1);
         }
+    }
+
+    /// <summary>How long a line takes to go from one strength to the next when the singer moves on, in
+    /// seconds. The TV takes the same.</summary>
+    private const double LineFadeSeconds = 0.35;
+
+    /// <summary>Where each line's fade starts and ends, and how far into it the sheet is. Set on a change
+    /// of line, walked on every frame until it lands.</summary>
+    private double[] _lineFadeFrom = [], _lineFadeTo = [];
+    private double _lineFadeAt = LineFadeSeconds;
+
+    /// <summary>
+    /// One frame of the lines' fade to their new strengths. The lines go from where they were to where the
+    /// new sung line puts them, on the same curve as every other fade here. It writes nothing once the fade
+    /// has landed, so a line being sung costs nothing between changes of line.
+    /// </summary>
+    private void TickLineFades(double dt)
+    {
+        if (_lineFadeAt >= LineFadeSeconds || _lineFadeFrom.Length != _lyricLines.Length)
+            return;
+
+        _lineFadeAt = dt <= 0 ? LineFadeSeconds : Math.Min(LineFadeSeconds, _lineFadeAt + dt);
+        var eased = Fader.Ease(_lineFadeAt / LineFadeSeconds);
+
+        for (int i = 0; i < _lyricLines.Length; i++)
+        {
+            double from = _lineFadeFrom[i], to = _lineFadeTo[i];
+            if (from == to)
+                continue;
+
+            var block = _lyricLines[i];
+            block.Opacity = from + ((to - from) * eased);
+            if (i < _asideBlocks.Length && _asideBlocks[i] is { } voice)
+                voice.Opacity = block.Opacity * _asideOpen[i];
+        }
+    }
+
+    /// <summary>The average strength of a line's letters, as their inks show it (see <see cref="Ink"/>). A
+    /// run whose ink is not on the ladder counts as full.</summary>
+    private static double MeanInk(Microsoft.UI.Xaml.Documents.Run[] runs)
+    {
+        double sum = 0;
+        foreach (var run in runs)
+        {
+            var rung = run.Foreground is SolidColorBrush brush ? Array.IndexOf(InkLadder, brush) : -1;
+            sum += rung < 0 ? 1 : (double)rung / InkSteps;
+        }
+        return runs.Length == 0 ? 1 : sum / runs.Length;
     }
 
     /// <summary>
