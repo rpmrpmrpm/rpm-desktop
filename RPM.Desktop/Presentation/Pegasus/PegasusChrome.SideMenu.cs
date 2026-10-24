@@ -27,7 +27,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// the foot of the screen that a second leaves, and a second within two seconds leaves Pegasus (see
 /// PegasusPlayer.TakeBack and <see cref="MenuOverHome"/>). Over any other screen Back closes it.</para>
 ///
-/// <para><b>One panel at a time over the menu.</b> The collections list and the settings are panels the
+/// <para><b>One panel at a time over the menu.</b> Choose library and the settings are panels the
 /// menu opens (<see cref="MenuPanel"/>); while one is open the arrows search it alone (see
 /// <see cref="FocusScreen"/>), and Back closes it before it closes the menu (see
 /// PegasusPlayer.TakeBack).</para>
@@ -263,7 +263,7 @@ public sealed partial class PegasusChrome
         var was = _menuPanel;
         _menuPanel = panel;
 
-        CollectionsPanel.Visibility = panel == MenuPanel.Collections ? Visibility.Visible : Visibility.Collapsed;
+        ShowPanelLayer(CollectionsLayer, ref _collectionsFade, panel == MenuPanel.Collections);
         ShowPanelLayer(SettingsLayer, ref _settingsFade, panel == MenuPanel.Settings);
 
         switch (panel)
@@ -285,7 +285,7 @@ public sealed partial class PegasusChrome
 
     /// <summary>The fade of each layer a panel stands in. Made the first time the panel opens, and handed
     /// to the chrome's tick with the other fades (see Fader).</summary>
-    private Fader? _settingsFade;
+    private Fader? _settingsFade, _collectionsFade;
 
     /// <summary>
     /// Fades a panel's layer in over <see cref="MenuInMs"/> or out over <see cref="MenuOutMs"/>, as the
@@ -322,6 +322,14 @@ public sealed partial class PegasusChrome
     {
         e.Handled = true;
         ShowLibraryMenu(false);
+    }
+
+    /// <summary>A press on the blurred ground around Choose library's tiles: it closes and the menu stays
+    /// open.</summary>
+    private void CollectionsGround_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        e.Handled = true;
+        ShowMenuPanel(MenuPanel.None);
     }
 
     /// <summary>A press on the darkened ground around the settings: the settings close and the menu
@@ -524,94 +532,167 @@ public sealed partial class PegasusChrome
             Loc.Get("Settings_ShareOffline"));
     }
 
-    /// <summary>Fills the collections panel with one row per collection. Returns the row where the focus
-    /// starts: the open collection.</summary>
+    /// <summary>
+    /// Fills Choose library with one tile per collection, as the TV's profile picker draws its accounts
+    /// (ComputersScreen, LibraryTile). Returns the tile where the focus starts: the open collection.
+    ///
+    /// <para>The tiles are 220 points wide before the scale with 24 between them. A row too wide for the
+    /// window is drawn smaller, down to six tenths, rather than cut off at its ends: one person's
+    /// computers and friends are a handful, never a list to scroll.</para>
+    ///
+    /// <para>The TV also lists the computers on the network under the row; Pegasus has no such list
+    /// (another of the user's own computers adds its music to this collection, see
+    /// SharedLibraryRow.Build), so there is nothing to put there.</para>
+    /// </summary>
     private Control? BuildCollectionRows()
     {
+        var rows = CollectionRows();
         var scale = QueueScale;
+
+        var room = Math.Max(0, Root.ActualWidth - (2 * PickerEdge * scale));
+        var wanted = ((rows.Count * (PickerTileWide + PickerTileGap)) - PickerTileGap) * scale;
+        var s = wanted > room && wanted > 0 ? scale * Math.Max(0.6, room / wanted) : scale;
+
         CollectionsRows.Children.Clear();
+        CollectionsRows.Spacing = PickerTileGap * s;
         Control? open = null;
-
-        foreach (var row in CollectionRows())
+        foreach (var row in rows)
         {
-            var avatar = new Grid { Width = 44 * scale, Height = 44 * scale };
-            avatar.Children.Add(new Border
-            {
-                CornerRadius = new CornerRadius(22 * scale),
-                Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
-            });
-            if (row.Avatar is { } picture)
-            {
-                avatar.Children.Add(new AvatarPicture { Source = picture, CornerRadius = new CornerRadius(22 * scale) });
-            }
-            else
-            {
-                var mark = new TextBlock
-                {
-                    Text = row.Initial.Length > 0 ? row.Initial : row.Glyph,
-                    FontSize = 18 * scale,
-                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                if (row.Initial.Length == 0)
-                    mark.FontFamily = (FontFamily)Resources["PegasusFa"];   // the house or the computer
-                avatar.Children.Add(mark);
-            }
-
-            var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            words.Children.Add(new TextBlock
-            {
-                Text = row.Name,
-                FontSize = 20 * scale,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            if (row.Status.Length > 0)
-                words.Children.Add(new TextBlock
-                {
-                    Text = row.Status,
-                    FontSize = 14 * scale,
-                    Foreground = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xB3, 0xFF, 0xFF, 0xFF)),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                });
-
-            // The open collection has a tick at the right end.
-            var tick = new TextBlock
-            {
-                Text = "",
-                FontFamily = (FontFamily)Resources["PegasusFa"],
-                FontSize = 16 * scale,
-                VerticalAlignment = VerticalAlignment.Center,
-                Visibility = row.IsOpen ? Visibility.Visible : Visibility.Collapsed,
-            };
-
-            var line = new Grid { ColumnSpacing = 14 * scale };
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(words, 1);
-            Grid.SetColumn(tick, 2);
-            line.Children.Add(avatar);
-            line.Children.Add(words);
-            line.Children.Add(tick);
-
-            var key = MenuRow(line, scale);
+            var tile = LibraryTile(row, s);
             var deviceId = row.DeviceId;
-            key.Click += (_, _) => PickCollection(deviceId);
-            CollectionsRows.Children.Add(key);
+            tile.Click += (_, _) => PickCollection(deviceId);
+            CollectionsRows.Children.Add(tile);
             if (row.IsOpen)
-                open = key;
+                open = tile;
         }
 
-        // Beside the switch key, at the top of the screen.
-        CollectionsPanel.Margin = new Thickness(
-            SideMenuPanel.Margin.Left + SideMenuPanel.Width + (10 * scale),
-            SideMenuPanel.Margin.Top,
-            0,
-            0);
         return open ?? CollectionsRows.Children.OfType<Control>().FirstOrDefault();
+    }
+
+    /// <summary>The picker's tile width and the gap between tiles, and the least room left at either side
+    /// of the row, before the scale.</summary>
+    private const double PickerTileWide = 220;
+    private const double PickerTileGap = 24;
+    private const double PickerEdge = 40;
+
+    /// <summary>The size of a face on the picker before the scale (the TV's PICKER_FACE).</summary>
+    private const double PickerFace = 160;
+
+    /// <summary>
+    /// One collection on the picker: its owner's round face (their picture, else the first letter of
+    /// their name, else the collection's mark), their name under it, then how it is shared with a tick
+    /// before it on the open collection, and the supporter mark under that when a friend whose
+    /// collection it is supports rpm. The user's own collection carries their own name, with "My
+    /// collection" under it; a friend's says whether their computer is on this network.
+    /// </summary>
+    private Button LibraryTile(SharedLibraryRow row, double scale)
+    {
+        var face = row.Face;
+        var name = row.IsOwn && face.IsKnown ? face.DisplayName : row.Name;
+        var line = row.IsOwn ? Loc.Get("Share_MyLibrary") : row.Status;
+
+        // The own row has no letter in the share button's list (its name there is the collection's),
+        // but here it carries the person's name, so it has the person's letter.
+        var initial = row.Initial.Length > 0 ? row.Initial
+            : row.IsOwn && face.IsKnown ? face.DisplayName[..System.Globalization.StringInfo.GetNextTextElementLength(face.DisplayName, 0)].ToUpperInvariant()
+            : "";
+
+        var size = PickerFace * scale;
+        var round = new CornerRadius(size / 2);
+        var picture = new Grid { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center };
+        picture.Children.Add(new Border
+        {
+            CornerRadius = round,
+            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+        });
+        if (row.Avatar is { } avatar)
+        {
+            picture.Children.Add(new AvatarPicture { Source = avatar, CornerRadius = round });
+        }
+        else
+        {
+            var mark = new TextBlock
+            {
+                Text = initial.Length > 0 ? initial : row.Glyph,
+                FontSize = (initial.Length > 0 ? 64 : 48) * scale,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xF2, 0xFF, 0xFF, 0xFF)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            if (initial.Length == 0)
+                mark.FontFamily = (FontFamily)Resources["PegasusFa"];   // the house or the laptop
+            picture.Children.Add(mark);
+        }
+
+        var words = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        words.Children.Add(picture);
+        words.Children.Add(new TextBlock
+        {
+            Text = name,
+            FontSize = 22 * scale,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = (PickerTileWide - 20) * scale,
+            Margin = new Thickness(0, 14 * scale, 0, 0),
+        });
+
+        var how = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6 * scale,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4 * scale, 0, 0),
+        };
+        if (row.IsOpen)
+            how.Children.Add(new TextBlock
+            {
+                Text = "",   // the tick
+                FontFamily = (FontFamily)Resources["PegasusFa"],
+                FontSize = 13 * scale,
+                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        if (line.Length > 0)
+            how.Children.Add(new TextBlock
+            {
+                Text = line,
+                FontSize = 15 * scale,
+                Foreground = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xB3, 0xFF, 0xFF, 0xFF)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = (PickerTileWide - 40) * scale,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        words.Children.Add(how);
+
+        if (row.IsSupporter)
+            words.Children.Add(new Viewbox
+            {
+                Height = SupporterHigh(12, scale),   // the TV's 12 point mark
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8 * scale, 0, 0),
+                Child = new SupporterBadge { ReadsAccount = false, IsSupporter = true },
+            });
+
+        var key = new Button
+        {
+            Style = (Style)Resources["PegasusSideButton"],
+            Content = words,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Top,
+            VerticalAlignment = VerticalAlignment.Top,
+            Width = PickerTileWide * scale,
+            Padding = new Thickness(0, 14 * scale, 0, 14 * scale),
+            CornerRadius = new CornerRadius(12 * scale),
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, name);
+        LightOnKeys(key);
+        return key;
     }
 
     /// <summary>
@@ -1176,11 +1257,10 @@ public sealed partial class PegasusChrome
         SideMenuSettings.FontSize = 22 * scale;
         SideMenuSettings.CornerRadius = corner;
 
-        // The two panels over the menu.
-        CollectionsFrost.CornerRadius = CollectionsGlass.CornerRadius = corner;
-        CollectionsPanel.Width = 380 * scale;
-        CollectionsRows.Padding = new Thickness(8 * scale);
-        CollectionsRows.Spacing = 4 * scale;
+        // The two panels over the menu. Choose library: its title at the TV's largest size (44), the row of
+        // tiles 40 under it. The tiles are sized as they are built (see LibraryTile).
+        CollectionsTitle.FontSize = 44 * scale;
+        CollectionsPanel.Spacing = 40 * scale;
 
         // The settings: the TV's two cards, 340 and 760 wide and 640 high before the scale, 16 apart. They
         // are no higher than the window leaves room for, with the menu's edge above and below.

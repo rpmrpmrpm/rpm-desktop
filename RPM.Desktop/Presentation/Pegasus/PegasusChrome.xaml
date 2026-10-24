@@ -1524,24 +1524,32 @@
           </Grid>
         </Grid>
 
-        <!-- The collections to switch between, beside the switch key: the same list that the main
-             window's share button offers (SharedLibraryRow.Build), one row each, built when it opens. -->
-        <Grid x:Name="CollectionsPanel" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed">
-          <Grid.Resources>
-            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
-            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
-            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
-          </Grid.Resources>
-          <Border x:Name="CollectionsFrost" IsHitTestVisible="False">
-            <Border.Background>
-              <ui:GlassBrush BlurAmount="34"/>
-            </Border.Background>
-          </Border>
-          <Border x:Name="CollectionsGlass" IsHitTestVisible="False" BorderThickness="1"
-                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
-                  LightSmokeRimBrush}"/>
-          <StackPanel x:Name="CollectionsRows" Background="Transparent"/>
+        <!-- Choose library, from the switch key, laid out as the TV's profile picker: "Choose library"
+             in large type over a row of the collections that can be put on screen, centred over the
+             screen blurred and darkened behind it. Each is its owner's large round face, the name under
+             it, how it is shared, a tick on the open one and the supporter mark. The same list the main
+             window's share button offers (SharedLibraryRow.Build), built when it opens. It fades in and
+             out with the menu's times. A press beside the tiles closes it, as Back does. -->
+        <Grid x:Name="CollectionsLayer" Visibility="Collapsed" Opacity="0">
+          <Grid Background="Transparent" Tapped="CollectionsGround_Tapped">
+            <Border IsHitTestVisible="False">
+              <Border.Background>
+                <ui:GlassBrush BlurAmount="60"/>
+              </Border.Background>
+            </Border>
+            <Rectangle Fill="#66000000" IsHitTestVisible="False"/>
+          </Grid>
+          <StackPanel x:Name="CollectionsPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel.Resources>
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+              <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+            </StackPanel.Resources>
+            <TextBlock x:Name="CollectionsTitle" Text="{loc:Str Key=Tv_ChooseLibrary}" FontWeight="Bold"
+                       Foreground="#FFFFFFFF" HorizontalAlignment="Center" TextAlignment="Center"/>
+            <StackPanel x:Name="CollectionsRows" Orientation="Horizontal" HorizontalAlignment="Center"/>
+          </StackPanel>
         </Grid>
 
         <!-- Pegasus's own settings, and only those (see IPegasusSettings), as the TV lays them out: two
