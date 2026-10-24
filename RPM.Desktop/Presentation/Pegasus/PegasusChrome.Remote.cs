@@ -179,6 +179,11 @@ public sealed partial class PegasusChrome
         if (ReferenceEquals(screen.Area, TunerLayer))
             return AcrossTuner(from, direction, next);
 
+        // The album wall and the artists list: Up from the first row reaches the sort key, and Down from
+        // the tools comes back (see PegasusChrome.LibraryTools).
+        if (ReferenceEquals(screen.Area, LibraryLayer) && _collection is CollectionScreen.Wall or CollectionScreen.Artists)
+            return ToSortKey(from, direction, next);
+
         // An artist's or a genre's page: Up and Down can reach a row of a different length (see
         // PegasusChrome.ArtistsGenres).
         if (ReferenceEquals(screen.Area, LibraryLayer) && IsArtistsGenres(_collection))

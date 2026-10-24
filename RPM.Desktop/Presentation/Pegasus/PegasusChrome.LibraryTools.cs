@@ -3,6 +3,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Desktop.Services.Shell;
 
@@ -259,4 +260,55 @@ public sealed partial class PegasusChrome
     }
 
     private const int LibraryBusyFadeMs = 220;
+
+    // ── the remote: Up to the sort key ──
+    //
+    // The search by layout reaches the tools in the top right corner only from the columns under them.
+    // Every other card of the first row went Up to nothing, or to whatever stood above it. The Android TV
+    // app sends Up from any card of the first row to the sort key, and Down from the tools back to the
+    // card it came from, and so does this, on the album wall and the artists list.
+
+    /// <summary>The card the remote last went Up from to the tools, so Down goes back to it. Null until
+    /// then.</summary>
+    private FrameworkElement? _toolsEnteredFrom;
+
+    /// <summary>
+    /// Up from a card of the first row of the album wall or the artists list: the sort key. Down from
+    /// the tools: the card Up came from, while it is still there. Every other move is left as the search
+    /// by layout found it (<paramref name="next"/>).
+    ///
+    /// <para>The first row is the row with nothing of the wall above it: Up from it leaves the wall. Up
+    /// that finds the mini player is kept, because the mini player can be reached from the wall in no
+    /// other way while the search field takes the arrow keys.</para>
+    /// </summary>
+    private Control? ToSortKey(FrameworkElement from, FocusNavigationDirection direction, Control? next)
+    {
+        var (wall, tools, sortKey) = _collection switch
+        {
+            CollectionScreen.Wall => ((FrameworkElement?)LibraryWall, (FrameworkElement?)LibraryTools, (Control?)LibrarySortButton),
+            CollectionScreen.Artists => (ArtistsWall, ArtistsTools, ArtistsSortButton),
+            _ => (null, null, null),
+        };
+        if (wall is null || tools is null || sortKey is null)
+            return next;
+
+        if (direction == FocusNavigationDirection.Up
+            && Inside(from, wall)
+            && (next is null || !Inside(next, wall))
+            && (next is null || !Inside(next, LibraryPlayer))
+            && CanTakeFocus(sortKey))
+        {
+            _toolsEnteredFrom = from;
+            return sortKey;
+        }
+
+        if (direction == FocusNavigationDirection.Down
+            && Inside(from, tools)
+            && _toolsEnteredFrom is Control card
+            && Inside(card, wall)
+            && CanTakeFocus(card))
+            return card;
+
+        return next;
+    }
 }
