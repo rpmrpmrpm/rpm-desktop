@@ -3167,6 +3167,12 @@ public sealed partial class PegasusChrome : UserControl
         // This runs after the line above, so it reads what the card holds as of this frame.
         TickPlayerAway(dt);
 
+        // The transport under the record shows only its play key for a tuned station (see
+        // ApplyStationTransport). Read off the frame for the same reason as the mini player above.
+        var station = StationTuned;
+        if (station != _transportForStation)
+            ApplyStationTransport(station);
+
         // A record that pauses brings the transport up, with the play key focused for the remote, and the
         // transport stays up for as long as it is paused. The screen then shows that it is paused, and OK
         // resumes. This is read off the transport on every frame, so a pause from anywhere counts: the play
@@ -3184,7 +3190,7 @@ public sealed partial class PegasusChrome : UserControl
         if (_transportUp)
         {
             _transportSeen = paused || CastMenuOpen ? 0 : _transportSeen + dt;
-            if (!onDeck || _transportSeen >= TransportIdle)
+            if (!(onDeck || station) || _transportSeen >= TransportIdle)
                 FadeTransport(up: false);
         }
 
@@ -4639,9 +4645,56 @@ public sealed partial class PegasusChrome : UserControl
 
     // ── the transport ──
 
-    /// <summary>Whether the record on the deck is paused: loaded, and not playing. False with nothing on the
-    /// deck. A tuned station puts nothing on the deck, so it is never paused in this sense.</summary>
-    private bool Paused => _amp is { IsLoaded: true, IsPlaying: false } amp && amp.Deck is not null;
+    /// <summary>Whether the record on the deck, or the tuned station, is paused: loaded, and not playing.
+    /// False with nothing on the deck and no station. A paused station holds the transport up with its
+    /// play key, as a paused record does, so OK resumes it (the TV does the same).</summary>
+    private bool Paused => _amp is { IsLoaded: true, IsPlaying: false } amp && (amp.Deck is not null || StationTuned);
+
+    /// <summary>Whether a station is tuned and nothing is on the deck: the record turning shows the
+    /// station, and the transport has only its play key to offer (see <see cref="ApplyStationTransport"/>).
+    /// </summary>
+    private bool StationTuned => _amp is { IsLiveStream: true } amp && amp.Deck is null;
+
+    /// <summary>Whether the transport is dressed for a station now (see <see cref="ApplyStationTransport"/>).
+    /// </summary>
+    private bool _transportForStation;
+
+    /// <summary>
+    /// Dresses the transport for a tuned station, or back for a record. A station shows the play key and
+    /// nothing else, in the row under the record and in the lyric's foot alike: a live stream has no queue,
+    /// no previous or next, no heart, nothing to go back to in the row and no volume worth a second knob
+    /// (the TV's player, 2026-10-12: "it should be the only button visible"). Previous and next would step
+    /// the record queue, which turns the station off. The play key is the deck's own command, so it pauses
+    /// and resumes the station as the main window's key does.
+    ///
+    /// <para>The strips are hidden whole, not key by key. The back key's Visibility belongs to MouseKeys,
+    /// and the lyric key's and the volume's to their own code, so hiding the panels around them leaves those
+    /// owners alone. The play key is the screen's default stop (see DefaultFocusTarget). A focus that was on
+    /// a key that has now gone is put back on it, so the remote is not left on nothing.</para>
+    /// </summary>
+    private void ApplyStationTransport(bool station)
+    {
+        _transportForStation = station;
+
+        // Asked before the keys go: a focused key that is collapsed still reports its old size until the
+        // next layout.
+        var focusGoes = station
+            && (FocusWithin(TransportLeftKeys) || FocusWithin(TransportRightKeys) || FocusWithin(LyricFootKeys)
+                || FocusWithin(TransportPrevButton) || FocusWithin(TransportNextButton)
+                || FocusWithin(LyricPrevButton) || FocusWithin(LyricNextButton));
+
+        var others = station ? Visibility.Collapsed : Visibility.Visible;
+        TransportLeftKeys.Visibility = others;
+        TransportPrevButton.Visibility = others;
+        TransportNextButton.Visibility = others;
+        TransportRightKeys.Visibility = others;
+        LyricFootKeys.Visibility = others;
+        LyricPrevButton.Visibility = others;
+        LyricNextButton.Visibility = others;
+
+        if (focusGoes && !LibraryUp && !_queueOpen)
+            FocusScreenLater(null);
+    }
 
     /// <summary>Whether the record was paused on the last frame, so a pause is acted on once, as it
     /// happens.</summary>
@@ -4669,9 +4722,10 @@ public sealed partial class PegasusChrome : UserControl
 
     private void WakeTransport()
     {
-        // Nothing is on the deck, so there is nothing to drive. The keys stay away, rather than offering a
-        // play button for a record that is not there.
-        if (_amp?.Deck is null)
+        // Nothing is on the deck and no station is tuned, so there is nothing to drive. The keys stay away,
+        // rather than offering a play button for a record that is not there. A tuned station has its play
+        // key (see ApplyStationTransport).
+        if (_amp?.Deck is null && !StationTuned)
             return;
 
         _transportSeen = 0;

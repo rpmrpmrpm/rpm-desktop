@@ -450,7 +450,7 @@
             <!-- The right end of the foot, as in the row under the record: the cast key, the lyric key and
                  the layout key. This foot is also the transport of the bare room (Visuals only), which has
                  no column of words to carry one, so it is the way out of that layout too. -->
-            <StackPanel Orientation="Horizontal" Spacing="2"
+            <StackPanel x:Name="LyricFootKeys" Orientation="Horizontal" Spacing="2"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
               <!-- The same drawings as CastButton. Change both. -->
               <Button x:Name="LyricCastButton" Click="Cast_Click"
@@ -491,7 +491,7 @@
             <!-- DataContext is null until AttachAmp. See TransportRow below for why it is not inherited. -->
             <StackPanel x:Name="LyricTransport" Orientation="Horizontal" Spacing="10"
                         DataContext="{x:Null}" HorizontalAlignment="Center">
-              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
+              <Button x:Name="LyricPrevButton" Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
                       Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
                       ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
                       AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
@@ -499,7 +499,7 @@
                       Command="{Binding PlayPauseCommand}" FontSize="20" Width="42" Height="42"
                       ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
                       AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
-              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
+              <Button x:Name="LyricNextButton" Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
                       Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
                       ToolTipService.ToolTip="{Binding NextToolTip}"
                       AutomationProperties.Name="{Binding NextToolTip}"/>
@@ -621,7 +621,7 @@
                  this track is loved. They are together in one strip, not each with its own margin, so
                  they keep their spacing at every window size and none of them needs to know where the one
                  beside it ends. -->
-            <StackPanel Orientation="Horizontal" Spacing="2"
+            <StackPanel x:Name="TransportLeftKeys" Orientation="Horizontal" Spacing="2"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
 
               <!-- What is coming next, and the only way to see it: the drawer opens on the queue and the
@@ -670,7 +670,7 @@
 
             <StackPanel x:Name="Transport" Orientation="Horizontal" Spacing="10"
                         HorizontalAlignment="Center">
-              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
+              <Button x:Name="TransportPrevButton" Style="{StaticResource PegasusTransportButton}" Content="&#xf04a;"
                       Command="{Binding PrevCommand}" IsEnabled="{Binding IsPreviousLive}"
                       ToolTipService.ToolTip="{loc:Str Key=Transport_Previous}"
                       AutomationProperties.Name="{loc:Str Key=Transport_Previous}"/>
@@ -678,7 +678,7 @@
                       Command="{Binding PlayPauseCommand}" FontSize="20" Width="42" Height="42"
                       ToolTipService.ToolTip="{loc:Str Key=Transport_PlayPause}"
                       AutomationProperties.Name="{loc:Str Key=Transport_PlayPause}"/>
-              <Button Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
+              <Button x:Name="TransportNextButton" Style="{StaticResource PegasusTransportButton}" Content="&#xf04e;"
                       Command="{Binding NextCommand}" IsEnabled="{Binding IsNextLive}"
                       ToolTipService.ToolTip="{Binding NextToolTip}"
                       AutomationProperties.Name="{Binding NextToolTip}"/>
@@ -688,7 +688,7 @@
                  the volume. Read from the middle outwards, as on the TV: the cast key, the lyric key and
                  the layout key. They stand together in one strip, like the three on the left, so that
                  showing or hiding the lyric key moves nothing else. -->
-            <StackPanel Orientation="Horizontal" Spacing="8"
+            <StackPanel x:Name="TransportRightKeys" Orientation="Horizontal" Spacing="8"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
 
