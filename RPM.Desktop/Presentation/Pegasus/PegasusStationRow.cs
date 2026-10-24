@@ -39,7 +39,7 @@ internal sealed record PegasusRadioLook(
 ///
 /// <para>The row itself is a remote stop. OK on it plays or stops the station, as the pane's play key does.
 /// The heart is a second stop beside it. The play key is for the pointer only. It is not a stop, because it
-/// does the same thing as the row.</para>
+/// does the same thing as the row, and it is hidden while the remote is in use (see MouseKeys).</para>
 /// </summary>
 public sealed partial class PegasusStationRow : Grid
 {
@@ -126,6 +126,11 @@ public sealed partial class PegasusStationRow : Grid
         _main.Click += (_, _) => { if (_item is { } item) _look?.Press(item); };
         _heart.Click += (_, _) => { if (_item is { } item) _look?.Heart(item); };
         _play.Click += (_, _) => { if (_item is { } item) _look?.Press(item); };
+
+        // The play key does what the row does, so it is only there for the pointer. While the remote is in
+        // use it is hidden (see MouseKeys), as the TV's rows have no play key at all. Nothing else writes
+        // its Visibility.
+        MouseKeys.SetOnly(_play, true);
 
         DataContextChanged += (_, _) => Follow(DataContext as RadioStationItem, again: false);
         Loaded += (_, _) => Follow(DataContext as RadioStationItem, again: true);
