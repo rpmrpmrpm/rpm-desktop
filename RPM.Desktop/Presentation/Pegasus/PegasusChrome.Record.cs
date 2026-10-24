@@ -680,19 +680,43 @@ public sealed partial class PegasusChrome
                 Margin = new Thickness(0, 4 * scale, 0, 0),
             });
 
-        // ── how much record there is ──
+        // ── when, and how much record there is ──
         //
-        // The count and the length on one line, because they are one fact between them: how much of this
-        // there is. A middle dot and not a dash, which is the app's rule for user-facing text.
+        // The year, the count and the length on one line, because together they say what this is in time
+        // and size. The year leads, as on the TV's record page. It is the year most of the tracks give, so
+        // one bonus track from a later reissue does not change it, and a record whose files give no year
+        // starts at the count. A middle dot and not a dash, which is the app's rule for user-facing text.
+        var amount = string.Format(Strings.Loc.Get("Rpm_Album_Tracks"), rows.Count)
+                   + "  ·  " + Duration(rows.Sum(t => t.DurationSeconds));
         info.Children.Add(new TextBlock
         {
-            Text = string.Format(Strings.Loc.Get("Rpm_Album_Tracks"), rows.Count)
-                 + "  ·  " + Duration(rows.Sum(t => t.DurationSeconds)),
+            Text = RecordYear(rows) is { } year ? $"{year}  ·  {amount}" : amount,
             FontSize = 12.5 * scale,
             Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 12 * scale, 0, 0),
         });
+
+        // ── what it is made of ──
+        //
+        // "FLAC  ·  16/44.1  ·  5.1", from the first track's own row, with whichever of those the file
+        // knows: the drawer's album screen gives the same line from the same describer (see
+        // PegasusChrome.Album). One file speaks for the record because one release uses one encoding.
+        var first = rows[0];
+        var format = RPM.Core.Metadata.AudioFormat.Describe(
+            first.Extension, first.Channels, first.CodecDescription,
+            first.BitsPerSample, first.SampleRate, first.BitrateKbps);
+        if (format.Count > 0)
+            info.Children.Add(new TextBlock
+            {
+                Text = string.Join("  ·  ", format),
+                FontSize = 11.5 * scale,
+                FontStyle = Windows.UI.Text.FontStyle.Italic,
+                Foreground = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6 * scale, 0, 0),
+            });
 
         // ── the stars ──
         info.Children.Add(BuildRecordStars(card, meta, scale));
@@ -753,6 +777,16 @@ public sealed partial class PegasusChrome
                 title.MaxWidth = max;
         };
     }
+
+    /// <summary>The year most of a record's tracks give, or null when none gives one. The commonest year
+    /// and not the first track's, so a reissue's one later bonus track does not date the record.</summary>
+    private static uint? RecordYear(List<LibraryTrack> rows) =>
+        rows.Where(t => t.Year > 0)
+            .GroupBy(t => t.Year)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key)
+            .Select(g => (uint?)g.Key)
+            .FirstOrDefault();
 
     /// <summary>
     /// What the record has been given: the wall's average, and the listener's own.
