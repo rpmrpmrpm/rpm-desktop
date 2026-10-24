@@ -17,13 +17,14 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <summary>
 /// One artist's page in Pegasus: the photograph beside the name, the first whole sentences of what the
 /// encyclopedia says about them, how much of their work the collection holds, a key to play all of it and
-/// one to shuffle it, and then their records on shelves that scroll sideways. OK on a record opens the
-/// record page, and Back comes back here.
+/// one to shuffle it, then their popular songs in columns of four, and then their records on shelves that
+/// scroll sideways. OK on a song plays the popular songs from it; OK on a record opens the record page, and
+/// Back comes back here.
 ///
 /// <para><b>The head reads as the Android TV app's.</b> The name (or logo), the article and the counts are
 /// centred in their column, the article cut at the last whole sentence that fits in four lines (see
-/// <see cref="CutArtistAbout"/>), the counts under it. An article that arrives after the page has opened
-/// fades in while it rises into place, and what is under it glides down to make room
+/// <see cref="CutArtistAbout"/>), the counts under it. An article or popular songs that arrive after the
+/// page has opened fade in while they rise into place, and what is under them glides down to make room
 /// (see <see cref="Arrival"/>), rather than appearing at once and pushing the page down.</para>
 ///
 /// <para><b>The article is found through the act's own records</b>, never by the name alone (see
@@ -93,6 +94,18 @@ public sealed partial class PegasusChrome
     /// <summary>The width the article is drawn at, written by the size pass.</summary>
     private double _artistAboutWidth;
 
+    /// <summary>Where the popular songs stand, between the head and the shelves, so a list that arrives
+    /// later does not push the shelves down at once.</summary>
+    private StackPanel? _artistPopularSlot;
+
+    /// <summary>The popular songs, once read, in the order they are shown. What Play all tracks and a
+    /// song's entry play.</summary>
+    private List<TrackInfo> _artistPopular = [];
+
+    /// <summary>Sizes the popular songs' heading, key and entries at a scale. Null until they are
+    /// built.</summary>
+    private Action<double>? _artistPopularSize;
+
     /// <summary>When the page was built, on the chrome's clock. Something that lands later than
     /// <see cref="LateAfter"/> after it arrives late, and eases in.</summary>
     private double _artistPageBuiltAt;
@@ -100,6 +113,13 @@ public sealed partial class PegasusChrome
     /// <summary>How long after the page is built an answer counts as late. The collection answers inside
     /// the page's own cross; an answer from the network comes well after.</summary>
     private const double LateAfter = 0.25;
+
+    /// <summary>How many popular songs at most: eight columns of four, as Quick selection on home and the
+    /// Android TV app have.</summary>
+    private const int ArtistPopularMost = 32;
+
+    /// <summary>How many popular songs stand in a column.</summary>
+    private const int ArtistPopularDown = 4;
 
     /// <summary>The photograph's bytes, for cutting it again at a new size.</summary>
     private byte[]? _artistPortraitBytes;
@@ -232,6 +252,10 @@ public sealed partial class PegasusChrome
 
         ArtistPageContent.Children.Add(head);
 
+        // The popular songs' place, filled when they are read (see ReadArtistPopularAsync).
+        _artistPopularSlot = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        ArtistPageContent.Children.Add(_artistPopularSlot);
+
         // The shelves.
         AddArtistShelf("Artists_Albums", shelves.Records, shelf, plain, read);
         AddArtistShelf("Artists_Collaborations", shelves.Together, shelf, plain, read);
@@ -245,6 +269,8 @@ public sealed partial class PegasusChrome
 
         SizeArtistPage(scale);
         ArtistPageScroll.ChangeView(null, 0, null, disableAnimation: true);
+
+        ReadArtistPopularAsync(act, shelves, shelf, read);
 
         // The compilations shelf is not a person: nothing is asked of the catalogues about it (see
         // MainPage.NobodyInParticular).
@@ -569,6 +595,252 @@ public sealed partial class PegasusChrome
     [System.Text.RegularExpressions.GeneratedRegex("(?<=[.!?])\\s+(?=[\\p{Lu}\\p{N}\"“‘(])")]
     private static partial System.Text.RegularExpressions.Regex SentenceEnd();
 
+    // ── the popular songs ──
+
+    /// <summary>
+    /// Their popular songs (<see cref="ArtistPopular"/>): every song of theirs the world has played, read off
+    /// the collection (the counts the popularity sweep wrote, see <c>LibraryDatabase.SaveWorldPlays</c>),
+    /// most played first, one per title, at most <see cref="ArtistPopularMost"/>. "Theirs" is the page's own
+    /// Play all: their own records whole, and the songs that name them on somebody else's. Nothing is shown
+    /// where there are too few.
+    /// </summary>
+    private async void ReadArtistPopularAsync(
+        ArtistWallItem act, ArtistShelves shelves, LibraryAlbumIndex.ArtistShelf shelf, int read)
+    {
+        var library = Library;
+        if (!library.IsOpen || library.Root is not { } root)
+            return;
+
+        var own = shelves.OwnInPageOrder.ToList();
+        var appearances = shelves.Appearances;
+        var db = library.Db;
+        var asked = await Task.Run(() => library.Read(db, "an artist's popular songs for Pegasus", mirror =>
+        {
+            var elsewhere = new HashSet<string>(appearances, StringComparer.OrdinalIgnoreCase);
+            var played = mirror.QueryWorldPlaysUnder([.. own, .. appearances])
+                               .Where(p => !elsewhere.Contains(p.Track.Folder) || ArtistWall.Names(p.Track.Artist, act.Name))
+                               .ToList();
+            if (played.Count < ArtistPopular.Fewest)
+                return new List<LibraryTrack>();
+
+            // Everything of theirs, counted or not: the half rule's whole.
+            var songs = own.Sum(f => shelf.TrackCounts.GetValueOrDefault(f));
+            foreach (var folder in appearances)
+                songs += mirror.FolderTracks(folder).Count(t => ArtistWall.Names(t.Artist, act.Name));
+
+            return ArtistPopular.Ranked(played, p => p.Track.Title, p => p.Plays, songs, ArtistPopularMost)
+                                .Select(p => p.Track)
+                                .ToList();
+        }));
+
+        if (read != _artistPageRead || !asked.Answers(out var popular, out _) || popular.Count == 0
+            || _artistPopularSlot is not { } slot)
+            return;
+
+        _artistPopular = popular.Select(t => t.ToTrackInfo(root)).ToList();
+        var block = BuildArtistPopular(popular, slot, read);
+        slot.Children.Add(block);
+        _artistPopularSize?.Invoke(QueueScale);
+
+        if (_clock.Elapsed.TotalSeconds - _artistPageBuiltAt > LateAfter)
+            StartArrival(slot, block, ArtistStrip());
+    }
+
+    /// <summary>
+    /// The popular songs as the Android TV app lays them out, like Quick selection on home: the heading
+    /// with Play all tracks at its right, then the songs in columns of four, three columns to the width,
+    /// scrolling sideways for more. Each song is its record's cover, the title and the record. OK plays the
+    /// popular songs from that one.
+    /// </summary>
+    private StackPanel BuildArtistPopular(List<LibraryTrack> popular, StackPanel slot, int read)
+    {
+        var plain = (Style)Resources["PegasusPlainButton"];
+        var icons = (FontFamily)Resources["PegasusFa"];
+        var ink = new SolidColorBrush(Color.FromArgb(0xF2, 0xFF, 0xFF, 0xFF));
+        var dim = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+
+        var block = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+
+        var head = new Grid();
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var heading = new TextBlock
+        {
+            Text = Loc.Get("Artists_PopularTracks"),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = ink,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        head.Children.Add(heading);
+
+        // Play all tracks: a pill of the smoked glass, the play glyph and the words.
+        var playGlyph = new TextBlock { Text = "", FontFamily = icons, Foreground = ink, VerticalAlignment = VerticalAlignment.Center };
+        var playWords = new TextBlock
+        {
+            Text = Loc.Get("Home_PlayAllTracks"),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = ink,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var playRow = new StackPanel { Orientation = Orientation.Horizontal };
+        playRow.Children.Add(playGlyph);
+        playRow.Children.Add(playWords);
+        var playAll = new Button
+        {
+            Style = plain,
+            Content = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+                Child = playRow,
+            },
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        playAll.Click += (_, _) =>
+        {
+            if (_artistPopular.Count > 0)
+                PlayFromDrawer(_artistPopular, 0, new SleeveInHand.None());
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(playAll, playWords.Text);
+        Grid.SetColumn(playAll, 1);
+        head.Children.Add(playAll);
+        block.Children.Add(head);
+
+        // The columns, in a strip that scrolls sideways. It reaches out over the page's side inset, as a
+        // shelf row does (see ShelfRow.Size), so the songs line up with the heading and scroll under the edge.
+        var columns = new StackPanel { Orientation = Orientation.Horizontal };
+        var strip = new ScrollViewer
+        {
+            HorizontalScrollMode = ScrollMode.Enabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            VerticalScrollMode = ScrollMode.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            BringIntoViewOnFocusChange = false,
+            Content = columns,
+        };
+        block.Children.Add(strip);
+
+        var entries = new List<(Button Key, StackPanel Words, Border Cover, TextBlock Title, TextBlock Record)>();
+        var at = ArtistPageContent.Children.IndexOf(slot);
+        StackPanel? column = null;
+        for (var i = 0; i < popular.Count; i++)
+        {
+            if (i % ArtistPopularDown == 0)
+            {
+                column = new StackPanel();
+                columns.Children.Add(column);
+            }
+
+            var track = popular[i];
+            var art = new Image { Stretch = Stretch.UniformToFill };
+            var cover = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x00, 0x00)),
+                Child = art,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var title = new TextBlock
+            {
+                Text = track.Title ?? track.FileName,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = ink,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            var record = new TextBlock
+            {
+                Text = TitleAsides.NameOnly(track.Album ?? ""),
+                Foreground = dim,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            words.Children.Add(title);
+            words.Children.Add(record);
+
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.Children.Add(cover);
+            Grid.SetColumn(words, 1);
+            row.Children.Add(words);
+
+            var from = i;
+            var key = new Button
+            {
+                Style = plain,
+                Content = row,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            };
+            key.Click += (_, _) => PlayFromDrawer(_artistPopular, from, new SleeveInHand.None());
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, title.Text);
+            column!.Children.Add(key);
+            entries.Add((key, words, cover, title, record));
+
+            var folder = track.Folder;
+            _artistPagePictures.Add(new CardPlace(at, i), async () =>
+            {
+                if (read != _artistPageRead)
+                    return;
+                var edge = CardDecodeEdgeFor(64 * QueueScale);
+                var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge, ownCollection: true);
+                if (bytes is not { Length: > 0 } || read != _artistPageRead)
+                    return;
+                var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
+                if (read == _artistPageRead)
+                    art.Source = bitmap;
+            });
+        }
+
+        // The couch sizes the Android TV app draws them at: the heading at 22, the title at 17 and the
+        // record at 15, the cover 64 across with a corner of 6.
+        _artistPopularSize = scale =>
+        {
+            var width = ArtistStrip();
+            heading.FontSize = 22 * scale;
+            block.Margin = new Thickness(0, 30 * scale, 0, 0);
+            head.Margin = new Thickness(0, 0, 0, 12 * scale);
+            playGlyph.FontSize = 14 * scale;
+            playWords.FontSize = 16 * scale;
+            playRow.Spacing = 9 * scale;
+            if (playAll.Content is Border pill)
+            {
+                pill.CornerRadius = new CornerRadius(20 * scale);
+                pill.BorderThickness = new Thickness(1);
+                pill.Padding = new Thickness(20 * scale, 8 * scale, 20 * scale, 8 * scale);
+            }
+            playAll.CornerRadius = new CornerRadius(20 * scale);
+
+            var bleed = LibraryEdgeInset;
+            strip.Margin = new Thickness(-bleed, 0, -bleed, 0);
+            columns.Padding = new Thickness(bleed - (8 * scale), 0, bleed - (8 * scale), 0);
+            var panel = Math.Max(160, (width - (20 * scale)) / 3);
+            foreach (var each in columns.Children.OfType<StackPanel>())
+                each.Width = panel;
+            foreach (var (key, words, cover, title, record) in entries)
+            {
+                key.Padding = new Thickness(8 * scale, 6 * scale, 8 * scale, 6 * scale);
+                key.CornerRadius = new CornerRadius(8 * scale);
+                cover.Width = cover.Height = 64 * scale;
+                cover.CornerRadius = new CornerRadius(6 * scale);
+                words.Margin = new Thickness(14 * scale, 0, 0, 0);
+                words.Spacing = 3 * scale;
+                title.FontSize = 17 * scale;
+                record.FontSize = 15 * scale;
+            }
+        };
+
+        return block;
+    }
+
+    /// <summary>The width the page's content stands in: the screen less the side insets.</summary>
+    private double ArtistStrip()
+    {
+        var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
+        return Math.Max(320, width - (LibraryEdgeInset * 2));
+    }
+
     // ── what arrives late ──
 
     /// <summary>
@@ -735,6 +1007,9 @@ public sealed partial class PegasusChrome
         _artistAboutHost = null;
         _artistAboutProse = null;
         _artistAboutCutAt = default;
+        _artistPopularSlot = null;
+        _artistPopular = [];
+        _artistPopularSize = null;
         LandArrivals();
         _artistPageCards.Clear();
         _artistPageRows.Clear();
@@ -809,6 +1084,7 @@ public sealed partial class PegasusChrome
             _artistAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
             CutArtistAbout();
         }
+        _artistPopularSize?.Invoke(scale);
 
         var gap = 22 * scale;
         var card = (strip - (gap * 5)) / 6;
