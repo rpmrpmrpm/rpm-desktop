@@ -50,6 +50,8 @@ public sealed partial class PegasusChrome
 
         public static TrailStop Playlists() => new(CollectionScreen.Playlists, null, null);
 
+        public static TrailStop Search() => new(CollectionScreen.Search, null, null);
+
         public static TrailStop OfArtist(ArtistWallItem act) => new(CollectionScreen.Artist, act, null);
 
         public static TrailStop OfGenre(GenreWallItem genre) => new(CollectionScreen.Genre, null, genre);
@@ -94,19 +96,20 @@ public sealed partial class PegasusChrome
         _artistPageFade = new Fader(ArtistPageScreen);
         _genrePageFade = new Fader(GenrePageScreen);
         BuildPlaylistsScreen();
+        BuildSearchScreen();
     }
 
     /// <summary>The trail's screens, in the order they stand in the collection layer.</summary>
     private static readonly CollectionScreen[] ArtistsGenresScreens =
     [
         CollectionScreen.Artists, CollectionScreen.Genres, CollectionScreen.Artist, CollectionScreen.Genre,
-        CollectionScreen.Playlists,
+        CollectionScreen.Playlists, CollectionScreen.Search,
     ];
 
     /// <summary>Whether <paramref name="screen"/> is one of the trail's screens.</summary>
     private static bool IsArtistsGenres(CollectionScreen screen) => screen is
         CollectionScreen.Artists or CollectionScreen.Genres or CollectionScreen.Artist or CollectionScreen.Genre
-        or CollectionScreen.Playlists;
+        or CollectionScreen.Playlists or CollectionScreen.Search;
 
     /// <summary>Whether one of the four is the screen in front, with nothing over it. Back's step along the
     /// trail asks this (see PegasusPlayer.TakeBack).</summary>
@@ -120,6 +123,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Genres => GenresScreen,
         CollectionScreen.Artist => ArtistPageScreen,
         CollectionScreen.Playlists => PlaylistsScreen,
+        CollectionScreen.Search => SearchScreen,
         _ => GenrePageScreen,
     };
 
@@ -129,6 +133,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Genres => _genresFade,
         CollectionScreen.Artist => _artistPageFade,
         CollectionScreen.Playlists => _playlistsFade,
+        CollectionScreen.Search => _searchFade,
         _ => _genrePageFade,
     };
 
@@ -196,6 +201,10 @@ public sealed partial class PegasusChrome
     /// </summary>
     public void StepBackFromArtistsGenres()
     {
+        // The search screen takes Back itself first: from its results to its field, then the field emptied.
+        if (_collection == CollectionScreen.Search && SearchTakesBack())
+            return;
+
         if (_trail.Count <= 1)
         {
             _trail.Clear();
@@ -314,6 +323,7 @@ public sealed partial class PegasusChrome
         _artistPageFade.Set(0);
         _genrePageFade.Set(0);
         _playlistsFade.Set(0);
+        _searchFade.Set(0);
         ApplyArtistsGenresShown();
     }
 
@@ -375,6 +385,8 @@ public sealed partial class PegasusChrome
             FillArtists();
         else if (_collection == CollectionScreen.Genres)
             BuildGenres();
+        else if (_collection == CollectionScreen.Search)
+            SearchShelfLanded();
     }
 
     private void ShowArtistsGenresSpinner(bool spinning)
@@ -412,6 +424,7 @@ public sealed partial class PegasusChrome
         SizeArtistPage(scale);
         SizeGenrePage(scale);
         SizePlaylists(scale);
+        SizeSearchScreen(scale);
     }
 
     /// <summary>A page's scroller moved: the mini player goes on a scroll down, by the rule home's and
@@ -437,6 +450,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Genres => GenresScroll,
         CollectionScreen.Artist => ArtistPageScroll,
         CollectionScreen.Playlists => PlaylistsScroll,
+        CollectionScreen.Search => SearchResultsScroll,
         _ => GenrePageScroll,
     };
 
@@ -463,6 +477,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Genres => _genreCards.Count > 0 ? _genreCards[0].Root : null,
         CollectionScreen.Artist => _artistPlayKey,
         CollectionScreen.Playlists => PlaylistsFocusTarget(),
+        CollectionScreen.Search => SearchFocusTarget(),
         _ => _genrePlayKey ?? FocusManager.FindFirstFocusableElement(GenrePageContent) as Control,
     };
 
@@ -474,6 +489,8 @@ public sealed partial class PegasusChrome
     /// </summary>
     private Control? AcrossShelves(FrameworkElement from, FocusNavigationDirection direction, Control? next, RemoteScreen screen)
     {
+        if (_collection == CollectionScreen.Search)
+            return AcrossSearch(from, direction, next);   // the search screen's own rule (see PegasusChrome.SearchScreen)
         if (next is not null || _collection is not (CollectionScreen.Artist or CollectionScreen.Genre or CollectionScreen.Playlists))
             return next;
         return RemoteSearch.NearestRow(from, direction, ArtistsGenresScroll, screen);

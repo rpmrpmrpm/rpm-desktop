@@ -215,7 +215,8 @@ public sealed partial class PegasusChrome
     /// <summary>
     /// The entry of the screen in front, where the remote's focus starts when the menu opens, as an Apple
     /// TV sidebar's does: Home over home, Albums over the wall, Artists over the artists list or an
-    /// artist's page, Genres likewise, Playlists over the playlists, Internet Radio over radio. Else the first
+    /// artist's page, Genres likewise, Playlists over the playlists, Search over the search, Internet Radio over
+    /// radio. Else the first
     /// entry shown, which is Now playing while something is loaded.
     /// </summary>
     private Button MenuEntryInFront() => _collection switch
@@ -225,6 +226,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Artists or CollectionScreen.Artist => SideMenuArtists,
         CollectionScreen.Genres or CollectionScreen.Genre => SideMenuGenres,
         CollectionScreen.Playlists => SideMenuPlaylists,
+        CollectionScreen.Search => SideMenuSearch,
         CollectionScreen.Radio => SideMenuRadio,
         _ => SideMenuNowPlaying.Visibility == Visibility.Visible ? SideMenuNowPlaying : SideMenuHome,
     };
@@ -360,13 +362,13 @@ public sealed partial class PegasusChrome
         CrossToHome();
     }
 
-    /// <summary>Search: the menu closes, the collection crosses to the wall, and the wall's search field
-    /// takes the focus, for both the remote and the pointer.</summary>
+    /// <summary>Search: the menu closes and the collection crosses to the search screen, whose field takes
+    /// the focus, for both the remote and the pointer (see PegasusChrome.SearchScreen). The wall keeps its
+    /// own search field, which Cmd or Ctrl+F still opens.</summary>
     private void SideMenuSearch_Click(object sender, RoutedEventArgs e)
     {
         ShowLibraryMenu(false);
-        CrossToWall();
-        FocusFieldLater(LibrarySearch);   // replaces the wall's own request for its first album
+        OpenSearchScreen();
     }
 
     /// <summary>

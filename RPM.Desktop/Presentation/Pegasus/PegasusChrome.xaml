@@ -1229,6 +1229,88 @@
                            IsHitTestVisible="False"/>
       </Grid>
 
+      <!-- ═══ search ═══ the side menu's Search, in the look of radio's search: a shade over the room, one
+           field in the light glass with the go key beside it, in the middle of the screen while there is
+           nothing to show and at the top once there is, and under it a card of the same glass listing what
+           matches under Artists, Albums, Tracks and Radio stations (see PegasusChrome.SearchScreen). No
+           blur under the glass, as on the TV. Sizes are set in SizeSearchScreen; the rows are built in
+           code. -->
+      <Grid x:Name="SearchScreen" Visibility="Collapsed" Opacity="0">
+        <Rectangle Fill="#33000000" IsHitTestVisible="False"/>
+
+        <Grid x:Name="SearchColumn" HorizontalAlignment="Center" VerticalAlignment="Stretch">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid x:Name="SearchScreenField" Grid.Column="0">
+              <Border x:Name="SearchScreenGlass" IsHitTestVisible="False" BorderThickness="1"
+                      Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                      LightSmokeRimBrush}"/>
+              <TextBox x:Name="SearchScreenBox" PlaceholderText="{loc:Str Key=Tv_Search_Placeholder}"
+                       VerticalAlignment="Center" VerticalContentAlignment="Center"
+                       Background="Transparent" BorderThickness="0" Padding="0" MinWidth="0" MinHeight="0"
+                       IsSpellCheckEnabled="False"
+                       TextChanged="SearchScreenBox_TextChanged" KeyDown="SearchScreenBox_KeyDown">
+                <TextBox.Resources>
+                  <x:Double x:Key="TextControlThemeMinHeight">0</x:Double>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#F2FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#B3FFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#CCFFFFFF"/>
+                  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#CCFFFFFF"/>
+                  <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                  <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </TextBox.Resources>
+              </TextBox>
+            </Grid>
+
+            <!-- Moves to the first result, or searches now where there is none yet. -->
+            <Button x:Name="SearchScreenGo" Grid.Column="1" Style="{StaticResource PegasusMenuButton}"
+                    Click="SearchScreenGo_Click" ToolTipService.ToolTip="{loc:Str Key=Viz_MenuSearch}"
+                    AutomationProperties.Name="{loc:Str Key=Viz_MenuSearch}">
+              <TextBlock x:Name="SearchScreenGoMark" Text="&#xf002;" FontFamily="{StaticResource PegasusFa}"/>
+            </Button>
+          </Grid>
+
+          <!-- What matches, in the same glass. The list holds two parts, the collection's and the
+               stations', so a late answer from the directory does not build the collection's rows again. -->
+          <Grid x:Name="SearchResultsCard" Grid.Row="1" Visibility="Collapsed">
+            <Border x:Name="SearchResultsGlass" IsHitTestVisible="False" BorderThickness="1"
+                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                    LightSmokeRimBrush}"/>
+            <ScrollViewer x:Name="SearchResultsScroll" VerticalScrollBarVisibility="Hidden"
+                          HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                          ViewChanged="PageScroll_ViewChanged">
+              <StackPanel x:Name="SearchResultsList">
+                <StackPanel x:Name="SearchLibraryPart"/>
+                <StackPanel x:Name="SearchStationsPart"/>
+              </StackPanel>
+            </ScrollViewer>
+            <TextBlock x:Name="SearchResultsNote" Visibility="Collapsed" Text="{loc:Str Key=Tv_Search_NoResults}"
+                       Foreground="#CCFFFFFF" TextWrapping="Wrap" TextAlignment="Center"
+                       HorizontalAlignment="Center" VerticalAlignment="Top"/>
+            <ctl:RecordSpinner x:Name="SearchResultsSpinner" Width="46" Height="46" Spinning="False"
+                               HorizontalAlignment="Center" VerticalAlignment="Top"
+                               IsHitTestVisible="False"/>
+          </Grid>
+        </Grid>
+      </Grid>
+
       <!-- ═══ one artist ═══ the photograph and the name at the head, then the albums on shelves (see
            PegasusChrome.ArtistPage). Built in code when it is opened. -->
       <Grid x:Name="ArtistPageScreen" Visibility="Collapsed" Opacity="0">
@@ -1553,7 +1635,8 @@
                  LeftRail and RightRail). Each entry is the icon and the name side by side, and their
                  sizes are set in SizeSideMenu. As the Apple TV's sidebar lists them: Now playing first,
                  only while something is loaded, which goes to the turning record; then Home; Albums opens
-                 the wall, Search opens the wall's search field, Artists and Genres open their lists (see
+                 the wall, Search opens the search screen (see PegasusChrome.SearchScreen), Artists and
+                 Genres open their lists (see
                  PegasusChrome.ArtistsGenres), Playlists opens the playlists screen (see
                  PegasusChrome.PlaylistsScreen) and Internet Radio opens the radio screen. The focus starts on
                  the entry of the screen in front (see MenuEntryInFront). -->

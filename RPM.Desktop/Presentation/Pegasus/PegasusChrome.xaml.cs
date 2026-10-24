@@ -2150,7 +2150,7 @@ public sealed partial class PegasusChrome : UserControl
             _recordFade, _libraryBusyFade,
             _wallScreenFade, _homeScreenFade,
             _radioScreenFade, _radioWheelFade, _radioSearchFade, _tunerFade,
-            _artistsFade, _genresFade, _artistPageFade, _genrePageFade, _playlistsFade,
+            _artistsFade, _genresFade, _artistPageFade, _genrePageFade, _playlistsFade, _searchFade,
         ];
 
         // The sheet is moved by one transform on the whole Canvas, not by a translate for each line. The
