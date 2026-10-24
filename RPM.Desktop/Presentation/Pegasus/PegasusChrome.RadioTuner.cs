@@ -24,7 +24,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// whole, so it is wider than the pane's and nothing on it is stretched. It is one stop for the remote:
 /// Left and Right move the needle a station at a time, held keys walk the band, and the station is tuned
 /// when the key comes up (see CommitDialStep), so walking the band does not open a stream per station. OK
-/// plays or stops.</item>
+/// plays or stops. Its badge shows the cover of the song the station announces, over the logo, as the
+/// player's well does (see ShowTunerBadge).</item>
 /// <item><b>The list</b> is the radio pane's model and its rows, drawn larger (see PegasusStationRow): a
 /// copy of the model of its own, so the main window's pane keeps its query. Search, country, order,
 /// filter and favourites are the pane's; the country, order and filter open menus at this view's
@@ -94,6 +95,11 @@ public sealed partial class PegasusChrome
 
     /// <summary>Whether the well is showing the song's cover rather than the station's logo.</summary>
     private bool _tunerShowsSong;
+
+    /// <summary>The song's cover as the well shows it, and the station that announced the song, for the
+    /// dial's badge (see ShowTunerBadge). Null while the well shows the station's logo.</summary>
+    private ImageSource? _tunerSongCover;
+    private string? _tunerSongCoverFor;
 
     /// <summary>The station the keys moved the needle to and have not tuned yet. Tuned when the key comes
     /// up (see CommitDialStep).</summary>
@@ -313,7 +319,7 @@ public sealed partial class PegasusChrome
 
         // Logo first, for the reason RadioView gives: showing or hiding the badge lays the dial out again,
         // and a layout snaps the needle where it stands.
-        TunerDial.SetLogo(model.CurrentLogo, model.CurrentLogoGround, model.CurrentLogoFills);
+        ShowTunerBadge();
         TunerDial.SetStations(model.DialStations);
         if (_dialPreview is null)
             TunerDial.PointAt(model.Current?.Uuid);
@@ -322,6 +328,24 @@ public sealed partial class PegasusChrome
 
         PaintTunerTools();
         SyncTunerPlayer();
+    }
+
+    /// <summary>
+    /// The dial's badge, in the readout's corner: the cover of the song the tuned station announces, over
+    /// its logo, as the player's well and the mini player show it (the TV's dial, 2026-10-24), else the
+    /// station's logo. The cover is the one the well asked for (see PaintTunerSongAsync), decoded at the
+    /// well's size, which is larger than the badge is ever drawn; it is shown only while the station that
+    /// announced the song is still the one tuned, so a stop or a new station takes it down at once.
+    /// </summary>
+    private void ShowTunerBadge()
+    {
+        if (_tunerModel is not { } model)
+            return;
+
+        if (_tunerSongCover is { } cover && Radio.Current is { } tuned && tuned.Is(_tunerSongCoverFor ?? ""))
+            TunerDial.SetLogo(cover, null, fills: true);
+        else
+            TunerDial.SetLogo(model.CurrentLogo, model.CurrentLogoGround, model.CurrentLogoFills);
     }
 
     /// <summary>The list's tools and notes: the country, the dots that say an order or a filter is in
@@ -402,6 +426,11 @@ public sealed partial class PegasusChrome
             _tunerPlayerFor = shown?.Uuid;
             _tunerSongFor = null;
             _tunerShowsSong = false;
+            if (_tunerSongCover is not null)
+            {
+                _tunerSongCover = null;
+                ShowTunerBadge();
+            }
             _ = PaintTunerMarkAsync(shown);
         }
 
@@ -444,6 +473,9 @@ public sealed partial class PegasusChrome
 
                 _tunerShowsSong = true;
                 well.Show(picture, null, fills: true);
+                _tunerSongCover = picture;
+                _tunerSongCoverFor = Radio.Current?.Uuid;
+                ShowTunerBadge();
                 return;
             }
         }
@@ -458,6 +490,8 @@ public sealed partial class PegasusChrome
 
         _tunerShowsSong = false;
         well.Show(_tunerLogo);
+        _tunerSongCover = null;
+        ShowTunerBadge();
     }
 
     /// <summary>
