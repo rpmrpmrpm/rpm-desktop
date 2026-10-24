@@ -33,6 +33,12 @@
       <GradientStop Offset="1" Color="#66FFFFFF"/>
     </LinearGradientBrush>
 
+    <!-- The same smoke with a quarter of black laid over it (#40000000, the TV's GLASS_DIM), worked out
+         as one colour: the side menu's glass and the mini player's card. White words on them stay
+         readable over a bright banner photograph or a light room, which on the plain light smoke they
+         did not. The panels opened over the menu (the settings, the libraries) wear it too. -->
+    <SolidColorBrush x:Key="LightSmokeDimmedBrush" Color="#5C4F4F4F"/>
+
     <!-- Glyphs and nothing else. The deck's own transport is dressed in the same way (see TransportDeck):
          no disc and no edge, only the key. On a picture that changes colour every second, a dark circle
          looks like a hole in the room, and three of them look like a control panel fixed on top. The box
@@ -1199,7 +1205,7 @@
             </Path.Fill>
           </Path>
           <Path x:Name="LibraryPlayerGlass" HorizontalAlignment="Left" VerticalAlignment="Top"
-                Fill="{StaticResource LightSmokeBrush}" Stroke="{StaticResource LightSmokeRimBrush}"
+                Fill="{StaticResource LightSmokeDimmedBrush}" Stroke="{StaticResource LightSmokeRimBrush}"
                 StrokeThickness="1" IsHitTestVisible="False"/>
 
           <!-- The card. Its bottom margin is half the pill's height (SizeLibrary), so that the pill below
@@ -1299,7 +1305,7 @@
                hides them (see ApplyLibraryPlayer): they step the album queue, and pressing one would
                switch the station off. The pill then holds only the one key. -->
           <Border x:Name="LibraryTransportPill" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                  Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
                   LightSmokeRimBrush}" BorderThickness="1" Opacity="0" IsHitTestVisible="False">
             <Grid>
             <!-- The pill's frost, inside its rim, so that its lower half (over home, below the card) is
@@ -1378,16 +1384,16 @@
             <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
           </Grid.Resources>
 
-          <!-- The mini player's glass: the live blur, and over it the light smoke and its rim. These are
-               two borders, not the player's drawn path, because this panel is a plain rounded rectangle.
-               -->
+          <!-- The mini player's glass: the live blur, and over it the light smoke dimmed by a quarter of
+               black (LightSmokeDimmedBrush) and its rim. These are two borders, not the player's drawn
+               path, because this panel is a plain rounded rectangle. -->
           <Border x:Name="SideMenuFrost" IsHitTestVisible="False">
             <Border.Background>
               <ui:GlassBrush BlurAmount="34"/>
             </Border.Background>
           </Border>
           <Border x:Name="SideMenuGlass" IsHitTestVisible="False" BorderThickness="1"
-                  Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
+                  Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
                   LightSmokeRimBrush}"/>
 
           <!-- Transparent and not empty, so a press on the glass between the entries stops here and does
@@ -1400,8 +1406,9 @@
             </Grid.RowDefinitions>
 
             <!-- Whose collection is on screen: their picture (else the first letter of their name, else
-                 the collection's mark), their name, and which collection it is. The key on the right
-                 switches to another collection. It is there only when there is one to switch to. -->
+                 the collection's mark), their name, which collection it is, and the supporter mark when
+                 the collection's owner supports rpm. The key on the right switches to another
+                 collection. It is there only when there is one to switch to. -->
             <Grid x:Name="SideMenuHeader" Grid.Row="0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -1421,6 +1428,13 @@
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                 <TextBlock x:Name="SideMenuCollection" Foreground="#B3FFFFFF"
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                <!-- The badge is drawn at the desktop's own size (10 points); the box scales it to the
+                     menu's, set in SizeSideMenu. It is told, not asked (ReadsAccount is off): the owner
+                     of the collection on screen is not always the account on this machine. -->
+                <Viewbox x:Name="SideMenuSupporter" HorizontalAlignment="Left" Stretch="Uniform"
+                         Visibility="Collapsed">
+                  <ctl:SupporterBadge ReadsAccount="False" IsSupporter="True"/>
+                </Viewbox>
               </StackPanel>
               <Button x:Name="SideMenuSwitch" Grid.Column="2" VerticalAlignment="Center"
                       Style="{StaticResource PegasusMenuButton}" Visibility="Collapsed"
@@ -1432,10 +1446,26 @@
 
             <!-- The collection's screens, with the icons that the main window's rails use for them (see
                  LeftRail and RightRail). Each entry is the icon and the name side by side, and their
-                 sizes are set in SizeSideMenu. Albums opens the wall, Search opens the wall's search
-                 field, Artists and Genres open their lists (see PegasusChrome.ArtistsGenres) and Internet
-                 Radio opens the radio screen. Playlists has no screen in Pegasus yet. -->
+                 sizes are set in SizeSideMenu. As the Apple TV's sidebar lists them: Now playing first,
+                 only while something is loaded, which goes to the turning record; then Home; Albums opens
+                 the wall, Search opens the wall's search field, Artists and Genres open their lists (see
+                 PegasusChrome.ArtistsGenres) and Internet Radio opens the radio screen. Playlists has no
+                 screen in Pegasus yet. The focus starts on the entry of the screen in front (see
+                 MenuEntryInFront). -->
             <StackPanel x:Name="SideMenuItems" Grid.Row="1">
+              <Button x:Name="SideMenuNowPlaying" Style="{StaticResource PegasusSideButton}" Click="SideMenuNowPlaying_Click"
+                      Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf8f1;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Atv_Tab_NowPlaying}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="SideMenuHome" Style="{StaticResource PegasusSideButton}" Click="SideMenuHome_Click">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="&#xf015;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>
+                  <TextBlock Text="{loc:Str Key=Atv_Tab_Home}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
               <Button x:Name="SideMenuSearch" Style="{StaticResource PegasusSideButton}" Click="SideMenuSearch_Click">
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="&#xf002;" FontFamily="{StaticResource PegasusFa}" VerticalAlignment="Center" TextAlignment="Center"/>

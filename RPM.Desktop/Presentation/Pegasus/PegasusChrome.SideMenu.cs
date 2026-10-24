@@ -68,9 +68,10 @@ public sealed partial class PegasusChrome
         {
             _menuOpener = FocusedWithin(LibraryLayer);
             FillMenuHeader();
+            SideMenuNowPlaying.Visibility = LibraryPlayerOn ? Visibility.Visible : Visibility.Collapsed;
             LibraryMenu.Visibility = Visibility.Visible;
             _libraryMenuFade.To(1, MenuInMs, null);
-            FocusScreenLater(SideMenuSearch);   // with the remote: focus goes into the menu
+            FocusScreenLater(MenuEntryInFront());   // with the remote: focus goes into the menu
             return;
         }
 
@@ -134,6 +135,22 @@ public sealed partial class PegasusChrome
             ShowRadioWheel(true);
         return true;
     }
+
+    /// <summary>
+    /// The entry of the screen in front, where the remote's focus starts when the menu opens, as an Apple
+    /// TV sidebar's does: Home over home, Albums over the wall, Artists over the artists list or an
+    /// artist's page, Genres likewise, Internet Radio over radio. Else the first entry shown, which is Now
+    /// playing while something is loaded.
+    /// </summary>
+    private Button MenuEntryInFront() => _collection switch
+    {
+        CollectionScreen.Home => SideMenuHome,
+        CollectionScreen.Wall => SideMenuAlbums,
+        CollectionScreen.Artists or CollectionScreen.Artist => SideMenuArtists,
+        CollectionScreen.Genres or CollectionScreen.Genre => SideMenuGenres,
+        CollectionScreen.Radio => SideMenuRadio,
+        _ => SideMenuNowPlaying.Visibility == Visibility.Visible ? SideMenuNowPlaying : SideMenuHome,
+    };
 
     /// <summary>Whether a panel is open over the menu.</summary>
     public bool MenuPanelOpen => _menuPanel != MenuPanel.None;
@@ -203,6 +220,23 @@ public sealed partial class PegasusChrome
     }
 
     // ── the entries ──
+
+    /// <summary>Now playing, shown only while something is loaded: the menu closes and the collection
+    /// goes down to the turning record, as a press on the mini player does. The collection's own request
+    /// for the record's play key replaces the menu's request for its opener.</summary>
+    private void SideMenuNowPlaying_Click(object sender, RoutedEventArgs e)
+    {
+        ShowLibraryMenu(false);
+        HideLibrary();
+    }
+
+    /// <summary>Home: the menu closes and the collection crosses to home from whichever screen it is on.
+    /// Over home itself it only closes, and the focus goes back to where it was.</summary>
+    private void SideMenuHome_Click(object sender, RoutedEventArgs e)
+    {
+        ShowLibraryMenu(false);
+        CrossToHome();
+    }
 
     /// <summary>Search: the menu closes, the collection crosses to the wall, and the wall's search field
     /// takes the focus, for both the remote and the pointer.</summary>
@@ -287,6 +321,10 @@ public sealed partial class PegasusChrome
     ///
     /// <para>The desktop app has no user handle for anybody, so the line under the name says which
     /// collection it is: "My collection", or "Shared collection" for somebody else's.</para>
+    ///
+    /// <para>Under the line, the supporter mark when the collection's owner supports rpm: for somebody
+    /// else's collection, what their profile says (PeerFace.IsSupporter); for the user's own, this
+    /// account's standing, as the badge on the settings pages reads it.</para>
     /// </summary>
     private void FillMenuHeader()
     {
@@ -306,22 +344,26 @@ public sealed partial class PegasusChrome
         string name;
         string line;
         PeerFace face;
+        bool supporter;
         if (library is { IsPeerView: true, ViewingPeer: { } peer })
         {
             face = faces?.Face(peer) ?? PeerFace.Nobody;
             name = PeerNames.Lender();
             line = Loc.Get("Viz_MenuShared");
+            supporter = face.IsSupporter;
         }
         else
         {
             face = faces?.Self ?? PeerFace.Nobody;
             name = face.IsKnown ? face.DisplayName : Loc.Get("Share_MyLibrary");
             line = face.IsKnown ? Loc.Get("Share_MyLibrary") : "";
+            supporter = SupporterReach.For(App.Services.GetService<SupporterService>()?.Standing).MayWearTheBadge;
         }
 
         SideMenuName.Text = name;
         SideMenuCollection.Text = line;
         SideMenuCollection.Visibility = line.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        SideMenuSupporter.Visibility = supporter ? Visibility.Visible : Visibility.Collapsed;
 
         // The picture, else the first letter of the name, else the collection's mark: a house for the
         // user's own collection, a computer for somebody else's, as the rows of the share button draw them.
@@ -697,12 +739,24 @@ public sealed partial class PegasusChrome
         key.LostFocus += (_, _) => key.Background = rest;
     }
 
+    /// <summary>The side menu's width before the scale.</summary>
+    private const double SideMenuWide = 495;
+
+    /// <summary>
+    /// The height of a box that draws the supporter badge (drawn at 10 points, about 19 high) as if its
+    /// word were <paramref name="points"/> points: the badge's pill, padding and heart all grow with it,
+    /// as the TV's SupporterMark does with its size.
+    /// </summary>
+    private static double SupporterHigh(double points, double scale) => 19 * (points / 10) * scale;
+
     /// <summary>Whether the side menu's own buttons have been given their lit state. This happens once.</summary>
     private bool _sideMenuLit;
 
     /// <summary>Sizes the side menu for the collection's scale. Its names are the same size as the
-    /// banner titles on home (24 points before the scale), in the app's own type, and the width of the
-    /// menu follows from them.</summary>
+    /// banner titles on home (24 points before the scale), in the app's own type. It is 495 points wide
+    /// before the scale, as the TV's is: it was 330, and half as wide again a long name (a first name and
+    /// a family name with a particle) is not cut short beside the switch key. Nothing else is placed from
+    /// its width; the screen under it does not move.</summary>
     private void SizeSideMenu(double scale)
     {
         if (!_sideMenuLit)
@@ -716,7 +770,7 @@ public sealed partial class PegasusChrome
         var corner = new CornerRadius(PlayerCorner * scale);
         var edge = 10 * scale;
 
-        SideMenuPanel.Width = 330 * scale;
+        SideMenuPanel.Width = SideMenuWide * scale;
         SideMenuPanel.Margin = new Thickness(edge, edge, 0, edge);
         SideMenuFrost.CornerRadius = corner;
         SideMenuGlass.CornerRadius = corner;
@@ -732,6 +786,8 @@ public sealed partial class PegasusChrome
         SideMenuWho.Margin = new Thickness(14 * scale, 0, 10 * scale, 0);
         SideMenuName.FontSize = 24 * scale;
         SideMenuCollection.FontSize = 15 * scale;
+        SideMenuSupporter.Height = SupporterHigh(13, scale);   // the TV's 13 point mark
+        SideMenuSupporter.Margin = new Thickness(0, 6 * scale, 0, 0);
         SideMenuSwitch.Width = SideMenuSwitch.Height = 52 * scale;
         SideMenuSwitch.FontSize = 20 * scale;
         SideMenuSwitch.CornerRadius = corner;

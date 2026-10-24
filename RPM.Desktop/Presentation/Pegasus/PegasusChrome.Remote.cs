@@ -249,12 +249,12 @@ public sealed partial class PegasusChrome
     /// </summary>
     public Control? DefaultFocusTarget()
     {
-        // The side menu over home, while it is open: the panel open over it, else its first entry. Without
-        // this, a focus lost inside the menu (for example when a dialog closes) would go to home's first
-        // card, behind the menu.
+        // The side menu, while it is open: the panel open over it, else the entry of the screen in front
+        // (see MenuEntryInFront). Without this, a focus lost inside the menu (for example when a dialog
+        // closes) would go to home's first card, behind the menu.
         if (LibraryMenuOpen)
             return _menuPanel == MenuPanel.None
-                ? SideMenuSearch
+                ? MenuEntryInFront()
                 : FocusManager.FindFirstFocusableElement(MenuScope()) as Control;
 
         if (_queueOpen && DrawerFocusTarget() is { } inDrawer)
