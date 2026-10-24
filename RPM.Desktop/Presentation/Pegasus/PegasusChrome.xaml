@@ -970,10 +970,13 @@
                       HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
                       ViewChanged="RadioScroll_ViewChanged">
           <StackPanel x:Name="RadioContent">
-            <!-- The banner: five hosts at offsets -2 to 2 from the card in front, and the remote's one
-                 stop over the card in front. It is clipped to its own box, so the hosts beyond the peeks
-                 are out of sight until a step slides them in. -->
+            <!-- The banner, laid out as home's: three hosts (the card peeking at the left, the plate in
+                 front, the card peeking at the right), the chevrons at the strip's ends, and the remote's
+                 one stop over the plate. It is clipped to its own box, so a step's slide stays inside it.
+                 Under it a row of dots, one a station, the one in front lit. -->
             <Grid x:Name="RadioBanner" HorizontalAlignment="Stretch"/>
+            <StackPanel x:Name="RadioBannerDots" Orientation="Horizontal" HorizontalAlignment="Center"
+                        IsHitTestVisible="False" Visibility="Collapsed"/>
 
             <TextBlock x:Name="RadioEssentialHeading" FontWeight="SemiBold" Foreground="#F2FFFFFF"
                        TextTrimming="CharacterEllipsis"/>

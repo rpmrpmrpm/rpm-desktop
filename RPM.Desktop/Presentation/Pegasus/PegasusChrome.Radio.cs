@@ -20,9 +20,10 @@ namespace RPM.Desktop.Presentation.Pegasus;
 ///
 /// <list type="bullet">
 /// <item><b>The banner</b> holds the stations listened to most, then the favourites, then the essential
-/// stations, seven at most. It is drawn the way home's radio card is (see RadioBannerHost) and stepped the
-/// way home's banner is: the card in front is the remote's one stop over it, Left and Right step it, and
-/// OK tunes it.</item>
+/// stations, seven at most. Each card is drawn the way home's radio card is (see RadioBannerHost), and the
+/// banner is laid out and stepped the way home's banner is (HomeBanner): a plate in front with the cards
+/// before and after it peeking out at the strip's ends, chevrons at the ends and a row of dots under it.
+/// The card in front is the remote's one stop over it, Left and Right step it, and OK tunes it.</item>
 /// <item><b>Essential stations</b> are the directory's most played stations in the listener's country (the
 /// system's region), or everywhere where that is not known or lists nothing.</item>
 /// <item><b>Favourite stations</b> are the ones saved with the heart, in the tuner or in the main window's
@@ -58,12 +59,21 @@ public sealed partial class PegasusChrome
     /// <summary>How many essential stations stand in their row.</summary>
     private const int RadioEssentialCount = 12;
 
-    /// <summary>How long one step of the banner takes.</summary>
-    private const int RadioBannerSlideMs = 380;
+    /// <summary>How long one step of the banner takes, and how far the strip slides in on it, before the
+    /// view's scale: home's banner's figures (HomeBanner.SlideMs, MostSlide), as the TV's radio has them.</summary>
+    private const int RadioBannerSlideMs = HomeBanner.SlideMs;
+    private const double RadioBannerSlide = HomeBanner.MostSlide;
 
-    /// <summary>The five banner hosts, at offsets -2 to 2 from the card in front. Index 2 is in
-    /// front.</summary>
-    private readonly RadioBannerHost[] _bannerHosts = new RadioBannerHost[5];
+    /// <summary>The three banner hosts, each with a place of its own: the card peeking at the left, the
+    /// plate in front, and the card peeking at the right. A step hands each the face at its place and
+    /// slides the three together (see StepRadioBanner).</summary>
+    private readonly RadioBannerHost[] _bannerHosts = new RadioBannerHost[3];
+
+    /// <summary>The host in front, among <see cref="_bannerHosts"/>.</summary>
+    private const int BannerFrontHost = 1;
+
+    /// <summary>The banner's chevrons at the strip's two ends, saying Left and Right step it.</summary>
+    private TextBlock _bannerBefore = null!, _bannerAfter = null!;
 
     /// <summary>The remote's one stop over the card in front: OK tunes it, Left and Right step the banner,
     /// and a held OK or the Menu key opens the station's menu (see StationMenu). It takes no pointer input;
@@ -99,14 +109,17 @@ public sealed partial class PegasusChrome
     /// built again.</summary>
     private CancellationTokenSource? _radioFacesRun;
 
-    /// <summary>Where a step of the banner has got to: the hosts stand <see cref="RadioBannerShift"/> card
-    /// widths from their places, easing to nought over <see cref="RadioBannerSlideMs"/>.</summary>
+    /// <summary>Where a step of the banner has got to: the three hosts stand <see cref="RadioBannerShift"/>
+    /// points from their places, easing out to nought over <see cref="RadioBannerSlideMs"/> (a cubic ease
+    /// out, the TV's BannerOut).</summary>
     private double _bannerFrom;
     private double _bannerT = 1;
-    private double RadioBannerShift => _bannerFrom * (1 - PaneGlide.EaseAt(_bannerT));
+    private double RadioBannerShift => _bannerFrom * Math.Pow(1 - _bannerT, 3);
 
-    /// <summary>The banner's geometry, written in SizeRadio.</summary>
-    private double _bannerWidth, _bannerHeight, _bannerPitch, _bannerStrip;
+    /// <summary>The banner's geometry, written in SizeRadio: the plate's width and height, a peeking
+    /// card's height, how much of a peeking card shows and how far it stands in from the strip's end
+    /// (both nought where the strip has no room for peeks), and the strip's width.</summary>
+    private double _bannerWidth, _bannerHeight, _bannerPeekHeight, _bannerPeek, _bannerPeekInset, _bannerStrip;
 
     private Fader _radioScreenFade = null!;
 
@@ -131,7 +144,7 @@ public sealed partial class PegasusChrome
         for (var i = 0; i < _bannerHosts.Length; i++)
         {
             var host = new RadioBannerHost(icons);
-            var offset = i - 2;
+            var offset = i - BannerFrontHost;
             host.Root.Tapped += (_, e) =>
             {
                 e.Handled = true;
@@ -140,6 +153,24 @@ public sealed partial class PegasusChrome
             _bannerHosts[i] = host;
             RadioBanner.Children.Add(host.Root);
         }
+
+        // The chevrons at the strip's ends, as on home's banner and the TV's: marks, not keys. A press on a
+        // peeking card steps the banner, and the remote steps it with Left and Right.
+        _bannerBefore = BannerChevron("", HorizontalAlignment.Left);   // chevron-left
+        _bannerAfter = BannerChevron("", HorizontalAlignment.Right);   // chevron-right
+        RadioBanner.Children.Add(_bannerBefore);
+        RadioBanner.Children.Add(_bannerAfter);
+
+        TextBlock BannerChevron(string glyph, HorizontalAlignment side) => new()
+        {
+            Text = glyph,
+            FontFamily = icons,
+            Foreground = StationWell.Ink(0xB3FFFFFF),
+            HorizontalAlignment = side,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalTextAlignment = TextAlignment.Center,
+            IsHitTestVisible = false,
+        };
 
         _radioBannerKey = new RemoteLine(
             new Grid(),
@@ -627,31 +658,73 @@ public sealed partial class PegasusChrome
 
     // ── the banner ──
 
-    /// <summary>Hands each host the face at its offset from the card in front, and places them.</summary>
+    /// <summary>
+    /// Hands each host the face at its place: the station in front to the plate, the ones before and
+    /// after it to the peeks (with two stations the other one peeks at both sides, as on the TV), nothing
+    /// to a peek where the strip has no room for peeks. The chevrons and the dots show only with more
+    /// than one station.
+    /// </summary>
     private void ShowBanner()
     {
         var n = _radioBanner.Count;
+        var peeks = n > 1 && _bannerPeek > 0;
         for (var i = 0; i < _bannerHosts.Length; i++)
         {
-            var offset = i - 2;
-            _bannerHosts[i].Show(n == 0 || (n == 1 && offset != 0)
+            var offset = i - BannerFrontHost;
+            _bannerHosts[i].Show(n == 0 || (offset != 0 && !peeks)
                 ? null
                 : _radioBanner[(((_radioFront + offset) % n) + n) % n]);
 
             // Only the card in front drifts: the room is a few milliseconds of the drawing thread a frame,
-            // and the cards beside it are dimmed and half hidden.
+            // and the cards beside it are dimmed and mostly hidden.
             _bannerHosts[i].Room.Drift = offset == 0;
         }
+
+        var stepping = n > 1 ? Visibility.Visible : Visibility.Collapsed;
+        _bannerBefore.Visibility = _bannerAfter.Visibility = stepping;
+        RadioBannerDots.Visibility = stepping;
+        PaintBannerDots();
 
         if (_radioBannerKey is { } key)
             key.IsTabStop = n > 0;
         PlaceBanner();
     }
 
+    /// <summary>The row of dots under the banner, one a station, the one in front lit: made again only
+    /// when the number of stations changed, and lit on every step.</summary>
+    private void PaintBannerDots()
+    {
+        var n = _radioBanner.Count;
+        var scale = QueueScale;
+        if (RadioBannerDots.Children.Count != n)
+        {
+            RadioBannerDots.Children.Clear();
+            for (var i = 0; i < n; i++)
+                RadioBannerDots.Children.Add(new Border
+                {
+                    Child = new Border { Background = StationWell.Ink(0xFFFFFFFF) },
+                    IsHitTestVisible = false,
+                });
+        }
+
+        // The TV's dots: a 7 point mark in a 16 point box, 7 apart, white, the others at 0.32.
+        RadioBannerDots.Spacing = 7 * scale;
+        for (var i = 0; i < n; i++)
+        {
+            var box = (Border)RadioBannerDots.Children[i];
+            box.Width = box.Height = 16 * scale;
+            var dot = (Border)box.Child;
+            dot.Width = dot.Height = 7 * scale;
+            dot.CornerRadius = new CornerRadius(3.5 * scale);
+            dot.Opacity = i == _radioFront ? 1 : 0.32;
+        }
+    }
+
     /// <summary>
-    /// Writes every host's place, size and dimming from where a step has got to. A host's look follows
-    /// its distance from the middle, so a card sliding into the middle grows and brightens as it comes and
-    /// nothing changes size at the moment of the step. The nearest is drawn on top.
+    /// Writes the three hosts' places from where a step has got to, home's banner's layout: the plate in
+    /// the middle and drawn over the two it overlaps, each peeking card the plate's own card shown through
+    /// a cut at the strip's end (the side of it nearest the edge), a little shorter than the plate and
+    /// dimmed to three quarters as a card without the focus is. The three slide together.
     /// </summary>
     private void PlaceBanner()
     {
@@ -659,29 +732,38 @@ public sealed partial class PegasusChrome
             return;
 
         var shift = RadioBannerShift;
-        var middle = _bannerStrip / 2;
-        for (var i = 0; i < _bannerHosts.Length; i++)
-        {
-            var at = i - 2 + shift;
-            var away = Math.Min(Math.Abs(at), 1);
-            var host = _bannerHosts[i];
-            host.Place(middle + at * _bannerPitch - _bannerWidth / 2, 1 - 0.06 * away, 0.45 * away);
-            Canvas.SetZIndex(host.Root, 10 - (int)Math.Round(Math.Abs(at) * 2));
-        }
+        var peekTop = (_bannerHeight - _bannerPeekHeight) / 2;
+
+        var before = _bannerHosts[0];
+        before.Place(_bannerPeekInset + shift, peekTop, dim: 0.25);
+        before.Cut(new Windows.Foundation.Rect(0, 0, _bannerPeek, _bannerPeekHeight));
+
+        var front = _bannerHosts[BannerFrontHost];
+        front.Place((_bannerStrip - _bannerWidth) / 2 + shift, 0, dim: 0);
+        front.Cut(null);
+
+        var after = _bannerHosts[2];
+        after.Place(_bannerStrip - _bannerPeekInset - _bannerWidth + shift, peekTop, dim: 0.25);
+        after.Cut(new Windows.Foundation.Rect(_bannerWidth - _bannerPeek, 0, _bannerPeek, _bannerPeekHeight));
+
+        Canvas.SetZIndex(before.Root, 1);
+        Canvas.SetZIndex(after.Root, 1);
+        Canvas.SetZIndex(front.Root, 2);
+        Canvas.SetZIndex(_bannerBefore, 3);
+        Canvas.SetZIndex(_bannerAfter, 3);
     }
 
-    /// <summary>Left or Right on the banner's card: the next card comes in front, sliding from the side
-    /// it was on. False where there is nothing to step to, and the remote bounces.</summary>
+    /// <summary>Left or Right on the banner's card: the cards change at once, the next one in front, and
+    /// the strip slides in from the side it came from, as home's banner and the TV's radio step. It wraps.
+    /// False where there is nothing to step to, and the remote bounces.</summary>
     private bool StepRadioBanner(int way)
     {
         var n = _radioBanner.Count;
         if (n < 2)
             return false;
 
-        // Turned round mid-step, the slide carries on from where it is rather than jumping.
-        var now = RadioBannerShift;
         _radioFront = (((_radioFront + way) % n) + n) % n;
-        _bannerFrom = now + way;
+        _bannerFrom = way * RadioBannerSlide * QueueScale;
         _bannerT = 0;
         ShowBanner();
         AskRadioOnAir();
@@ -701,7 +783,7 @@ public sealed partial class PegasusChrome
         TickTuner();
     }
 
-    /// <summary>A press on a banner card: the one in front is tuned, one beside it comes in
+    /// <summary>A press on a banner card: the one in front is tuned, a peeking one comes in
     /// front.</summary>
     private void BannerHost_Tapped(int offset)
     {
@@ -790,10 +872,9 @@ public sealed partial class PegasusChrome
     // ── sizes ──
 
     /// <summary>
-    /// Radio's sizes at the collection's scale: the banner's cards off the width (three across, the one in
-    /// front 0.45 of the strip and the two beside it under its edges), the
-    /// rows' cards (four essential and six favourites across), the headings, and the wheel, the search and
-    /// the tuner, which are sized here too because they are one screen's.
+    /// Radio's sizes at the collection's scale: the banner laid out as home's (HomeBanner, at this view's
+    /// scale), the rows' cards (four essential and six favourites across), the headings, and the wheel,
+    /// the search and the tuner, which are sized here too because they are one screen's.
     /// </summary>
     private void SizeRadio(double scale)
     {
@@ -806,16 +887,28 @@ public sealed partial class PegasusChrome
         RadioContent.Margin = new Thickness(inset, HomeTopPad, inset, 34 * scale);
         var strip = Math.Max(320, width - inset * 2);
 
-        // The banner: the card in front and the two behind it span the strip. Each card beside it is the
-        // front card's size, drawn down a little, its middle 0.6 of a card's width from the middle.
+        // The banner, as home's and the TV's: the plate min(0.68 of the strip, 760) wide and 352 high in
+        // the middle, and where 124 or more is left at each side, the cards before and after it peeking out
+        // there, 330 high, cut 24 under the plate's edge, and moved in from the strip's end where a cut as
+        // wide as the plate still leaves room. With less room there are no peeks, and the plate takes the
+        // strip up to 760. All at this view's scale.
+        var widest = HomeBanner.Widest * scale;
+        var shared = Math.Min(strip * HomeBanner.Share, widest);
+        var sideRoom = Math.Max(0, (strip - shared) / 2);
+        var peeks = sideRoom >= HomeBanner.LeastPeek * scale;
+        var bite = HomeBanner.Bite * scale;
+
         _bannerStrip = strip;
-        _bannerWidth = strip / 2.14;
-        _bannerHeight = Math.Min(_bannerWidth / 2.17, height * 0.40);
-        _bannerPitch = _bannerWidth * 0.6;
+        _bannerWidth = peeks ? shared : Math.Min(strip, widest);
+        _bannerHeight = Math.Min(HomeBanner.Height * scale, height * 0.45);
+        _bannerPeekHeight = Math.Max(0, _bannerHeight - HomeBanner.PeekDrop * scale);
+        _bannerPeek = peeks ? Math.Min(sideRoom + bite, _bannerWidth) : 0;
+        _bannerPeekInset = peeks ? Math.Max(0, sideRoom + bite - _bannerWidth) : 0;
+
         RadioBanner.Height = _bannerHeight;
         RadioBanner.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, strip, _bannerHeight) };
-        foreach (var host in _bannerHosts)
-            host?.Size(_bannerWidth, _bannerHeight, scale);
+        for (var i = 0; i < _bannerHosts.Length; i++)
+            _bannerHosts[i]?.Size(_bannerWidth, i == BannerFrontHost ? _bannerHeight : _bannerPeekHeight, scale);
         if (_radioBannerKey is { } key)
         {
             key.Width = _bannerWidth;
@@ -823,7 +916,23 @@ public sealed partial class PegasusChrome
             key.Margin = new Thickness((strip - _bannerWidth) / 2, 0, 0, 0);
             key.CornerRadius = new CornerRadius(12 * scale);
         }
-        PlaceBanner();
+
+        // The chevrons, 15 in a 44 box, 4 in from the strip's ends; the dots 30 under the banner. Built
+        // with the banner's hosts (see BuildRadio).
+        if (_bannerBefore is not null)
+        {
+            foreach (var chevron in new[] { _bannerBefore, _bannerAfter })
+            {
+                chevron.FontSize = 15 * scale;
+                chevron.Width = 44 * scale;
+            }
+            _bannerBefore.Margin = new Thickness(4 * scale, 0, 0, 0);
+            _bannerAfter.Margin = new Thickness(0, 0, 4 * scale, 0);
+            RadioBannerDots.Margin = new Thickness(0, 30 * scale, 0, 0);
+
+            // A strip that gained or lost the room for peeks hands them their faces again.
+            ShowBanner();
+        }
 
         // The rows.
         var gap = 22 * scale;

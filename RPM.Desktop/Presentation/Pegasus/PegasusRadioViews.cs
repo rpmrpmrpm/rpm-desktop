@@ -208,8 +208,9 @@ internal sealed class StationWell
 /// <summary>
 /// One card on radio's banner, drawn the way home's radio card is drawn (HomeView.xaml, "a radio station").
 /// It shows the station's mark in the middle of a room in the mark's own colours, its name under it, a
-/// short description, and what it is playing. Five hosts stand at offsets -2 to 2 from the card in front.
-/// A step hands each host another face (see PegasusChrome.Radio, StepRadioBanner).
+/// short description, and what it is playing. Three hosts stand at the banner's three places: peeking at
+/// the left, the plate in front, peeking at the right. A step hands each host another face (see
+/// PegasusChrome.Radio, StepRadioBanner).
 /// </summary>
 internal sealed class RadioBannerHost
 {
@@ -342,14 +343,13 @@ internal sealed class RadioBannerHost
         _line.Visibility = now is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    /// <summary>The card's size and its writing, at the given scale. The writing uses home's radio card's sizes
-    /// (22, 13 and 11.5 points). The mark takes the top two fifths of the card.</summary>
+    /// <summary>The card's size and its writing, at the given scale. The writing uses the TV's banner card's
+    /// couch sizes (22, 18 on a 24 line, and 16 points), larger than home's radio card's 13 and 11.5 so it
+    /// reads from across a room. The mark takes the top two fifths of the card.</summary>
     public void Size(double width, double height, double scale)
     {
         Root.Width = width;
         Root.Height = height;
-        _place.CenterX = width / 2;
-        _place.CenterY = height / 2;
 
         var corner = new CornerRadius(12 * scale);
         Root.CornerRadius = corner;
@@ -364,20 +364,36 @@ internal sealed class RadioBannerHost
         _body.Spacing = 10 * scale;
         _name.FontSize = 22 * scale;
         _name.MaxWidth = width * 0.8;
-        _blurb.FontSize = 13 * scale;
-        _blurb.LineHeight = 18 * scale;
-        _blurb.MaxWidth = 300 * scale;
-        _line.FontSize = 11.5 * scale;
+        _blurb.FontSize = 18 * scale;
+        _blurb.LineHeight = 24 * scale;
+        _blurb.MaxWidth = Math.Min(420 * scale, width * 0.85);
+        _line.FontSize = 16 * scale;
         _line.MaxWidth = width * 0.7;
     }
 
-    /// <summary>Where the host stands this frame: its middle, how far it is drawn down (shrunk), and how far
-    /// it is dimmed. It is written on every frame of a step, from where the step has got to.</summary>
-    public void Place(double left, double shrink, double dim)
+    /// <summary>Where the host stands this frame, its left and top edges in the banner, and how far it is
+    /// dimmed. It is written on every frame of a step, from where the step has got to.</summary>
+    public void Place(double left, double top, double dim)
     {
         _place.TranslateX = left;
-        _place.ScaleX = _place.ScaleY = shrink;
+        _place.TranslateY = top;
         _dim.Opacity = dim;
+    }
+
+    /// <summary>What of the card shows, in its own points: the part a peeking card shows at the strip's
+    /// end, or null for the whole card.</summary>
+    public void Cut(Windows.Foundation.Rect? shows)
+    {
+        if (shows is not { } rect)
+        {
+            if (Root.Clip is not null)
+                Root.Clip = null;
+            return;
+        }
+
+        if (Root.Clip is { Rect: var was } && was == rect)
+            return;
+        Root.Clip = new RectangleGeometry { Rect = rect };
     }
 }
 
