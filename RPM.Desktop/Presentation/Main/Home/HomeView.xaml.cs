@@ -3016,14 +3016,22 @@ public sealed partial class HomeView : UserControl
     public bool IsAtTop => HomeScroller.VerticalOffset < 0.5;
 
     /// <summary>
-    /// Where a remote's focus starts on this screen: the first card of the quick selection, which is
+    /// Where a remote's focus starts on this screen: the banner's card (<see cref="_plateKey"/>) where a
+    /// remote drives it and the banner has cards, else the first card of the quick selection, which is
     /// the first thing on the screen that plays something, and otherwise the first thing that can take
     /// the focus at all. Pegasus asks for it when home comes up from the keyboard (see
     /// PegasusChrome.DefaultFocusTarget).
+    ///
+    /// <para>The banner, as on the TV (FOBO 96f889aa4): the first quick card stood below the banner, and
+    /// bringing it into view scrolled the page and cut the banner off at the top. On the banner nothing
+    /// scrolls, and Down goes to the first quick card. It is not lit until the first key: Pegasus draws
+    /// its glow only once a key has been pressed in this visit (PegasusPlayer.KeysUsed).</para>
     /// </summary>
     public Control? DefaultFocusTarget() =>
-        Microsoft.UI.Xaml.Input.FocusManager.FindFirstFocusableElement(QuickPanels) as Control
-        ?? Microsoft.UI.Xaml.Input.FocusManager.FindFirstFocusableElement(HomeContent) as Control;
+        _plateKey.IsTabStop && _features.Count > 0 && FeatureScale.Visibility == Visibility.Visible
+            ? _plateKey
+            : Microsoft.UI.Xaml.Input.FocusManager.FindFirstFocusableElement(QuickPanels) as Control
+              ?? Microsoft.UI.Xaml.Input.FocusManager.FindFirstFocusableElement(HomeContent) as Control;
 
     /// <summary>
     /// Space above the first row, inside the scroller, so the rows start below whatever stands over
