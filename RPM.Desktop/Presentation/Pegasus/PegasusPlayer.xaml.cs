@@ -1466,8 +1466,8 @@ public sealed partial class PegasusPlayer : UserControl
         if (_pinned || !IsShowing)
             return;
 
-        // A paused record holds the controls up (see PegasusChrome.HoldsControls). The keys here and the
-        // pointer stay with them, and the count starts again.
+        // A paused record holds the controls up, and so does the cast menu (see PegasusChrome.HoldsControls).
+        // The keys here and the pointer stay with them, and the count starts again.
         if (_chrome is { HoldsControls: true })
         {
             RestartIdle();

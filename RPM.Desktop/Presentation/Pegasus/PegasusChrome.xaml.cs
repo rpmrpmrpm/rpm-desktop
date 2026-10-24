@@ -2301,6 +2301,9 @@ public sealed partial class PegasusChrome : UserControl
         // This is the ROW, not the keys inside it. The volume slider on its right end binds too, and the
         // keys inherit this anyway.
         TransportRow.DataContext = amp;
+
+        // …and the cast keys and the line at the top follow where the music plays (see PegasusChrome.Cast).
+        WatchCast(amp);
     }
 
     /// <summary>Runs the spin only while the visualizer is up.</summary>
@@ -3175,10 +3178,12 @@ public sealed partial class PegasusChrome : UserControl
 
         // The transport stands down after five quiet seconds. Any pointer move resets the count. It goes at
         // once when the deck empties, whatever the count says. Keys that drive a record that is no longer
-        // there are an offer the player cannot keep. It does not stand down while the record is paused.
+        // there are an offer the player cannot keep. It does not stand down while the record is paused, nor
+        // while the cast menu is open over it: the menu gives the focus back to its key when it closes, and
+        // a key that has faded cannot take it.
         if (_transportUp)
         {
-            _transportSeen = paused ? 0 : _transportSeen + dt;
+            _transportSeen = paused || CastMenuOpen ? 0 : _transportSeen + dt;
             if (!onDeck || _transportSeen >= TransportIdle)
                 FadeTransport(up: false);
         }
@@ -4643,9 +4648,9 @@ public sealed partial class PegasusChrome : UserControl
     private bool _wasPaused;
 
     /// <summary>Whether the controls are being held up by the record's state rather than by a pointer or a
-    /// key: the record is paused. The host keeps its own keys and the pointer up for as long as this holds
-    /// (see PegasusPlayer.HideKeys).</summary>
-    public bool HoldsControls => Paused;
+    /// key: the record is paused, or the cast menu is open. The host keeps its own keys and the pointer up
+    /// for as long as this holds (see PegasusPlayer.HideKeys).</summary>
+    public bool HoldsControls => Paused || CastMenuOpen;
 
     /// <summary>
     /// The record has just paused. The transport comes up. While the remote is in use on the turning record,

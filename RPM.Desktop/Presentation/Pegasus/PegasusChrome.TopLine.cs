@@ -9,7 +9,10 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// does not show.
 ///
 /// <para>For two seconds after the layout key, it names the new layout. A key that cycles cannot show on
-/// itself where the next press went, and a picture that changed with no word about it reads as a fault.</para>
+/// itself where the next press went, and a picture that changed with no word about it reads as a fault.
+/// While the music goes to a speaker, the line says where it plays, and a cast that could not start, or
+/// that ended by itself, is said there for six seconds (see PegasusChrome.Cast). A listener across the room
+/// has no other way to know where the sound went.</para>
 ///
 /// <para>It is worked out on the frame tick from what is true at that moment, and written only when what it
 /// says has changed. So nothing has to remember to take it down.</para>
@@ -45,8 +48,9 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>
-    /// One frame of the line at the top: the layout's name, for its two seconds. Nothing is shown over the
-    /// collection, which covers the player.
+    /// One frame of the line at the top. The layout's name comes first, for its two seconds, then a cast's
+    /// failure or end, for its six, then where the music plays while it goes to a speaker. Nothing is shown
+    /// over the collection, which covers the player.
     /// </summary>
     private void TickTopLine()
     {
@@ -57,7 +61,18 @@ public sealed partial class PegasusChrome
         if (!LibraryUp)
         {
             if (_layoutName is not null && now < _layoutNameUntil)
+            {
                 line = _layoutName;
+            }
+            else if (_castNotice is not null && now < _castNoticeUntil)
+            {
+                line = _castNotice;
+                notice = true;
+            }
+            else if (_castingTo is { } speaker)
+            {
+                line = Strings.Loc.Format("Rpm_Cast_Playing", speaker);
+            }
         }
 
         if (line == _topLineShown && notice == _topLineNotice)

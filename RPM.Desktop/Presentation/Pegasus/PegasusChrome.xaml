@@ -427,7 +427,7 @@
         <StackPanel>
           <ctl:SeekBar x:Name="LyricSeek" Opacity="0" IsHitTestVisible="False" TakesKeys="True"/>
 
-          <!-- The keys under the bar: the transport centred on the bar, and the lyric and layout keys
+          <!-- The keys under the bar: the transport centred on the bar, and the cast, lyric and layout keys
                at its right end, in the same arrangement as the row under the record. Their opacity is INSIDE
                the container's opacity: the container says whether this view is on screen, the row says
                whether the pointer has been still for five seconds, and the two multiply without either
@@ -442,11 +442,23 @@
               <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
             </Grid.Resources>
 
-            <!-- The right end of the foot, as in the row under the record: the lyric key and
+            <!-- The right end of the foot, as in the row under the record: the cast key, the lyric key and
                  the layout key. This foot is also the transport of the bare room (Visuals only), which has
                  no column of words to carry one, so it is the way out of that layout too. -->
             <StackPanel Orientation="Horizontal" Spacing="2"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
+              <!-- The same drawings as CastButton. Change both. -->
+              <Button x:Name="LyricCastButton" Click="Cast_Click"
+                      Style="{StaticResource PegasusTransportButton}" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Rpm_Cast_PlayOn}"
+                      AutomationProperties.Name="{loc:Str Key=Rpm_Cast_PlayOn}">
+                <Grid Width="16" Height="16">
+                  <Path x:Name="LyricCastIdle" Fill="#E6FFFFFF" Stretch="Uniform" Width="16" Height="16"
+                        Data="M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"/>
+                  <Path x:Name="LyricCastOn" Fill="#FF04C8FF" Stretch="Uniform" Width="16" Height="16" Visibility="Collapsed"
+                        Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                </Grid>
+              </Button>
 
               <!-- The lyric key: filled on the lyric view, where it is the way back to the record, and
                    hollow on the bare room. ShowLyricKey dresses it with the key in the row under the record.
@@ -573,7 +585,7 @@
                opacity it starts at: an invisible row must not be clickable before the first pointer move
                wakes it. -->
           <!-- One row with three things in it: the keys centred on the column, the list key and its
-               neighbours at its left end, and the lyric and layout keys with the volume at its right
+               neighbours at its left end, and the cast, lyric and layout keys with the volume at its right
                end. It is a Grid, not more of the StackPanel above, because they want different alignments
                on the same line: the transport belongs under the middle of the bar, and the list key belongs
                under its left edge, where the words above it begin.
@@ -668,13 +680,29 @@
             </StackPanel>
 
             <!-- The right end of the row: the keys about where and how the music is shown and heard, then
-                 the volume. Read from the middle outwards, as on the TV: the lyric key and
+                 the volume. Read from the middle outwards, as on the TV: the cast key, the lyric key and
                  the layout key. They stand together in one strip, like the three on the left, so that
                  showing or hiding the lyric key moves nothing else. -->
             <StackPanel Orientation="Horizontal" Spacing="8"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
             <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
 
+              <!-- Where the music plays: this computer, or a speaker on the network (see
+                   PegasusChrome.Cast). The mark is Google's cast symbol from Material Icons (Apache 2.0),
+                   the same pair of drawings the deck uses (TransportDeck.xaml): the outline while the music
+                   plays here, the filled screen in the cast cyan while it goes to a speaker. Only one of
+                   the two is shown, and its colour is set in code (see PaintCast). Change both places. -->
+              <Button x:Name="CastButton" Click="Cast_Click"
+                      Style="{StaticResource PegasusTransportButton}" VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Rpm_Cast_PlayOn}"
+                      AutomationProperties.Name="{loc:Str Key=Rpm_Cast_PlayOn}">
+                <Grid Width="16" Height="16">
+                  <Path x:Name="CastIdle" Fill="#E6FFFFFF" Stretch="Uniform" Width="16" Height="16"
+                        Data="M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"/>
+                  <Path x:Name="CastOn" Fill="#FF04C8FF" Stretch="Uniform" Width="16" Height="16" Visibility="Collapsed"
+                        Data="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm18-7H5v1.63c3.96 1.28 7.09 4.41 8.37 8.37H19V7zM1 10v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                </Grid>
+              </Button>
 
               <!-- The lyric view key. It is shown only while there is a sheet for this album, by the host's
                    rule (see PegasusPlayer.ApplyView). The lyric view's own foot carries the same key, as
@@ -758,8 +786,9 @@
     </StackPanel>
     </Grid>
 
-    <!-- The line across the top of the player (see PegasusChrome.TopLine): for two seconds after the layout
-         key, the new layout's name. It is outside the composition, so the queue
+    <!-- The line across the top of the player (see PegasusChrome.TopLine): where the music plays while it goes
+         to a speaker, what happened to a cast that failed or ended by itself (for six seconds), and for two
+         seconds after the layout key, the new layout's name. It is outside the composition, so the queue
          drawer does not push it aside, and it never takes the pointer. Its size and place are set in code,
          at the view's text scale. -->
     <TextBlock x:Name="TopLine" HorizontalAlignment="Center" VerticalAlignment="Top"
