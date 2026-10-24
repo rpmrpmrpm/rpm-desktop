@@ -307,13 +307,15 @@ public sealed partial class PegasusChrome
     {
         PlaylistsEmpty.FontSize = 14 * scale;
 
-        var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
-        if (width <= 1)
-            return;
-
+        // Cut before the width is known: the count to a row depends on the scale alone, and cards that are
+        // in no row would not be on the screen at all until the next size pass.
         var columns = LibraryColumnsAt(scale);
         if (columns != _playlistColumnsCut && _playlistShelves.Count > 0)
             CutPlaylists(columns);
+
+        var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
+        if (width <= 1)
+            return;
 
         // Each card carries its own room on every side (see CardRoomAround), so the rows are inset and
         // spaced by that much less and the cards stand where the gap and the inset say.
