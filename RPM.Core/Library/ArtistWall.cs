@@ -126,6 +126,10 @@ public static class ArtistWall
         // rail. It has to be the last part of the wall, or reaching for it would scroll upwards. Every
         // culture sorts digits and symbols in front of letters. Left to a plain sort, the numbers would be
         // at the top, and the rail would be wrong about where they are.
+        //
+        // The letter itself comes before the name. The letter skips a name's leading punctuation and the
+        // name comparison does not, so "(hed) p.e." files under H but would sort ahead of every A, and the
+        // rail's letters would then read H, A, B down the wall. ArtistSort's name order keeps the same rule.
         return acts.Values
             .Select(a => a.Settle())
             // A record of their own is what a box is FOR. See the class summary. This is filtered here, not
@@ -134,6 +138,7 @@ public static class ArtistWall
             // joint record's other half down with it.
             .Where(a => a.Albums.Count > 0 || a.Together.Count > 0)
             .OrderBy(a => a.Initial == '#' ? 1 : 0)
+            .ThenBy(a => a.Initial)
             .ThenBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }

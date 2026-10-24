@@ -364,6 +364,21 @@ public class ArtistWallTests
         Assert.Equal(["ABBA", "Madonna", "!!!", "2Pac"], wall.Select(a => a.Name));
     }
 
+    /// <summary>The letter comes before the name: "(hed) p.e." files under H, so it reads among the H
+    /// names and not ahead of every A, where the rail would be wrong about it.</summary>
+    [Fact]
+    public void A_name_led_by_punctuation_reads_among_its_own_letter()
+    {
+        var wall = ArtistWall.Build([
+            Row("h/a", "(hed) p.e.", "(hed) p.e."),
+            Row("a/a", "Air", "Air"),
+            Row("h/b", "Haim", "Haim"),
+            Row("x/a", "!!!", "!!!"),
+        ]);
+
+        Assert.Equal(["Air", "(hed) p.e.", "Haim", "!!!"], wall.Select(a => a.Name));
+    }
+
     /// <summary>What somebody types when they cannot remember how a band punctuates itself.</summary>
     [Theory]
     [InlineData("Sigur Rós", "sigur ros")]

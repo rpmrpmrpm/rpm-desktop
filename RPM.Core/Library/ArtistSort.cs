@@ -52,7 +52,7 @@ public static class ArtistSort
         var seats = artists
             .Select(a => new Seat(
                 a,
-                Last: a.Initial == '#',
+                Letter: a.Initial,
                 Own: a.Albums.Count + a.Together.Count,
                 Arrived: ordering == ArtistOrdering.Added ? ArrivalOf(a, facts) : 0))
             .ToList();
@@ -87,15 +87,27 @@ public static class ArtistSort
     }
 
     /// <summary>One artist with what every order needs read off them already.</summary>
-    private readonly record struct Seat(ArtistWallItem Artist, bool Last, int Own, long Arrived);
+    private readonly record struct Seat(ArtistWallItem Artist, char Letter, int Own, long Arrived)
+    {
+        /// <summary>Whether the artist is in the "#" bucket, which comes after Z.</summary>
+        public bool Last => Letter == '#';
+    }
 
-    /// <summary>The "#" bucket last. Then the name in the reader's culture, ignoring case. Then an ordinal
-    /// comparison, so names that differ only in case keep one order.
+    /// <summary>The "#" bucket last. Then the letter each artist files under (<see cref="ArtistWall.Initial"/>),
+    /// A to Z. Then the name in the reader's culture, ignoring case. Then an ordinal comparison, so names
+    /// that differ only in case keep one order.
+    ///
+    /// <para>The letter comes before the name because the name alone does not keep the letters together.
+    /// The letter skips a name's leading punctuation and the name comparison does not, so "(hed) p.e."
+    /// files under H but would sort ahead of every A. The ladder of letters beside Pegasus's artists list
+    /// would then read H, A, B. <see cref="ArtistWall.Build"/> keeps the same rule.</para>
     /// </summary>
     private static int ByName(Seat one, Seat other)
     {
         if (one.Last != other.Last)
             return one.Last ? 1 : -1;
+        if (one.Letter != other.Letter)
+            return one.Letter.CompareTo(other.Letter);
 
         var named = StringComparer.CurrentCultureIgnoreCase.Compare(one.Artist.Name, other.Artist.Name);
         return named != 0 ? named : string.CompareOrdinal(one.Artist.Name, other.Artist.Name);

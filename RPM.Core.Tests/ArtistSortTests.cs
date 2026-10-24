@@ -29,6 +29,25 @@ public class ArtistSortTests
         Assert.Equal(["abba", "Björk", "2Pac"], sorted.Select(a => a.Name));
     }
 
+    /// <summary>A name led by punctuation stands among the names of the letter it files under, so the
+    /// ladder of letters beside the list reads A to Z with "#" last.</summary>
+    [Fact]
+    public void Name_order_files_a_name_led_by_punctuation_under_its_own_letter()
+    {
+        var wall = new[]
+        {
+            Act("(hed) p.e.", ["H/a"]),
+            Act("Air", ["A/a"]),
+            Act("Haim", ["H/b"]),
+            Act("!!!", ["X/a"]),
+        };
+
+        var sorted = ArtistSort.By(wall, ArtistOrdering.Name, NoFacts);
+
+        Assert.Equal(["Air", "(hed) p.e.", "Haim", "!!!"], sorted.Select(a => a.Name));
+        Assert.Equal(['A', 'H', 'H', '#'], sorted.Select(a => a.Initial));
+    }
+
     [Fact]
     public void Albums_order_counts_joint_records_and_falls_back_to_the_name()
     {
