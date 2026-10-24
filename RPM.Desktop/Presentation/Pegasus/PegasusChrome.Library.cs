@@ -1227,6 +1227,21 @@ public sealed partial class PegasusChrome
     /// column's width to leave what the name may have. Before the drawer's scale.</summary>
     private const double RecordTitleFurniture = 138;
 
+    /// <summary>How far a movement of a classical record stands in under its work's heading, before the
+    /// drawer's scale. The whole line moves, its number with it, so the level of the list shows.</summary>
+    private const double RecordMovementIndent = 22;
+
+    /// <summary>Caps the names of a record or list page's lines off the width of the column they stand in.
+    /// The name and its E sit in one horizontal stack, and TextTrimming does not engage inside one. A
+    /// movement's name is capped by its indent as well (see <see cref="RecordTrack"/>, which keeps the
+    /// indent on the name's Tag).</summary>
+    private static void CapRecordTitles(List<TextBlock> titles, double width, double scale)
+    {
+        var max = Math.Max(60, width - (RecordTitleFurniture * scale));
+        foreach (var title in titles)
+            title.MaxWidth = Math.Max(60, max - (title.Tag is double indent ? indent : 0));
+    }
+
     /// <summary>One line of the opened record. Pressing it plays the record FROM there, which is what a
     /// press on the fourth track of a sleeve means everywhere else in this app.</summary>
     /// <param name="titles">Where this line's name is added, so the screen that owns it can cap them all
@@ -1235,8 +1250,11 @@ public sealed partial class PegasusChrome
     /// numbers its POSITIONS rather than the numbers its songs wear on their own records, and says under
     /// each title who it is by and which record it came off, as the drawer's lines do. Required, because
     /// the two screens read differently and each caller has to say which it is.</param>
+    /// <param name="classical">How the line reads on a classical record (see ClassicalLines), or null on
+    /// any other record and on a list. A movement says the movement alone and is set in; a piece is set in
+    /// the weight of a heading, with its composer under it.</param>
     private FrameworkElement RecordTrack(LibraryTrack track, List<TrackInfo> songs, int index, double scale,
-                                         List<TextBlock> titles, bool inList)
+                                         List<TextBlock> titles, bool inList, RecordLine? classical = null)
     {
         var grid = new Grid { ColumnSpacing = 12 * scale };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28 * scale) });
@@ -1255,13 +1273,25 @@ public sealed partial class PegasusChrome
 
         var title = new TextBlock
         {
-            Text = track.Title ?? track.FileName,
+            Text = classical?.Title ?? track.Title ?? track.FileName,
             FontSize = 15 * scale,
+            FontWeight = classical is { Piece: true }
+                ? Microsoft.UI.Text.FontWeights.SemiBold
+                : Microsoft.UI.Text.FontWeights.Normal,
             TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
         };
         titles.Add(title);
+
+        // A movement stands in under its work: the whole line, number and all. Its name has that much
+        // less room, which CapRecordTitles reads off the name's Tag.
+        if (classical is { Movement: true })
+        {
+            var indent = RecordMovementIndent * scale;
+            grid.Margin = new Thickness(indent, 0, 0, 0);
+            title.Tag = indent;
+        }
 
         // The name and its E on one line, so the mark falls in after the last letter of the title rather
         // than at the far end of the line beside the length, where it would read as another field about
@@ -1299,10 +1329,11 @@ public sealed partial class PegasusChrome
         // A list's line says who each song is by and which record it came off, under its name: the
         // records in a list are a dozen different ones, and the name at the top of the screen says none of
         // that. In the column under the title row, which gives it the column's width to be cut short in.
+        // On a classical record a piece says its composer there instead, as a work's heading does.
         FrameworkElement words = titleRow;
         var under = inList
             ? string.Join(" · ", new[] { track.Artist, track.Album }.Where(x => !string.IsNullOrWhiteSpace(x)))
-            : null;
+            : classical?.Subtitle;
         if (!string.IsNullOrWhiteSpace(under))
         {
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 * scale };

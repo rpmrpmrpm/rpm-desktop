@@ -230,12 +230,7 @@ public sealed partial class PegasusChrome
             list.Children.Add(RecordTrack(rows[i], _recordTracks, i, scale, titles, inList: true));
 
         // Capped off the column they stand in, as the record's titles are (see BuildRecord).
-        list.SizeChanged += (_, e) =>
-        {
-            var max = Math.Max(60, e.NewSize.Width - (RecordTitleFurniture * scale));
-            foreach (var title in titles)
-                title.MaxWidth = max;
-        };
+        list.SizeChanged += (_, e) => CapRecordTitles(titles, e.NewSize.Width, scale);
     }
 
     /// <summary>

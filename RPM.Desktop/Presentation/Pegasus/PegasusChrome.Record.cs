@@ -762,6 +762,12 @@ public sealed partial class PegasusChrome
         var discs = rows.Select(DiscOf).Distinct().Count();
         uint? open = null;
 
+        // A classical record is listed as works with their movements, as the main window's album page and
+        // the TV's record page list it (see ClassicalLines). Every other record is a plain list.
+        var classical = meta.Classical == true || AlbumTracklist.ClassicalByGenre(rows, t => t.Genre)
+            ? ClassicalLines(rows)
+            : null;
+
         var titles = new List<TextBlock>(rows.Count);
         for (var i = 0; i < rows.Count; i++)
         {
@@ -772,9 +778,13 @@ public sealed partial class PegasusChrome
                 list.Children.Add(BuildDiscHeader(DiscCaption(rows, disc), scale));
             }
 
+            // A work's heading over its first movement, under the disc's caption where both open here.
+            if (classical?[i].Opens is { } work)
+                list.Children.Add(BuildWorkHeader(work, scale));
+
             // The index is the track's place in the RECORD, not its row in this column: a divider takes a
             // row and plays nothing, and the number handed over here is what a press on the line plays.
-            var line = RecordTrack(rows[i], _recordTracks, i, scale, titles, inList: false);
+            var line = RecordTrack(rows[i], _recordTracks, i, scale, titles, inList: false, classical?[i]);
             if (i == 0)
                 _recordFirstTrack = line as Control;
             list.Children.Add(line);
@@ -782,11 +792,140 @@ public sealed partial class PegasusChrome
 
         // The names are capped off the column they stand in, for the reason BuildBand's are: the name and
         // its E sit in one horizontal stack, and TextTrimming does not engage inside one.
-        list.SizeChanged += (_, e) =>
+        list.SizeChanged += (_, e) => CapRecordTitles(titles, e.NewSize.Width, scale);
+    }
+
+    // ── a classical record ──
+
+    /// <summary>A work on a classical record, as its heading says it: its name, the composer where its
+    /// movements agree on one, and how long the whole work runs.</summary>
+    private sealed record RecordWork(string Title, string? Composer, double Seconds);
+
+    /// <summary>How one track line of a classical record reads.</summary>
+    /// <param name="Title">What the line says instead of the file's title, or null for the title itself.
+    /// A movement says the movement alone, under the heading that names its work.</param>
+    /// <param name="Subtitle">The small line under the title: the composer, on a piece that is a work on
+    /// its own.</param>
+    /// <param name="Movement">The track is a movement of the work above it, and is set in.</param>
+    /// <param name="Piece">The track is a whole piece (a work of one track, or no work), and is set in the
+    /// weight of a heading.</param>
+    /// <param name="Opens">The work whose heading stands over this line, or null.</param>
+    private sealed record RecordLine(string? Title, string? Subtitle, bool Movement, bool Piece, RecordWork? Opens);
+
+    /// <summary>
+    /// A classical record's lines, one per track and in the same order: works with their movements under
+    /// them, and the pieces that are a work on their own.
+    ///
+    /// <para>The same reading as the main window's album page (AlbumTrackItem.Build) and the TV's record
+    /// page. A run of consecutive tracks of one work (AlbumTracklist.ByWork), within one disc, gets a
+    /// heading when it has more than one track, and its tracks are movements, named by
+    /// AlbumTracklist.MovementOf. A work of one track needs no heading, because its line already gives
+    /// the whole name. It is a piece, like a track of no work: drawn at the level of a heading and in its
+    /// weight, with its composer under it, because it is another piece on the record and not part of the
+    /// one above it.</para>
+    ///
+    /// <para>One line per track, so the line at index i is still the track the record plays at i. The
+    /// headings are drawn between the lines and are no stops for the remote.</para>
+    /// </summary>
+    private static RecordLine[] ClassicalLines(List<LibraryTrack> rows)
+    {
+        var lines = new RecordLine[rows.Count];
+        var at = 0;
+        while (at < rows.Count)
         {
-            var max = Math.Max(60, e.NewSize.Width - (RecordTitleFurniture * scale));
-            foreach (var title in titles)
-                title.MaxWidth = max;
+            // One disc at a time: a work does not run on into the next disc of a box.
+            var disc = DiscOf(rows[at]);
+            var end = at;
+            while (end < rows.Count && DiscOf(rows[end]) == disc)
+                end++;
+
+            foreach (var (work, group) in AlbumTracklist.ByWork(rows.GetRange(at, end - at), t => t.Work))
+            {
+                if (work is not null && group.Count > 1)
+                {
+                    // The composer of the work where its movements agree on one. They may not, on a
+                    // pasticcio or a badly tagged box, and printing the first one for all of them would name
+                    // a composer nobody gave.
+                    var composers = group.Select(t => t.Composer)
+                                         .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                                         .ToList();
+                    var heading = new RecordWork(
+                        work,
+                        composers is [{ } only] && !string.IsNullOrWhiteSpace(only) ? only : null,
+                        group.Sum(t => t.DurationSeconds));
+
+                    for (var k = 0; k < group.Count; k++)
+                        lines[at + k] = new RecordLine(
+                            AlbumTracklist.MovementOf(group[k].MovementName, group[k].Title, work),
+                            Subtitle: null, Movement: true, Piece: false, Opens: k == 0 ? heading : null);
+                }
+                else
+                {
+                    for (var k = 0; k < group.Count; k++)
+                        lines[at + k] = new RecordLine(
+                            Title: null,
+                            Subtitle: string.IsNullOrWhiteSpace(group[k].Composer) ? null : group[k].Composer,
+                            Movement: false, Piece: true, Opens: null);
+                }
+
+                at += group.Count;
+            }
+        }
+
+        return lines;
+    }
+
+    /// <summary>
+    /// The line that opens a work: its name, up to two lines, the composer under it, and the whole work's
+    /// length on the right, lined up with the track titles and lengths below it. Nothing plays from it,
+    /// and it takes no focus, so the remote passes over it from one movement to the next.
+    /// </summary>
+    private static Border BuildWorkHeader(RecordWork work, double scale)
+    {
+        var grid = new Grid { ColumnSpacing = 12 * scale };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var words = new StackPanel { Spacing = 2 * scale, VerticalAlignment = VerticalAlignment.Center };
+        words.Children.Add(new TextBlock
+        {
+            Text = work.Title,
+            FontSize = 15 * scale,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            MaxLines = 2,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        if (work.Composer is { } composer)
+            words.Children.Add(new TextBlock
+            {
+                Text = composer,
+                FontSize = 12.5 * scale,
+                Opacity = 0.5,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+        grid.Children.Add(words);
+
+        if (work.Seconds > 0)
+        {
+            var length = new TextBlock
+            {
+                Text = Duration(work.Seconds),
+                FontSize = 13 * scale,
+                Opacity = 0.5,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(length, 1);
+            grid.Children.Add(length);
+        }
+
+        // Its words start where a track's title starts: the line's padding, the number's column and the
+        // gap after it (see RecordTrack). Its length ends where a track's length ends.
+        return new Border
+        {
+            Child = grid,
+            Padding = new Thickness((12 + 28 + 12) * scale, 14 * scale, 12 * scale, 2 * scale),
         };
     }
 
