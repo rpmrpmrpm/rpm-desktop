@@ -505,3 +505,300 @@ internal sealed class RadioRowCard
     /// <summary>Stops following the face. Used when a row is built again.</summary>
     public void Drop() => Face.Changed -= Paint;
 }
+
+/// <summary>
+/// Radio's five ways in (Tuner, Search, Music, News and Local, the wheel's entries) as a row of keys under
+/// the banner that turns like a carousel: the TV's mode keys (Radio.kt, RadioModes), which came from the
+/// Apple TV's, because a key held for two seconds is not easy to find.
+///
+/// <list type="bullet">
+/// <item><b>Out of sight until the remote comes down to it.</b> Down from the banner gives its stop the
+/// focus (see PegasusChrome.RadioOverBanner), and the row slides down into place from 26 above over 260 ms
+/// as it fades in, taking its room as it comes, so the rows under it glide rather than jump. It goes the
+/// same way once the focus moves on.</item>
+/// <item><b>One stop for the remote</b>, as the banner over it is: the key in hand stands in the middle,
+/// lit, with three keys at each side of it, dimmer the further out. Left and Right turn it, sliding the
+/// keys along by one over 220 ms, and it wraps: with five ways in, the keys at the ends are the far side of
+/// the round. OK opens the key in the middle.</item>
+/// <item><b>Each key</b> is its glyph and its name in the menu key's glass (PegasusMenuButton: #14FFFFFF,
+/// a 1 point #B3FFFFFF edge, corner 6), 196 wide and 52 high, 14 apart and 30 under the banner's dots; the
+/// middle one #40FFFFFF with a 2 point white edge and 8% larger while the row has the remote.</item>
+/// </list>
+///
+/// <para><b>The stop is a tab stop only while it is wanted.</b> It stands in a canvas at the middle key's
+/// size whatever the row's height, so it can take the focus at once while the row is still folded away;
+/// and while the row is folded it is no tab stop, so the search by layout from the rows under it cannot
+/// land on a key that is not drawn. <see cref="Arm"/> makes it one just before the focus is given to it,
+/// and losing the focus makes it none again.</para>
+///
+/// <para>Drawn and turned by transforms on the frame tick (see <see cref="Tick"/>), so a turn or the fold
+/// lays out only the row's own height.</para>
+/// </summary>
+internal sealed class RadioModeRow
+{
+    /// <summary>How many keys stand at each side of the middle one, and how much dimmer each step out is.</summary>
+    private const int Side = 3;
+    private const double Fade = 0.2;
+
+    /// <summary>A key's size and the room between two, how much the middle key grows while the row has the
+    /// remote, and how far under the banner's dots the keys stand, before the view's scale.</summary>
+    private const double KeyWidth = 196, KeyHeight = 52, Gap = 14, Grow = 1.08, Above = 30;
+
+    /// <summary>How far above its place the row starts as it comes, before the view's scale, and how long it
+    /// takes to come and go and to turn by one key.</summary>
+    private const double Drop = 26;
+    private const double InMs = 260, TurnMs = 220;
+
+    private readonly (string Glyph, string Name)[] _entries;
+    private readonly Action<int> _pick;
+
+    /// <summary>The keys, one past each end of the ones shown as well, so a turn slides a key in from the
+    /// edge rather than drawing it there. Key k stands at offset k - (Side + 1) from the middle.</summary>
+    private readonly Border[] _keys = new Border[(2 * (Side + 1)) + 1];
+    private readonly TextBlock[] _glyphs = new TextBlock[(2 * (Side + 1)) + 1];
+    private readonly TextBlock[] _names = new TextBlock[(2 * (Side + 1)) + 1];
+    private readonly CompositeTransform[] _places = new CompositeTransform[(2 * (Side + 1)) + 1];
+    private readonly Canvas _canvas = new() { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+    private readonly TranslateTransform _stopPlace = new();
+
+    /// <summary>Which entry is in the middle, counted without wrapping, so a turn always slides the way it
+    /// was made.</summary>
+    private int _at;
+
+    /// <summary>A turn under way: the keys stand <see cref="TurnNow"/> keys from their places, easing out
+    /// to nought (a cubic ease out, the TV's BannerOut).</summary>
+    private double _turnFrom, _turnT = 1;
+
+    /// <summary>How far the row has come, 0 folded away to 1 in place, and where it is going.</summary>
+    private double _shown, _shownFrom, _shownTo, _shownT = 1;
+
+    private bool _focused;
+    private double _scale = 1, _strip;
+
+    public RadioModeRow(IReadOnlyList<(string Glyph, string Name)> entries, FontFamily icons, Action<int> pick)
+    {
+        _entries = [.. entries];
+        _pick = pick;
+
+        for (var k = 0; k < _keys.Length; k++)
+        {
+            _glyphs[k] = new TextBlock
+            {
+                FontFamily = icons,
+                Foreground = StationWell.Ink(0xF2FFFFFF),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            _names[k] = new TextBlock
+            {
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = StationWell.Ink(0xF2FFFFFF),
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxLines = 1,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            var words = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            words.Children.Add(_glyphs[k]);
+            words.Children.Add(_names[k]);
+            _places[k] = new CompositeTransform();
+            _keys[k] = new Border
+            {
+                Child = words,
+                RenderTransform = _places[k],
+                Background = StationWell.Ink(0x14FFFFFF),
+                BorderBrush = StationWell.Ink(0xB3FFFFFF),
+                Opacity = 0,
+            };
+
+            // The pointer opens the key it presses, while the row is up.
+            var offset = k - (Side + 1);
+            _keys[k].Tapped += (_, e) =>
+            {
+                if (_shown < 0.5)
+                    return;
+                e.Handled = true;
+                _pick(Mod(_at + offset));
+            };
+            _canvas.Children.Add(_keys[k]);
+        }
+
+        Stop = new RemoteLine(new Grid(), () => _pick(Selected), menu: null, turn: Turn)
+        {
+            IsHitTestVisible = false,
+            IsTabStop = false,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            RenderTransform = _stopPlace,
+        };
+        Stop.GotFocus += (_, _) =>
+        {
+            _focused = true;
+            ShowTo(1);
+            Paint();
+        };
+        Stop.LostFocus += (_, _) =>
+        {
+            _focused = false;
+            Stop.IsTabStop = false;
+            ShowTo(0);
+            Paint();
+        };
+        _canvas.Children.Add(Stop);
+
+        Root.Children.Add(_canvas);
+        Root.Height = 0;
+        Paint();
+    }
+
+    /// <summary>The row, for the radio screen's column under the banner's dots.</summary>
+    public Grid Root { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Top };
+
+    /// <summary>The remote's one stop over the middle key.</summary>
+    public RemoteLine Stop { get; }
+
+    /// <summary>The entry in the middle.</summary>
+    public int Selected => Mod(_at);
+
+    /// <summary>Makes the stop a tab stop, for the focus that is about to be given to it, and returns
+    /// it.</summary>
+    public RemoteLine Arm()
+    {
+        Stop.IsTabStop = true;
+        return Stop;
+    }
+
+    /// <summary>Left (-1) or Right (1) on the stop: the next key comes into the middle, sliding from the side
+    /// it was on. Always true: the row wraps.</summary>
+    private bool Turn(int by)
+    {
+        var now = TurnNow;
+        _at += by;
+        _turnFrom = by + now;
+        _turnT = 0;
+        Paint();
+        return true;
+    }
+
+    private double TurnNow => _turnFrom * Math.Pow(1 - _turnT, 3);
+
+    private void ShowTo(double to)
+    {
+        if (Math.Abs(_shownTo - to) < 0.001)
+            return;
+        _shownFrom = _shown;
+        _shownTo = to;
+        _shownT = 0;
+    }
+
+    /// <summary>The row's sizes: the strip it spans and the view's scale.</summary>
+    public void Size(double strip, double scale)
+    {
+        _strip = strip;
+        _scale = scale;
+
+        var corner = new CornerRadius(6 * scale);
+        for (var k = 0; k < _keys.Length; k++)
+        {
+            _keys[k].Width = KeyWidth * scale;
+            _keys[k].Height = KeyHeight * scale;
+            _keys[k].CornerRadius = corner;
+            _keys[k].Padding = new Thickness(16 * scale, 0, 16 * scale, 0);
+            _places[k].CenterX = KeyWidth * scale / 2;
+            _places[k].CenterY = KeyHeight * scale / 2;
+            _glyphs[k].FontSize = 17 * scale;
+            _glyphs[k].Margin = new Thickness(0, 0, 10 * scale, 0);
+            _names[k].FontSize = 19 * scale;
+            _names[k].MaxWidth = (KeyWidth - 32 - 27) * scale;
+        }
+
+        Stop.Width = KeyWidth * scale;
+        Stop.Height = KeyHeight * scale;
+        Stop.CornerRadius = corner;
+
+        // Across, the row is cut at the strip's ends; down, it is not, so the middle key's growth and the
+        // fold's slide are drawn whole.
+        Root.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, -1000 * scale, strip, 3000 * scale) };
+        Paint();
+    }
+
+    /// <summary>One frame of the fold and of a turn. Paints only while either moves.</summary>
+    public void Tick(double dt)
+    {
+        var moving = false;
+        if (_shownT < 1)
+        {
+            _shownT = Math.Min(1, _shownT + (dt * 1000 / InMs));
+            var eased = 1 - Math.Pow(1 - _shownT, 2);   // an ease out quad, as the TV's
+            _shown = _shownFrom + ((_shownTo - _shownFrom) * eased);
+            moving = true;
+        }
+        if (_turnT < 1)
+        {
+            _turnT = Math.Min(1, _turnT + (dt * 1000 / TurnMs));
+            moving = true;
+        }
+        if (moving)
+            Paint();
+    }
+
+    /// <summary>
+    /// Writes every key's entry, place, look and ink from where the fold and a turn have got to, and the
+    /// row's height from the fold: the room it takes grows with it.
+    /// </summary>
+    private void Paint()
+    {
+        var s = _scale;
+        var box = KeyHeight * Grow * s;
+        Root.Height = ((Above * s) + box) * _shown;
+
+        var left = (_strip / 2) - (KeyWidth * s / 2);
+        var top = (Above * s) + ((box - (KeyHeight * s)) / 2);
+        var lift = -(1 - _shown) * Drop * s;
+        var pitch = (KeyWidth + Gap) * s;
+        var turn = TurnNow;
+
+        for (var k = 0; k < _keys.Length; k++)
+        {
+            var d = k - (Side + 1);
+            var (glyph, name) = _entries[Mod(_at + d)];
+            if (_glyphs[k].Text != glyph)
+                _glyphs[k].Text = glyph;
+            if (_names[k].Text != name)
+                _names[k].Text = name;
+
+            var place = d + turn;
+            var far = Math.Abs(place);
+            var lit = Math.Clamp(1 - far, 0, 1) * (_focused ? 1 : 0);
+            var ink = far <= Side
+                ? 1 - (far * Fade)
+                : Math.Max(0, (Side + 1 - far) * (1 - (Side * Fade)));
+
+            Canvas.SetLeft(_keys[k], left);
+            Canvas.SetTop(_keys[k], top);
+            _places[k].TranslateX = place * pitch;
+            _places[k].TranslateY = lift;
+            _places[k].ScaleX = _places[k].ScaleY = 1 + ((Grow - 1) * lit);
+            _keys[k].Opacity = ink * _shown;
+
+            var middle = d == 0 && _focused;
+            _keys[k].Background = middle ? _middleFill : _keyFill;
+            _keys[k].BorderBrush = middle ? _middleEdge : _keyEdge;
+            _keys[k].BorderThickness = new Thickness(middle ? 2 : 1);
+        }
+
+        Canvas.SetLeft(Stop, left);
+        Canvas.SetTop(Stop, top);
+        _stopPlace.Y = lift;
+    }
+
+    private readonly SolidColorBrush _keyFill = StationWell.Ink(0x14FFFFFF);
+    private readonly SolidColorBrush _keyEdge = StationWell.Ink(0xB3FFFFFF);
+    private readonly SolidColorBrush _middleFill = StationWell.Ink(0x40FFFFFF);
+    private readonly SolidColorBrush _middleEdge = StationWell.Ink(0xFFFFFFFF);
+
+    private int Mod(int i) => ((i % _entries.Length) + _entries.Length) % _entries.Length;
+}

@@ -844,13 +844,26 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>
-    /// An Up or Down on radio that would pass over the banner lands on the banner's card: from a row's
-    /// outer cards nothing on the banner shares their column, and the search by layout would go past it to
-    /// the corner key. Home keeps the same rule (HomeView.OverBanner). Above and below are read off each
-    /// element's middle against the banner's edges.
+    /// Radio's own Up and Down, past what the search by layout finds.
+    ///
+    /// <list type="bullet">
+    /// <item>Down from the banner goes to the mode keys, which unfold for it, and Up from the row of cards
+    /// under them goes back to them (the essential stations, or the favourites where there is no essential
+    /// row): folded away, they are no part of the search by layout, as on the TV (upToModes).</item>
+    /// <item>An Up or Down that would pass over the banner lands on the banner's card: from a row's outer
+    /// cards nothing on the banner shares their column, and the search by layout would go past it to the
+    /// corner key. Home keeps the same rule (HomeView.OverBanner). Above and below are read off each
+    /// element's middle against the banner's edges.</item>
+    /// </list>
     /// </summary>
     private Control? RadioOverBanner(FrameworkElement from, FocusNavigationDirection direction, Control? next)
     {
+        if (direction == FocusNavigationDirection.Down && ReferenceEquals(from, _radioBannerKey)
+            && RadioModesStop() is { } modes)
+            return modes;
+        if (direction == FocusNavigationDirection.Up && UnderRadioModes(from) && RadioModesStop() is { } back)
+            return back;
+
         if (_radioBannerKey is not { IsTabStop: true } key || ReferenceEquals(from, key)
             || direction is not (FocusNavigationDirection.Up or FocusNavigationDirection.Down)
             || RadioBanner.Visibility != Visibility.Visible)
@@ -867,6 +880,16 @@ public sealed partial class PegasusChrome
 
         double MiddleOf(FrameworkElement element) =>
             element.TransformToVisual(Root).TransformPoint(default).Y + element.ActualHeight / 2;
+    }
+
+    /// <summary>Whether an element is a card of the row right under the mode keys: the essential stations,
+    /// or the favourites where no essential row is shown.</summary>
+    private bool UnderRadioModes(FrameworkElement from)
+    {
+        var essential = _radioEssentialCards.Count > 0 && RadioEssentialScroll.Visibility == Visibility.Visible;
+        return essential
+            ? Inside(from, RadioEssentialRow)
+            : Inside(from, RadioFavoritesRow);
     }
 
     // ── sizes ──
@@ -933,6 +956,9 @@ public sealed partial class PegasusChrome
             // A strip that gained or lost the room for peeks hands them their faces again.
             ShowBanner();
         }
+
+        // The mode keys under the banner span the strip too.
+        _radioModes?.Size(strip, scale);
 
         // The rows.
         var gap = 22 * scale;

@@ -978,6 +978,10 @@
             <StackPanel x:Name="RadioBannerDots" Orientation="Horizontal" HorizontalAlignment="Center"
                         IsHitTestVisible="False" Visibility="Collapsed"/>
 
+            <!-- Radio's five ways in, a row of keys that turns, folded away until the remote comes down
+                 to it from the banner (see RadioModeRow and PegasusChrome.RadioWheel). Built in code. -->
+            <Grid x:Name="RadioModesHost"/>
+
             <TextBlock x:Name="RadioEssentialHeading" FontWeight="SemiBold" Foreground="#F2FFFFFF"
                        TextTrimming="CharacterEllipsis"/>
             <ScrollViewer x:Name="RadioEssentialScroll" HorizontalScrollMode="Enabled"

@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Loc = RPM.Desktop.Strings.Loc;
 
@@ -25,6 +26,12 @@ namespace RPM.Desktop.Presentation.Pegasus;
 ///
 /// <para>The wheel opens on the entry last opened, so a listener going back to the tuner finds it on the
 /// marker.</para>
+///
+/// <para><b>The same five entries are a row of keys under the banner</b> (see RadioModeRow), as on the TV
+/// and the Apple TV, because a key held for two seconds is not easy to find: folded away until Down from
+/// the banner unfolds it, turned with Left and Right, OK opening the key in the middle, and folded again
+/// once the focus moves on. Up from the row of cards under it goes back to it (see RadioOverBanner). The
+/// wheel stays for the held Right.</para>
 /// </summary>
 public sealed partial class PegasusChrome
 {
@@ -44,6 +51,9 @@ public sealed partial class PegasusChrome
     private RadioWheel _radioWheel = null!;
     private Fader _radioWheelFade = null!;
 
+    /// <summary>The same five entries as a row of keys under the banner (see RadioModeRow).</summary>
+    private RadioModeRow? _radioModes;
+
     /// <summary>The entry last opened, which the wheel opens on next time.</summary>
     private int _wheelPicked;
 
@@ -62,6 +72,18 @@ public sealed partial class PegasusChrome
         _radioWheel.SetEntries([.. WheelEntries.Select(NameOf)]);
         RadioWheelHost.Children.Add(_radioWheel);
 
+        // The row under the banner, with each entry's glyph: the TV's (Fa.TOWER, SEARCH, MUSIC, NEWSPAPER
+        // and PIN).
+        _radioModes = new RadioModeRow(
+            [.. WheelEntries.Select(e => (GlyphOf(e), NameOf(e)))],
+            (Microsoft.UI.Xaml.Media.FontFamily)Resources["PegasusFa"],
+            index =>
+            {
+                RPM.Core.Diagnostics.Scope.Said("radio", $"mode key: {WheelEntries[index]}");
+                OpenRadioEntry(WheelEntries[index]);
+            });
+        RadioModesHost.Children.Add(_radioModes.Root);
+
         // The mouse wheel turns it as Up and Down do.
         RadioWheelLayer.PointerWheelChanged += (_, e) =>
         {
@@ -79,7 +101,22 @@ public sealed partial class PegasusChrome
             WheelEntry.News => Loc.Get("Viz_RadioNews"),
             _ => Loc.Get("Viz_RadioLocal"),
         };
+
+        static string GlyphOf(WheelEntry entry) => entry switch
+        {
+            WheelEntry.Tuner => "",    // broadcast-tower
+            WheelEntry.Search => "",   // search
+            WheelEntry.Music => "",    // music
+            WheelEntry.News => "",     // newspaper
+            _ => "",                   // map-marker-alt
+        };
     }
+
+    /// <summary>
+    /// Where Down from the banner goes, and Up from the row under the mode keys: the mode keys' stop,
+    /// which the row unfolds for as it takes the focus (see RadioModeRow). Null where it is not built.
+    /// </summary>
+    private Control? RadioModesStop() => _radioModes?.Arm();
 
     /// <summary>
     /// Opens the wheel or closes it: a fade either way, out of reach of the pointer as it starts closing,
@@ -130,6 +167,13 @@ public sealed partial class PegasusChrome
         RPM.Core.Diagnostics.Scope.Said("radio", $"wheel: {entry}");
 
         ShowRadioWheel(false);
+        OpenRadioEntry(entry);
+    }
+
+    /// <summary>One of radio's five ways in, from the wheel or the mode keys: Search opens radio's search,
+    /// the other four the tuner, narrowed the way the entry asks.</summary>
+    private void OpenRadioEntry(WheelEntry entry)
+    {
         switch (entry)
         {
             case WheelEntry.Search:
@@ -159,7 +203,11 @@ public sealed partial class PegasusChrome
 
     /// <summary>One frame of a turn. The wheel repaints only while it moves, which it can only do while it
     /// is open or fading out.</summary>
-    private void TickRadioWheel(double dt) => _radioWheel?.Tick(dt);
+    private void TickRadioWheel(double dt)
+    {
+        _radioWheel?.Tick(dt);
+        _radioModes?.Tick(dt);   // …and the mode keys unfolding, folding and turning
+    }
 
     /// <summary>The wheel's strip down the right, at the collection's scale.</summary>
     private void SizeRadioWheel(double scale, double height)
