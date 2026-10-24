@@ -48,8 +48,13 @@
          name and not at the card's edge, so a short name and its badge are not separated by empty card.
          The cost is that a card WITH a badge has its title half a badge-width left of the card's centre
          line. The wall has the same cost, and it is not visible on records without a badge. -->
+    <!-- The Grid around the button is only a place for Pegasus's remote line to stand in: where a remote
+         drives this screen, a RemoteLine takes the button's place when the button is first loaded, so a
+         held OK opens the record's menu (see HomeView.Card_Loaded). In the main window nothing is put in
+         it. -->
     <DataTemplate x:Key="HomeCardTemplate" x:DataType="libmodel:SimilarRow">
-      <Button Click="Card_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+      <Grid VerticalAlignment="Top">
+      <Button Click="Card_Click" Loaded="Card_Loaded" Tag="{Binding}" Background="Transparent" BorderThickness="0"
               Padding="8" MinHeight="0" CornerRadius="10"
               VerticalAlignment="Top" HorizontalContentAlignment="Left">
         <!-- No hover or press wash on a cover, as on the album wall's same kind of card. A wash under the
@@ -145,6 +150,7 @@
                      ToolTipService.ToolTip="{Binding Artist}"/>
         </StackPanel>
       </Button>
+      </Grid>
     </DataTemplate>
 
     <!-- One generated list, drawn as the same square as a record: its own picture, at the size the
@@ -253,8 +259,11 @@
          the generated cover for a record with no artwork anywhere, then the kind's own mark. A song and
          a record fall back to a generated cover made from the folder; a list and a station have no
          folder and go straight to the mark, in their own colour. -->
+    <!-- The Grid around the button is a place for Pegasus's remote line, as on HomeCardTemplate: a song's
+         held OK opens the song's menu there (see HomeView.Quick_Loaded). -->
     <DataTemplate x:Key="HomeQuickTemplate" x:DataType="model:HomeQuickCard">
-      <Button Click="Quick_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+      <Grid HorizontalAlignment="Stretch">
+      <Button Click="Quick_Click" Loaded="Quick_Loaded" Tag="{Binding}" Background="Transparent" BorderThickness="0"
               Padding="8,6" MinHeight="0" CornerRadius="8" HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Left">
         <Button.Resources>
@@ -307,6 +316,7 @@
           </StackPanel>
         </Grid>
       </Button>
+      </Grid>
     </DataTemplate>
 
     <!-- A row: what it is, and the records in it. It is its own template and not four hand-written

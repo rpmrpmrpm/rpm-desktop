@@ -3827,9 +3827,14 @@ public sealed partial class HomeView : UserControl
     /// album reached from here arrives where an album reached from a row does.</summary>
     private void Quick_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is not HomeQuickCard card)
-            return;
+        if ((sender as FrameworkElement)?.Tag is HomeQuickCard card)
+            OpenQuick(card);
+    }
 
+    /// <summary>What a press on a quick entry does, from a click or from the remote's line around a song
+    /// (see <see cref="Quick_Loaded"/>).</summary>
+    private void OpenQuick(HomeQuickCard card)
+    {
         switch (card.Kind)
         {
             case QuickPickKind.Song when card.Track is { } track:
@@ -3861,6 +3866,37 @@ public sealed partial class HomeView : UserControl
                 break;
         }
     }
+
+    /// <summary>
+    /// A quick entry's button is loaded. Where a remote drives this screen and the host gives a song's
+    /// menu (<see cref="QuickSongMenu"/>), a song's button is put in a remote line the first time, so a
+    /// held OK opens the song's menu and OK plays it, as a click does (see RemoteLine.Around). That is
+    /// Pegasus, as on the TV. In the main window, and on the entries that are not songs, nothing changes.
+    /// An entry that is loaded again inside its line has no panel of its own to be put in, and keeps the
+    /// line it has.
+    /// </summary>
+    private void Quick_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (!_drivenByRemote || QuickSongMenu is null
+            || sender is not Button { Parent: Grid, Tag: HomeQuickCard { Kind: QuickPickKind.Song } } key)
+            return;
+
+        RemoteLine.Around(
+            key,
+            press: () =>
+            {
+                if (key.Tag is HomeQuickCard card)
+                    OpenQuick(card);
+            },
+            menu: () => key.Tag is HomeQuickCard { Track: { } song } ? QuickSongMenu?.Invoke(song) : null);
+    }
+
+    /// <summary>
+    /// Builds a quick song's menu, unshown, for a held OK where a remote drives this screen (see
+    /// <see cref="Quick_Loaded"/>). Pegasus gives the menu its record's tracks open. Null in the main
+    /// window, where the quick entries stay plain buttons.
+    /// </summary>
+    public Func<RPM.Core.Models.TrackInfo, MenuFlyout?>? QuickSongMenu { get; set; }
 
     /// <summary>
     /// "Play all tracks": the songs in the selection, in the order they are shown, into the now

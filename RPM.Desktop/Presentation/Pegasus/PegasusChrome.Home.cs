@@ -160,6 +160,12 @@ public sealed partial class PegasusChrome
             // With the remote, OK on a record opens its page, so the key to the page on a sleeve would be
             // one stop too many.
             AlbumPageKeyShown = false,
+
+            // A held OK on a quick song opens the song's menu, the one a record's tracks open, and on a
+            // record in the rows the record's menu away from its page, as on the TV (see
+            // HomeView.Quick_Loaded and HomeView.Card_Loaded). The Menu key stays the side menu's on home.
+            QuickSongMenu = TrackMenu,
+            RecordMenu = RecordMenuOf,
         };
         home.AlbumRequested += Home_AlbumRequested;
         home.PlaylistRequested += Home_PlaylistRequested;

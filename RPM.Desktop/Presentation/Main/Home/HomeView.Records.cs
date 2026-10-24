@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Shapes;
 using RPM.Desktop.Presentation.Common;
 using RPM.Desktop.Presentation.Main.Library;
 using RPM.Desktop.Presentation.Main.Library.Models;
+using RemoteLine = RPM.Desktop.Presentation.Pegasus.RemoteLine;
 
 namespace RPM.Desktop.Presentation.Main.Home;
 
@@ -127,6 +128,42 @@ public sealed partial class HomeView
     }
 
     /// <summary>
+    /// A record card's button is loaded. Where a remote drives this screen and the host gives a record's
+    /// menu (<see cref="RecordMenu"/>), the button is put in a remote line the first time (see
+    /// RemoteLine.Around): OK on the line opens the record's own page, as a press from the keys does in
+    /// <see cref="Card_Click"/>, and a held OK opens the record's menu. That is Pegasus, as on the TV. The
+    /// mouse still clicks the button, which opens the drawer under the row. In the main window nothing
+    /// changes.
+    ///
+    /// <para>The line reads the record from the button when it runs: the rows' repeater pools its cards
+    /// and hands a card to another record. A pooled card is loaded again inside its line, has no panel of
+    /// its own to be put in, and keeps the line it has.</para>
+    /// </summary>
+    private void Card_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (!_drivenByRemote || RecordMenu is null || sender is not Button { Parent: Grid } key)
+            return;
+
+        RemoteLine.Around(
+            key,
+            press: () =>
+            {
+                if (key.Tag is SimilarRow { Folder: { Length: > 0 } folder })
+                    AlbumRequested?.Invoke(this, folder);
+            },
+            menu: () => key.Tag is SimilarRow { Folder: { Length: > 0 } folder } row
+                ? RecordMenu?.Invoke(folder, row.Title)
+                : null);
+    }
+
+    /// <summary>
+    /// Builds a record's menu, unshown, from its folder and its name, for a held OK on a record card
+    /// where a remote drives this screen (see <see cref="Card_Loaded"/>). Pegasus gives the record's menu
+    /// away from its page. Null in the main window, where a card's menu is the right-click one.
+    /// </summary>
+    public Func<string, string, MenuFlyout?>? RecordMenu { get; set; }
+
+    /// <summary>
     /// The drawer belonging to the row an element is in. It is made on first use and kept for its
     /// element, so each row has exactly one drawer however many times it is opened.
     /// </summary>
@@ -166,13 +203,16 @@ public sealed partial class HomeView
 
     /// <summary>
     /// Whether this home is driven by a TV remote. Pegasus sets it; it is false in the main window. It
-    /// changes two things the keys do:
+    /// changes what the keys do:
     /// <list type="bullet">
     /// <item>A record card pressed from the keys opens the record's own page and not the drawer under
     /// its row. In the main window the drawer opens for a press of any kind.</item>
     /// <item>The banner has one stop, the card in front: Left and Right step the cards and OK opens the
     /// one in front. Its arrow keys and dots are for the pointer only (see
     /// <see cref="ApplyBannerStops"/>).</item>
+    /// <item>Where the host also gives the menus, a record card and a song in the quick selection stand
+    /// in a remote line, so a held OK opens their menu (see <see cref="Card_Loaded"/> and
+    /// <see cref="Quick_Loaded"/>).</item>
     /// </list>
     /// </summary>
     public bool DrivenByRemote
