@@ -343,10 +343,12 @@ internal sealed class ShelfCard
 }
 
 /// <summary>
-/// One genre as Pegasus draws it: the genre's colour as a still room, its wordmark across the room, and its
-/// name and size under the card. It is built the same way as radio's row cards (a room with the station's
-/// mark on it), in the genre's own colours (<see cref="GenreWordmarks.Room"/>) and lettering
-/// (<see cref="GenreWordmarks.Lettering(GenreWordmark, GenreAccent, GenreFlush, int, int)"/>).
+/// One genre as Pegasus draws it, as the Android TV app does: a 16 by 9 card with the genre's photograph
+/// (<see cref="GenrePhotos"/>, the desktop genres wall's own) under a veil of the genre's colour, and its
+/// wordmark across it (<see cref="GenreWordmarks.Lettering(GenreWordmark, GenreAccent, GenreFlush, int, int)"/>).
+/// A genre with no photograph has its colour as a still room instead (<see cref="GenreWordmarks.Room"/>), as
+/// radio's row cards have a room with the station's mark on it. Nothing is written under the card: the card
+/// already spells the genre out, and how many records it holds is on its page.
 /// </summary>
 internal sealed class GenreCard
 {
@@ -362,28 +364,70 @@ internal sealed class GenreCard
     /// <summary>The name in plain text, for a genre that the wordmark table has no drawing for ("Other").</summary>
     private readonly TextBlock? _plainName;
 
-    private readonly TextBlock _name;
-    private readonly TextBlock _line;
-    private readonly StackPanel _stack = new();
     private readonly GenreWordmark? _mark;
     private readonly GenreAccent _accent;
+
+    /// <summary>The photograph, between the colour under it and the veil over it. Null for a genre with no
+    /// photograph, whose card is the room.</summary>
+    private readonly Image? _photo;
+
+    /// <summary>The colour under the photograph, which is all that shows until it is decoded and which holds
+    /// the picture, and the same colour over it at <see cref="PhotoVeil"/>.</summary>
+    private readonly Border? _under, _veil;
+
+    /// <summary>The photograph's file, read once. The picture is decoded again from it when the card
+    /// grows.</summary>
+    private byte[]? _photoBytes;
+
+    /// <summary>The pixel height the photograph was last decoded at, and whether a decode is under way.</summary>
+    private int _photoEdge;
+    private bool _photoAsking;
 
     /// <summary>The pixel box the lettering was last drawn at. A resize that does not change it does not draw
     /// the lettering again.</summary>
     private (int W, int H) _drawnAt;
 
+    /// <summary>How much of the genre's colour lies over its photograph: enough that a white wordmark reads on
+    /// any part of the picture. The Android TV app's figure.</summary>
+    private const double PhotoVeil = 0.55;
+
     /// <param name="open">What OK and a click do. It is given the card, so the caller knows where the focus
     /// comes back to.</param>
-    public GenreCard(GenreWallItem genre, string line, Style plain, Action<GenreCard> open)
+    public GenreCard(GenreWallItem genre, Style plain, Action<GenreCard> open)
     {
         Genre = genre;
         _mark = GenreWordmarks.For(genre.Name);
 
         // A genre that is not in the table has no colour. In that case the room uses the app's blue.
         _accent = _mark is { } mark ? GenreAccent.Of(mark) : new GenreAccent(default, GenreFinish.Frost);
-        Room.Palette = GenreWordmarks.Room(_accent);
+        var palette = GenreWordmarks.Room(_accent);
+        Room.Palette = palette;
 
-        _art.Children.Add(Room);
+        if (GenrePhotos.For(genre.Name) is not null)
+        {
+            // The room's darkest tone under the picture and over it, so the white wordmark reads. A pale genre
+            // (House, Classical), whose wordmark is dark, takes the room's light tone instead.
+            var pale = _mark is not null && GenreWordmarks.InkOn(_accent) != Microsoft.UI.Colors.White;
+            var shade = Opaque(pale ? palette.Tint : palette.Ground);
+            // The colour is the frame, and its rounded corner clips the picture and the veil inside it, as a
+            // shelf card's frame clips its sleeve.
+            _photo = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
+            _veil = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb((byte)Math.Round(255 * PhotoVeil), shade.R, shade.G, shade.B)),
+                IsHitTestVisible = false,
+            };
+            var inside = new Grid();
+            inside.Children.Add(_photo);
+            inside.Children.Add(_veil);
+            _under = new Border { Background = new SolidColorBrush(shade), Child = inside, IsHitTestVisible = false };
+            _art.Children.Add(_under);
+        }
+        else
+        {
+            _art.Children.Add(Room);
+        }
+
         if (_mark is not null)
         {
             _art.Children.Add(_lettering);
@@ -402,30 +446,10 @@ internal sealed class GenreCard
             _art.Children.Add(_plainName);
         }
 
-        _name = new TextBlock
-        {
-            Text = genre.Name,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromArgb(0xF2, 0xFF, 0xFF, 0xFF)),
-            TextWrapping = TextWrapping.NoWrap,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-        _line = new TextBlock
-        {
-            Text = line,
-            Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
-            TextWrapping = TextWrapping.NoWrap,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-
-        _stack.Children.Add(_art);
-        _stack.Children.Add(_name);
-        _stack.Children.Add(_line);
-
         Root = new Button
         {
             Style = plain,
-            Content = _stack,
+            Content = _art,
             VerticalAlignment = VerticalAlignment.Top,
         };
         Root.Click += (_, _) => open(this);
@@ -436,31 +460,38 @@ internal sealed class GenreCard
 
     public GenreWallItem Genre { get; }
 
-    /// <summary>A still room, drawn once in the genre's colours. Forty drifting rooms on one screen would cost
-    /// the drawing thread several milliseconds a frame each (see CardRoom).</summary>
+    /// <summary>A still room, drawn once in the genre's colours, for a genre with no photograph. Forty
+    /// drifting rooms on one screen would cost the drawing thread several milliseconds a frame each (see
+    /// CardRoom). On a card with a photograph it is not in the tree, and draws nothing whatever
+    /// <see cref="CardRoom.Shown"/> says.</summary>
     public CardRoom Room { get; } = new() { Drift = false, Fewest = 32 };
 
     /// <summary>
-    /// The card's width and its writing. The room is 16 by 9. The lettering is sized so that every name's
-    /// letters stand the same height on every card. That size is the one at which the widest name in the whole
-    /// table fills four fifths of the card (the genres wall's rule, see GenreTile.NameBoxHeight).
+    /// The card's width. The card is 16 by 9. The lettering is sized so that every name's letters stand the
+    /// same height on every card. That size is the one at which the widest name in the whole table fills four
+    /// fifths of the card (the genres wall's rule, see GenreTile.NameBoxHeight). The photograph is decoded at
+    /// the card's height the first time, and again when the card grows.
     /// </summary>
-    /// <param name="rasterScale">Physical pixels per point. The lettering is drawn at this density.</param>
+    /// <param name="rasterScale">Physical pixels per point. The lettering and the photograph are drawn at
+    /// this density.</param>
     public void Size(double width, double scale, double rasterScale)
     {
         var height = width * 9 / 16;
         _art.Width = width;
         _art.Height = height;
-        _stack.Width = width;
-        _stack.Spacing = 7 * scale;
 
         var corner = new CornerRadius(10 * scale);
         Root.CornerRadius = corner;
         Root.Padding = new Thickness(CardRoomAround.Points * scale);
         Room.CornerRadius = corner;
-
-        _name.FontSize = 14 * scale;
-        _line.FontSize = 12 * scale;
+        if (_under is not null)
+            _under.CornerRadius = corner;
+        if (_photo is not null)
+        {
+            var edge = (int)Math.Ceiling(height * rasterScale);
+            if (edge > _photoEdge && !_photoAsking)
+                ShowPhotoAsync(edge);
+        }
         if (_plainName is not null)
         {
             _plainName.FontSize = height * 0.22;
@@ -482,6 +513,55 @@ internal sealed class GenreCard
         _drawnAt = pixels;
         _lettering.Source = GenreWordmarks.Lettering(mark, _accent, GenreFlush.Left, pixels.Item1, pixels.Item2);
     }
+
+    /// <summary>Reads the photograph (a file the app ships, no network) and decodes it with its short side at
+    /// <paramref name="edge"/> pixels. A photograph that cannot be read gives the card its room instead.</summary>
+    private async void ShowPhotoAsync(int edge)
+    {
+        if (_photo is null)
+            return;
+        _photoAsking = true;
+        try
+        {
+            _photoBytes ??= await GenrePhotos.BytesAsync(Genre.Name, CancellationToken.None);
+            if (_photoBytes is not { Length: > 0 } bytes)
+            {
+                ShowRoomInstead();
+                return;
+            }
+
+            var picture = await RemoteImage.DecodeAsync(bytes, edge);
+            _photo.Source = picture;
+            _photoEdge = edge;
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Faults.Note("pegasus", "a genre card's photograph", ex);
+            ShowRoomInstead();
+        }
+        finally
+        {
+            _photoAsking = false;
+        }
+    }
+
+    /// <summary>The photograph's file is not there (an install whose assets were pruned) or is not a picture:
+    /// the card is drawn as a genre with no photograph is.</summary>
+    private void ShowRoomInstead()
+    {
+        if (_photo is null || _art.Children.Contains(Room))
+            return;
+        _photoEdge = int.MaxValue;   // asked once; a resize does not read the file again
+        _art.Children.Remove(_under);
+        _art.Children.Insert(0, Room);
+    }
+
+    /// <summary>A room colour (0 to 1 a channel) as a colour to paint with.</summary>
+    private static Color Opaque(System.Numerics.Vector3 colour) => Color.FromArgb(
+        0xFF,
+        (byte)Math.Round(Math.Clamp(colour.X, 0, 1) * 255),
+        (byte)Math.Round(Math.Clamp(colour.Y, 0, 1) * 255),
+        (byte)Math.Round(Math.Clamp(colour.Z, 0, 1) * 255));
 }
 
 /// <summary>

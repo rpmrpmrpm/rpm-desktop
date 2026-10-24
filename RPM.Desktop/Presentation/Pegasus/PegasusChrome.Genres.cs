@@ -7,15 +7,15 @@ namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
 /// The genres list in Pegasus: every genre the collection holds a record of, four to a row at a scale of
-/// 1, each a card in the genre's own colour with its wordmark across it (see <see cref="GenreCard"/>). OK
-/// on one opens the genre's page (PegasusChrome.GenrePage).
+/// 1, each a card with the genre's photograph under its colour and its wordmark across it, and nothing
+/// written under it (see <see cref="GenreCard"/>), as on the Android TV app. OK on one opens the genre's
+/// page (PegasusChrome.GenrePage).
 ///
 /// <para><b>From the desktop genres wall, for a remote.</b> The same genres in the same order
 /// (<see cref="GenreWall.Build"/>: the shelves in the order the app lists them, "Other" last), the same
-/// colours and the same lettering. The desktop card's photograph of an act is left out: a card here is
-/// drawn the way radio's row cards are, a still room with a mark on it, which needs nothing from the
-/// network and costs nothing to scroll. A genre is a few dozen cards at most, so they are built whole,
-/// with no virtualizing panel.</para>
+/// colours, photographs and lettering. The desktop card's photograph of an act is left out: the genre's
+/// own photograph is a file the app ships, which needs nothing from the network. A genre is a few dozen
+/// cards at most, so they are built whole, with no virtualizing panel.</para>
 /// </summary>
 public sealed partial class PegasusChrome
 {
@@ -64,11 +64,7 @@ public sealed partial class PegasusChrome
 
         var plain = (Style)Resources["PegasusPlainButton"];
         foreach (var genre in wall)
-        {
-            var albums = genre.Folders.Count;
-            var line = albums == 1 ? Loc.Get("Stats_AlbumsOne") : Loc.Format("Stats_Albums", albums);
-            _genreCards.Add(new GenreCard(genre, line, plain, card => OpenGenrePage(card.Genre, card.Root)));
-        }
+            _genreCards.Add(new GenreCard(genre, plain, card => OpenGenrePage(card.Genre, card.Root)));
 
         CutGenres(GenreColumnsAt(QueueScale));
         SizeGenres(QueueScale);

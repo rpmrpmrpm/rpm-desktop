@@ -301,12 +301,8 @@ public sealed partial class PegasusChrome
         var row = AddGenreRow(GenrePageContent, Loc.Get("Genres_Subgenres"));
         foreach (var other in related)
         {
-            var albums = other.Folders.Count;
-            var card = new GenreCard(
-                other,
-                albums == 1 ? Loc.Get("Genres_SubgenreAlbumOne") : Loc.Format("Genres_SubgenreAlbums", albums),
-                plain,
-                pressed => OpenGenrePage(pressed.Genre, pressed.Root));
+            // The genres list's own card: the photograph under the colour, nothing written under it.
+            var card = new GenreCard(other, plain, pressed => OpenGenrePage(pressed.Genre, pressed.Root));
             row.Cards.Children.Add(card.Root);
             _genrePageGenres.Add(card);
         }
