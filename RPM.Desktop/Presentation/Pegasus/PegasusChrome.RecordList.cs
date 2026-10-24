@@ -108,6 +108,11 @@ public sealed partial class PegasusChrome
         RecordBody.Spacing = 0;
         var read = _recordRead;
 
+        // A list's page opens on its play key: a list is mostly put on whole. No line of the last page
+        // may be where Right from the keys goes back to.
+        _recordFirstTrack = null;
+        _recordLastTrack = null;
+
         // A list has no heart and no stars. What a record built for them is let go, so nothing that
         // repaints a heart or lands an average can reach the last record's controls through this page.
         _recordFavoriteKey = null;

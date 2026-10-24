@@ -63,8 +63,17 @@ public sealed partial class PegasusChrome
     /// and closes those menus. It is read each time, so it is never out of step with the menu.</summary>
     public Func<bool>? LineMenuOpen { get; set; }
 
-    /// <summary>The play key of the album or list page. The focus starts there on that page.</summary>
+    /// <summary>The play key of the album or list page. The focus starts there on a list's page, and it is
+    /// where Left from the tracks goes.</summary>
     private Control? _recordPlayKey;
+
+    /// <summary>The first track line of the album page. The focus starts there on an album's page, as on
+    /// the TV's: somebody who opens a record has usually come to choose a song on it.</summary>
+    private Control? _recordFirstTrack;
+
+    /// <summary>The track line that last had the focus on the album or list page, so that Right from the
+    /// keys goes back to it. Null until a line has had the focus on the page now open.</summary>
+    private Control? _recordLastTrack;
 
     /// <summary>The element that had the focus when the album or list page was opened, so that Back can
     /// put the focus back there. It is kept only if it was in the collection.</summary>
@@ -177,12 +186,13 @@ public sealed partial class PegasusChrome
     /// <summary>
     /// Left and Right between the two columns of an album or list page: the album with its keys on the
     /// left and the track list on the right. A move that stays in its column is kept (Right from the play
-    /// key to the shuffle key). A move that leaves the column goes to the first stop of the other column:
-    /// Right to the first track line, Left to the play key. The track list must be reachable from the left
-    /// side even when no line is level with the focused key, and Right must go to track 1, not to the
-    /// track that happens to be level. The search by layout only crosses to something level with the
-    /// focused element, so without this rule a move from the keys under a short album would bounce, and a
-    /// move from beside a long album would land on whichever line is level.
+    /// key to the menu key). A move that leaves the column goes to a fixed stop in the other column: Right
+    /// to the track line that last had the focus on this page (track 1 the first time), Left to the play
+    /// key. The track list must be reachable from the left side even when no line is level with the
+    /// focused key, and Right must not go to the track that happens to be level. The search by layout only
+    /// crosses to something level with the focused element, so without this rule a move from the keys
+    /// under a short album would bounce, and a move from beside a long album would land on whichever line
+    /// is level.
     /// </summary>
     /// <param name="next">Where the search by layout would move the focus, or null.</param>
     private Control? AcrossRecordPage(FrameworkElement from, FocusNavigationDirection direction, Control? next)
@@ -191,6 +201,10 @@ public sealed partial class PegasusChrome
         {
             case FocusNavigationDirection.Right when Inside(from, RecordInfoPanel)
                                                      && (next is null || !Inside(next, RecordInfoPanel)):
+                // The track left last, while it is still a line on this page. Giving it the focus scrolls
+                // the running order to it if it has scrolled away.
+                if (_recordLastTrack is { } last && Inside(last, RecordBody) && CanTakeFocus(last))
+                    return last;
                 return FocusManager.FindFirstFocusableElement(RecordBody) as Control ?? next;
 
             case FocusNavigationDirection.Left when Inside(from, RecordBody)

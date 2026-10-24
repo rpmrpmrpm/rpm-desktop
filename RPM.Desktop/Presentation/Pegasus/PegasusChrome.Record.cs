@@ -408,7 +408,9 @@ public sealed partial class PegasusChrome
         BuildRecord(card, rows, meta, scale);
         RecordScroll.ChangeView(null, 0, null, disableAnimation: true);   // a new record starts at its top
         CrossToRecord();
-        FocusScreenLater(_recordPlayKey);   // with the remote in use: the page opens on its play key
+        // With the remote in use, an album's page opens on its first track, as the TV's does: somebody who
+        // opens a record has usually come to pick a song on it, and the play key is one Left away.
+        FocusScreenLater(_recordFirstTrack ?? _recordPlayKey);
 
         // The record then comes out of the sleeve. This starts after the cross and not with it: a disc
         // moving while its layer is still fading up would be two movements at once, and neither is clear.
@@ -465,6 +467,8 @@ public sealed partial class PegasusChrome
         _recordRead++;
         _recordOpener = null;
         _recordPlayKey = null;
+        _recordFirstTrack = null;
+        _recordLastTrack = null;
 
         RecordLayer.IsHitTestVisible = false;
         RecordLayer.Visibility = Visibility.Collapsed;
@@ -530,6 +534,8 @@ public sealed partial class PegasusChrome
         FocusScreenLater(_recordOpener);
         _recordOpener = null;
         _recordPlayKey = null;
+        _recordFirstTrack = null;
+        _recordLastTrack = null;
 
         // The room goes back to whatever is playing AS IT STANDS NOW, which is not necessarily what was
         // playing when this screen went up. See RoomPalette. An artist's or a genre's page under the record
@@ -590,6 +596,8 @@ public sealed partial class PegasusChrome
         RecordInfoPanel.Children.Clear();
         RecordBody.Spacing = 0;
         var read = _recordRead;
+        _recordFirstTrack = null;
+        _recordLastTrack = null;
         _recordSleeve = null;
         _recordSleeveArt = null;
         _recordDisc = null;
@@ -766,7 +774,10 @@ public sealed partial class PegasusChrome
 
             // The index is the track's place in the RECORD, not its row in this column: a divider takes a
             // row and plays nothing, and the number handed over here is what a press on the line plays.
-            list.Children.Add(RecordTrack(rows[i], _recordTracks, i, scale, titles, inList: false));
+            var line = RecordTrack(rows[i], _recordTracks, i, scale, titles, inList: false);
+            if (i == 0)
+                _recordFirstTrack = line as Control;
+            list.Children.Add(line);
         }
 
         // The names are capped off the column they stand in, for the reason BuildBand's are: the name and

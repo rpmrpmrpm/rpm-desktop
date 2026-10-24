@@ -1367,10 +1367,14 @@ public sealed partial class PegasusChrome
         // opens the same menu through the line below.
         press.ContextRequested += (sender, e) => ShowRecordTrackMenu(sender, e, songs, index);
 
-        return new RemoteLine(press, play, () => index < songs.Count ? TrackMenu(songs[index]) : null, turn: null)
+        var line = new RemoteLine(press, play, () => index < songs.Count ? TrackMenu(songs[index]) : null, turn: null)
         {
             CornerRadius = row.CornerRadius,   // the focus ring follows it
         };
+
+        // Remembered, so Right from the page's keys comes back to the line it left (see AcrossRecordPage).
+        line.GotFocus += (_, _) => _recordLastTrack = line;
+        return line;
     }
 
     /// <summary>
