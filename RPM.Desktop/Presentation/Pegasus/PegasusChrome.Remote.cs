@@ -250,6 +250,24 @@ public sealed partial class PegasusChrome
     public void WakeForKeys() => WakeTransport();
 
     /// <summary>
+    /// Whether the player's controls are hidden: the turning record is in front (not the collection, not the
+    /// drawer), a record is on the deck, and the transport has faded after its quiet seconds. With the
+    /// controls hidden, the remote's keys do not move the focus over keys nobody can see. Left and Right
+    /// seek, and OK, Up and Down only bring the controls up (see PegasusPlayer.TakeHiddenControlsKey).
+    /// </summary>
+    public bool ControlsHidden => !LibraryUp && !_queueOpen && !_transportUp && _amp?.Deck is not null;
+
+    /// <summary>
+    /// Left or Right with the controls hidden: the playhead goes 10 seconds back or on, without bringing the
+    /// controls up. It is the column's own seek bar that moves, by the same rule as a seek bar with the
+    /// focus (see <see cref="Adjust"/>). So a held key runs at the seek bar's held rate, and the seek is made
+    /// once, when the key comes up (see <see cref="AdjustDone"/>). A seek on every repeat would open the
+    /// file again thirty times a second.
+    /// </summary>
+    /// <param name="way">-1 for Left, 1 for Right.</param>
+    public void SeekHidden(int way, bool repeat) => Adjust(Seek, way, repeat);
+
+    /// <summary>
     /// Where the focus belongs on the screen in front: the side menu's place while it is open over home,
     /// the drawer's own place while the drawer is open (see <see cref="DrawerFocusTarget"/>), the play key
     /// of the turning record (the lyric view's own foot holds it there), the play key of a page, home's

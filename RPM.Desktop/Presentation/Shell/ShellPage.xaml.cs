@@ -657,6 +657,8 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     /// <list type="bullet">
     /// <item>Back (Escape, the remote's Back, a gamepad's B, and Backspace outside a text field) goes one
     /// level up (see PegasusPlayer.TakeBack).</item>
+    /// <item>On the player with its controls hidden, Left and Right seek 10 seconds, and OK, Up and Down
+    /// only bring the controls up with the play key focused (see PegasusPlayer.TakeHiddenControlsKey).</item>
     /// <item>An arrow or OK with the focus lost (on nothing, outside the view, or on the view's root) puts
     /// the focus on the screen's own default instead of going nowhere. The first one after the pointer was
     /// in use only shows where the focus is, without moving it, and so does the first one after the
@@ -750,6 +752,15 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
 
         if (!IsNavigationKey(e.Key))
             return false;
+
+        // The player with its controls hidden: Left and Right seek, and OK, Up and Down only bring the
+        // controls up with the play key focused. Nothing is moved or pressed that cannot be seen (see
+        // PegasusPlayer.TakeHiddenControlsKey).
+        if (pegasus.TakeHiddenControlsKey(e.Key, ArrowDirection(e.Key), IsOkKey(e.Key), HeldKeys.IsRepeat(e)))
+        {
+            e.Handled = true;
+            return true;
+        }
 
         var wasKeyboard = pegasus.KeyboardMode;
         var keysAway = pegasus.FocusOnFadedKeys;

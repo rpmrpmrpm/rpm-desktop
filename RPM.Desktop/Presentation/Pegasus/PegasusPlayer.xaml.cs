@@ -1445,6 +1445,15 @@ public sealed partial class PegasusPlayer : UserControl
     {
         if (_pinned || !IsShowing)
             return;
+
+        // A paused record holds the controls up (see PegasusChrome.HoldsControls). The keys here and the
+        // pointer stay with them, and the count starts again.
+        if (_chrome is { HoldsControls: true })
+        {
+            RestartIdle();
+            return;
+        }
+
         Keys.IsHitTestVisible = false;   // faded keys must not swallow the pointer
         _keysFade.To(0, 420);
         PegasusChrome.CloseOpenToolTips(XamlRoot);   // a tooltip the remote's focus opened goes with its key

@@ -3145,12 +3145,21 @@ public sealed partial class PegasusChrome : UserControl
         // This runs after the line above, so it reads what the card holds as of this frame.
         TickPlayerAway(dt);
 
+        // A record that pauses brings the transport up, with the play key focused for the remote, and the
+        // transport stays up for as long as it is paused. The screen then shows that it is paused, and OK
+        // resumes. This is read off the transport on every frame, so a pause from anywhere counts: the play
+        // key, the space bar, a media key, or the deck in the main window.
+        var paused = Paused;
+        if (paused && !_wasPaused)
+            PauseRaisesTransport();
+        _wasPaused = paused;
+
         // The transport stands down after five quiet seconds. Any pointer move resets the count. It goes at
         // once when the deck empties, whatever the count says. Keys that drive a record that is no longer
-        // there are an offer the player cannot keep.
+        // there are an offer the player cannot keep. It does not stand down while the record is paused.
         if (_transportUp)
         {
-            _transportSeen += dt;
+            _transportSeen = paused ? 0 : _transportSeen + dt;
             if (!onDeck || _transportSeen >= TransportIdle)
                 FadeTransport(up: false);
         }
@@ -4573,6 +4582,34 @@ public sealed partial class PegasusChrome : UserControl
     }
 
     // ── the transport ──
+
+    /// <summary>Whether the record on the deck is paused: loaded, and not playing. False with nothing on the
+    /// deck. A tuned station puts nothing on the deck, so it is never paused in this sense.</summary>
+    private bool Paused => _amp is { IsLoaded: true, IsPlaying: false } amp && amp.Deck is not null;
+
+    /// <summary>Whether the record was paused on the last frame, so a pause is acted on once, as it
+    /// happens.</summary>
+    private bool _wasPaused;
+
+    /// <summary>Whether the controls are being held up by the record's state rather than by a pointer or a
+    /// key: the record is paused. The host keeps its own keys and the pointer up for as long as this holds
+    /// (see PegasusPlayer.HideKeys).</summary>
+    public bool HoldsControls => Paused;
+
+    /// <summary>
+    /// The record has just paused. The transport comes up. While the remote is in use on the turning record,
+    /// the focus goes to the play key, so OK resumes. That happens only where the focus is not already on
+    /// the transport. A listener who paused with the play key, or who is on the seek bar, keeps their place.
+    /// </summary>
+    private void PauseRaisesTransport()
+    {
+        WakeTransport();
+        if (LibraryUp || _queueOpen)
+            return;
+        if (FocusWithin(TransportRow) || FocusWithin(Seek) || FocusWithin(LyricKeys) || FocusWithin(LyricSeek))
+            return;
+        FocusScreenLater(null);   // the screen's default: the play key of the transport that is drawn
+    }
 
     private void WakeTransport()
     {

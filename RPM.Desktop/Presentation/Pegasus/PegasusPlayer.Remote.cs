@@ -186,17 +186,23 @@ public sealed partial class PegasusPlayer
     /// A key the shell handed over. This turns on keyboard mode, brings up the faded keys, and starts the
     /// ring's per-frame updates.
     /// </summary>
-    public void KeysUsed()
+    /// <param name="wake">False for a key that acts without bringing anything up: Left and Right seeking
+    /// with the player's controls hidden (see <see cref="TakeHiddenControlsKey"/>).</param>
+    public void KeysUsed(bool wake = true)
     {
         KeyboardMode = true;
         if (_chrome is { } chrome)
         {
             chrome.KeyboardDriven = true;
-            chrome.WakeForKeys();
+            if (wake)
+                chrome.WakeForKeys();
         }
 
-        ShowKeys();
-        RestartIdle();
+        if (wake)
+        {
+            ShowKeys();
+            RestartIdle();
+        }
 
         if (!_ringTicking)
         {
@@ -685,8 +691,10 @@ public sealed partial class PegasusPlayer
             return true;
 
         // A new press ends a hold whose release never came here. That happens when the release went to the
-        // menu the hold opened, or when the window lost the keyboard while the key was down.
+        // menu the hold opened, or when the window lost the keyboard while the key was down. It also ends the
+        // wait for the release of the OK that brought the controls up, in case that release was lost.
         EndHold();
+        _raisedBy = null;
 
         if (focused is not RemoteLine line)
             return false;
@@ -722,6 +730,14 @@ public sealed partial class PegasusPlayer
         // Left or Right was released before its menu opened, so nothing opens.
         if (_sideHeld?.Pressed == key)
             EndSideHold();
+
+        // The release of the OK that brought the controls up. It is kept from the play key, which has the
+        // focus by now. A button that saw the key go down would press itself as it comes up.
+        if (_raisedBy == key)
+        {
+            _raisedBy = null;
+            return true;
+        }
 
         if (_okHold is { } hold && hold.Key == key)
         {
@@ -760,6 +776,49 @@ public sealed partial class PegasusPlayer
             EndHold();
             OpenLineMenu(line, key);
         }
+        return true;
+    }
+
+    /// <summary>The OK that brought the player's controls up, until it comes up again. Its release is kept
+    /// from the play key (see <see cref="KeyReleased"/>). Null at other times.</summary>
+    private VirtualKey? _raisedBy;
+
+    /// <summary>
+    /// An arrow or OK on the player with its controls hidden, handed over by the shell before anything
+    /// moves. Returns true when it was dealt with here. Returns false where the controls are not hidden, and
+    /// then the key goes on as usual.
+    /// <list type="bullet">
+    /// <item>Left and Right move the playhead 10 seconds back or on (a held key runs on at the seek bar's
+    /// held rate), and nothing comes up (see PegasusChrome.SeekHidden). The seek is made when the key comes
+    /// up.</item>
+    /// <item>OK, Up and Down bring the controls up with the play key focused, and do nothing else. OK does
+    /// not pause: a press made to see the keys must never stop the music. The rest of that OK, its repeats
+    /// and its release, is kept from the play key (see <see cref="OkDown"/> and <see cref="KeyReleased"/>).
+    /// </item>
+    /// </list>
+    /// </summary>
+    public bool TakeHiddenControlsKey(VirtualKey key, FocusNavigationDirection? direction, bool ok, bool repeat)
+    {
+        if (_chrome is not { ControlsHidden: true } chrome)
+            return false;
+
+        if (direction is FocusNavigationDirection.Left or FocusNavigationDirection.Right)
+        {
+            KeysUsed(wake: false);
+            chrome.SeekHidden(direction == FocusNavigationDirection.Left ? -1 : 1, repeat);
+            if (!repeat)
+                Say($"keys: controls hidden, {direction} seeks");
+            return true;
+        }
+
+        if (!ok && direction is not (FocusNavigationDirection.Up or FocusNavigationDirection.Down))
+            return false;
+
+        KeysUsed();
+        FocusDefault();
+        if (ok)
+            _raisedBy = key;
+        Say("keys: controls hidden, the key brought them up on the play key");
         return true;
     }
 
