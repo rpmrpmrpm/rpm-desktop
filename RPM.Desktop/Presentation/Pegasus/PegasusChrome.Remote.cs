@@ -117,15 +117,15 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// The part of the turning record that its view does not draw: one of its two transports. The lyric
-    /// view alone draws its own seek bar and keys along the foot (LyricFoot) and fades the column that
-    /// holds the words, the seek bar and the keys (Words). Every other view draws the column and sets the
-    /// lyric view's foot to opacity 0. Both stay in the tree, laid out and focusable. It is read from the
+    /// view alone and the bare room draw the seek bar and keys along the foot (LyricFoot, see FootDrawn)
+    /// and fade the column that holds the words, the seek bar and the keys (Words). Every other view draws
+    /// the column and sets the foot to opacity 0. Both stay in the tree, laid out and focusable. It is read from the
     /// view being moved to (<c>_viewTo</c>), which <see cref="DefaultFocusTarget"/> also reads, so the two
     /// cannot name different transports. Null while the collection is up, because the turning record is
     /// behind it.
     /// </summary>
     private UIElement? TransportNotDrawn() =>
-        LibraryUp ? null : _viewTo == PegasusView.Lyrics ? Words : LyricFoot;
+        LibraryUp ? null : FootDrawn(_viewTo) ? Words : LyricFoot;
 
     /// <summary>
     /// Whether the focus is on a part of the screen that its view does not draw: on the column's lyric
@@ -288,7 +288,7 @@ public sealed partial class PegasusChrome
             return inDrawer;
 
         if (!LibraryUp)
-            return _viewTo == PegasusView.Lyrics ? LyricPlayButton : TransportPlayButton;
+            return FootDrawn(_viewTo) ? LyricPlayButton : TransportPlayButton;
 
         if (RecordUp)
             return _recordPlayKey;

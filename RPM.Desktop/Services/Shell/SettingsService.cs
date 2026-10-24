@@ -149,6 +149,9 @@ public sealed partial class SettingsService
         bool NormalizeClassical = false,
         bool MaskProfanity = false,
         bool AlignWords = false,
+        // Pegasus's player: the layout it shows, and the lyric key's choice.
+        string? PegasusLayout = null,
+        bool PegasusLyrics = false,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -673,6 +676,36 @@ public sealed partial class SettingsService
     {
         get => _model.MaskProfanity;
         set => Update(_model with { MaskProfanity = value }, notify: false);
+    }
+
+    // ── Pegasus's player ──
+
+    /// <summary>
+    /// The layout Pegasus's player shows: "Spread" (Full), "Centred" (Compact) or "Room" (Visuals only), by
+    /// the name of the layout. Null until the layout key or the settings panel has been used. A name this
+    /// build does not know opens on the full layout (see PegasusPlayer.ReadStoredLayout).
+    ///
+    /// <para>It is kept so that the player opens as it was left, after a restart as well as after a visit
+    /// to the library. A layout is a way of watching that the listener chose once. It is stored by name, so
+    /// the settings file does not depend on the order of a type in the player.</para>
+    ///
+    /// <para>This is saved quietly. Nothing else in the app reacts to it.</para>
+    /// </summary>
+    public string? PegasusLayout
+    {
+        get => _model.PegasusLayout;
+        set => Update(_model with { PegasusLayout = value }, notify: false);
+    }
+
+    /// <summary>
+    /// Whether the listener has asked Pegasus's player for the lyrics with the lyric key, and not asked to
+    /// stop. Where a record has a synced sheet, the player then shows it. It is kept for the same reason as
+    /// <see cref="PegasusLayout"/>, and saved quietly too.
+    /// </summary>
+    public bool PegasusLyrics
+    {
+        get => _model.PegasusLyrics;
+        set => Update(_model with { PegasusLyrics = value }, notify: false);
     }
 
     /// <summary>

@@ -96,10 +96,10 @@
     <Grid x:Name="Keys">
 
       <!-- The censor button. It appears ONLY on the lyric view, because it is a key about the words, and
-           the other views have no words for it to act on. It sits to the left of the focus key, on the same
-           row. The other keys keep their own margins, so showing and hiding this key does not move them.
-           The lyric key is not in this row. It is in the row under the record and in the lyric view's foot
-           (see PegasusChrome.LyricViewButton).
+           the other views have no words for it to act on. It is the rightmost key of this row. The other
+           keys keep their own margins, so showing and hiding this key does not move them. The lyric key
+           and the layout key are not in this row. They are in the row under the record and in the lyric
+           view's foot (see PegasusChrome.LyricViewButton and LayoutButton).
 
            It hides the SWEARING and the DRUG NAMES, not the slurs. The slurs are always masked. It applies
            to every record, and the advisory flag in the file has no effect on it. The icon is an asterisk,
@@ -124,7 +124,7 @@
            It is the leftmost key in the row, with the two keys that also only affect the words. The reload
            icon is the same one the pane's own button uses. -->
       <Button x:Name="LyricAnotherButton" Click="LyricAnother_Click" Visibility="Collapsed"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,128,0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,90,0"
               Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
               Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
               ToolTipService.ToolTip="{loc:Str Key=TrackInfo_LyricsTryAnother}"
@@ -133,7 +133,7 @@
       </Button>
 
       <Button x:Name="AlignButton" Click="Align_Click" Visibility="Collapsed"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,90,0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,52,0"
               Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
               Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
               ToolTipService.ToolTip="{loc:Str Key=Viz_AlignOff}"
@@ -142,7 +142,7 @@
       </Button>
 
       <Button x:Name="CensorButton" Click="Censor_Click" Visibility="Collapsed"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,52,0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,14,0"
               Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
               Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
               ToolTipService.ToolTip="{loc:Str Key=Viz_CensorOff}"
@@ -150,16 +150,6 @@
         <TextBlock x:Name="CensorGlyph" Text="&#xf069;" FontFamily="{StaticResource PegasusPlayerFa}" FontSize="12"/>
       </Button>
 
-      <!-- Focus key: strips the composition back to the room, the record and the words, with the spectrum
-           and the left-hand column removed. One button cycles through the layouts of the same picture. -->
-      <Button x:Name="FocusButton" Click="Focus_Click"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,14,0"
-              Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="15"
-              Background="#55000000" BorderBrush="#22FFFFFF" BorderThickness="1" Foreground="#E6FFFFFF"
-              ToolTipService.ToolTip="{loc:Str Key=Viz_Focus}"
-              AutomationProperties.Name="{loc:Str Key=Viz_Focus}">
-        <TextBlock x:Name="FocusGlyph" Text="&#xf066;" FontFamily="{StaticResource PegasusPlayerFa}" FontSize="12"/>
-      </Button>
 
       <!-- Pin: keeps the keys visible instead of letting them fade. It is Collapsed. The top right controls
            are hidden, so the only way to leave the view is to press Escape twice. -->

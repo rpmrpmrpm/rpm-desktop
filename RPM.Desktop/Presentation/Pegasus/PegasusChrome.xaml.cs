@@ -1162,6 +1162,29 @@ public sealed partial class PegasusChrome : UserControl
     /// </summary>
     private static double LyricColumn(double w) => Math.Min(w * 0.78, 1400);
 
+    /// <summary>
+    /// Lays out the foot: the seek bar and the keys along the bottom of the lyric view and of the bare room.
+    ///
+    /// <para>The bar runs the width of the lyric's column. The foot is only drawn where the lyric stands
+    /// alone or nothing stands at all, and in both the column is the middle one. It can only be scrubbed
+    /// while one of those views is on screen (see ApplyLyricFootHits). An invisible bar must not catch a
+    /// drag meant for the picture. The whole foot (the bar and the keys together) is lifted off the bottom
+    /// edge, so the margin belongs to the container, not the bar. Otherwise the keys would hang off the end
+    /// of the screen. On a tall screen the whole foot is drawn larger as one block (LyricFootScale), at the
+    /// figure that the column's own bar and keys use. The bar is laid out at the column over that figure,
+    /// so once it is drawn larger, it is the column's width again.</para>
+    ///
+    /// <para>It is called from <see cref="Relayout"/> as well as from <see cref="LayoutLyrics"/>. The bare
+    /// room has a foot with no sheet behind it, and LayoutLyrics does nothing without a sheet.</para>
+    /// </summary>
+    private void LayoutFoot(double w, double h)
+    {
+        var footScale = QueueScale;
+        LyricFootScale.Factor = footScale;
+        LyricSeek.Width = LyricColumn(w) / footScale;
+        LyricFoot.Margin = new Thickness(0, 0, 0, Math.Max(32, h * 0.045));
+    }
+
     private void LayoutLyrics()
     {
         if (_lyricLines.Length == 0)
@@ -1184,17 +1207,7 @@ public sealed partial class PegasusChrome : UserControl
         _lyricColumn = column;
         _lyricLeft = left;
 
-        // The bar runs the width of the words it belongs to, along the foot. It can only be scrubbed while
-        // the lyric is the view on screen. An invisible bar must not catch a drag meant for the picture.
-        // The bar runs the width of the words above it. The whole foot (the bar and the keys together) is
-        // lifted off the bottom edge, so the margin belongs to the container, not the bar. Otherwise the
-        // keys would hang off the end of the screen. On a tall screen the whole foot is drawn larger as one
-        // block (LyricFootScale), at the figure that the column's own bar and keys use. The bar is laid out
-        // at the column over that figure, so once it is drawn larger, it is the column's width again.
-        var footScale = QueueScale;
-        LyricFootScale.Factor = footScale;
-        LyricSeek.Width = column / footScale;
-        LyricFoot.Margin = new Thickness(0, 0, 0, Math.Max(32, h * 0.045));
+        LayoutFoot(w, h);
         for (int i = 0; i < _lyricLines.Length; i++)
         {
             var block = _lyricLines[i];
@@ -2449,9 +2462,15 @@ public sealed partial class PegasusChrome : UserControl
     private double CentreOpacity => _view is PegasusView.Room or PegasusView.Lyrics ? 0 : 1;
     private double LyricOpacity => _view.IsLyric() ? 1 : 0;
 
-    /// <summary>The lyric's own foot, its seek bar and keys. These show only for the lyric alone. Beside
-    /// the record, the column's own bar and keys are on screen, and they stay where they are.</summary>
-    private double LyricFootOpacity => _view == PegasusView.Lyrics ? 1 : 0;
+    /// <summary>The lyric's own foot, its seek bar and keys. These show for the lyric alone and for the bare
+    /// room, the two views that draw no column of words (see <see cref="FootDrawn"/>). Beside the record,
+    /// the column's own bar and keys are on screen, and they stay where they are.</summary>
+    private double LyricFootOpacity => FootDrawn(_view) ? 1 : 0;
+
+    /// <summary>Whether a view draws the foot (the seek bar and keys along the bottom) in place of the
+    /// column's own. The lyric alone has no column. Neither has the bare room, and without the foot it would
+    /// have no keys at all, not even the layout key that leads out of it.</summary>
+    private static bool FootDrawn(PegasusView view) => view is PegasusView.Lyrics or PegasusView.Room;
 
     private void BeginSwap()
     {
@@ -2463,7 +2482,7 @@ public sealed partial class PegasusChrome : UserControl
         _centreFade.To(target is PegasusView.Room or PegasusView.Lyrics ? 0 : 1, SwapOutMs + SwapInMs, null);
         _scrimFade.To(target == PegasusView.Spread ? 1 : 0, SwapOutMs + SwapInMs, null);
         _lyricFade.To(target.IsLyric() ? 1 : 0, SwapOutMs + SwapInMs, null);
-        _lyricFootFade.To(target == PegasusView.Lyrics ? 1 : 0, SwapOutMs + SwapInMs, null);
+        _lyricFootFade.To(FootDrawn(target) ? 1 : 0, SwapOutMs + SwapInMs, null);
 
         _wordsFade.To(0, SwapOutMs, () =>
         {
@@ -3164,6 +3183,9 @@ public sealed partial class PegasusChrome : UserControl
                 FadeTransport(up: false);
         }
 
+        // …and the line at the top: a layout's name, a cast's news, or where the music plays.
+        TickTopLine();
+
         // …and the list after three seconds, under the same rules. The time is shorter than the transport's
         // five, because the list is a bigger thing to leave lying over the picture. The keys are small and
         // sit in the margins. The list is a card in front of the record.
@@ -3489,6 +3511,27 @@ public sealed partial class PegasusChrome : UserControl
     private void LyricView_Click(object sender, RoutedEventArgs e) => LyricViewRequested?.Invoke();
 
     /// <summary>
+    /// Raised by the layout key, in the row under the record or in the foot. The HOST moves to the next
+    /// layout and keeps the choice (see PegasusPlayer.StepLayout). This control only draws the key, and the
+    /// layout's name at the top (see <see cref="ShowLayoutName"/>).
+    /// </summary>
+    public event Action? LayoutRequested;
+
+    private void Layout_Click(object sender, RoutedEventArgs e) => LayoutRequested?.Invoke();
+
+    /// <summary>
+    /// After the layout key: keeps the focus on a layout key, where it was on one. A change of layout can
+    /// fade the row the pressed key is in (the bare room draws the foot, the other layouts the column).
+    /// The focus goes to the layout key of the transport the new layout draws, so the next press of OK
+    /// moves on again. Only while the remote is in use, as every placement of the focus here.
+    /// </summary>
+    public void KeepLayoutFocus()
+    {
+        if (FocusWithin(LayoutButton) || FocusWithin(LyricLayoutButton))
+            FocusScreenLater(FootDrawn(_viewTo) ? LyricLayoutButton : LayoutButton);
+    }
+
+    /// <summary>
     /// Shows or hides the lyric key in the row under the record, and fills it in while the lyric is on. The
     /// host gives the answer, from the facts that decide whether the lyric key is shown: a sheet for this
     /// record, or one still being fetched for a listener who is already following along. The key in the
@@ -3499,10 +3542,18 @@ public sealed partial class PegasusChrome : UserControl
     /// and it says so.</param>
     public void ShowLyricKey(bool shown, bool on)
     {
+        var tip = Strings.Loc.Get(on ? "Viz_LyricsBack" : "Viz_Lyrics");
         LyricViewButton.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         LyricViewHollow.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
         LyricViewFilled.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        IconName.Set(LyricViewButton, Strings.Loc.Get(on ? "Viz_LyricsBack" : "Viz_Lyrics"));
+        IconName.Set(LyricViewButton, tip);
+
+        // …and its twin in the foot. On the lyric view it is filled, as the way back. On the bare room,
+        // which shows the foot too, it is the way to the words, as in the row.
+        LyricViewFootButton.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        LyricFootHollow.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        LyricFootFilled.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        IconName.Set(LyricViewFootButton, tip);
     }
 
     /// <summary>Opens or closes the list. This is idempotent, because the host calls it to shut the panel
@@ -4673,7 +4724,7 @@ public sealed partial class PegasusChrome : UserControl
     /// bar along the foot of the words stays dead until the next resize.</para>
     /// </summary>
     private void ApplyLyricFootHits()
-        => LyricFoot.IsHitTestVisible = _view == PegasusView.Lyrics && _sheet.IsSynced;
+        => LyricFoot.IsHitTestVisible = (_view == PegasusView.Lyrics && _sheet.IsSynced) || _view == PegasusView.Room;
 
     // ── layout ──
 
@@ -4681,17 +4732,21 @@ public sealed partial class PegasusChrome : UserControl
 
     /// <summary>
     /// The narrowest the row of keys under the words may be, in its own unscaled points, before its parts
-    /// meet. There are four keys on its left end (four 36s and three gaps of 2, which is 150). The
-    /// transport is centred on it (36, 42 and 36, with gaps of 10, which is 134), and there is air between
-    /// them. The transport's left end is at half the row less 67, so the row has to be at least twice 158
+    /// meet. There are three keys on each end (three 36s and two gaps of 2, which is 112). The transport
+    /// is centred on it (36, 42 and 36, with gaps of 10, which is 134), and there are 6 of air between
+    /// them. The transport's left end is at half the row less 67, so the row has to be at least twice 118
     /// plus 134.
     ///
     /// <para>The block that holds the row is drawn larger on a tall screen (ControlsScale). A larger block
     /// in the same column is a narrower row inside it. So the scale is held to what keeps the row at least
-    /// this wide. The drawn-in view has room to spare. The spread view, on a 16:10 screen, does not. If the
-    /// keys in the row change, change this too.</para>
+    /// this wide. If the keys in the row change, change this too.</para>
     /// </summary>
-    private const double ControlsLeast = 450;
+    private const double ControlsLeast = 370;
+
+    /// <summary>The same, with the volume beside the keys on the right end: 8 of gap, the glyph (about 14),
+    /// 6 of gap and the 56 of the bar, which is 84 more on that end. The row has to be at least twice 202
+    /// plus 134.</summary>
+    private const double ControlsWithVolume = 540;
 
     /// <summary>The sleeve's side for a window this size, from the shared fractions, floored and capped. It
     /// is worked out in one place because two things are placed by it: the record (Relayout), and the
@@ -4838,15 +4893,22 @@ public sealed partial class PegasusChrome : UserControl
         LayoutQueue();
 
         // The transport row has three things in it. Only the middle one is sure of its place: the keys are
-        // centred, and the list key and the volume hang off the two ends. On a narrow column they would
-        // meet in the middle. So the volume stands down. It is the one of the three with somewhere else to
-        // be, since the deck has the same slider and the machine has its own.
+        // centred, and the two strips of keys hang off the two ends, the volume with the right one. On a
+        // narrow column they would meet in the middle. So the volume stands down. It is the one with
+        // somewhere else to be, since the deck has the same slider, the keyboard has its volume keys and
+        // the machine has its own.
         //
-        // This is asked of the row's OWN width, which is the column over the block's scale. The keys inside
-        // have grown, and the room has not.
-        var controls = Math.Max(1, Math.Min(QueueScale, column / ControlsLeast));
+        // The volume stays where the column holds the row with it at the desktop's own size. The block is
+        // then drawn larger only as far as the row with the volume still fits. A row that has dropped the
+        // volume may grow further.
+        var volume = column >= ControlsWithVolume;
+        var controls = Math.Max(1, Math.Min(QueueScale, column / (volume ? ControlsWithVolume : ControlsLeast)));
         ControlsScale.Factor = controls;
-        VolumeGroup.Visibility = column / controls >= 230 ? Visibility.Visible : Visibility.Collapsed;
+        VolumeGroup.Visibility = volume ? Visibility.Visible : Visibility.Collapsed;
+
+        // The foot along the bottom of the lyric view and of the bare room. The bare room has no sheet, so
+        // LayoutLyrics, which also lays it out, may not run.
+        LayoutFoot(w, h);
 
         var title = Math.Clamp(side * 0.075, 16, 44);
         TitleText.FontSize = title;

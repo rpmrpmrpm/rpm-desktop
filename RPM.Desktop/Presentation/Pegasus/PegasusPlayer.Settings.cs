@@ -3,7 +3,7 @@ using RPM.Core.Analysis;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// The host side of Pegasus's settings panel (see IPegasusSettings). It makes the same changes as the view
+/// The host side of Pegasus's settings panel (see IPegasusSettings). It makes the same changes as the layout
 /// key and the two lyric keys, but without the keys. The panel is opened from the side menu on home, so the
 /// record keeps turning behind the collection while these change. The changes show when the view comes
 /// back.
@@ -23,12 +23,20 @@ public sealed partial class PegasusPlayer : IPegasusSettings
             _ => PegasusView.Spread,
         };
 
-        // With the lyric on, the layout is where the lyric goes back to; the lyric itself stays.
+        // With the lyric on, the layout is where the lyric goes back to. The lyric itself stays, in the form the new
+        // layout gives it: beside the record in the compact layout, alone in the others (PegasusViews.LyricViewFor).
         if (_view.IsLyric())
+        {
             _beforeLyrics = next;
+            _view = PegasusViews.LyricViewFor(next);
+        }
         else
+        {
             _view = next;
+        }
 
+        // Kept in the settings, so the player opens on it after a restart.
+        StoreLayout();
         ApplyView(immediate: false);
     }
 

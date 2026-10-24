@@ -414,7 +414,10 @@
          It is a second SeekBar, because the one in the column is faded away for this view, and one control
          cannot be in two places. It is the same control on the same transport, as the header also carries
          two of its own (the open drawer's and the parked drawer's), so whichever is on screen shows the
-         same playhead and scrubs the same track. -->
+         same playhead and scrubs the same track.
+
+         The bare room (Visuals only) shows this foot too. That layout has no column of words, and without
+         the foot it would have no keys at all, not even the layout key that leads out of it. -->
     <StackPanel x:Name="LyricFoot" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                 Opacity="0" IsHitTestVisible="False">
       <!-- Scaled as a block, as the column's bar and keys are (see ControlsScale). The width of its bar
@@ -424,8 +427,8 @@
         <StackPanel>
           <ctl:SeekBar x:Name="LyricSeek" Opacity="0" IsHitTestVisible="False" TakesKeys="True"/>
 
-          <!-- The keys under the bar: the lyric key at the left end of the bar, and the transport centred
-               on the bar, in the same arrangement as the row under the record. Their opacity is INSIDE
+          <!-- The keys under the bar: the transport centred on the bar, and the lyric and layout keys
+               at its right end, in the same arrangement as the row under the record. Their opacity is INSIDE
                the container's opacity: the container says whether this view is on screen, the row says
                whether the pointer has been still for five seconds, and the two multiply without either
                needing to know about the other. -->
@@ -439,17 +442,34 @@
               <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
             </Grid.Resources>
 
-            <!-- The way back to the record: the lyric key from the row under the record, filled, because
-                 this view is the state that it switches on. It is the same drawing as LyricViewFilled.
-                 Change both. -->
-            <Button x:Name="LyricViewFootButton" Click="LyricView_Click"
-                    Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
-                    HorizontalAlignment="Left" VerticalAlignment="Center"
-                    ToolTipService.ToolTip="{loc:Str Key=Viz_LyricsBack}"
-                    AutomationProperties.Name="{loc:Str Key=Viz_LyricsBack}">
-              <PathIcon Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Button>
+            <!-- The right end of the foot, as in the row under the record: the lyric key and
+                 the layout key. This foot is also the transport of the bare room (Visuals only), which has
+                 no column of words to carry one, so it is the way out of that layout too. -->
+            <StackPanel Orientation="Horizontal" Spacing="2"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+
+              <!-- The lyric key: filled on the lyric view, where it is the way back to the record, and
+                   hollow on the bare room. ShowLyricKey dresses it with the key in the row under the record.
+                   The same drawings as LyricViewHollow and LyricViewFilled. Change both. -->
+              <Button x:Name="LyricViewFootButton" Click="LyricView_Click"
+                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_LyricsBack}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_LyricsBack}">
+                <Grid>
+                  <PathIcon x:Name="LyricFootHollow" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <PathIcon x:Name="LyricFootFilled" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+
+              <Button x:Name="LyricLayoutButton" Click="Layout_Click"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf009;" FontSize="15"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_SettingsLayout}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_SettingsLayout}"/>
+            </StackPanel>
 
             <!-- DataContext is null until AttachAmp. See TransportRow below for why it is not inherited. -->
             <StackPanel x:Name="LyricTransport" Orientation="Horizontal" Spacing="10"
@@ -552,10 +572,11 @@
                of the bar and do not hang off its left end. IsHitTestVisible starts false to match the
                opacity it starts at: an invisible row must not be clickable before the first pointer move
                wakes it. -->
-          <!-- One row with two things in it: the keys centred on the column, and the list key at its left
-               end. It is a Grid, not more of the StackPanel above, because the two want different
-               alignments on the same line: the transport belongs under the middle of the bar, and the
-               list key belongs under its left edge, where the words above it begin.
+          <!-- One row with three things in it: the keys centred on the column, the list key and its
+               neighbours at its left end, and the lyric and layout keys with the volume at its right
+               end. It is a Grid, not more of the StackPanel above, because they want different alignments
+               on the same line: the transport belongs under the middle of the bar, and the list key belongs
+               under its left edge, where the words above it begin.
 
                The whole row fades, not the keys alone (see FadeTransport): the list key is a control like
                the others and leaves with them when the screen goes quiet. -->
@@ -603,8 +624,12 @@
                    queue's mark, because then the user would have to choose between what is on next and
                    how to get out. A full-screen player with no way back to the collection is a room with
                    no door, and a door that is also the queue is a door that sometimes opens onto the
-                   wrong room. An arrow says the one thing that this key does. -->
-              <Button x:Name="BackButton" Click="Back_Click"
+                   wrong room. An arrow says the one thing that this key does.
+
+                   It is for the mouse only (see MouseKeys). The remote has its own Back key, which does the
+                   same, so the key is hidden while the remote is in use and comes back when the mouse
+                   moves. -->
+              <Button x:Name="BackButton" Click="Back_Click" local:MouseKeys.Only="True"
                       Style="{StaticResource PegasusTransportButton}" Content="&#xf060;" FontSize="15"
                       VerticalAlignment="Center"
                       ToolTipService.ToolTip="{loc:Str Key=Viz_BackToLibrary}"
@@ -624,32 +649,6 @@
                       VerticalAlignment="Center"
                       ToolTipService.ToolTip="{loc:Str Key=Track_SetFavorite}"
                       AutomationProperties.Name="{loc:Str Key=Track_SetFavorite}"/>
-
-              <!-- The lyric view key, after the heart. It is shown only while there is a sheet for this
-                   album, by the host's rule (see PegasusPlayer.ApplyView and LyricKeyShown). The lyric
-                   view's own foot carries the same key, lit, as the way back.
-
-                   The mark is a path, not a glyph: a speech box with two quotes. It is a PathIcon so that
-                   it takes the key's foreground, including the white on hover, as the glyphs beside it
-                   do. Each quote is one outline, dot and tail together, so that the filled version can
-                   cut them out of a solid box under the even-odd rule. The filled drawing is also in
-                   LyricViewFootButton below. Change both. -->
-              <!-- Corner 8 instead of the style's round 18: the mark is a square, and a round wash under
-                   it would cut its corners. -->
-              <Button x:Name="LyricViewButton" Click="LyricView_Click" Visibility="Collapsed"
-                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
-                      VerticalAlignment="Center"
-                      ToolTipService.ToolTip="{loc:Str Key=Viz_Lyrics}"
-                      AutomationProperties.Name="{loc:Str Key=Viz_Lyrics}">
-                <!-- Hollow while the lyric is off, filled while it is on: the heart beside it shows its
-                     state in the same way. ShowLyricKey sets which one is shown. -->
-                <Grid>
-                  <PathIcon x:Name="LyricViewHollow" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                  <PathIcon x:Name="LyricViewFilled" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Grid>
-              </Button>
             </StackPanel>
 
             <StackPanel x:Name="Transport" Orientation="Horizontal" Spacing="10"
@@ -668,6 +667,51 @@
                       AutomationProperties.Name="{Binding NextToolTip}"/>
             </StackPanel>
 
+            <!-- The right end of the row: the keys about where and how the music is shown and heard, then
+                 the volume. Read from the middle outwards, as on the TV: the lyric key and
+                 the layout key. They stand together in one strip, like the three on the left, so that
+                 showing or hiding the lyric key moves nothing else. -->
+            <StackPanel Orientation="Horizontal" Spacing="8"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+
+
+              <!-- The lyric view key. It is shown only while there is a sheet for this album, by the host's
+                   rule (see PegasusPlayer.ApplyView). The lyric view's own foot carries the same key, as
+                   the way back.
+
+                   The mark is a path, not a glyph: a speech box with two quotes. It is a PathIcon so that
+                   it takes the key's foreground, including the white on hover, as the glyphs beside it
+                   do. Each quote is one outline, dot and tail together, so that the filled version can
+                   cut them out of a solid box under the even-odd rule. The same two drawings are also in
+                   LyricViewFootButton below. Change both. -->
+              <!-- Corner 8 instead of the style's round 18: the mark is a square, and a round wash under
+                   it would cut its corners. -->
+              <Button x:Name="LyricViewButton" Click="LyricView_Click" Visibility="Collapsed"
+                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_Lyrics}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_Lyrics}">
+                <!-- Hollow while the lyric is off, filled while it is on: the heart shows its state in
+                     the same way. ShowLyricKey sets which one is shown. -->
+                <Grid>
+                  <PathIcon x:Name="LyricViewHollow" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <PathIcon x:Name="LyricViewFilled" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+
+              <!-- The layout key: Full, Compact, Visuals only, and round again (see
+                   PegasusPlayer.StepLayout). The new layout's name shows at the top of the screen for two
+                   seconds. The glyph is four squares, the TV's layout key. -->
+              <Button x:Name="LayoutButton" Click="Layout_Click"
+                      Style="{StaticResource PegasusTransportButton}" Content="&#xf009;" FontSize="15"
+                      VerticalAlignment="Center"
+                      ToolTipService.ToolTip="{loc:Str Key=Viz_SettingsLayout}"
+                      AutomationProperties.Name="{loc:Str Key=Viz_SettingsLayout}"/>
+            </StackPanel>
+
             <!-- The volume, at the right end of the row, opposite the list key. It is the same knob that
                  the deck's own slider turns (one Volume on one model), so the two can never disagree
                  about how loud it is. This is a second place to reach the volume, not a second
@@ -677,9 +721,9 @@
                  volume: Left and Right turn it (see PegasusChrome.Adjust). It is named VolumeGroup
                  because the code that hides it on a narrow column hides this element. -->
             <ContentControl x:Name="VolumeGroup" IsTabStop="True" UseSystemFocusVisuals="False"
-                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            VerticalAlignment="Center"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
 
               <TextBlock x:Name="VolumeGlyph" Text="&#xf027;" FontFamily="{StaticResource PegasusFa}"
                          FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
@@ -694,7 +738,7 @@
                    of XAML to end up with the four rectangles below.
 
                    Root takes the pointer, so the whole strip can be grabbed and not just the line. -->
-              <Grid x:Name="VolumeBar" Width="72" Height="14" Background="Transparent"
+              <Grid x:Name="VolumeBar" Width="56" Height="14" Background="Transparent"
                     ToolTipService.ToolTip="{loc:Str Key=Viz_Volume}"
                     PointerPressed="Volume_PointerPressed" PointerMoved="Volume_PointerMoved"
                     PointerReleased="Volume_PointerReleased" PointerCaptureLost="Volume_PointerReleased">
@@ -707,11 +751,20 @@
               </Grid>
             </StackPanel>
             </ContentControl>
+            </StackPanel>
           </Grid>
         </StackPanel>
       </ui:ScaleBox>
     </StackPanel>
     </Grid>
+
+    <!-- The line across the top of the player (see PegasusChrome.TopLine): for two seconds after the layout
+         key, the new layout's name. It is outside the composition, so the queue
+         drawer does not push it aside, and it never takes the pointer. Its size and place are set in code,
+         at the view's text scale. -->
+    <TextBlock x:Name="TopLine" HorizontalAlignment="Center" VerticalAlignment="Top"
+               IsHitTestVisible="False" Visibility="Collapsed" Foreground="#99FFFFFF"
+               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1"/>
 
     <!-- ═══ the collection ═══ all of it, over the room, for the two moments when the visualizer is not
          about one album: when the user is looking for an album, and when nothing is playing.

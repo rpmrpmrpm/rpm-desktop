@@ -7,9 +7,10 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// PegasusPlayer, which holds the layout and puts the two stored settings on the lyric view; the chrome
 /// only draws the rows and asks.
 ///
-/// <para>The layout lasts for the session. The two lyric settings are stored (SettingsService) and are also
-/// set by the lyric view's own keys. Volume levelling is the desktop's own (SettingsService, read by
-/// NormalizationService for every track), the same two settings as the main window's Sound page.</para>
+/// <para>The layout is stored (SettingsService), and the layout key in the player's row changes it too. The
+/// two lyric settings are stored and are also set by the lyric view's own keys. Volume levelling is the
+/// desktop's own (SettingsService, read by NormalizationService for every track), the same two settings as the
+/// main window's Sound page.</para>
 /// </summary>
 public interface IPegasusSettings
 {
@@ -17,7 +18,7 @@ public interface IPegasusSettings
     /// on, the one it goes back to when the lyric is turned off.</summary>
     PegasusView Layout { get; }
 
-    /// <summary>Moves to the next layout, wrapping, in the order the view key cycles them.</summary>
+    /// <summary>Moves to the next layout, wrapping, in the order the layout key cycles them.</summary>
     void NextLayout();
 
     /// <summary>Whether explicit words in the lyrics are masked.</summary>

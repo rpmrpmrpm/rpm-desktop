@@ -184,13 +184,14 @@ public sealed partial class PegasusPlayer
 
     /// <summary>
     /// A key the shell handed over. This turns on keyboard mode, brings up the faded keys, and starts the
-    /// ring's per-frame updates.
+    /// ring's per-frame updates. The keys that only the mouse needs are hidden (see <see cref="MouseKeys"/>).
     /// </summary>
     /// <param name="wake">False for a key that acts without bringing anything up: Left and Right seeking
     /// with the player's controls hidden (see <see cref="TakeHiddenControlsKey"/>).</param>
     public void KeysUsed(bool wake = true)
     {
         KeyboardMode = true;
+        MouseKeys.RemoteInUse(true);
         if (_chrome is { } chrome)
         {
             chrome.KeyboardDriven = true;
@@ -285,6 +286,7 @@ public sealed partial class PegasusPlayer
 
         Say("ring: the pointer took over");
         KeyboardMode = false;
+        MouseKeys.RemoteInUse(false);
         if (_chrome is { } chrome)
             chrome.KeyboardDriven = false;
         EndHold();

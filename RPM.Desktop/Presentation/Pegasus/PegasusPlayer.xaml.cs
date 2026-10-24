@@ -117,8 +117,13 @@ public sealed partial class PegasusPlayer : UserControl
 
     /// <summary>Which composition is up. It is held here, not in the chrome, so it survives the view being left and
     /// coming back. A composition is a way of watching, not a property of the thing being watched. Once the
-    /// listener has chosen it, they should not have to choose it again on the way back.</summary>
+    /// listener has chosen it, they should not have to choose it again on the way back, nor after a restart: the
+    /// layout and the lyric key's choice are kept in the settings (see <see cref="ReadStoredLayout"/>).</summary>
     private PegasusView _view;
+
+    /// <summary>Whether the stored layout and lyric choice have been read. They are read on the first
+    /// <see cref="Show"/>, not in the constructor, so the settings are asked once the app is standing.</summary>
+    private bool _storedRead;
 
     /// <summary>Which composition to put back when the lyric is closed.</summary>
     private PegasusView _beforeLyrics = PegasusView.Spread;
@@ -198,6 +203,7 @@ public sealed partial class PegasusPlayer : UserControl
     /// </summary>
     public void Show(PegasusView? openOn = null)
     {
+        ReadStoredLayout();
         if (openOn is { } view)
             _view = view;
 
@@ -384,7 +390,7 @@ public sealed partial class PegasusPlayer : UserControl
     /// The greeting comes down, and the listener's own composition comes back.
     ///
     /// <para>This is called when the record it was raised for is over. It is also called on any gesture that means
-    /// "put my own screen back": the composition key, the lyric key, or Escape. It is never called on a pointer
+    /// "put my own screen back": the layout key, the lyric key, or Escape. It is never called on a pointer
     /// move. Not moving the mouse for five seconds at midnight is the most likely thing in the world. A wish that
     /// vanished because nobody touched anything would be a wish nobody saw.</para>
     /// </summary>
@@ -549,6 +555,7 @@ public sealed partial class PegasusPlayer : UserControl
             _chrome = new PegasusChrome();
             _chrome.LyricsChanged += OnLyricsChanged;
             _chrome.LyricViewRequested += ToggleLyrics;
+            _chrome.LayoutRequested += StepLayout;
             _chrome.ShiftChanged += OnCompositionShifted;
             _chrome.Announced += ShowFlash;
             _chrome.LibraryShown += OnLibraryShown;
@@ -577,7 +584,7 @@ public sealed partial class PegasusPlayer : UserControl
 
     /// <summary>
     /// The collection came up over the room, or went away. The room is drawn bare underneath it. The composition's
-    /// own keys go with it. The focus key cycles pictures of a record, and there is no record on this screen to
+    /// own keys go with it. The layout key cycles pictures of a record, and there is no record on this screen to
     /// cycle.
     /// </summary>
     private void OnLibraryShown(bool up)
@@ -765,10 +772,16 @@ public sealed partial class PegasusPlayer : UserControl
 
     // ── the three compositions ──
 
-    /// <summary>One button that cycles through the views. Three views is one too many for a toggle and far too few
-    /// for a menu. They are ordered so that each press takes something away: first everything, then the reading of
-    /// it, then the record itself. After the record it wraps back to the beginning.</summary>
-    private void Focus_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// The layout key, in the row under the record or in the foot: one key that cycles through the layouts. Three
+    /// layouts is one too many for a toggle and far too few for a menu. They are ordered so that each press takes
+    /// something away: first everything, then the reading of it, then the record itself. After the record it wraps
+    /// back to the beginning (see <see cref="NextLayout"/>, which also keeps the choice).
+    ///
+    /// <para>The new layout's name shows at the top of the screen for two seconds. A key that cycles cannot show on
+    /// itself where the next press goes, and a picture that changed with no word about it reads as a fault.</para>
+    /// </summary>
+    private void StepLayout()
     {
         // With the greeting up, the first press means "put my own screen back", not "advance one". The greeting is not
         // in the cycle. Pressing past it into the NEXT composition would take the listener somewhere they never asked
@@ -781,16 +794,45 @@ public sealed partial class PegasusPlayer : UserControl
             return;
         }
 
-        _view = _view switch
-        {
-            PegasusView.Spread => PegasusView.Centred,
-            PegasusView.Centred => PegasusView.Room,
-            _ => PegasusView.Spread,
-        };
-        ApplyView(immediate: false);
+        NextLayout();
+        _chrome?.ShowLayoutName(Layout);
+        _chrome?.KeepLayoutFocus();
 
         ShowKeys();
         RestartIdle();
+    }
+
+    /// <summary>
+    /// Reads the layout and the lyric key's choice from the settings, once. A layout this build does not know, or
+    /// none stored, opens on the full layout. The lyric itself is not put up here. It needs a sheet, and the first
+    /// sheet that arrives puts it up (see <see cref="OnLyricsChanged"/>).
+    /// </summary>
+    private void ReadStoredLayout()
+    {
+        if (_storedRead)
+            return;
+        _storedRead = true;
+
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        _view = _beforeLyrics = Enum.TryParse<PegasusView>(settings.PegasusLayout, out var stored)
+                                && stored is PegasusView.Spread or PegasusView.Centred or PegasusView.Room
+            ? stored
+            : PegasusView.Spread;
+        _lyricSticky = settings.PegasusLyrics;
+    }
+
+    /// <summary>Keeps the layout and the lyric key's choice in the settings, so the player opens as it was left after a
+    /// restart. Called on each press that changes either of them, never for a layout the view only shows (the
+    /// greeting, the collection, a still taken of the room).</summary>
+    private void StoreLayout()
+    {
+        // Each write is the whole settings file, so only what changed is written.
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        var layout = Layout.ToString();
+        if (settings.PegasusLayout != layout)
+            settings.PegasusLayout = layout;
+        if (settings.PegasusLyrics != _lyricSticky)
+            settings.PegasusLyrics = _lyricSticky;
     }
 
     /// <summary>
@@ -805,7 +847,7 @@ public sealed partial class PegasusPlayer : UserControl
     /// </summary>
     private void ToggleLyrics()
     {
-        // As with the composition key: the greeting is what is in front of the listener, so the first press takes it
+        // As with the layout key: the greeting is what is in front of the listener, so the first press takes it
         // away instead of reaching past it for the words.
         if (_greeting)
         {
@@ -829,6 +871,8 @@ public sealed partial class PegasusPlayer : UserControl
             _view = PegasusViews.LyricViewFor(_view);
         }
 
+        // The choice is kept across visits and restarts, as the layout is.
+        StoreLayout();
         ApplyView(immediate: false);
         ShowKeys();
         RestartIdle();
@@ -977,14 +1021,14 @@ public sealed partial class PegasusPlayer : UserControl
         if (_chrome is not null)
             _chrome.MaskProfanity = on;
 
-        // Lit while the censor is ON. This is the same reading that the pin and the focus key give. The azure disc
+        // Lit while the censor is ON. This is the same reading that the pin and the align key give. The azure disc
         // means the key is doing something, and the plain dark disc means it is standing by.
         CensorButton.Background = new SolidColorBrush(on
             ? Color.FromArgb(0xAA, 0x03, 0x71, 0xD0)
             : Color.FromArgb(0x55, 0x00, 0x00, 0x00));
         CensorButton.Foreground = new SolidColorBrush(Color.FromArgb(on ? (byte)0xFF : (byte)0xE6, 0xFF, 0xFF, 0xFF));
 
-        // The tip says what the NEXT press does, as the focus key's does.
+        // The tip says what the NEXT press does.
         IconName.Set(CensorButton, Strings.Loc.Get(on ? "Viz_CensorOff" : "Viz_CensorOn"));
     }
 
@@ -1219,38 +1263,14 @@ public sealed partial class PegasusPlayer : UserControl
         if (_view.IsLyric() && _chrome is { HasLyrics: false, LyricsPending: false })
             _view = _beforeLyrics;
 
-        // The composition keys do nothing over the collection. The focus key cycles pictures of a record. The lyric key
-        // follows a record being sung, and the collection screen has neither. So these keys are hidden entirely, not
-        // greyed. A key that could do nothing here would be a key asking to be understood. The pin and the way out stay
-        // visible. Leaving must always be within reach.
-        FocusButton.Visibility = _library ? Visibility.Collapsed : Visibility.Visible;
-
-        // Any composition other than the full one wears the RPM azure that the active rail buttons use. The full one is
-        // the plain dark disc. This is the same reading the pin gives, for the same reason: it shows a state, not an
-        // action.
-        FocusButton.Background = new SolidColorBrush(_view == PegasusView.Spread
-            ? Color.FromArgb(0x55, 0x00, 0x00, 0x00)
-            : Color.FromArgb(0xAA, 0x03, 0x71, 0xD0));
-
-        // The glyph shows what the NEXT press does, which is what a button that cycles has to show. The three icons
-        // are: draw together, then clear away, then spread back out.
-        (FocusGlyph.Text, var tip) = _view switch
-        {
-            PegasusView.Spread => ("", "Viz_Focus"),    // compress icon. Next: draw in
-            PegasusView.Centred => ("", "Viz_Room"),     // eye-slash icon. Next: clear away
-            _ => ("", "Viz_Spread"),                     // expand icon. Next: spread out
-        };
-        IconName.Set(FocusButton, Strings.Loc.Get(tip));
-
         // The lyric key appears once there is a sheet. It STAYS while a sheet is being fetched for a listener who is
         // already following along. Otherwise it would blink out and back on every change of record, and blink out from
         // under the very view it is the way out of.
         var lyric = !_library
                  && (_chrome is { HasLyrics: true }
                      || (_lyricSticky && _chrome is { LyricsPending: true }));
-        // The chrome draws this key in the row under the record, and fills it while the lyric is on. Beside the record,
-        // that row is on screen and the key is the way back. The twin key in the lyric view's foot is only on screen
-        // while the lyric is alone, so it needs no answer from here.
+        // The chrome draws this key in the row under the record and in the foot, and fills both while the lyric is on.
+        // Beside the record, the row is on screen and the key is the way back. Alone, the foot is, and its key is.
         _chrome?.ShowLyricKey(lyric, on: _view.IsLyric());
 
         // The censor key belongs to the words, and it appears only where they are. It is dressed on the way in, not only
@@ -1277,7 +1297,7 @@ public sealed partial class PegasusPlayer : UserControl
         // transient and cannot be clicked through. A sentence sitting on a playhead would look like two unrelated
         // things drawn on top of each other. Beside the record, the foot holds the column's own bar and keys, as the drawn-in view
         // does. So the message stands in the same place there.
-        Flash.Margin = new Thickness(24, 0, 24, _view == PegasusView.Lyrics ? 170 : 44);
+        Flash.Margin = new Thickness(24, 0, 24, EffectiveView is PegasusView.Lyrics or PegasusView.Room ? 170 : 44);
 
         _chrome?.SetView(EffectiveView, immediate);
         _stage?.SetView(EffectiveView, immediate);
