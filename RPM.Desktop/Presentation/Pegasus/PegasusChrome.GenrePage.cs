@@ -21,7 +21,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// sideways: the songs of it the world plays most, its notable artists, its generated playlists, the
 /// records added most recently, the genres beside it, and its records decade by decade. OK on a song
 /// plays the popular songs from there; on an artist, the artist's page; on a record, the record page; on
-/// a playlist, the list's page; on a genre, that genre's page. Back comes back here from each.
+/// a playlist, the list's page; on a genre, that genre's page. Back comes back here from each. A held OK
+/// or the Menu key on a song opens the song's menu, as on the artist's page.
 ///
 /// <para><b>From the desktop genre page, for a remote.</b> The same head (<see cref="GenrePhotos"/>, the
 /// genre's colour falling over the photograph, its wordmark), the same shelves read by the same rules as
@@ -399,7 +400,8 @@ public sealed partial class PegasusChrome
         var scale = QueueScale;
         var card = GenreCardWidth(scale);
 
-        // The popular songs: each a card with its record's sleeve, OK plays the list from there.
+        // The popular songs: each a card with its record's sleeve, OK plays the list from there. A held OK
+        // or the Menu key opens the song's menu, whose Play does the same (see PopularSongMenu).
         _genrePopular = found.Popular.Select(t => t.ToTrackInfo(root)).ToList();
         if (found.Popular.Count > 0 && _genrePopularSlot is { } popularSlot)
         {
@@ -413,7 +415,8 @@ public sealed partial class PegasusChrome
                     track.Artist ?? track.Album,
                     CardShape.Square, track.Advisory == ContentAdvisory.Explicit,
                     stand: "\uf001", standFont: (FontFamily)Resources["PegasusFa"], plain,
-                    press: () => PlayFromDrawer(_genrePopular, at, new SleeveInHand.None()));
+                    press: () => PlayFromDrawer(_genrePopular, at, new SleeveInHand.None()),
+                    menu: () => PopularSongMenu(_genrePopular, at));
                 row.Cards.Children.Add(song.Root);
                 row.Size(scale, LibraryEdgeInset);
                 song.Size(card, scale);

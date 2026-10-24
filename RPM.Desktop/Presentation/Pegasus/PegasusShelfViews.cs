@@ -195,9 +195,12 @@ internal sealed class ShelfCard
     /// picture is found: an act's first letter, or a glyph.</param>
     /// <param name="standFont">The font that <paramref name="stand"/> is drawn in.</param>
     /// <param name="press">What OK and a click do.</param>
+    /// <param name="menu">Builds the card's menu for a held OK or the Menu key, such as a popular song's
+    /// track menu. The card then stands in a RemoteLine (see <see cref="Root"/>). Null for a card with no
+    /// menu, which stays a plain button.</param>
     public ShelfCard(
         string title, string? line, CardShape shape, bool isExplicit, string stand, FontFamily? standFont,
-        Style plain, Action press)
+        Style plain, Action press, Func<MenuFlyout?>? menu = null)
     {
         _shape = shape;
 
@@ -282,19 +285,27 @@ internal sealed class ShelfCard
                 FocusLift.SetPart(_line, LiftPart.Below);
         }
 
-        Root = new Button
+        _key = new Button
         {
             Style = plain,
             Content = _stack,
             VerticalAlignment = VerticalAlignment.Top,
         };
+        _key.Click += (_, _) => press();
+        AutomationProperties.SetName(_key, title);
+
+        Root = menu is null ? _key : RemoteLine.Around(_key, press, menu);
         if (shape == CardShape.Round)
             FocusLift.SetPart(Root, LiftPart.Card);
-        Root.Click += (_, _) => press();
-        AutomationProperties.SetName(Root, title);
     }
 
-    public Button Root { get; }
+    /// <summary>The card's button: what the mouse presses, and what the remote stands on where the card has
+    /// no menu.</summary>
+    private readonly Button _key;
+
+    /// <summary>What goes in the shelf and takes the remote's focus: the button itself, or the line around it
+    /// for a card with a menu.</summary>
+    public Control Root { get; }
 
     /// <summary>The picture's side in points, as last sized. The page decodes the picture at this size.</summary>
     public double Edge { get; private set; }
@@ -307,10 +318,12 @@ internal sealed class ShelfCard
         _frame.CornerRadius = _shape == CardShape.Round ? new CornerRadius(width / 2) : new CornerRadius(6 * scale);
         _stack.Width = width;
         _stack.Spacing = 7 * scale;
-        Root.Padding = new Thickness(CardRoomAround.Points * scale);
+        _key.Padding = new Thickness(CardRoomAround.Points * scale);
         // A round card uses a square corner. The presenter clips to a rounded corner, which would cut off the
-        // zoomed photograph. A round card also draws no glow for a corner to shape (see FocusLift).
-        Root.CornerRadius = _holder is null ? new CornerRadius(8 * scale) : new CornerRadius(0);
+        // zoomed photograph. A round card also draws no glow for a corner to shape (see FocusLift). The line
+        // around a card with a menu takes the same corner, so the glow follows it.
+        _key.CornerRadius = _holder is null ? new CornerRadius(8 * scale) : new CornerRadius(0);
+        Root.CornerRadius = _key.CornerRadius;
         if (_holder is not null)
         {
             _holder.Margin = FocusLift.HolderMargin(width);

@@ -18,7 +18,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// One artist's page in Pegasus: the photograph beside the name, the first whole sentences of what the
 /// encyclopedia says about them, how much of their work the collection holds, a key to play all of it and
 /// one to shuffle it, then their popular songs in columns of four, and then their records on shelves that
-/// scroll sideways. OK on a song plays the popular songs from it; OK on a record opens the record page, and
+/// scroll sideways. OK on a song plays the popular songs from it, and a held OK or the Menu key opens the
+/// song's menu (see <see cref="PopularSongMenu"/>); OK on a record opens the record page, and
 /// Back comes back here.
 ///
 /// <para><b>The head reads as the Android TV app's.</b> The name (or logo), the article and the counts are
@@ -650,7 +651,9 @@ public sealed partial class PegasusChrome
     /// The popular songs as the Android TV app lays them out, like Quick selection on home: the heading
     /// with Play all tracks at its right, then the songs in columns of four, three columns to the width,
     /// scrolling sideways for more. Each song is its record's cover, the title and the record. OK plays the
-    /// popular songs from that one.
+    /// popular songs from that one, and a held OK or the Menu key opens the song's menu (see
+    /// <see cref="PopularSongMenu"/>). The mouse clicks the song's button; the remote stands on the line
+    /// around it (see RemoteLine.Around).
     /// </summary>
     private StackPanel BuildArtistPopular(List<LibraryTrack> popular, StackPanel slot, int read)
     {
@@ -721,7 +724,7 @@ public sealed partial class PegasusChrome
         };
         block.Children.Add(strip);
 
-        var entries = new List<(Button Key, StackPanel Words, Border Cover, TextBlock Title, TextBlock Record)>();
+        var entries = new List<(Button Key, RemoteLine Line, StackPanel Words, Border Cover, TextBlock Title, TextBlock Record)>();
         var at = ArtistPageContent.Children.IndexOf(slot);
         StackPanel? column = null;
         for (var i = 0; i < popular.Count; i++)
@@ -773,10 +776,12 @@ public sealed partial class PegasusChrome
                 Content = row,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
             };
-            key.Click += (_, _) => PlayFromDrawer(_artistPopular, from, new SleeveInHand.None());
+            var play = () => PlayFromDrawer(_artistPopular, from, new SleeveInHand.None());
+            key.Click += (_, _) => play();
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, title.Text);
-            column!.Children.Add(key);
-            entries.Add((key, words, cover, title, record));
+            var line = RemoteLine.Around(key, play, () => PopularSongMenu(_artistPopular, from));
+            column!.Children.Add(line);
+            entries.Add((key, line, words, cover, title, record));
 
             var folder = track.Folder;
             _artistPagePictures.Add(new CardPlace(at, i), async () =>
@@ -818,10 +823,11 @@ public sealed partial class PegasusChrome
             var panel = Math.Max(160, (width - (20 * scale)) / 3);
             foreach (var each in columns.Children.OfType<StackPanel>())
                 each.Width = panel;
-            foreach (var (key, words, cover, title, record) in entries)
+            foreach (var (key, line, words, cover, title, record) in entries)
             {
                 key.Padding = new Thickness(8 * scale, 6 * scale, 8 * scale, 6 * scale);
                 key.CornerRadius = new CornerRadius(8 * scale);
+                line.CornerRadius = key.CornerRadius;   // the focus ring follows it
                 cover.Width = cover.Height = 64 * scale;
                 cover.CornerRadius = new CornerRadius(6 * scale);
                 words.Margin = new Thickness(14 * scale, 0, 0, 0);
@@ -832,6 +838,36 @@ public sealed partial class PegasusChrome
         };
 
         return block;
+    }
+
+    /// <summary>
+    /// A popular song's menu, on the artist's page and the genre's page: the song's own menu, the one a
+    /// record's tracks open (see <see cref="TrackMenu"/>), with its Play playing the popular songs from that
+    /// song, as OK on it does. The TV's popular songs do the same (ArtistPage.kt, PopularSongs). Null where
+    /// the song is gone or there is no menu to build.
+    /// </summary>
+    private MenuFlyout? PopularSongMenu(List<TrackInfo> songs, int at)
+    {
+        if (at < 0 || at >= songs.Count || TrackMenu(songs[at]) is not { } menu)
+            return null;
+
+        // The factory's Play plays the one song. It is found by its words, which are the same key here,
+        // and replaced in its place at the size the menu was given (see ForThisView).
+        var words = Loc.Get("AlbumMenu_Play");
+        for (var i = 0; i < menu.Items.Count; i++)
+        {
+            if (menu.Items[i] is not MenuFlyoutItem item || item.Text != words)
+                continue;
+
+            var play = MenuEntry(words, () => PlayFromDrawer(songs, at, new SleeveInHand.None()));
+            play.FontSize = item.FontSize;
+            play.MinHeight = item.MinHeight;
+            play.Padding = item.Padding;
+            menu.Items[i] = play;
+            break;
+        }
+
+        return menu;
     }
 
     /// <summary>The width the page's content stands in: the screen less the side insets.</summary>
