@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using RPM.Core.Analysis;
 using RPM.Core.Sharing;
 using RPM.Desktop.Services.Sharing;
 using Loc = RPM.Desktop.Strings.Loc;
@@ -231,11 +232,14 @@ public sealed partial class PegasusChrome
     public bool MenuPanelOpen => _menuPanel != MenuPanel.None;
 
     /// <summary>Closes the panel that is open over the menu, if there is one. Returns true if there was.
-    /// This is Back's step before it closes the menu itself.</summary>
+    /// This is Back's step before it closes the menu itself. In the settings, Back from a row goes back
+    /// out to its section first, as on the TV; Back on the sections closes the settings.</summary>
     public bool CloseMenuPanel()
     {
         if (!MenuPanelOpen)
             return false;
+        if (_menuPanel == MenuPanel.Settings && BackToSettingsSection())
+            return true;
         ShowMenuPanel(MenuPanel.None);
         return true;
     }
@@ -260,7 +264,7 @@ public sealed partial class PegasusChrome
         _menuPanel = panel;
 
         CollectionsPanel.Visibility = panel == MenuPanel.Collections ? Visibility.Visible : Visibility.Collapsed;
-        SettingsLayer.Visibility = panel == MenuPanel.Settings ? Visibility.Visible : Visibility.Collapsed;
+        ShowPanelLayer(SettingsLayer, ref _settingsFade, panel == MenuPanel.Settings);
 
         switch (panel)
         {
@@ -268,7 +272,7 @@ public sealed partial class PegasusChrome
                 FocusScreenLater(BuildCollectionRows());
                 break;
             case MenuPanel.Settings:
-                FocusScreenLater(BuildSettingsRows());
+                FocusScreenLater(BuildSettings());
                 break;
             default:
                 if (was == MenuPanel.Collections)
@@ -276,6 +280,40 @@ public sealed partial class PegasusChrome
                 else if (was == MenuPanel.Settings)
                     FocusScreenLater(SideMenuSettings);
                 break;
+        }
+    }
+
+    /// <summary>The fade of each layer a panel stands in. Made the first time the panel opens, and handed
+    /// to the chrome's tick with the other fades (see Fader).</summary>
+    private Fader? _settingsFade;
+
+    /// <summary>
+    /// Fades a panel's layer in over <see cref="MenuInMs"/> or out over <see cref="MenuOutMs"/>, as the
+    /// menu itself fades and as the TV's settings do. It takes no pointer input from the moment it starts
+    /// to go, and is collapsed when the fade lands unless it was opened again meanwhile. The layer starts
+    /// at opacity 0 in the markup.
+    /// </summary>
+    private void ShowPanelLayer(FrameworkElement layer, ref Fader? fade, bool shown)
+    {
+        if (fade is null)
+        {
+            fade = new Fader(layer);
+            _faders = [.. _faders, fade];
+        }
+
+        layer.IsHitTestVisible = shown;
+        if (shown)
+        {
+            layer.Visibility = Visibility.Visible;
+            fade.To(1, MenuInMs, null);
+        }
+        else if (layer.Visibility == Visibility.Visible)
+        {
+            fade.To(0, MenuOutMs, () =>
+            {
+                if (!layer.IsHitTestVisible)
+                    layer.Visibility = Visibility.Collapsed;
+            });
         }
     }
 
@@ -701,29 +739,297 @@ public sealed partial class PegasusChrome
 
     // ── the settings ──
 
-    /// <summary>The value fields of the settings rows. They are written again after every change.</summary>
-    private TextBlock? _layoutValue, _censorValue, _alignValue;
+    /// <summary>One section of the settings: the key of its name, its glyph, and its rows.</summary>
+    private sealed record SettingsSection(string Title, string Glyph, SettingLine[] Lines);
 
-    /// <summary>Fills the settings panel with a row for each of Pegasus's settings. Returns the first
-    /// row, where the focus starts. OK on a row, or a press, changes its setting.</summary>
-    private Control? BuildSettingsRows()
+    /// <summary>
+    /// One row of a section: the key of its name, what its value says now, what OK on it does, and,
+    /// for a row that only means something while another setting is on, when it is shown.
+    /// </summary>
+    private sealed record SettingLine(
+        string Label,
+        Func<IPegasusSettings, string> Value,
+        Action<IPegasusSettings> Change,
+        Func<IPegasusSettings, bool>? Shown = null);
+
+    /// <summary>
+    /// The settings, as the TV's settings panel lists them (SettingsPage): its six sections in its order,
+    /// each with the rows Pegasus has for it. A section with no row shown is left out of the left card,
+    /// so General, Profile and Display stay hidden until they have a row.
+    ///
+    /// <para><b>A further row is one line</b> in its section: its name, its value from
+    /// <see cref="IPegasusSettings"/>, and the call OK makes. The panel builds, lights, moves through and
+    /// repaints it with no other change. The setting itself goes on IPegasusSettings and its host,
+    /// PegasusPlayer.Settings.</para>
+    /// </summary>
+    private static readonly SettingsSection[] SettingsSections =
+    [
+        new("Tv_SettingsGeneral", "", []),
+        new("Settings_Profile", "", []),
+        new("Settings_Display", "", []),
+        new("Settings_Sound", "",
+        [
+            new("Settings_Normalize", s => Loc.Get(s.Levelling switch
+            {
+                NormalizeMode.Album => "Settings_NormalizeAlbum",
+                NormalizeMode.Track => "Settings_NormalizeTrack",
+                _ => "Settings_NormalizeOff",
+            }), s => s.NextLevelling()),
+            new("Settings_NormalizeClassical", s => OnOff(s.LevelsClassical), s => s.ToggleLevelsClassical(),
+                Shown: s => s.Levelling != NormalizeMode.Off),
+        ]),
+        new("Tv_SettingsPlayer", "",
+        [
+            new("Viz_SettingsCensor", s => OnOff(s.MaskProfanity), s => s.ToggleMaskProfanity()),
+            new("Viz_SettingsAlign", s => OnOff(s.AlignWords), s => s.ToggleAlignWords()),
+        ]),
+        new("Tv_SettingsVisualisation", "",
+        [
+            new("Viz_SettingsLayout", s => Loc.Get(s.Layout switch
+            {
+                PegasusView.Centred => "Viz_LayoutCompact",
+                PegasusView.Room => "Viz_LayoutVisuals",
+                _ => "Viz_LayoutFull",
+            }), s => s.NextLayout()),
+        ]),
+    ];
+
+    /// <summary>On or Off, as a row's value says it.</summary>
+    private static string OnOff(bool on) => Loc.Get(on ? "Viz_SettingOn" : "Viz_SettingOff");
+
+    /// <summary>The sections shown in the left card this time, and their keys, in the same order.</summary>
+    private readonly List<SettingsSection> _shownSections = [];
+    private readonly List<Button> _sectionKeys = [];
+
+    /// <summary>Which of <see cref="_shownSections"/> the right card shows.</summary>
+    private int _settingsSection;
+
+    /// <summary>The right card's rows as built: each row's setting, its value field and its key.</summary>
+    private readonly List<(SettingLine Line, TextBlock Value, Button Key)> _settingRows = [];
+
+    /// <summary>
+    /// Fills the settings: the sections that have a row to show in the left card, and the first of them
+    /// in the right card. Returns the first section, where the remote starts, as on the TV. Each is built
+    /// when the panel opens, from the settings at that time.
+    /// </summary>
+    private Control? BuildSettings()
+    {
+        var scale = QueueScale;
+        SettingsPages.Children.Clear();
+        _shownSections.Clear();
+        _sectionKeys.Clear();
+
+        if (Settings is { } settings)
+            foreach (var section in SettingsSections)
+            {
+                if (!section.Lines.Any(line => line.Shown?.Invoke(settings) ?? true))
+                    continue;
+
+                var index = _shownSections.Count;
+                var key = SectionRow(section, scale);
+
+                // The remote standing on a section shows it on the right, as the TV's does. OK on it (or a
+                // press) goes into its rows.
+                key.GotFocus += (_, _) =>
+                {
+                    if (index != _settingsSection)
+                        ShowSettingsSection(index);
+                    PaintSections();
+                };
+                key.LostFocus += (_, _) => PaintSections();
+                key.Click += (_, _) =>
+                {
+                    ShowSettingsSection(index);
+                    PaintSections();
+                    FocusScreenLater(_settingRows.Count > 0 ? _settingRows[0].Key : null);
+                };
+
+                _shownSections.Add(section);
+                _sectionKeys.Add(key);
+                SettingsPages.Children.Add(key);
+            }
+
+        _settingsSection = -1;
+        ShowSettingsSection(0);
+        PaintSections();
+        return _sectionKeys.FirstOrDefault();
+    }
+
+    /// <summary>Shows section <paramref name="index"/> on the right: its glyph and its name over its
+    /// rows.</summary>
+    private void ShowSettingsSection(int index)
+    {
+        if (index < 0 || index >= _shownSections.Count)
+        {
+            SettingsGlyph.Text = SettingsTitle.Text = "";
+            SettingsRows.Children.Clear();
+            _settingRows.Clear();
+            return;
+        }
+
+        _settingsSection = index;
+        var section = _shownSections[index];
+        SettingsGlyph.Text = section.Glyph;
+        SettingsTitle.Text = Loc.Get(section.Title);
+        BuildSettingRows();
+    }
+
+    /// <summary>Builds the right card's rows for the section shown, those shown at this moment, and writes
+    /// their values.</summary>
+    private void BuildSettingRows()
     {
         var scale = QueueScale;
         SettingsRows.Children.Clear();
+        _settingRows.Clear();
+        if (Settings is not { } settings || _settingsSection < 0)
+            return;
 
-        var layout = SettingRow(Loc.Get("Viz_SettingsLayout"), scale, out _layoutValue, () => Settings?.NextLayout());
-        SettingsRows.Children.Add(layout);
-        SettingsRows.Children.Add(SettingRow(Loc.Get("Viz_SettingsCensor"), scale, out _censorValue,
-            () => Settings?.ToggleMaskProfanity()));
-        SettingsRows.Children.Add(SettingRow(Loc.Get("Viz_SettingsAlign"), scale, out _alignValue,
-            () => Settings?.ToggleAlignWords()));
-
+        foreach (var line in _shownSections[_settingsSection].Lines)
+        {
+            if (!(line.Shown?.Invoke(settings) ?? true))
+                continue;
+            var key = SettingRow(Loc.Get(line.Label), scale, out var value);
+            key.Click += (_, _) => ChangeSetting(line);
+            _settingRows.Add((line, value, key));
+            SettingsRows.Children.Add(key);
+        }
         PaintSettings();
-        return layout;
     }
 
-    /// <summary>One settings row: its name on the left, its value on the right.</summary>
-    private Button SettingRow(string label, double scale, out TextBlock value, Action change)
+    /// <summary>
+    /// OK on a row: its setting moves to its next value. When that shows or hides another row of the
+    /// section (levelling switched off hides its classical row), the rows are built again and the remote
+    /// stays on the row it pressed; otherwise only the values are written again.
+    /// </summary>
+    private void ChangeSetting(SettingLine line)
+    {
+        if (Settings is not { } settings || _settingsSection < 0)
+            return;
+
+        line.Change(settings);
+
+        var shown = _shownSections[_settingsSection].Lines.Where(l => l.Shown?.Invoke(settings) ?? true).ToList();
+        if (shown.SequenceEqual(_settingRows.Select(row => row.Line)))
+        {
+            PaintSettings();
+            return;
+        }
+
+        BuildSettingRows();
+        var again = _settingRows.FindIndex(row => ReferenceEquals(row.Line, line));
+        if (again >= 0)
+            FocusScreenLater(_settingRows[again].Key);
+    }
+
+    /// <summary>Writes the value of each row from the host's current settings.</summary>
+    private void PaintSettings()
+    {
+        if (Settings is not { } settings)
+            return;
+        foreach (var (line, value, _) in _settingRows)
+            value.Text = line.Value(settings);
+    }
+
+    /// <summary>The fill of the section shown on the right while the remote is not on it (it is in the
+    /// section's rows, or the pointer is in use): the TV's CHOSEN.</summary>
+    private static readonly SolidColorBrush SectionChosen = new(Microsoft.UI.ColorHelper.FromArgb(0x1A, 0xFF, 0xFF, 0xFF));
+
+    /// <summary>Lights the section keys: the one the remote stands on as a menu entry is lit, the one
+    /// shown on the right with the fainter fill, the others not at all.</summary>
+    private void PaintSections()
+    {
+        for (var i = 0; i < _sectionKeys.Count; i++)
+        {
+            var key = _sectionKeys[i];
+            key.Background = key.FocusState is FocusState.Keyboard or FocusState.Programmatic
+                ? MenuKeyLit
+                : i == _settingsSection ? SectionChosen : TransparentFill;
+        }
+    }
+
+    private static readonly SolidColorBrush TransparentFill = new(Microsoft.UI.Colors.Transparent);
+
+    /// <summary>Back while the remote is in a section's rows: it goes back out to the section, as on the
+    /// TV. Returns false where it was not in the rows.</summary>
+    private bool BackToSettingsSection()
+    {
+        if (!KeyboardDriven || !FocusWithin(SettingsRows) || _settingsSection < 0
+            || _settingsSection >= _sectionKeys.Count)
+            return false;
+        FocusScreenLater(_sectionKeys[_settingsSection]);
+        return true;
+    }
+
+    /// <summary>
+    /// Where an arrow moves the focus in the settings, as on the TV: Up and Down move through the
+    /// sections, or through the rows; Right from a section goes into its first row, Left from a row back
+    /// to its section. Nothing else leaves either card. Null where that way goes nowhere, so the host
+    /// bounces. A search by layout would cross between the cards to whichever row or section stood level,
+    /// not to the first row or the section shown.
+    /// </summary>
+    private Control? AcrossSettings(FrameworkElement from, FocusNavigationDirection direction, Control? next)
+    {
+        var section = _sectionKeys.FindIndex(key => Inside(from, key));
+        if (section >= 0)
+            return direction switch
+            {
+                FocusNavigationDirection.Up => section > 0 ? _sectionKeys[section - 1] : null,
+                FocusNavigationDirection.Down => section < _sectionKeys.Count - 1 ? _sectionKeys[section + 1] : null,
+                FocusNavigationDirection.Right => _settingRows.Count > 0 ? _settingRows[0].Key : null,
+                _ => null,
+            };
+
+        var row = _settingRows.FindIndex(r => Inside(from, r.Key));
+        if (row >= 0)
+            return direction switch
+            {
+                FocusNavigationDirection.Up => row > 0 ? _settingRows[row - 1].Key : null,
+                FocusNavigationDirection.Down => row < _settingRows.Count - 1 ? _settingRows[row + 1].Key : null,
+                FocusNavigationDirection.Left when _settingsSection >= 0 && _settingsSection < _sectionKeys.Count
+                    => _sectionKeys[_settingsSection],
+                _ => null,
+            };
+
+        return next;
+    }
+
+    /// <summary>A section in the left card: its glyph in a column of its own and its name, 60 points high
+    /// before the scale, as the side menu's entries are. Its fill is set by <see cref="PaintSections"/>.</summary>
+    private Button SectionRow(SettingsSection section, double scale)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 * scale };
+        line.Children.Add(new TextBlock
+        {
+            Text = section.Glyph,
+            FontFamily = (FontFamily)Resources["PegasusFa"],
+            FontSize = 22 * scale,
+            Width = 32 * scale,
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        line.Children.Add(new TextBlock
+        {
+            Text = Loc.Get(section.Title),
+            FontSize = 24 * scale,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+
+        return new Button
+        {
+            Style = (Style)Resources["PegasusSideButton"],
+            Content = line,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Height = 60 * scale,
+            Padding = new Thickness(14 * scale, 0, 14 * scale, 0),
+            CornerRadius = new CornerRadius(PlayerCorner * scale),
+        };
+    }
+
+    /// <summary>One settings row: its name on the left, its value on the right, 60 points high before the
+    /// scale.</summary>
+    private Button SettingRow(string label, double scale, out TextBlock value)
     {
         var name = new TextBlock
         {
@@ -748,31 +1054,9 @@ public sealed partial class PegasusChrome
         line.Children.Add(value);
 
         var key = MenuRow(line, scale);
-        key.Click += (_, _) =>
-        {
-            change();
-            PaintSettings();
-        };
+        key.Height = 60 * scale;
+        key.Padding = new Thickness(14 * scale, 0, 14 * scale, 0);
         return key;
-    }
-
-    /// <summary>Writes the value of each settings row from the host's current settings.</summary>
-    private void PaintSettings()
-    {
-        if (Settings is not { } settings)
-            return;
-
-        if (_layoutValue is not null)
-            _layoutValue.Text = Loc.Get(settings.Layout switch
-            {
-                PegasusView.Centred => "Viz_LayoutCompact",
-                PegasusView.Room => "Viz_LayoutVisuals",
-                _ => "Viz_LayoutFull",
-            });
-        if (_censorValue is not null)
-            _censorValue.Text = Loc.Get(settings.MaskProfanity ? "Viz_SettingOn" : "Viz_SettingOff");
-        if (_alignValue is not null)
-            _alignValue.Text = Loc.Get(settings.AlignWords ? "Viz_SettingOn" : "Viz_SettingOff");
     }
 
     // ── the menu's look ──
@@ -898,12 +1182,29 @@ public sealed partial class PegasusChrome
         CollectionsRows.Padding = new Thickness(8 * scale);
         CollectionsRows.Spacing = 4 * scale;
 
+        // The settings: the TV's two cards, 340 and 760 wide and 640 high before the scale, 16 apart. They
+        // are no higher than the window leaves room for, with the menu's edge above and below.
+        var settingsHigh = Math.Min(SettingsHigh * scale, Math.Max(0, Root.ActualHeight - (4 * edge)));
+        SettingsPanel.Spacing = 16 * scale;
+        SettingsPagesFrost.CornerRadius = SettingsPagesGlass.CornerRadius = corner;
+        SettingsPagesCard.Width = SettingsPagesWide * scale;
+        SettingsPagesCard.Height = settingsHigh;
+        SettingsPages.Padding = new Thickness(10 * scale);
+        SettingsPages.Spacing = 4 * scale;
+
         SettingsFrost.CornerRadius = SettingsGlass.CornerRadius = corner;
-        SettingsPanel.Width = 620 * scale;
-        SettingsBody.Padding = new Thickness(20 * scale, 22 * scale, 20 * scale, 20 * scale);
-        SettingsBody.Spacing = 16 * scale;
-        SettingsTitle.FontSize = 28 * scale;
-        SettingsTitle.Margin = new Thickness(14 * scale, 0, 0, 0);
-        SettingsRows.Spacing = 6 * scale;
+        SettingsRowsCard.Width = SettingsRowsWide * scale;
+        SettingsRowsCard.Height = settingsHigh;
+        SettingsBody.Padding = new Thickness(16 * scale, 20 * scale, 16 * scale, 20 * scale);
+        SettingsHeading.Spacing = 14 * scale;
+        SettingsHeading.Margin = new Thickness(14 * scale, 0, 0, 14 * scale);
+        SettingsGlyph.FontSize = 22 * scale;
+        SettingsTitle.FontSize = 26 * scale;
     }
+
+    /// <summary>The settings' two cards before the scale: the sections' width, the rows' width and the
+    /// height of both (the TV's PAGES_WIDE, ROWS_WIDE and PANEL_HIGH).</summary>
+    private const double SettingsPagesWide = 340;
+    private const double SettingsRowsWide = 760;
+    private const double SettingsHigh = 640;
 }

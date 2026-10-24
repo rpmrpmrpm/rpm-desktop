@@ -1,3 +1,5 @@
+using RPM.Core.Analysis;
+
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
@@ -5,8 +7,9 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// PegasusPlayer, which holds the layout and puts the two stored settings on the lyric view; the chrome
 /// only draws the rows and asks.
 ///
-/// <para>These are all the settings Pegasus has. The layout lasts for the session. The two lyric settings
-/// are stored (SettingsService) and are also set by the lyric view's own keys.</para>
+/// <para>The layout lasts for the session. The two lyric settings are stored (SettingsService) and are also
+/// set by the lyric view's own keys. Volume levelling is the desktop's own (SettingsService, read by
+/// NormalizationService for every track), the same two settings as the main window's Sound page.</para>
 /// </summary>
 public interface IPegasusSettings
 {
@@ -30,4 +33,18 @@ public interface IPegasusSettings
     /// <summary>Turns the timing on or off. For an account that may not have it, shows why instead and
     /// stores nothing, as the lyric view's key does.</summary>
     void ToggleAlignWords();
+
+    // ── volume levelling: the Sound section (the main window's Sound page sets the same two) ──
+
+    /// <summary>How records are levelled: matched as albums, as tracks, or not at all.</summary>
+    NormalizeMode Levelling { get; }
+
+    /// <summary>Moves to the next levelling, wrapping: Album, Track, Off.</summary>
+    void NextLevelling();
+
+    /// <summary>Whether the albums marked classical are levelled too.</summary>
+    bool LevelsClassical { get; }
+
+    /// <summary>Turns levelling the albums marked classical on or off.</summary>
+    void ToggleLevelsClassical();
 }

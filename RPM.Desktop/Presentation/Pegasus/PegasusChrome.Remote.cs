@@ -159,6 +159,10 @@ public sealed partial class PegasusChrome
         if (from is null)
             return next;
 
+        // The settings over the menu: their two cards' own rule (see PegasusChrome.SideMenu).
+        if (ReferenceEquals(screen.Area, SettingsPanel))
+            return AcrossSettings(from, direction, next);
+
         if (RecordUp)
             return AcrossRecordPage(from, direction, next);
 

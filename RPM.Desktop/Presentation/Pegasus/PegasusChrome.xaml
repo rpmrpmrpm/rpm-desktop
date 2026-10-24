@@ -1544,32 +1544,57 @@
           <StackPanel x:Name="CollectionsRows" Background="Transparent"/>
         </Grid>
 
-        <!-- Pegasus's own settings, and only those (see IPegasusSettings), in a panel of the same glass
-             in the middle of the screen over a darkened ground. A press on the ground closes it, as Back
-             does. The rows are built in code. -->
-        <Grid x:Name="SettingsLayer" Visibility="Collapsed">
+        <!-- Pegasus's own settings, and only those (see IPegasusSettings), as the TV lays them out: two
+             cards of the menu's dimmed glass side by side in the middle of the screen over a darkened
+             ground. On the left the sections, each its glyph and its name; on the right the name of the
+             section the remote stands on and its rows, each its name and its value. It fades in and out
+             with the menu's times. A press on the ground closes it, as Back on the sections does. The
+             sections and the rows are built in code (see PegasusChrome.SideMenu, SettingsSections). -->
+        <Grid x:Name="SettingsLayer" Visibility="Collapsed" Opacity="0">
           <Grid Background="#66000000" Tapped="SettingsGround_Tapped"/>
-          <Grid x:Name="SettingsPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <Grid.Resources>
+          <StackPanel x:Name="SettingsPanel" Orientation="Horizontal" HorizontalAlignment="Center"
+                      VerticalAlignment="Center">
+            <StackPanel.Resources>
               <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF"/>
               <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
               <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
               <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
-            </Grid.Resources>
-            <Border x:Name="SettingsFrost" IsHitTestVisible="False">
-              <Border.Background>
-                <ui:GlassBrush BlurAmount="34"/>
-              </Border.Background>
-            </Border>
-            <Border x:Name="SettingsGlass" IsHitTestVisible="False" BorderThickness="1"
-                    Background="{StaticResource LightSmokeBrush}" BorderBrush="{StaticResource
-                    LightSmokeRimBrush}"/>
-            <StackPanel x:Name="SettingsBody" Background="Transparent">
-              <TextBlock x:Name="SettingsTitle" Text="{loc:Str Key=Viz_MenuSettings}" FontWeight="SemiBold"
-                         Foreground="#FFFFFFFF"/>
-              <StackPanel x:Name="SettingsRows"/>
-            </StackPanel>
-          </Grid>
+            </StackPanel.Resources>
+
+            <!-- The sections. Transparent and not empty, so a press between them stays on the card. -->
+            <Grid x:Name="SettingsPagesCard">
+              <Border x:Name="SettingsPagesFrost" IsHitTestVisible="False">
+                <Border.Background>
+                  <ui:GlassBrush BlurAmount="34"/>
+                </Border.Background>
+              </Border>
+              <Border x:Name="SettingsPagesGlass" IsHitTestVisible="False" BorderThickness="1"
+                      Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
+                      LightSmokeRimBrush}"/>
+              <StackPanel x:Name="SettingsPages" Background="Transparent"/>
+            </Grid>
+
+            <!-- The rows of the section shown. -->
+            <Grid x:Name="SettingsRowsCard">
+              <Border x:Name="SettingsFrost" IsHitTestVisible="False">
+                <Border.Background>
+                  <ui:GlassBrush BlurAmount="34"/>
+                </Border.Background>
+              </Border>
+              <Border x:Name="SettingsGlass" IsHitTestVisible="False" BorderThickness="1"
+                      Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
+                      LightSmokeRimBrush}"/>
+              <StackPanel x:Name="SettingsBody" Background="Transparent">
+                <StackPanel x:Name="SettingsHeading" Orientation="Horizontal">
+                  <TextBlock x:Name="SettingsGlyph" FontFamily="{StaticResource PegasusFa}"
+                             Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="SettingsTitle" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel x:Name="SettingsRows"/>
+              </StackPanel>
+            </Grid>
+          </StackPanel>
         </Grid>
       </Grid>
 

@@ -1,3 +1,5 @@
+using RPM.Core.Analysis;
+
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
@@ -58,5 +60,36 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         var settings = App.Services.GetRequiredService<SettingsService>();
         settings.AlignWords = !settings.AlignWords;
         ApplyAlign();
+    }
+
+    // ── volume levelling: the Sound section ──
+    //
+    // Written straight to the stored settings, as the main window's Sound page writes them. The levelling of the
+    // next track reads them (NormalizationService.Decide), and switching it on starts the measuring pass, which
+    // listens for the change. Nothing is applied here.
+
+    /// <inheritdoc/>
+    public NormalizeMode Levelling => App.Services.GetRequiredService<SettingsService>().NormalizeMode;
+
+    /// <inheritdoc/>
+    public void NextLevelling()
+    {
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        settings.NormalizeMode = settings.NormalizeMode switch
+        {
+            NormalizeMode.Album => NormalizeMode.Track,
+            NormalizeMode.Track => NormalizeMode.Off,
+            _ => NormalizeMode.Album,
+        };
+    }
+
+    /// <inheritdoc/>
+    public bool LevelsClassical => App.Services.GetRequiredService<SettingsService>().NormalizeClassical;
+
+    /// <inheritdoc/>
+    public void ToggleLevelsClassical()
+    {
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        settings.NormalizeClassical = !settings.NormalizeClassical;
     }
 }
