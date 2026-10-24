@@ -481,10 +481,12 @@ public sealed partial class PegasusChrome
 
     // The tick.
 
-    /// <summary>One frame: pictures waiting for a card's row to be realized. From OnRendering.</summary>
+    /// <summary>One frame: pictures waiting for a card's row to be realized, and what is arriving late on
+    /// an artist's page (see PegasusChrome.ArtistPage). From OnRendering.</summary>
     private void TickArtistsGenres()
     {
         if (LibraryUp && _collection == CollectionScreen.Artists)
             PumpArtistFaces();
+        TickArrivals();
     }
 }

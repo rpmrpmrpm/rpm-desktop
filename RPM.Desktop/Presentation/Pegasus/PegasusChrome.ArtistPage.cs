@@ -15,10 +15,20 @@ using Loc = RPM.Desktop.Strings.Loc;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// One artist's page in Pegasus: the photograph beside the name, how much of their work the collection
-/// holds, a key to play all of it and one to shuffle it, what the encyclopedia says about them, and then
-/// their records on shelves that scroll sideways. OK on a record opens the record page, and Back comes back
-/// here.
+/// One artist's page in Pegasus: the photograph beside the name, the first whole sentences of what the
+/// encyclopedia says about them, how much of their work the collection holds, a key to play all of it and
+/// one to shuffle it, and then their records on shelves that scroll sideways. OK on a record opens the
+/// record page, and Back comes back here.
+///
+/// <para><b>The head reads as the Android TV app's.</b> The name (or logo), the article and the counts are
+/// centred in their column, the article cut at the last whole sentence that fits in four lines (see
+/// <see cref="CutArtistAbout"/>), the counts under it. An article that arrives after the page has opened
+/// fades in while it rises into place, and what is under it glides down to make room
+/// (see <see cref="Arrival"/>), rather than appearing at once and pushing the page down.</para>
+///
+/// <para><b>The article is found through the act's own records</b>, never by the name alone (see
+/// <see cref="LoadArtistAboutAsync"/>): a name picks one of every act called that, and Michael Jackson's
+/// page showed somebody else's article.</para>
 ///
 /// <para><b>From the desktop artist page, for a remote.</b> The same shelves, in the same order and by the
 /// same rule (<see cref="ArtistShelves"/>), the same photograph
@@ -67,6 +77,30 @@ public sealed partial class PegasusChrome
     private TextBlock? _artistAbout;
     private Grid? _artistHead;
 
+    /// <summary>What the article sits in. Its height is what a late article grows from nothing, so the
+    /// counts and the keys under it glide down rather than jump.</summary>
+    private Grid? _artistAboutHost;
+
+    /// <summary>The article's first paragraph, whole, once it is known. What is shown is cut from it at
+    /// the width the article is drawn at (see <see cref="CutArtistAbout"/>), so a resize cuts it
+    /// again.</summary>
+    private string? _artistAboutProse;
+
+    /// <summary>The width and text size the article was last cut at, so a size pass that changed neither
+    /// does not measure it again.</summary>
+    private (double Width, double Size) _artistAboutCutAt;
+
+    /// <summary>The width the article is drawn at, written by the size pass.</summary>
+    private double _artistAboutWidth;
+
+    /// <summary>When the page was built, on the chrome's clock. Something that lands later than
+    /// <see cref="LateAfter"/> after it arrives late, and eases in.</summary>
+    private double _artistPageBuiltAt;
+
+    /// <summary>How long after the page is built an answer counts as late. The collection answers inside
+    /// the page's own cross; an answer from the network comes well after.</summary>
+    private const double LateAfter = 0.25;
+
     /// <summary>The photograph's bytes, for cutting it again at a new size.</summary>
     private byte[]? _artistPortraitBytes;
 
@@ -76,6 +110,7 @@ public sealed partial class PegasusChrome
     {
         DropArtistPage();
         _artistPageFor = act;
+        _artistPageBuiltAt = _clock.Elapsed.TotalSeconds;
         var read = _artistPageRead;
         var plain = (Style)Resources["PegasusPlainButton"];
         var icons = (FontFamily)Resources["PegasusFa"];
@@ -84,7 +119,8 @@ public sealed partial class PegasusChrome
         var shelves = ArtistShelves.Of(act, shelf.AlbumFacts, shelf.AlbumReleaseTypes);
         _artistShelves = shelves;
 
-        // The head: the photograph, and beside it the name, the counts, the keys and the about text.
+        // The head: the photograph, and beside it the name, the about text, the counts and the keys, all
+        // centred in their column, as the Android TV app's band has them.
         var head = new Grid();
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -125,16 +161,35 @@ public sealed partial class PegasusChrome
             TextWrapping = TextWrapping.Wrap,
             MaxLines = 2,
             TextTrimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
         };
         _artistLogo = new Image
         {
             Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Center,
             Visibility = Visibility.Collapsed,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_artistLogo, act.Name);
         words.Children.Add(_artistName);
         words.Children.Add(_artistLogo);
+
+        // The article, under the name and over the counts. Collapsed until there is one; its host is what a
+        // late article grows (see Arrival).
+        _artistAbout = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            TextAlignment = TextAlignment.Center,
+            Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
+            TextWrapping = TextWrapping.Wrap,
+            MaxLines = ArtistAboutLines,
+            TextTrimming = TextTrimming.WordEllipsis,
+            Visibility = Visibility.Collapsed,
+        };
+        _artistAboutHost = new Grid { VerticalAlignment = VerticalAlignment.Top };
+        _artistAboutHost.Children.Add(_artistAbout);
+        words.Children.Add(_artistAboutHost);
 
         // The desktop page's three counts (ArtistDetailView.Stats): their records, the records they appear
         // on, and the songs that name them; a count of nothing is left out.
@@ -148,18 +203,21 @@ public sealed partial class PegasusChrome
                 : Loc.Format("Artists_AppearsOnMany", act.Appearances.Count));
         if (act.Tracks > 0)
             counts.Add(act.Tracks == 1 ? Loc.Get("Stats_SongsOne") : Loc.Format("Stats_Songs", act.Tracks));
+        // Dimmer than the article, as the desktop's subtitle lines and the Android TV app's counts are.
         _artistCounts = new TextBlock
         {
             Text = string.Join("  ·  ", counts),
-            Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
+            Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
             TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
         };
         words.Children.Add(_artistCounts);
 
         // Play all wide, Shuffle beside it: the record page's two keys, at the record page's sizes.
         var scale = QueueScale;
-        _artistKeys = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        _artistKeys = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
         _artistKeys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _artistKeys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _artistPlayKey = RecordKey("\uf04b", Loc.Get("Rpm_Artist_PlayAll"), scale, 46 * scale,
@@ -171,18 +229,6 @@ public sealed partial class PegasusChrome
         _artistKeys.Children.Add(_artistPlayKey);
         _artistKeys.Children.Add(_artistShuffleKey);
         words.Children.Add(_artistKeys);
-
-        _artistAbout = new TextBlock
-        {
-            // Left, not stretched: a TextBlock capped short of its column is centred in it otherwise.
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
-            TextWrapping = TextWrapping.Wrap,
-            MaxLines = 4,
-            TextTrimming = TextTrimming.WordEllipsis,
-            Visibility = Visibility.Collapsed,
-        };
-        words.Children.Add(_artistAbout);
 
         ArtistPageContent.Children.Add(head);
 
@@ -209,7 +255,7 @@ public sealed partial class PegasusChrome
                            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
         LoadArtistPortraitAsync(act.Name, first, read);
         LoadArtistLogoAsync(act.Name, first, read);
-        LoadArtistAboutAsync(act.Name, read);
+        LoadArtistAboutAsync(act, shelves, shelf, read);
     }
 
     /// <summary>One shelf of records, if there are any, with each sleeve's picture queued.</summary>
@@ -369,24 +415,259 @@ public sealed partial class PegasusChrome
     /// <summary>The logo's tallest, before the scale.</summary>
     private const double ArtistLogoHeight = 92;
 
-    /// <summary>The opening of the encyclopedia's article about them, four lines at most. It is shown at
-    /// once from the service's cache where the answer is already there, and asked for otherwise. Nothing is
-    /// shown where there is no article or no answer.</summary>
-    private async void LoadArtistAboutAsync(string name, int read)
+    /// <summary>How many of the act's own records are asked about before the act is taken to be in no
+    /// catalogue. A cold question can take the server several seconds, and they are asked one after
+    /// another. The Android TV app's figure.</summary>
+    private const int ArtistAboutRecordsTried = 3;
+
+    /// <summary>How many lines of the article the head shows at most.</summary>
+    private const int ArtistAboutLines = 4;
+
+    /// <summary>
+    /// The opening of the encyclopedia's article about them, found through their own records.
+    ///
+    /// <para><b>Never from the name alone.</b> Asked about a name, the catalogues pick one of every act
+    /// called that: Michael Jackson's page showed the British singer of a heavy metal band, and Nirvana's
+    /// would show the 1960s British band. A record is matched on the act's name, its title and its number of
+    /// songs, and it names its own act by id, which the dossier believes over the name (see
+    /// <see cref="PapersAgree"/>). So the act's records are asked about in turn, at most
+    /// <see cref="ArtistAboutRecordsTried"/> of them: their ordinary records, then their live records,
+    /// soundtracks, compilations and singles, the records with the most songs first on each shelf (an album
+    /// is in more catalogues than an EP of the same year). Records made with others are left out, whose
+    /// credit can name the other act first. The first answer that matched the record and credits it to the
+    /// act is the one used, article or none. An act with no record a catalogue knows has no article here,
+    /// which is better than a paragraph about somebody else. This is the question the album page asks about
+    /// the same record, so its answer is usually in the service's cache already.</para>
+    ///
+    /// <para>Shown at once where the answer is already in the cache. An answer that has to be asked for
+    /// arrives late, and eases in (see <see cref="ShowArtistAbout"/>).</para>
+    /// </summary>
+    private async void LoadArtistAboutAsync(
+        ArtistWallItem act, ArtistShelves shelves, LibraryAlbumIndex.ArtistShelf shelf, int read)
     {
+        var records = new[] { shelves.Records, shelves.Live, shelves.Soundtracks, shelves.Compilations, shelves.Singles }
+            .SelectMany(kind => kind.OrderByDescending(f => shelf.TrackCounts.GetValueOrDefault(f)))
+            .Select(f => shelf.AlbumFacts.TryGetValue(f, out var facts)
+                ? (Credit: string.IsNullOrWhiteSpace(facts.Artist) ? act.Name : facts.Artist,
+                   Title: facts.Album,
+                   Tracks: shelf.TrackCounts.GetValueOrDefault(f))
+                : (Credit: act.Name, Title: "", Tracks: 0))
+            .Where(r => !string.IsNullOrWhiteSpace(r.Title))
+            .Take(ArtistAboutRecordsTried)
+            .ToList();
+
         var service = App.Services.GetRequiredService<TrackInfoService>();
-        var dossier = service.Cached(name, null);
-        if (dossier is null)
+        var asking = false;
+        foreach (var (credit, title, tracks) in records)
         {
-            var asked = await service.GetAsync(name, album: null);
-            if (read != _artistPageRead || !asked.Answers(out dossier, out _))
-                return;
+            var dossier = service.Cached(credit, title);
+            if (dossier is null)
+            {
+                asking = true;
+                var asked = await service.GetAsync(credit, title, tracks);
+                if (read != _artistPageRead)
+                    return;
+                if (!asked.Answers(out dossier, out _))
+                    continue;   // not answered is not "nothing known": the next record may answer
+            }
+
+            if (!AboutTheAct(dossier, act))
+                continue;
+
+            if (dossier.ArtistArticle?.Extract is { Length: > 0 } prose)
+                ShowArtistAbout(prose, late: asking && _clock.Elapsed.TotalSeconds - _artistPageBuiltAt > LateAfter);
+            return;
         }
 
-        if (dossier?.ArtistArticle?.Extract is not { Length: > 0 } prose || _artistAbout is null)
+        // A dossier is about the act when the record was matched (so the act came from the record, not from
+        // the name alone) and the catalogue credits the record to the act.
+        static bool AboutTheAct(TrackDossier dossier, ArtistWallItem act) =>
+            dossier.Album is { } record && ArtistWall.Names(record.Artist, act.Name);
+    }
+
+    /// <summary>The article's first paragraph goes up, cut to the head (see <see cref="CutArtistAbout"/>).
+    /// One that <paramref name="late"/> arrives after the page opened fades in while it rises into place,
+    /// and the counts and keys under it glide down as it opens (see <see cref="Arrival"/>).</summary>
+    private void ShowArtistAbout(string prose, bool late)
+    {
+        if (_artistAbout is null || _artistAboutHost is null)
             return;
-        _artistAbout.Text = prose.Trim();
+
+        _artistAboutProse = prose.Split("\n\n").Select(p => p.Trim()).FirstOrDefault(p => p.Length > 0);
+        if (_artistAboutProse is null)
+            return;
+
+        _artistAboutCutAt = default;
+        CutArtistAbout();
         _artistAbout.Visibility = Visibility.Visible;
+
+        if (late)
+            StartArrival(_artistAboutHost, _artistAbout, _artistAboutWidth);
+    }
+
+    /// <summary>
+    /// The article as the head shows it: the longest run of the paragraph's first sentences that fits in
+    /// <see cref="ArtistAboutLines"/> lines at the width it is drawn at, never a cut word; the first sentence
+    /// alone where even that does not fit (it is then cut where the lines end). The Android TV app's rule.
+    /// Cut again when the width or the text size changes.
+    /// </summary>
+    private void CutArtistAbout()
+    {
+        if (_artistAbout is null || _artistAboutProse is not { } paragraph || _artistAboutWidth <= 0)
+            return;
+        var at = (_artistAboutWidth, _artistAbout.FontSize);
+        if (at == _artistAboutCutAt)
+            return;
+        _artistAboutCutAt = at;
+
+        // A probe of the same face and size, measured at the same width, counts the lines a text takes. One
+        // line's height is the height of the paragraph's first letter alone.
+        var probe = new TextBlock
+        {
+            FontSize = _artistAbout.FontSize,
+            FontFamily = _artistAbout.FontFamily,
+            TextWrapping = TextWrapping.Wrap,
+            Text = paragraph[..1],
+        };
+        var room = new Windows.Foundation.Size(_artistAboutWidth, double.PositiveInfinity);
+        probe.Measure(room);
+        var line = Math.Max(1, probe.DesiredSize.Height);
+
+        int Lines(string text)
+        {
+            probe.Text = text;
+            probe.Measure(room);
+            return (int)Math.Round(probe.DesiredSize.Height / line);
+        }
+
+        _artistAbout.Text = WholeSentences(paragraph, ArtistAboutLines, Lines);
+    }
+
+    /// <summary>
+    /// The longest run of <paramref name="paragraph"/>'s first sentences that <paramref name="lines"/> says
+    /// fits in <paramref name="most"/> lines; the first sentence alone when even that does not.
+    /// </summary>
+    private static string WholeSentences(string paragraph, int most, Func<string, int> lines)
+    {
+        var sentences = SentenceEnd().Split(paragraph).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+        if (sentences.Count == 0)
+            return paragraph;
+
+        var taken = sentences[0];
+        foreach (var next in sentences.Skip(1))
+        {
+            var longer = taken + " " + next;
+            if (lines(longer) > most)
+                break;
+            taken = longer;
+        }
+        return taken;
+    }
+
+    /// <summary>Where a sentence ends: a full stop, an exclamation or a question mark, then a space, then a
+    /// capital, a digit or an opening quote or bracket. So "Jr. and" stays one sentence.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex("(?<=[.!?])\\s+(?=[\\p{Lu}\\p{N}\"“‘(])")]
+    private static partial System.Text.RegularExpressions.Regex SentenceEnd();
+
+    // ── what arrives late ──
+
+    /// <summary>
+    /// Something that arrives after its page has opened, brought in as the Android TV app brings it in: it
+    /// fades in over <see cref="Arrival.Seconds"/> while it rises into place, and the room it takes grows
+    /// with it, so what is under it moves down over the same time rather than jumping. The room is the
+    /// height of the element that holds it, written each frame and let go (Auto) once it lands.
+    /// </summary>
+    /// <remarks>
+    /// The height is layout, not composition: each frame of the half second lays the page out again. That
+    /// is the point of it, since the rows under it have to move, and it is one page for half a second.
+    /// </remarks>
+    private sealed class Arrival
+    {
+        /// <summary>How long it takes to come in, the Android TV app's 520 ms.</summary>
+        public const double Seconds = 0.52;
+
+        private readonly FrameworkElement _host;
+        private readonly FrameworkElement _content;
+        private readonly TranslateTransform _rise = new();
+        private readonly double _slide;
+        private readonly double _height;
+        private double _elapsed;
+
+        /// <param name="height">The content's full height, measured before it starts.</param>
+        /// <param name="slide">How far below its place it starts.</param>
+        public Arrival(FrameworkElement host, FrameworkElement content, double height, double slide)
+        {
+            _host = host;
+            _content = content;
+            _height = height;
+            _slide = slide;
+            content.RenderTransform = _rise;
+            Write(0);
+        }
+
+        /// <summary>One frame. False once it has landed.</summary>
+        public bool Tick(double dt)
+        {
+            _elapsed += dt;
+            var t = Math.Clamp(_elapsed / Seconds, 0, 1);
+            Write(1 - ((1 - t) * (1 - t)));   // ease out, quadratic
+            if (t < 1)
+                return true;
+            Land();
+            return false;
+        }
+
+        /// <summary>Lands at once: the page is going, or another arrival takes the same place.</summary>
+        public void Land()
+        {
+            _host.Height = double.NaN;
+            _content.Opacity = 1;
+            _rise.Y = 0;
+        }
+
+        private void Write(double eased)
+        {
+            _host.Height = _height * eased;
+            _content.Opacity = eased;
+            _rise.Y = (1 - eased) * _slide;
+        }
+    }
+
+    private readonly List<Arrival> _arrivals = [];
+    private double _arrivalsTickedAt;
+
+    /// <summary>Starts <paramref name="content"/> coming into <paramref name="host"/>, measured at
+    /// <paramref name="width"/>.</summary>
+    private void StartArrival(FrameworkElement host, FrameworkElement content, double width)
+    {
+        if (width <= 0)
+            return;
+        content.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
+        var height = content.DesiredSize.Height;
+        if (height <= 0)
+            return;
+        if (_arrivals.Count == 0)
+            _arrivalsTickedAt = _clock.Elapsed.TotalSeconds;
+        _arrivals.Add(new Arrival(host, content, height, 18 * QueueScale));
+    }
+
+    /// <summary>One frame of everything arriving. From the frame tick (TickArtistsGenres).</summary>
+    private void TickArrivals()
+    {
+        if (_arrivals.Count == 0)
+            return;
+        var now = _clock.Elapsed.TotalSeconds;
+        var dt = Math.Min(0.1, Math.Max(0, now - _arrivalsTickedAt));
+        _arrivalsTickedAt = now;
+        _arrivals.RemoveAll(each => !each.Tick(dt));
+    }
+
+    /// <summary>Lands everything still arriving, for a page that is being let go.</summary>
+    private void LandArrivals()
+    {
+        foreach (var each in _arrivals)
+            each.Land();
+        _arrivals.Clear();
     }
 
     // Playing the page.
@@ -451,6 +732,10 @@ public sealed partial class PegasusChrome
         _artistKeys = null;
         _artistAbout = null;
         _artistHead = null;
+        _artistAboutHost = null;
+        _artistAboutProse = null;
+        _artistAboutCutAt = default;
+        LandArrivals();
         _artistPageCards.Clear();
         _artistPageRows.Clear();
         ArtistPageContent.Children.Clear();
@@ -497,7 +782,7 @@ public sealed partial class PegasusChrome
         if (_artistCounts is not null)
         {
             _artistCounts.FontSize = 15 * scale;
-            _artistCounts.Margin = new Thickness(0, 8 * scale, 0, 0);
+            _artistCounts.Margin = new Thickness(0, 10 * scale, 0, 0);
         }
         if (_artistKeys is not null)
         {
@@ -514,11 +799,15 @@ public sealed partial class PegasusChrome
             _artistShuffleKey.Height = 46 * scale;
             _artistShuffleKey.Width = 56 * scale;
         }
+        // The article as wide as its column, at most 900 before the scale, and cut again to the sentences
+        // that fit at that width.
+        _artistAboutWidth = Math.Max(160, Math.Min(900 * scale, strip - edge - (40 * scale)));
         if (_artistAbout is not null)
         {
             _artistAbout.FontSize = 14 * scale;
-            _artistAbout.MaxWidth = 900 * scale;
+            _artistAbout.MaxWidth = _artistAboutWidth;
             _artistAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
+            CutArtistAbout();
         }
 
         var gap = 22 * scale;
