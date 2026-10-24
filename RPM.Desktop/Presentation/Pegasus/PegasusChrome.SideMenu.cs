@@ -215,8 +215,8 @@ public sealed partial class PegasusChrome
     /// <summary>
     /// The entry of the screen in front, where the remote's focus starts when the menu opens, as an Apple
     /// TV sidebar's does: Home over home, Albums over the wall, Artists over the artists list or an
-    /// artist's page, Genres likewise, Internet Radio over radio. Else the first entry shown, which is Now
-    /// playing while something is loaded.
+    /// artist's page, Genres likewise, Playlists over the playlists, Internet Radio over radio. Else the first
+    /// entry shown, which is Now playing while something is loaded.
     /// </summary>
     private Button MenuEntryInFront() => _collection switch
     {
@@ -224,6 +224,7 @@ public sealed partial class PegasusChrome
         CollectionScreen.Wall => SideMenuAlbums,
         CollectionScreen.Artists or CollectionScreen.Artist => SideMenuArtists,
         CollectionScreen.Genres or CollectionScreen.Genre => SideMenuGenres,
+        CollectionScreen.Playlists => SideMenuPlaylists,
         CollectionScreen.Radio => SideMenuRadio,
         _ => SideMenuNowPlaying.Visibility == Visibility.Visible ? SideMenuNowPlaying : SideMenuHome,
     };
