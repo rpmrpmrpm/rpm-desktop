@@ -18,8 +18,9 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// picture it was pressed on. The record behind it wears the same
 /// picture on its label, and the room and the disc take their colours from the picture behind the
 /// cover's frame. Then the name, the folder it sits in for a list of the listener's own, how many songs
-/// and how long, and two keys: play and shuffle. The running order on the right numbers its positions
-/// and says under each title who it is by and which record it came off.</para>
+/// and how long, and two keys: play, and the list's menu (Shuffle, Add to queue, Play next). The
+/// running order on the right numbers its positions and says under each title who it is by and which
+/// record it came off.</para>
 ///
 /// <para><b>What it leaves out</b>, because each is a record's and a list has none: the stars, the heart,
 /// the catalogues' words about it, and disc art out of a folder.</para>
@@ -121,6 +122,7 @@ public sealed partial class PegasusChrome
         _recordAverageRow = null;
         _recordAverageStars = null;
         _recordAverageText = null;
+        _recordStars = null;
 
         // ── the record, and the list's cover over it ──
         //
@@ -199,7 +201,8 @@ public sealed partial class PegasusChrome
 
         // ── the two things you can do to it ──
         //
-        // Play and shuffle, split as the record's are (play takes the wider space), without the heart: a
+        // Play, and the key beside it that opens the list's menu: Shuffle, Add to queue and Play next (see
+        // ShowRecordMenu). Split as the record's are (play takes the wider space), without the heart: a
         // list cannot be loved the way a record is.
         var keys = new Grid { ColumnSpacing = 10 * scale, Margin = new Thickness(0, 20 * scale, 0, 0) };
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -212,13 +215,12 @@ public sealed partial class PegasusChrome
         Grid.SetColumn(play, 0);
         _recordPlayKey = play;
 
-        var shuffle = RecordKey("", null, scale, height, () => PlayShuffledList(_recordTracks, RecordSleeve()), out _);
-        shuffle.Width = 56 * scale;
-        IconName.Set(shuffle, Strings.Loc.Get("AlbumMenu_Shuffle"));
-        Grid.SetColumn(shuffle, 1);
+        var name = entry.Name;
+        var menu = RecordMenuKey(scale, height, at => ShowRecordMenu(at, card: null, name, borrowed: false));
+        Grid.SetColumn(menu, 1);
 
         keys.Children.Add(play);
-        keys.Children.Add(shuffle);
+        keys.Children.Add(menu);
         info.Children.Add(keys);
 
         // ── and everything on it ──

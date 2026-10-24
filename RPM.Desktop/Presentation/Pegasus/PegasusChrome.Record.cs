@@ -728,10 +728,20 @@ public sealed partial class PegasusChrome
             });
 
         // ── the stars ──
-        info.Children.Add(BuildRecordStars(card, meta, scale));
+        //
+        // Not on somebody else's collection. Stars are something the listener gives, and nothing is given
+        // to a borrowed record from this page (see RecordBorrowed). What the last record built for them is
+        // let go, so the wall's average cannot land on a control from another page.
+        var borrowed = RecordBorrowed;
+        _recordAverageRow = null;
+        _recordAverageStars = null;
+        _recordAverageText = null;
+        _recordStars = null;
+        if (!borrowed)
+            info.Children.Add(BuildRecordStars(card, meta, scale));
 
-        // ── the three things you can do to it ──
-        info.Children.Add(BuildRecordKeys(card, meta, scale));
+        // ── the things you can do to it ──
+        info.Children.Add(BuildRecordKeys(card, meta, borrowed, scale));
 
         // ── and what is said about it ──
         //
@@ -1005,6 +1015,7 @@ public sealed partial class PegasusChrome
         stars.RatingPicked += (_, picked) => SaveRecordRating(folder, picked);
         mine.Children.Add(stars);
         block.Children.Add(mine);
+        _recordStars = stars;
 
         return block;
     }
@@ -1012,6 +1023,23 @@ public sealed partial class PegasusChrome
     private StackPanel? _recordAverageRow;
     private StarRating? _recordAverageStars;
     private TextBlock? _recordAverageText;
+
+    /// <summary>The listener's own stars on the page, so Rate album in the record's menu can move them to
+    /// what it saved. Null on a page with no stars (a list, or a borrowed record).</summary>
+    private StarRating? _recordStars;
+
+    /// <summary>
+    /// Whether the record page shows somebody else's collection.
+    ///
+    /// <para>Pegasus follows the TV here: on a borrowed collection the page has no heart and no stars,
+    /// the record's menu has no Favourite album and no Rate album, and a song's menu has no favourite and
+    /// no Add to playlist (see <see cref="TrackMenu"/>). Hidden, not dimmed. The main window keeps the
+    /// favourite on a borrowed song, as the listener's own opinion; Pegasus does not.</para>
+    ///
+    /// <para>The same question the main window's track menu asks (MainPage.BuildTrackMenuState): whether
+    /// the collection on screen is a borrowed one. It is read when a page or a menu is built.</para>
+    /// </summary>
+    private static bool RecordBorrowed => Library.IsPeerView;
 
     /// <summary>The listener's own stars, into the mirror. The review beside them is carried through
     /// untouched: this screen sets a rating, and a rating is not a reason to lose what somebody wrote
@@ -1075,18 +1103,25 @@ public sealed partial class PegasusChrome
     // ── the keys ──
 
     /// <summary>
-    /// Play it, play it in another order, and love it.
+    /// Play it, the record's menu, and love it.
     ///
     /// <para>Play takes the space the other two do not need: it is what somebody came to this screen to
-    /// do, and the other two are things they might do. The layout is one wide key and two fixed ones, not
-    /// three equal keys. The phone's album page makes the same split, for the same reason.</para>
+    /// do, and the other two are things they might do. The layout is one wide key and fixed ones, not
+    /// equal keys. The phone's album page makes the same split, for the same reason.</para>
+    ///
+    /// <para>The key beside Play opens the record's menu (see <see cref="ShowRecordMenu"/>), as on the TV's
+    /// record page: Shuffle, Add to queue and Play next, and on the listener's own collection Favourite
+    /// album and Rate album. Shuffle is in the menu and has no key of its own. The heart stays a key on
+    /// the listener's own collection, and is not there at all on a borrowed one (see
+    /// <see cref="RecordBorrowed"/>).</para>
     /// </summary>
-    private Grid BuildRecordKeys(PegasusAlbumCard card, AlbumMeta meta, double scale)
+    private Grid BuildRecordKeys(PegasusAlbumCard card, AlbumMeta meta, bool borrowed, double scale)
     {
         var keys = new Grid { ColumnSpacing = 10 * scale, Margin = new Thickness(0, 20 * scale, 0, 0) };
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (!borrowed)
+            keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var height = 46 * scale;
 
@@ -1095,17 +1130,26 @@ public sealed partial class PegasusChrome
         play.HorizontalAlignment = HorizontalAlignment.Stretch;
         Grid.SetColumn(play, 0);
         _recordPlayKey = play;
+        keys.Children.Add(play);
 
-        var shuffle = RecordKey("", null, scale, height, () => PlayShuffledList(_recordTracks, RecordSleeve()), out _);
-        shuffle.Width = 56 * scale;
-        IconName.Set(shuffle, Strings.Loc.Get("AlbumGrid_Shuffle"));
-        Grid.SetColumn(shuffle, 1);
+        _recordFavorite = meta.IsFavorite;
+        _recordFavoriteFor = card;
+
+        var menu = RecordMenuKey(scale, height, at => ShowRecordMenu(at, card, card.Name, borrowed));
+        Grid.SetColumn(menu, 1);
+        keys.Children.Add(menu);
+
+        if (borrowed)
+        {
+            // No heart on somebody else's record: nothing may repaint one through this page.
+            _recordFavoriteKey = null;
+            _recordFavoriteGlyph = null;
+            return keys;
+        }
 
         // The mark on the RECORD, which is not the same thing as a mark on its songs: this screen's own
         // lines carry theirs. Read from the mirror when the screen was built and written straight back,
         // so the heart fills in under the press rather than after a re-read.
-        _recordFavorite = meta.IsFavorite;
-        _recordFavoriteFor = card;
         var favorite = RecordKey("", null, scale, height, () => ToggleRecordFavorite(card),
                                   out _recordFavoriteGlyph);
         favorite.Width = 56 * scale;
@@ -1113,8 +1157,6 @@ public sealed partial class PegasusChrome
         _recordFavoriteKey = favorite;
         PaintRecordFavorite();
 
-        keys.Children.Add(play);
-        keys.Children.Add(shuffle);
         keys.Children.Add(favorite);
         return keys;
     }
@@ -1219,6 +1261,128 @@ public sealed partial class PegasusChrome
         };
         key.Click += (_, _) => pressed();
         return key;
+    }
+
+    // ── the record's menu ──
+
+    /// <summary>The key beside Play that opens the page's menu: three bars, no words, as narrow as the
+    /// heart. Its name for a screen reader and its tooltip are the main window's album page's own
+    /// "More".</summary>
+    /// <param name="pressed">What a press does, handed the key so the menu can open at it.</param>
+    private Button RecordMenuKey(double scale, double height, Action<Button> pressed)
+    {
+        Button? key = null;
+        key = RecordKey("", null, scale, height, () => pressed(key!), out _);
+        key.Width = 56 * scale;
+        IconName.Set(key, Strings.Loc.Get("Album_MoreActions"));
+        return key;
+    }
+
+    /// <summary>
+    /// The menu of the record or list on the page, opened at the key beside Play. The TV's record page has
+    /// the same menu, in the same order (TrackPage.kt, pageChoices).
+    ///
+    /// <list type="bullet">
+    /// <item>Shuffle: the whole record in an order nobody chose, the key this menu replaced.</item>
+    /// <item>Add to queue: every track at the end of the queue, and nothing that is playing changes.</item>
+    /// <item>Play next: every track straight after the song that is playing, in the record's order.</item>
+    /// <item>On a record of the listener's own collection, and not on a list: Favourite album (or Remove
+    /// from favourites), the same mark as the heart key, and Rate album, the same stars as the row under
+    /// the name.</item>
+    /// </list>
+    ///
+    /// <para>Built when it opens, so the favourite's wording and the ticked rating are what is true at that
+    /// moment. At this view's size, see <see cref="ForThisView"/>.</para>
+    /// </summary>
+    /// <param name="card">The record, or null for a list.</param>
+    /// <param name="name">What the line at the foot of the screen calls it after a queue entry.</param>
+    /// <param name="borrowed">The record is on somebody else's collection (see
+    /// <see cref="RecordBorrowed"/>): no Favourite album and no Rate album.</param>
+    private void ShowRecordMenu(Button at, PegasusAlbumCard? card, string name, bool borrowed)
+    {
+        var menu = new MenuFlyout
+        {
+            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+        };
+
+        menu.Items.Add(MenuEntry(Strings.Loc.Get(card is null ? "AlbumMenu_Shuffle" : "AlbumGrid_Shuffle"),
+                                 () => PlayShuffledList(_recordTracks, RecordSleeve())));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("Tv_Album_AddToQueue"), () => QueueRecord(next: false, name)));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_PlayNext"), () => QueueRecord(next: true, name)));
+
+        if (card is not null && !borrowed)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(MenuEntry(
+                Strings.Loc.Get(_recordFavorite ? "Album_UnsetFavorite" : "AlbumMenu_Favorite"),
+                () => ToggleRecordFavorite(card)));
+            menu.Items.Add(RateRecordMenu(card));
+        }
+
+        ForThisView(menu).ShowAt(at);
+    }
+
+    /// <summary>
+    /// Rate album: five entries, one to five stars, drawn as stars and not as words, with the rating the
+    /// record has now ticked. The remote reaches them with Up, Down and OK, where the stars row on the page
+    /// needs Left and Right on it. The choice is saved as the stars row saves it, and the row moves to it.
+    /// </summary>
+    private MenuFlyoutSubItem RateRecordMenu(PegasusAlbumCard card)
+    {
+        var rate = new MenuFlyoutSubItem
+        {
+            Text = Strings.Loc.Get("Tv_Album_Rate"),
+            FontSize = 12,
+            MinHeight = 26,
+            Padding = new Thickness(11, 3, 11, 4),
+        };
+
+        var now = (int)Math.Round(_recordStars?.Value ?? 0);
+        for (var stars = 1; stars <= 5; stars++)
+        {
+            var given = stars;
+            var item = new ToggleMenuFlyoutItem
+            {
+                Text = new string('★', given) + new string('☆', 5 - given),
+                IsChecked = given == now,
+                FontSize = 12,
+                MinHeight = 26,
+                Padding = new Thickness(11, 3, 11, 4),
+            };
+            item.Click += (_, _) =>
+            {
+                SaveRecordRating(card.Folder, given);
+                if (_recordStars is { } row)
+                    row.Value = given;
+            };
+            rate.Items.Add(item);
+        }
+
+        return rate;
+    }
+
+    /// <summary>
+    /// The whole record or list into the queue: after the song that is playing (Play next), or at the end
+    /// (Add to queue). The same two inserts the main window's menus make on the same queue
+    /// (RPaMpModel.InsertNext and AddTracks), so nothing that is playing is interrupted. With nothing on
+    /// the deck, "next" is the end of an empty queue.
+    ///
+    /// <para>Said in words at the foot of the screen, as a swiped song is: full screen, there is no queue
+    /// in view to watch it land in.</para>
+    /// </summary>
+    private void QueueRecord(bool next, string name)
+    {
+        if (_amp is not { } amp || _recordTracks.Count == 0)
+            return;
+
+        var tracks = _recordTracks.ToList();
+        if (next)
+            amp.InsertNext(tracks);
+        else
+            amp.AddTracks(tracks, startPlaying: false);
+
+        Announced?.Invoke(string.Format(
+            Strings.Loc.Get(next ? "Viz_QueueMovedNext" : "Atv_AddedToQueue"), name));
     }
 
     // ── the record out of its sleeve ──
