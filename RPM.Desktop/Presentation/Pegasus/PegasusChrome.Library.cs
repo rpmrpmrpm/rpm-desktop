@@ -424,6 +424,7 @@ public sealed partial class PegasusChrome
             _libraryFade.Set(1);
         else
             _libraryFade.To(1, ScreenCrossMs, null);
+        ShowPageGround(true, immediate);   // the pages' background comes with it (see PegasusChrome.PageGround)
         LibraryShown?.Invoke(true);
         FocusScreenLater(null);   // with the remote in use: the screen's first card
 
@@ -491,6 +492,7 @@ public sealed partial class PegasusChrome
                 DropArtistsGenresPages();   // the collection comes back on home; the pages are built again
             }
         });
+        ShowPageGround(false, immediate: false);
         LibraryShown?.Invoke(false);
         FocusScreenLater(null);   // with the remote in use: the record turning's play key
     }

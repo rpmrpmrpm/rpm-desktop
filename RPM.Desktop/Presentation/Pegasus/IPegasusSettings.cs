@@ -106,4 +106,11 @@ public interface IPegasusSettings
     /// <summary>Moves to the next look, wrapping: Standard, Softer, Muted. It shows at once, behind the open
     /// panel.</summary>
     void NextPicture();
+
+    /// <summary>What the collection's screens are drawn on (stored in SettingsService).</summary>
+    PageBackground PageBackground { get; }
+
+    /// <summary>Moves to the next background, wrapping: Default, Pegasus, Dark, Moving. It shows at once, behind
+    /// the open panel.</summary>
+    void NextPageBackground();
 }

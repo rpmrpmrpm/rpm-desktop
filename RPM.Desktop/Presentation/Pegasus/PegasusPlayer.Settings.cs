@@ -196,4 +196,16 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         App.Services.GetRequiredService<SettingsService>().PegasusPicture = next.ToString();
         ApplyPicture(next);
     }
+
+    /// <inheritdoc/>
+    public PageBackground PageBackground =>
+        PictureLooks.NamedBackground(App.Services.GetRequiredService<SettingsService>().PegasusPageBackground);
+
+    /// <inheritdoc/>
+    public void NextPageBackground()
+    {
+        App.Services.GetRequiredService<SettingsService>().PegasusPageBackground =
+            PictureLooks.Next(PageBackground).ToString();
+        _chrome?.ApplyPageBackground();
+    }
 }

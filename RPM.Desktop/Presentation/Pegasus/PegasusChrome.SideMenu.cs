@@ -877,6 +877,13 @@ public sealed partial class PegasusChrome
                 PictureLook.Muted => "Tv_PictureMuted",
                 _ => "Tv_PictureStandard",
             }), s => s.NextPicture()),
+            new("Settings_Background", s => Loc.Get(s.PageBackground switch
+            {
+                PageBackground.Pegasus => "Settings_BackgroundPegasus",
+                PageBackground.Dark => "Tv_BackgroundDark",
+                PageBackground.Room => "Tv_BackgroundMoving",
+                _ => "Settings_BackgroundDefault",
+            }), s => s.NextPageBackground()),
         ]),
         new("Settings_Sound", "",
         [

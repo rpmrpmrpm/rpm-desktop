@@ -572,6 +572,7 @@ public sealed partial class PegasusPlayer : UserControl
             _chrome.ShiftChanged += OnCompositionShifted;
             _chrome.Announced += ShowFlash;
             _chrome.LibraryShown += OnLibraryShown;
+            _chrome.PageGroundCovers += OnPageGroundCovers;
             _chrome.LibraryFilled += OnLibraryFilled;
             _chrome.LibraryWarming += OnLibraryWarming;
             _chrome.LibraryWarmProgress += OnLibraryWarmProgress;
@@ -606,6 +607,35 @@ public sealed partial class PegasusPlayer : UserControl
         ApplyView(immediate: false);
         ShowKeys();
         ArmScreensaver();   // watched over the collection only
+    }
+
+    /// <summary>Whether the pages' background covers the whole room (see PegasusChrome.PageGround).</summary>
+    private bool _roomCovered;
+
+    /// <summary>
+    /// The pages' background has come to cover the whole room, or has started to go. The room stops while it is
+    /// covered, as the TV's room surface stops under a still backdrop: a full-screen shader drawing for nobody is the
+    /// most expensive thing this view could do.
+    ///
+    /// <para>Applied on the next turn, not this one. The background also goes when the view is being left
+    /// (<see cref="Hide"/> takes the collection down after it has stopped the room), and by the next turn the view is
+    /// down and the room is left stopped.</para>
+    /// </summary>
+    private void OnPageGroundCovers(bool covers)
+    {
+        _roomCovered = covers;
+        DispatcherQueue?.TryEnqueue(ApplyRoomCovered);
+    }
+
+    /// <summary>Stops the room while the pages' background covers it, and starts it again when it does not. Only a
+    /// room that has drawn a frame is stopped: the view's cover waits for that first frame (see HasPainted), and a
+    /// room never started would never draw it. Not while the collection is dressing itself, which holds the room
+    /// still for reasons of its own (see <see cref="OnLibraryWarming"/>).</summary>
+    private void ApplyRoomCovered()
+    {
+        if (!IsShowing || _libraryWarming || _stage is not { HasPainted: true } stage)
+            return;
+        stage.SetActive(!_roomCovered);
     }
 
     /// <summary>
@@ -1188,6 +1218,7 @@ public sealed partial class PegasusPlayer : UserControl
     {
         _waitStage = false;
         TryEndLoading();
+        ApplyRoomCovered();   // a room lit under the pages' background stops again (see OnPageGroundCovers)
     }
 
     /// <summary>The collection has its records. This is also the room's cue, where the room was held back for exactly
@@ -1237,6 +1268,7 @@ public sealed partial class PegasusPlayer : UserControl
         }
 
         _stage?.SetActive(true);
+        ApplyRoomCovered();   // …unless the pages' background covers it
         _waitLibrary = false;
         if (_loadingUp)
             ShowWarmProgress(1);   // the last figure seen is the one it finished on

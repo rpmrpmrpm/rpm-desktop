@@ -795,6 +795,17 @@
                IsHitTestVisible="False" Visibility="Collapsed" Foreground="#99FFFFFF"
                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1"/>
 
+    <!-- ═══ the pages' background ═══ what the collection's screens are drawn on, chosen in the settings'
+         Display section (Background; see PageBackground and PegasusChrome.PageGround): the window's Default or
+         Pegasus picture, a flat anthracite, or nothing here at all for the moving room. It is up while the
+         collection is, under all three of its layers (the collection, a record, the tuner), and comes and goes
+         with it. Each of those layers lays its 45% black over it, as over the room, so the picture is drawn at
+         the TV's dim. The player always has the moving room. Never hit-testable. -->
+    <Grid x:Name="PageGround" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False">
+      <Image x:Name="PageGroundPicture" Stretch="UniformToFill" HorizontalAlignment="Center"
+             VerticalAlignment="Center" ImageOpened="PageGroundPicture_ImageOpened"/>
+    </Grid>
+
     <!-- ═══ the collection ═══ all of it, over the room, for the two moments when the visualizer is not
          about one album: when the user is looking for an album, and when nothing is playing.
 

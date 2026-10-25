@@ -163,6 +163,8 @@ public sealed partial class SettingsService
         bool PegasusKeyLegend = true,
         // ...and how bright and saturated it is drawn.
         string? PegasusPicture = null,
+        // ...and what its collection's screens are drawn on.
+        string? PegasusPageBackground = null,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -785,6 +787,18 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusPicture;
         set => Update(_model with { PegasusPicture = value }, notify: false);
+    }
+
+    /// <summary>
+    /// What Pegasus's collection is drawn on: "Default", "Pegasus", "Dark" or "Room" (the moving room), by the name
+    /// of the <see cref="RPM.Desktop.Presentation.Pegasus.PageBackground"/>. Null until the settings panel's
+    /// Background row has been used, which draws Default, as on the TV; so does a name this build does not know.
+    /// Stored by name for the same reason as <see cref="PegasusLayout"/>, and saved quietly too.
+    /// </summary>
+    public string? PegasusPageBackground
+    {
+        get => _model.PegasusPageBackground;
+        set => Update(_model with { PegasusPageBackground = value }, notify: false);
     }
 
     /// <summary>
