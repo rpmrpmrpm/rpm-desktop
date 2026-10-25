@@ -115,6 +115,15 @@ public sealed partial class SeekBar : UserControl
     /// kept.</summary>
     public void SetRemainInset(double px) => RemainText.Margin = new Thickness(0, -24, Math.Max(0, px), 0);
 
+    /// <summary>The remaining time's type size, before whatever scale the bar is drawn at: 12, as the
+    /// markup has it, unless the host asks for another. Pegasus's player asks for the Android TV app's
+    /// couch size.</summary>
+    public double RemainSize
+    {
+        get => RemainText.FontSize;
+        set => RemainText.FontSize = value;
+    }
+
     /// <summary>Whether the remaining-time readout is shown. It sits twenty-four pixels above the strip,
     /// beside the album name. That works when the album name is on the left in the open chrome. It collides
     /// when the drawer is parked and the track's three lines have moved onto the bar. When parked, the

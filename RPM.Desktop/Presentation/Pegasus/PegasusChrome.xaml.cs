@@ -4976,16 +4976,20 @@ public sealed partial class PegasusChrome : UserControl
         LayoutFoot(w, h);
 
         var title = Math.Clamp(side * 0.075, 16, 44);
+        // The artist and the album at the Android TV app's couch proportions, 0.75 and 0.62 of the title
+        // where the desktop had 0.60 and 0.45, and the time left at its 18 where the desktop had 12
+        // (FOBO 77d2d7f03), so the two lines under the title read from across a room.
         TitleText.FontSize = title;
-        ArtistText.FontSize = title * 0.60;
-        AlbumText.FontSize = title * 0.45;
+        ArtistText.FontSize = title * 0.75;
+        AlbumText.FontSize = title * 0.62;
+        Seek.RemainSize = LyricSeek.RemainSize = 18;
 
         // The intro card uses the same figure, in the same proportion. It is meant to be recognised as the
         // drawn-in composition's words, met again in the middle of the screen. It is held to the width the
         // lyric's own lines are read through, not the whole window. So a long title breaks where a sung
         // line would, and the card stays a card instead of becoming a banner.
         LyricIntroTitle.FontSize = title;
-        LyricIntroArtist.FontSize = title * 0.60;
+        LyricIntroArtist.FontSize = title * 0.75;
         LyricIntro.MaxWidth = LyricColumn(w);
 
         // The column each line is read through, and then its own width within it. Both come from the one
