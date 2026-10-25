@@ -171,8 +171,10 @@ public sealed partial class PegasusChrome
         _radioSearchFade = new Fader(RadioSearchLayer);
 
         // The page is hidden until its opening (see ReadRadioAsync): only the background shows.
+        // Disabled too, so the remote cannot land on a card that is not drawn yet.
         RadioScroll.Opacity = 0;
         RadioScroll.IsHitTestVisible = false;
+        RadioScroll.IsEnabled = false;
         _radioOpenFade = new Fader(RadioScroll);
 
         var icons = (FontFamily)Resources["PegasusFa"];
@@ -420,6 +422,7 @@ public sealed partial class PegasusChrome
         _radioOpened = true;
         RadioSpinner.Spinning = false;
         RadioScroll.IsHitTestVisible = true;
+        RadioScroll.IsEnabled = true;
         _radioOpenFade.To(1, RadioOpenFadeMs, null);
         if (_radioBannerKey is { } key)
             key.IsTabStop = _radioBanner.Count > 0;
