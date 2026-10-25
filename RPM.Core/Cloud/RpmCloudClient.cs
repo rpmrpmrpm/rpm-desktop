@@ -1599,6 +1599,28 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
                     HttpMethod.Get, $"cloud/station-favorites?since={since}", null, ct)).Stations
                .Select(r => new Radio.FavoriteRow(r.Uuid, r.Saved, r.ChangedAt, r.Station?.ToStation(), r.UpdatedAt))];
 
+    /// <summary>
+    /// Every saved station of the account that shares a collection with this one, the newest change to
+    /// each, unsaves included. Read only: nothing writes another account's stations. A borrowed
+    /// collection's radio shows its owner's saved stations (the TV's SharedStations, 2026-10-18).
+    /// </summary>
+    /// <param name="shelf">Whose stations: somebody else's collection, checked against their grant on
+    /// every read, as the collection's other reads are. The answer names the account it came from, and an
+    /// answer from a different account is refused, for the reason that
+    /// <see cref="CloudShelfNotServedException"/> gives.</param>
+    public async Task<IReadOnlyList<Radio.FavoriteRow>> ListSharedStationFavoritesAsync(
+        CloudShelf shelf, CancellationToken ct = default)
+    {
+        var answer = await SendAsync<StationFavoritesListResponse>(
+            HttpMethod.Get, "cloud/station-favorites?since=0" + Also(shelf), null, ct);
+
+        if (!shelf.IsOwn && !string.Equals(answer.Owner, shelf.OwnerId, StringComparison.Ordinal))
+            throw new CloudShelfNotServedException(shelf.OwnerId);
+
+        return [.. answer.Stations
+            .Select(r => new Radio.FavoriteRow(r.Uuid, r.Saved, r.ChangedAt, r.Station?.ToStation(), r.UpdatedAt))];
+    }
+
     /// <summary>Everything one collection has in the cloud, a page at a time.</summary>
     /// <param name="shelf">Whose collection. Somebody else's collection is only available where they have
     /// shared it. The grant is checked on every page. So a share that is taken back empties the shelf, and
@@ -1935,8 +1957,11 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     private sealed record StationFavoritesResponse(
         [property: JsonPropertyName("updatedAt")] long UpdatedAt);
 
+    /// <summary>The saved stations, and whose they are. The owner is empty from a server older than shared
+    /// stations, which a borrowed read refuses.</summary>
     private sealed record StationFavoritesListResponse(
-        [property: JsonPropertyName("stations")] IReadOnlyList<CloudStationFavorite> Stations);
+        [property: JsonPropertyName("stations")] IReadOnlyList<CloudStationFavorite> Stations,
+        [property: JsonPropertyName("owner")] string? Owner = null);
 
     /// <summary>The newest change to one saved station, as the store holds it.</summary>
     private sealed record CloudStationFavorite(

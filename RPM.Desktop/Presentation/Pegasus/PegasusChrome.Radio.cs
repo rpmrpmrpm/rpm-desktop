@@ -226,6 +226,10 @@ public sealed partial class PegasusChrome
         // directory, so an answer that lands after the screen was built is shown (see RadioStateChanged).
         RadioState.Changed += () => DispatcherQueue.TryEnqueue(RadioStateChanged);
 
+        // A shared collection's owner's saved stations were read (see RadioService.Saved): the favourites row
+        // and the tuner's hearts show them.
+        Radio.SharedChanged += () => DispatcherQueue.TryEnqueue(SavedStationsChanged);
+
         Radio.Favorites.Changed += () => DispatcherQueue.TryEnqueue(() =>
         {
             // The favourites row is the one part of the screen a press elsewhere changes (the heart in the
@@ -293,6 +297,10 @@ public sealed partial class PegasusChrome
     /// favourites, which need no network and may have changed in the main window.</summary>
     private void ReadRadioIfDue()
     {
+        // On a shared collection, its owner's saved stations are read again on every visit, as the TV reads
+        // them each time the collection is opened (see RadioService.ReadShared).
+        Radio.ReadShared();
+
         var fresh = _radioAnsweredAt != 0
                     && Environment.TickCount64 - _radioAnsweredAt < RadioGoodForMs;
         if (fresh)
@@ -464,7 +472,7 @@ public sealed partial class PegasusChrome
         var radio = Radio;
         var essential = Shown(reading.Essential).Take(RadioEssentialCount).ToList();
         var heard = Shown(radio.Listens.Top(RadioBannerHeard).Select(l => l.Station).ToList());
-        var favorites = Shown(radio.Favorites.Stations);
+        var favorites = Shown(radio.Saved.Stations);
 
         BuildRadioHome(heard, favorites, essential, reading.Answered, reading.Country);
         return (heard.Count, favorites.Count, essential.Count);
@@ -604,17 +612,22 @@ public sealed partial class PegasusChrome
     /// favourites changing.</summary>
     private void BuildFavoritesRow()
     {
-        var favorites = Radio.Favorites.Stations.Where(s => !RadioState.IsHidden(s)).ToList();
+        // The listener's own, or a shared collection's owner's (see RadioService.Saved).
+        var saved = Radio.Saved;
+        var favorites = saved.Stations.Where(s => !RadioState.IsHidden(s)).ToList();
+        var note = favorites.Count == 0 && !saved.Reading;
 
         // The same stations in the same order: the row stands as it is, so a revisit does not redraw every
         // card and take the remote's place in the row away with them.
         if (favorites.Select(s => s.Uuid).SequenceEqual(_radioFavoriteCards.Select(c => c.Face.Station.Uuid))
-            && (favorites.Count > 0 || RadioFavoritesNote.Visibility == Visibility.Visible))
+            && (favorites.Count > 0 || (RadioFavoritesNote.Visibility == Visibility.Visible) == note))
             return;
 
         BuildRow(_radioFavoriteCards, RadioFavoritesRow, favorites, wide: false);
         RadioFavoritesScroll.Visibility = favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        RadioFavoritesNote.Visibility = favorites.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
+
+        // "No favourites" is not said while a shared collection's owner's are still being read.
+        RadioFavoritesNote.Visibility = note ? Visibility.Visible : Visibility.Collapsed;
         SizeRadio(QueueScale);
         ApplyRadioShown();
 
@@ -1000,6 +1013,11 @@ public sealed partial class PegasusChrome
         var kept = favorites.Contains(station.Uuid);
         var menu = new MenuFlyout();
         menu.Items.Add(MenuEntry(Loc.Get("Radio_PlayStation"), play));
+
+        // Not on a shared collection, whose saved stations are its owner's, read only (the TV's openMenu).
+        if (!Radio.Saved.Mine)
+            return ForThisView(menu);
+
         menu.Items.Add(MenuEntry(
             Loc.Get(kept ? "Tv_Radio_RemoveFavorite" : "Tv_Radio_AddFavorite"),
             () =>
@@ -1009,6 +1027,19 @@ public sealed partial class PegasusChrome
                     "radio", $"{(kept ? "removed from" : "added to")} favourites from its menu: {station.Display}");
             }));
         return ForThisView(menu);
+    }
+
+    /// <summary>
+    /// The saved stations radio shows have changed under it: a shared collection's owner's were read. The
+    /// favourites row is built from them, and the tuner's list and hearts read them again.
+    /// </summary>
+    private void SavedStationsChanged()
+    {
+        if (_radioLastReading is not null)
+            BuildFavoritesRow();
+        _tunerModel?.SavedChanged();
+        RepaintTunerRows();
+        RefocusIfLost();
     }
 
     // ── the remote ──

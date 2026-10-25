@@ -159,9 +159,25 @@ public sealed partial class PegasusChrome
                 break;
         }
 
+        // On a shared collection the star's list and the hearts are its owner's saved stations, read again on
+        // each opening (see RadioService.Saved); the rows already realized are painted for whose they are.
+        Radio.ReadShared();
+        model.SavedChanged();
+        RepaintTunerRows();
+
         model.EnsureLoaded();
         CrossToTuner();
         RPM.Core.Diagnostics.Scope.Said("radio", $"tuner opened: {how}");
+    }
+
+    /// <summary>Paints every realized row again, for a change no row hears of itself: whose saved stations
+    /// the hearts show.</summary>
+    private void RepaintTunerRows()
+    {
+        var count = TunerRows.ItemsSourceView?.Count ?? 0;
+        for (var i = 0; i < count; i++)
+            if (TunerRows.TryGetElement(i) is PegasusStationRow row)
+                row.Repaint();
     }
 
     private RadioModel EnsureTunerModel()
@@ -169,7 +185,7 @@ public sealed partial class PegasusChrome
         if (_tunerModel is { } model)
             return model;
 
-        model = new RadioModel(Radio, DispatcherQueue);
+        model = new RadioModel(Radio, DispatcherQueue) { Saved = () => Radio.Saved };
         model.PropertyChanged += TunerModel_PropertyChanged;
         model.TunedChanged += SyncTunerDial;
         TunerRows.ItemsSource = model.Stations;
@@ -858,7 +874,8 @@ public sealed partial class PegasusChrome
             (FontFamily)Resources["PegasusFa"],
             (FontFamily)Resources["PegasusFaRegular"],
             Press: item => _tunerModel?.Toggle(item),
-            Heart: item => _tunerModel?.ToggleFavorite(item));
+            Heart: item => _tunerModel?.ToggleFavorite(item),
+            HeartPressable: () => _tunerModel?.CanSave ?? true);
 
         var count = TunerRows.ItemsSourceView?.Count ?? 0;
         for (var i = 0; i < count; i++)

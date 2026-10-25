@@ -17,6 +17,9 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <param name="Edge">A search tile's side, in points.</param>
 /// <param name="Menu">A search tile's menu for a held OK or the Menu key, built unshown (see
 /// PegasusChrome.StationMenu). Null where a held OK only presses, as on the tuner's rows.</param>
+/// <param name="HeartPressable">Whether a row's heart may be pressed now. False while the saved stations
+/// are a shared collection's owner's (see RadioService.Saved): the heart then shows their mark and is no
+/// key. Null is always.</param>
 internal sealed record PegasusRadioLook(
     double Scale,
     double Edge,
@@ -25,7 +28,8 @@ internal sealed record PegasusRadioLook(
     FontFamily IconsRegular,
     Action<RadioStationItem> Press,
     Action<RadioStationItem> Heart,
-    Func<RadioStationItem, MenuFlyout?>? Menu = null);
+    Func<RadioStationItem, MenuFlyout?>? Menu = null,
+    Func<bool>? HeartPressable = null);
 
 /// <summary>
 /// One station in the tuner's list, drawn the way the main window's radio pane draws one (RadioView.xaml):
@@ -139,6 +143,10 @@ public sealed partial class PegasusStationRow : Grid
 
     /// <summary>The main part of the row. It is the remote's stop that plays or stops the station.</summary>
     internal Button MainKey => _main;
+
+    /// <summary>Paints the row again, for a change the station does not report itself (whose saved stations
+    /// the heart shows).</summary>
+    internal void Repaint() => Paint();
 
     /// <summary>Gives the row its look. It is called again whenever the look changes. The parts are built
     /// the first time.</summary>
@@ -264,6 +272,13 @@ public sealed partial class PegasusStationRow : Grid
         _heartMark.FontFamily = item.IsFavorite ? look.Icons : look.IconsRegular;
         _heartMark.Foreground = (Brush)Application.Current.Resources[
             item.IsFavorite ? "FavoriteMarkBrush" : "FavoriteMarkIdleBrush"];
+
+        // On a shared collection the heart is the owner's mark, as on the TV: shown filled on their saved
+        // stations, not at all on the others, and never a key.
+        var pressable = look.HeartPressable?.Invoke() ?? true;
+        _heart.IsHitTestVisible = pressable;
+        _heart.IsTabStop = pressable;
+        _heart.Visibility = pressable || item.IsFavorite ? Visibility.Visible : Visibility.Collapsed;
         _playMark.Text = item.PlayGlyph;
     }
 }

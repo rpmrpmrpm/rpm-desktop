@@ -183,4 +183,63 @@ public class CloudShelfTests
         Assert.Contains("limit=2000", asked);
         Assert.Contains($"&owner={Friend}", asked);
     }
+
+    /// <summary>
+    /// A shared collection's owner's saved stations, which its radio shows read only: asked for by
+    /// <c>?owner=</c> on the route the listener's own come from, and believed only when the answer says
+    /// it is theirs (the TV's stationFavoritesOf).
+    /// </summary>
+    private sealed class StationStore(string? owner) : HttpMessageHandler
+    {
+        public List<string> Asked { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken ct)
+        {
+            Asked.Add(request.RequestUri!.PathAndQuery);
+            var named = owner is null ? "" : $",\"owner\":{Named(owner)}";
+            var body = $$$"""
+                {"stations":[
+                  {"uuid":"a1","saved":true,"changedAt":5,"updatedAt":9,
+                   "station":{"uuid":"a1","name":"One","streamUrl":"https://one.test/live","bitrateKbps":128,"isHls":false}},
+                  {"uuid":"b2","saved":false,"changedAt":6,"updatedAt":9,
+                   "station":{"uuid":"b2","name":"Two","streamUrl":"https://two.test/live","bitrateKbps":128,"isHls":false}}
+                ]{{{named}}}}
+                """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+
+    [Fact]
+    public async Task A_shared_collections_saved_stations_are_asked_for_by_owner()
+    {
+        var store = new StationStore(Friend);
+
+        var rows = await Client(store).ListSharedStationFavoritesAsync(CloudShelf.Of(Friend));
+
+        Assert.Equal($"/cloud/station-favorites?since=0&owner={Friend}", Assert.Single(store.Asked));
+        Assert.Equal(["a1", "b2"], rows.Select(r => r.Uuid));
+        Assert.True(rows[0].Saved);
+        Assert.False(rows[1].Saved);
+        Assert.Equal("One", rows[0].Station?.Name);
+    }
+
+    [Fact]
+    public async Task Saved_stations_that_do_not_say_whose_they_are_are_refused()
+    {
+        // A server older than shared stations drops ?owner= and answers with the caller's own.
+        await Assert.ThrowsAsync<CloudShelfNotServedException>(
+            () => Client(new StationStore(null)).ListSharedStationFavoritesAsync(CloudShelf.Of(Friend)));
+    }
+
+    [Fact]
+    public async Task Saved_stations_that_name_somebody_else_are_refused()
+    {
+        await Assert.ThrowsAsync<CloudShelfNotServedException>(
+            () => Client(new StationStore("user-somebody-else"))
+                .ListSharedStationFavoritesAsync(CloudShelf.Of(Friend)));
+    }
 }

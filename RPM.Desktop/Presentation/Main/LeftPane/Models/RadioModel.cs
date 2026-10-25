@@ -1733,6 +1733,29 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
 
     public string FavoritesGlyph => "\uf005";
 
+    /// <summary>
+    /// The saved stations this list shows with the star switch and marks with the heart, where they are not
+    /// the listener's own: a shared collection's owner's, read only (Pegasus's tuner hands it
+    /// RadioService.Saved). Null, or an answer that is the listener's own, lists and marks the listener's
+    /// own as before.
+    /// </summary>
+    public Func<Services.Audio.SavedStations>? Saved { get; set; }
+
+    /// <summary>Somebody else's saved stations, while <see cref="Saved"/> gives them; null for the
+    /// listener's own.</summary>
+    private Services.Audio.SavedStations? Borrowed => Saved?.Invoke() is { Mine: false } theirs ? theirs : null;
+
+    /// <summary>Whether the heart may be pressed: false while the saved stations are somebody else's.</summary>
+    public bool CanSave => Borrowed is null;
+
+    private IReadOnlyList<RadioStation> SavedList => Borrowed?.Stations ?? _radio.Favorites.Stations;
+
+    private bool IsSaved(string uuid) => Borrowed is { } theirs ? theirs.Contains(uuid) : _radio.Favorites.Contains(uuid);
+
+    /// <summary>The saved stations that <see cref="Saved"/> gives have changed (a shared collection's
+    /// owner's were read): the hearts and the star's list are read again.</summary>
+    public void SavedChanged() => OnFavoritesChanged();
+
     /// <summary> What the dial has been narrowed to: a format, a genre, and whether the station
     /// advertises. It is one value, set whole. See <see cref="StationSieve"/>, which is where the
     /// questions are asked.
@@ -2081,7 +2104,7 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
     {
         _query?.Cancel();
         IsBusy = false;
-        var saved = _radio.Favorites.Stations;
+        var saved = SavedList;
         Replace(saved, _favoritesOnly ? Loc.Get("Radio_NoFavorites") : null);
     }
 
@@ -2158,7 +2181,7 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
         {
             Stations.Add(new RadioStationItem(station)
             {
-                IsFavorite = _radio.Favorites.Contains(station.Uuid),
+                IsFavorite = IsSaved(station.Uuid),
                 IsTuned = _radio.IsTuned(station.Uuid),
             });
         }
@@ -2200,6 +2223,8 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
     public void ToggleFavorite(RadioStationItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        if (!CanSave)
+            return;   // somebody else's saved stations: read only
         item.IsFavorite = _radio.Favorites.Toggle(item.Station);
     }
 
@@ -2225,7 +2250,7 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
     private void OnFavoritesChanged() => Post(() =>
     {
         foreach (var item in Stations)
-            item.IsFavorite = _radio.Favorites.Contains(item.Uuid);
+            item.IsFavorite = IsSaved(item.Uuid);
         if (_favoritesOnly)
             ShowFavorites();
     });
