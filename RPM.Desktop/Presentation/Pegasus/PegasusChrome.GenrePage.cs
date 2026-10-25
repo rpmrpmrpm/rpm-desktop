@@ -725,7 +725,7 @@ public sealed partial class PegasusChrome
             }
         }
         if (_genreBandPlainName is not null)
-            _genreBandPlainName.FontSize = 44 * scale;   // the name's couch size, as on the artist's page
+            _genreBandPlainName.FontSize = PageNameSize(scale, at);   // the name's couch size, as on the artist's page
 
         if (_genreCounts is not null)
             _genreCounts.FontSize = PageText * scale;

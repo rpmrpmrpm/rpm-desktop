@@ -1420,7 +1420,7 @@ public sealed partial class PegasusChrome
             ArtistPageRows, ArtistPageRowsFade, ArtistPageContent, _artistRowsFade);
 
         if (_artistName is not null)
-            _artistName.FontSize = 44 * scale;   // the TV's couch sizes here: the name 44, the rest 19 (PAGE_TEXT)
+            _artistName.FontSize = PageNameSize(scale, at);   // the TV's couch sizes here: the name 44, the rest 19 (PAGE_TEXT)
         if (_artistLogo is not null)
             _artistLogo.MaxWidth = at.Column;
         if (_artistCounts is not null)
@@ -1549,6 +1549,15 @@ public sealed partial class PegasusChrome
                     return true;
             return false;
         }
+    }
+
+    /// <summary>The name's size in the band: the TV's 44 before the scale, smaller where two lines of that
+    /// would not fit in the name's box (a short band on a narrow window).</summary>
+    private double PageNameSize(double scale, PageHeaderArt.Places at)
+    {
+        var size = 44 * scale;
+        var two = 2 * PageLineHeight(size) / size;   // two lines, per point of size
+        return Math.Max(PageText * scale, Math.Min(size, at.NameHeight / two));
     }
 
     /// <summary>The height of one line of the band's text at this size, measured once per size.</summary>
