@@ -1321,25 +1321,35 @@
         </Grid>
       </Grid>
 
-      <!-- ═══ one artist ═══ the photograph and the name at the head, then the albums on shelves (see
-           PegasusChrome.ArtistPage). Built in code when it is opened. -->
+      <!-- ═══ one artist ═══ the band at the top, which stays where it is, and under it the rows, which
+           scroll and fade out under the band's foot (see PegasusChrome.ArtistPage and PageHeaderArt). Built
+           in code when it is opened. The rows' wrapper is what the fade cuts, never the scroller it copies;
+           the fade's host paints the copy over the top of the rows. -->
       <Grid x:Name="ArtistPageScreen" Visibility="Collapsed" Opacity="0">
-        <ScrollViewer x:Name="ArtistPageScroll" VerticalScrollBarVisibility="Hidden"
-                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
-                      ViewChanged="PageScroll_ViewChanged">
-          <StackPanel x:Name="ArtistPageContent"/>
-        </ScrollViewer>
+        <Grid x:Name="ArtistPageRows">
+          <ScrollViewer x:Name="ArtistPageScroll" VerticalScrollBarVisibility="Hidden"
+                        HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                        ViewChanged="PageScroll_ViewChanged">
+            <StackPanel x:Name="ArtistPageContent"/>
+          </ScrollViewer>
+        </Grid>
+        <Grid x:Name="ArtistPageRowsFade" VerticalAlignment="Top" IsHitTestVisible="False"/>
+        <Grid x:Name="ArtistPageBand" VerticalAlignment="Top"/>
       </Grid>
 
-      <!-- ═══ one genre ═══ a header across the whole width from the top of the screen, with the genre's
-           photograph in its colour, then shelves (see PegasusChrome.GenrePage). Built in code when it is
+      <!-- ═══ one genre ═══ laid out as an artist's page: the band at the top with the genre's photograph
+           and wordmark, and the rows under it (see PegasusChrome.GenrePage). Built in code when it is
            opened. -->
       <Grid x:Name="GenrePageScreen" Visibility="Collapsed" Opacity="0">
-        <ScrollViewer x:Name="GenrePageScroll" VerticalScrollBarVisibility="Hidden"
-                      HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
-                      ViewChanged="PageScroll_ViewChanged">
-          <StackPanel x:Name="GenrePageContent"/>
-        </ScrollViewer>
+        <Grid x:Name="GenrePageRows">
+          <ScrollViewer x:Name="GenrePageScroll" VerticalScrollBarVisibility="Hidden"
+                        HorizontalScrollMode="Disabled" BringIntoViewOnFocusChange="False"
+                        ViewChanged="PageScroll_ViewChanged">
+            <StackPanel x:Name="GenrePageContent"/>
+          </ScrollViewer>
+        </Grid>
+        <Grid x:Name="GenrePageRowsFade" VerticalAlignment="Top" IsHitTestVisible="False"/>
+        <Grid x:Name="GenrePageBand" VerticalAlignment="Top"/>
       </Grid>
 
       <!-- The mini player, over both screens. Nothing is under it in this grid: the wall and home run the

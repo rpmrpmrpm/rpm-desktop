@@ -496,7 +496,9 @@ public sealed partial class PegasusChrome
     {
         if (_collection == CollectionScreen.Search)
             return AcrossSearch(from, direction, next);   // the search screen's own rule (see PegasusChrome.SearchScreen)
-        if (next is not null || _collection is not (CollectionScreen.Artist or CollectionScreen.Genre or CollectionScreen.Playlists))
+        if (_collection is CollectionScreen.Artist or CollectionScreen.Genre)
+            return AcrossPageBand(from, direction, next, screen);   // the band over the rows (see PegasusChrome.ArtistPage)
+        if (next is not null || _collection is not CollectionScreen.Playlists)
             return next;
         return RemoteSearch.NearestRow(from, direction, ArtistsGenresScroll, screen);
     }

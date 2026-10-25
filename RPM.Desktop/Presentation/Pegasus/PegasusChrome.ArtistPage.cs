@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Library;
 using RPM.Core.Metadata.Providers;
@@ -15,27 +16,30 @@ using Loc = RPM.Desktop.Strings.Loc;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// One artist's page in Pegasus: the photograph beside the name, the first whole sentences of what the
-/// encyclopedia says about them, how much of their work the collection holds, a key to play all of it and
-/// one to shuffle it, then their popular songs in columns of four, and then their records on shelves that
-/// scroll sideways. OK on a song plays the popular songs from it, and a held OK or the Menu key opens the
-/// song's menu (see <see cref="PopularSongMenu"/>); OK on a record opens the record page, and
-/// Back comes back here.
+/// One artist's page in Pegasus: a band across the top with their photograph at the right and, left of it,
+/// their name (or logo), the first whole sentences of what the encyclopedia says about them, how much of
+/// their work the collection holds, a key to play all of it and one to shuffle it; then, under the band,
+/// their popular songs in columns of four, and their records on shelves that scroll sideways. OK on a song
+/// plays the popular songs from it, and a held OK or the Menu key opens the song's menu (see
+/// <see cref="PopularSongMenu"/>); OK on a record opens the record page, and Back comes back here.
 ///
-/// <para><b>The head reads as the Android TV app's.</b> The name (or logo), the article and the counts are
-/// centred in their column, the article cut at the last whole sentence that fits in four lines (see
-/// <see cref="CutArtistAbout"/>), the counts under it. An article or popular songs that arrive after the
-/// page has opened fade in while they rise into place, and what is under them glides down to make room
-/// (see <see cref="Arrival"/>), rather than appearing at once and pushing the page down.</para>
+/// <para><b>The band reads as the Android TV app's</b> (PageBand, see <see cref="PageHeaderArt"/>). The
+/// photograph fills the right of the screen, dissolving toward its left and its foot, and the page's room
+/// is lit in its colours. The band stays where it is: the rows scroll under it and fade out under its foot
+/// (see <see cref="PageRowsFade"/>). The name, the article, the counts and the keys are centred in the left
+/// column, the article cut at the last whole sentence that fits in four lines (see
+/// <see cref="CutArtistAbout"/>). An article or popular songs that arrive after the page has opened fade in
+/// while they rise into place, and what is under them glides down to make room (see <see cref="Arrival"/>),
+/// rather than appearing at once and pushing the page down.</para>
 ///
 /// <para><b>The article is found through the act's own records</b>, never by the name alone (see
 /// <see cref="LoadArtistAboutAsync"/>): a name picks one of every act called that, and Michael Jackson's
 /// page showed somebody else's article.</para>
 ///
 /// <para><b>From the desktop artist page, for a remote.</b> The same shelves, in the same order and by the
-/// same rule (<see cref="ArtistShelves"/>), the same photograph
-/// (<see cref="ArtistPortraits.SquareAsync"/>), logo (<see cref="ArtistLogos"/>) and biography
-/// (<see cref="TrackInfoService"/>). The desktop page's two columns become a head with shelves under it. A
+/// same rule (<see cref="ArtistShelves"/>), the same photographs (<see cref="ArtworkService"/>), logo
+/// (<see cref="ArtistLogos"/>) and biography (<see cref="TrackInfoService"/>). The desktop page's two
+/// columns become a band with shelves under it. A
 /// page read from across a room is read top to bottom, and it is moved along with Left and Right, as home
 /// and radio are. Left out: the photo pager, the community wall, Discogs' most popular and the members
 /// list. Those are for reading and writing at a desk. Also left out is the list of every song, which Play
@@ -67,17 +71,28 @@ public sealed partial class PegasusChrome
     private readonly List<ShelfCard> _artistPageCards = [];
     private readonly List<ShelfRow> _artistPageRows = [];
 
-    // The head's parts, kept so a resize can size them without building the page again.
-    private Border? _artistPortrait;
-    private Image? _artistPortraitArt;
-    private TextBlock? _artistPortraitStand;
+    // The band's parts, kept so a resize can size them without building the page again.
+    private Image? _artistBandPhoto;
+    private StackPanel? _artistColumn;
+    private Grid? _artistNameBox;
     private TextBlock? _artistName;
     private Image? _artistLogo;
     private TextBlock? _artistCounts;
     private Grid? _artistKeys;
     private Button? _artistShuffleKey;
     private TextBlock? _artistAbout;
-    private Grid? _artistHead;
+
+    /// <summary>The rows fading under the band. Made on the first build, for the life of the
+    /// chrome.</summary>
+    private PageRowsFade? _artistRowsFade;
+
+    /// <summary>The pixels the band's photograph was last drawn at, so a size pass that changed nothing
+    /// draws nothing.</summary>
+    private (int W, int H) _artistBandDrawnFor;
+
+    /// <summary>The photograph drawing in flight. Each drawing takes the next number, and one that finishes
+    /// to find a newer number drops what it drew.</summary>
+    private int _artistBandDraw;
 
     /// <summary>What the article sits in. Its height is what a late article grows from nothing, so the
     /// counts and the keys under it glide down rather than jump.</summary>
@@ -122,8 +137,8 @@ public sealed partial class PegasusChrome
     /// <summary>How many popular songs stand in a column.</summary>
     private const int ArtistPopularDown = 4;
 
-    /// <summary>The photograph's bytes, for cutting it again at a new size.</summary>
-    private byte[]? _artistPortraitBytes;
+    /// <summary>The photograph's bytes, for drawing it again at a new size.</summary>
+    private byte[]? _artistPhotoBytes;
 
     // Building the page.
 
@@ -134,46 +149,30 @@ public sealed partial class PegasusChrome
         _artistPageBuiltAt = _clock.Elapsed.TotalSeconds;
         var read = _artistPageRead;
         var plain = (Style)Resources["PegasusPlainButton"];
-        var icons = (FontFamily)Resources["PegasusFa"];
         var compilations = ArtistCredit.IsVariousArtists(act.Name);
 
         var shelves = ArtistShelves.Of(act, shelf.AlbumFacts, shelf.AlbumReleaseTypes);
         _artistShelves = shelves;
 
-        // The head: the photograph, and beside it the name, the about text, the counts and the keys, all
-        // centred in their column, as the Android TV app's band has them.
-        var head = new Grid();
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        _artistHead = head;
-
-        _artistPortraitStand = new TextBlock
+        // The band: the photograph at the right (drawn when it lands, see DrawArtistBand), and in the left
+        // column the name, the about text, the counts and the keys, all centred in the column, as the
+        // Android TV app's band has them. It stands over the rows, which scroll under it.
+        var band = ArtistPageBand;
+        band.Children.Clear();
+        _artistBandPhoto = new Image
         {
-            Text = compilations ? "\uf0c0" : ArtistWall.Initial(act.Name).ToString(),
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
+            Stretch = Stretch.Fill,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
         };
-        if (compilations)
-            _artistPortraitStand.FontFamily = icons;
-        _artistPortraitArt = new Image { Stretch = Stretch.UniformToFill };
-        var inside = new Grid();
-        inside.Children.Add(_artistPortraitStand);
-        inside.Children.Add(_artistPortraitArt);
-        _artistPortrait = new Border
-        {
-            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-            Child = inside,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetColumn(_artistPortrait, 0);
-        head.Children.Add(_artistPortrait);
+        band.Children.Add(_artistBandPhoto);
 
-        var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(words, 1);
-        head.Children.Add(words);
+        var words = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        _artistColumn = words;
+        band.Children.Add(words);
 
+        // The name's box: the logo fills it where there is one, the name is centred in it until then.
         _artistName = new TextBlock
         {
             Text = act.Name,
@@ -184,16 +183,20 @@ public sealed partial class PegasusChrome
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
         _artistLogo = new Image
         {
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             Visibility = Visibility.Collapsed,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_artistLogo, act.Name);
-        words.Children.Add(_artistName);
-        words.Children.Add(_artistLogo);
+        _artistNameBox = new Grid();
+        _artistNameBox.Children.Add(_artistName);
+        _artistNameBox.Children.Add(_artistLogo);
+        words.Children.Add(_artistNameBox);
 
         // The article, under the name and over the counts. Collapsed until there is one; its host is what a
         // late article grows (see Arrival).
@@ -251,7 +254,7 @@ public sealed partial class PegasusChrome
         _artistKeys.Children.Add(_artistShuffleKey);
         words.Children.Add(_artistKeys);
 
-        ArtistPageContent.Children.Add(head);
+        _artistRowsFade ??= new PageRowsFade(ArtistPageScroll, ArtistPageRows, ArtistPageRowsFade);
 
         // The popular songs' place, filled when they are read (see ReadArtistPopularAsync).
         _artistPopularSlot = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
@@ -280,7 +283,7 @@ public sealed partial class PegasusChrome
 
         var first = act.Own.Select(f => shelf.AlbumFacts.TryGetValue(f, out var facts) ? facts.Album : null)
                            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
-        LoadArtistPortraitAsync(act.Name, first, read);
+        LoadArtistPhotoAsync(act.Name, first, read);
         LoadArtistLogoAsync(act.Name, first, read);
         LoadArtistAboutAsync(act, shelves, shelf, read);
     }
@@ -353,19 +356,34 @@ public sealed partial class PegasusChrome
 
     // What is fetched for the page.
 
-    /// <summary>The photograph, at the head's size, and the room lit in its colours.</summary>
-    private async void LoadArtistPortraitAsync(string name, string? firstRecord, int read)
+    /// <summary>
+    /// The photograph for the band, and the room lit in its colours. The band takes the act's wide
+    /// photograph, the first of their backdrops as the artwork service ranks them (an admin's own pictures
+    /// first), and their square one where they have no wide one: the Android TV app's choice.
+    /// </summary>
+    private async void LoadArtistPhotoAsync(string name, string? firstRecord, int read)
     {
-        var chosen = await ArtistPortraits.SquareAsync(name, firstRecord);
-        if (read != _artistPageRead || !chosen.Answers(out var url, out _) || url is null)
+        var asked = await App.Services.GetRequiredService<ArtworkService>().GetAsync(name, firstRecord);
+        if (read != _artistPageRead || !asked.Answers(out var art, out _))
+            return;
+        var url = art.Backgrounds.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+                  ?? art.Thumbs.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
+        if (url is null)
             return;
 
         var picture = await ArtistPortraits.PictureAsync(url);
         if (read != _artistPageRead || !picture.Answers(out var portrait, out _) || portrait is null)
             return;
 
-        _artistPortraitBytes = portrait.Full ?? portrait.Thumb;
-        await ShowArtistPortraitAsync(read);
+        // The full photograph, for a band most of a screen wide. A portrait from the cache keeps only its
+        // cut-down copy, so the full one is read again, from the web cache under the fetch.
+        var full = portrait.Full;
+        if (full is null && (await RemoteImage.BytesAsync(url)).Answers(out var fetched, out _))
+            full = fetched;
+        if (read != _artistPageRead)
+            return;
+        _artistPhotoBytes = full ?? portrait.Thumb;
+        DrawArtistBand();
 
         try
         {
@@ -381,31 +399,42 @@ public sealed partial class PegasusChrome
         }
     }
 
-    /// <summary>Cuts the photograph to the head's circle at its present size and shows it.</summary>
-    private async Task ShowArtistPortraitAsync(int read)
+    /// <summary>
+    /// Draws the band's photograph for its present size on a worker (<see cref="PageHeaderArt.Draw"/>) and
+    /// shows it, if the page and the size are still the ones it was drawn for. Asked by the photograph
+    /// landing and by every size pass; a pass that changed nothing draws nothing.
+    /// </summary>
+    private async void DrawArtistBand()
     {
-        if (_artistPortraitBytes is not { } bytes || _artistPortrait is null)
+        if (_artistPhotoBytes is not { } photo || _artistBandPhoto is not { Width: > 0, Height: > 0 } box)
             return;
 
-        var edge = (int)Math.Ceiling(_artistPortrait.Width * (XamlRoot?.RasterizationScale is > 0 and var s ? s : 1));
-        if (edge <= 0)
+        var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
+        var (wide, tall) = PageHeaderArt.PixelsFor(box.Width, box.Height, raster);
+        if (_artistBandDrawnFor == (wide, tall))
             return;
+        _artistBandDrawnFor = (wide, tall);
+
+        var read = _artistPageRead;
+        var draw = ++_artistBandDraw;
+        PageHeaderArt.Drawn? drawn;
         try
         {
-            var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
-            if (read != _artistPageRead || _artistPortraitArt is null || _artistPortraitStand is null)
-                return;
-            _artistPortraitArt.Source = bitmap;
-            _artistPortraitStand.Visibility = Visibility.Collapsed;
+            drawn = await Task.Run(() => PageHeaderArt.Draw(photo, wide, tall, down: 0.5));
         }
         catch (Exception ex)
         {
-            // Not a picture the decoder reads. The letter stays.
+            // Not a picture the decoder reads. The band stands on the room.
             RPM.Core.Diagnostics.Faults.Note("pegasus", "an artist page's photograph", ex);
+            return;
         }
+
+        if (read != _artistPageRead || draw != _artistBandDraw || drawn is null || _artistBandPhoto is null)
+            return;
+        _artistBandPhoto.Source = PageHeaderArt.Show(drawn);
     }
 
-    /// <summary>The act's logo, where the catalogues have one. It is drawn in the name's place and cut to
+    /// <summary>The act's logo, where the catalogues have one. It is drawn in the name's box and cut to
     /// the height it is drawn at. A logo from the catalogue is many times larger than that, and the
     /// decoder's own reduction would drop most of its detail, so the logo is cut first.</summary>
     private async void LoadArtistLogoAsync(string name, string? firstRecord, int read)
@@ -414,7 +443,7 @@ public sealed partial class PegasusChrome
         if (read != _artistPageRead || bytes is not { Length: > 0 } || _artistLogo is null || _artistName is null)
             return;
 
-        var cap = ArtistLogoHeight * QueueScale;
+        var cap = _artistNameBox is { Height: > 0 } box ? box.Height : ArtistLogoHeight * QueueScale;
         var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
         int tall;
         Microsoft.UI.Xaml.Media.Imaging.BitmapImage mark;
@@ -439,7 +468,8 @@ public sealed partial class PegasusChrome
         _artistName.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>The logo's tallest, before the scale.</summary>
+    /// <summary>The logo's tallest before the scale, for a logo that lands before the band has a
+    /// size.</summary>
     private const double ArtistLogoHeight = 92;
 
     /// <summary>How many of the act's own records are asked about before the act is taken to be in no
@@ -1030,16 +1060,17 @@ public sealed partial class PegasusChrome
         _artistPlayKey = null;
         _artistShuffleKey = null;
         _artistShelves = null;
-        _artistPortrait = null;
-        _artistPortraitArt = null;
-        _artistPortraitStand = null;
-        _artistPortraitBytes = null;
+        _artistBandPhoto = null;
+        _artistColumn = null;
+        _artistNameBox = null;
+        _artistPhotoBytes = null;
+        _artistBandDrawnFor = default;
+        _artistBandDraw++;
         _artistName = null;
         _artistLogo = null;
         _artistCounts = null;
         _artistKeys = null;
         _artistAbout = null;
-        _artistHead = null;
         _artistAboutHost = null;
         _artistAboutProse = null;
         _artistAboutCutAt = default;
@@ -1050,74 +1081,58 @@ public sealed partial class PegasusChrome
         _artistPageCards.Clear();
         _artistPageRows.Clear();
         ArtistPageContent.Children.Clear();
+        ArtistPageBand.Children.Clear();
     }
 
     // Sizes.
 
     /// <summary>
-    /// The page at this scale: the head's photograph a fifth of the width (and no taller than a third of
-    /// the screen), the name at 40 before the scale, and the shelves' cards six to the width, as radio's
-    /// favourites are.
+    /// The page at this scale: the band as the TV lays it out (see <see cref="SizePageBand"/>), the name
+    /// at 44 and the rest of the column at 19 before the scale, the TV's couch sizes, and the shelves'
+    /// cards six to the width, as radio's favourites are.
     /// </summary>
     private void SizeArtistPage(double scale)
     {
-        if (_artistHead is null)
+        if (_artistBandPhoto is null || _artistColumn is null || _artistNameBox is null)
             return;
 
         var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
-        var height = LibraryLayer.ActualHeight > 0 ? LibraryLayer.ActualHeight : Root.ActualHeight;
         if (width <= 1)
             return;
 
         var strip = Math.Max(320, width - (LibraryEdgeInset * 2));
-        // The content's own padding, not the scroller's padding or the content's margin. A scroller clips
-        // at its content's bounds (see ShelfRow.Size). At the top there is only the back key's line, as
-        // home and radio start. No room is kept for the mini player's card. That card is down here while
-        // nothing is playing (see PegasusChrome.PlayerAway), and it stands over the page while something is
-        // playing, as it stands over home.
-        ArtistPageContent.Padding = new Thickness(LibraryEdgeInset, HomeTopPad, LibraryEdgeInset, 34 * scale);
+        var at = SizePageBand(
+            scale, width, _artistBandPhoto, _artistColumn, _artistNameBox,
+            ArtistPageRows, ArtistPageRowsFade, ArtistPageContent, _artistRowsFade);
 
-        var edge = Math.Clamp(strip * 0.2, 140, Math.Max(140, height * 0.34));
-        var portraitChanged = _artistPortrait is not null && Math.Abs(_artistPortrait.Width - edge) > 0.5;
-        if (_artistPortrait is not null)
-        {
-            _artistPortrait.Width = _artistPortrait.Height = edge;
-            _artistPortrait.CornerRadius = new CornerRadius(edge / 2);
-        }
-        if (_artistPortraitStand is not null)
-            _artistPortraitStand.FontSize = edge * 0.36;
-
-        _artistHead.ColumnSpacing = 40 * scale;
         if (_artistName is not null)
             _artistName.FontSize = 44 * scale;   // the TV's couch sizes here: the name 44, the rest 19 (PAGE_TEXT)
+        if (_artistLogo is not null)
+            _artistLogo.MaxWidth = at.Column;
         if (_artistCounts is not null)
-        {
             _artistCounts.FontSize = 19 * scale;
-            _artistCounts.Margin = new Thickness(0, 10 * scale, 0, 0);
-        }
         if (_artistKeys is not null)
         {
             _artistKeys.ColumnSpacing = 10 * scale;
-            _artistKeys.Margin = new Thickness(0, 20 * scale, 0, 0);
+            _artistKeys.Margin = new Thickness(0, PageKeysGap * scale, 0, 0);
         }
         if (_artistPlayKey is not null)
         {
-            _artistPlayKey.Height = 46 * scale;
+            _artistPlayKey.Height = PageKeyHeight * scale;
             _artistPlayKey.Padding = new Thickness(24 * scale, 0, 24 * scale, 0);
         }
         if (_artistShuffleKey is not null)
         {
-            _artistShuffleKey.Height = 46 * scale;
+            _artistShuffleKey.Height = PageKeyHeight * scale;
             _artistShuffleKey.Width = 56 * scale;
         }
-        // The article as wide as its column, at most 900 before the scale, and cut again to the sentences
-        // that fit at that width.
-        _artistAboutWidth = Math.Max(160, Math.Min(900 * scale, strip - edge - (40 * scale)));
+        // The article as wide as the column, and cut again to the sentences that fit at that width.
+        _artistAboutWidth = Math.Max(160, at.Column);
         if (_artistAbout is not null)
         {
-            _artistAbout.FontSize = 19 * scale;
+            _artistAbout.FontSize = PageText * scale;
             _artistAbout.MaxWidth = _artistAboutWidth;
-            _artistAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
+            _artistAbout.Margin = new Thickness(0, 0, 0, PageAboutGap * scale);
             CutArtistAbout();
         }
         _artistPopularSize?.Invoke(scale);
@@ -1129,7 +1144,111 @@ public sealed partial class PegasusChrome
         foreach (var each in _artistPageCards)
             each.Size(card, scale);
 
-        if (portraitChanged)
-            _ = ShowArtistPortraitAsync(_artistPageRead);
+        DrawArtistBand();
     }
+
+    // The band's column, as the TV draws it, before the scale: the article and the counts at 19 (PAGE_TEXT),
+    // 10 under the article, and Pegasus's keys 20 under the counts, 46 tall.
+    private const double PageText = 19;
+    private const double PageAboutGap = 10;
+    private const double PageKeysGap = 20;
+    private const double PageKeyHeight = 46;
+
+    /// <summary>
+    /// The band of an artist's or a genre's page at this scale, as the TV lays it out (see
+    /// <see cref="PageHeaderArt.For"/>): the photograph's box at the right, the column at the left with the
+    /// name's box at its head, and the rows under the band, starting where the band's foot fades them.
+    ///
+    /// <para>The rows start under the column at its fullest (the name's box, four lines of article, the
+    /// counts and the keys) wherever that is lower than the TV's place, so the keys never have rows passing
+    /// under them. It does not move when an article arrives late.</para>
+    /// </summary>
+    /// <returns>The band's places, for what the page sizes itself.</returns>
+    private PageHeaderArt.Places SizePageBand(
+        double scale, double width, Image photo, StackPanel column, Grid nameBox,
+        FrameworkElement rows, FrameworkElement fadeHost, StackPanel content, PageRowsFade? fade)
+    {
+        var at = PageHeaderArt.For(width, HomeTopPad);
+
+        photo.Width = at.Photo;
+        photo.Height = at.High;
+        column.Width = at.Column;
+        column.Margin = new Thickness(LibraryEdgeInset, at.NameTop, 0, 0);
+        nameBox.Height = at.NameHeight;
+        nameBox.Margin = new Thickness(0, 0, 0, at.Gap);
+
+        var line = PageLineHeight(PageText * scale);
+        var foot = at.NameTop + at.NameHeight + at.Gap
+                   + (ArtistAboutLines * line) + (PageAboutGap * scale)
+                   + line
+                   + ((PageKeysGap + PageKeyHeight + 12) * scale);
+        var top = at.RowsTop(foot);
+
+        // The content's own padding, not the scroller's padding or the content's margin: a scroller clips at
+        // its content's bounds (see ShelfRow.Size). At its top, the depth the rows fade over, so nothing is
+        // under the band's foot until the page is scrolled. No room is kept for the mini player's card. That
+        // card is down here while nothing is playing (see PegasusChrome.PlayerAway), and it stands over the
+        // band while something is playing, as it stands over home.
+        rows.Margin = new Thickness(0, top, 0, 0);
+        fadeHost.Margin = new Thickness(0, top, 0, 0);
+        fadeHost.Height = at.Under;
+        content.Padding = new Thickness(LibraryEdgeInset, at.Under, LibraryEdgeInset, 34 * scale);
+        if (fade is not null)
+            fade.Depth = at.Under;
+        return at;
+    }
+
+    /// <summary>
+    /// Up and Down between an artist's or a genre's band and the rows under it. The keys stand in the band,
+    /// outside the rows' scroller, so the rows' own rule (<see cref="RemoteSearch.NearestRow"/>) does not
+    /// see them:
+    /// <list type="bullet">
+    /// <item>Up from the top row reaches the band's play key, from any column of the row.</item>
+    /// <item>Up from the band stays in the band. What is above the keys in the rows has scrolled away under
+    /// the band, and is not on screen.</item>
+    /// </list>
+    /// Everything else is the search by layout, then the rows' own rule.
+    /// </summary>
+    /// <param name="next">Where the search by layout would move the focus, or null.</param>
+    private Control? AcrossPageBand(FrameworkElement from, FocusNavigationDirection direction, Control? next, RemoteScreen screen)
+    {
+        var (band, scroll, play) = _collection == CollectionScreen.Artist
+            ? (ArtistPageBand, ArtistPageScroll, _artistPlayKey)
+            : (GenrePageBand, GenrePageScroll, _genrePlayKey);
+
+        if (Inside(from, band))
+        {
+            if (direction == FocusNavigationDirection.Up && next is not null && Inside(next, scroll))
+                return null;
+            return next ?? RemoteSearch.NearestRow(from, direction, scroll, screen);
+        }
+
+        if (next is not null)
+            return next;
+        return RemoteSearch.NearestRow(from, direction, scroll, screen)
+               ?? (direction == FocusNavigationDirection.Up ? play : null);
+
+        static bool Inside(DependencyObject element, DependencyObject scope)
+        {
+            for (DependencyObject? node = element; node is not null; node = VisualTreeHelper.GetParent(node))
+                if (ReferenceEquals(node, scope))
+                    return true;
+            return false;
+        }
+    }
+
+    /// <summary>The height of one line of the band's text at this size, measured once per size.</summary>
+    private double PageLineHeight(double size)
+    {
+        if (Math.Abs(_pageLineFor.Size - size) < 0.01 && _pageLineFor.Height > 0)
+            return _pageLineFor.Height;
+        // A digit: a line's height is the face's, whatever is on it.
+        var probe = new TextBlock { FontSize = size, FontFamily = FontFamily, Text = "0" };
+        probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var height = probe.DesiredSize.Height > 0 ? probe.DesiredSize.Height : size * 1.33;
+        _pageLineFor = (size, height);
+        return height;
+    }
+
+    private (double Size, double Height) _pageLineFor;
 }
