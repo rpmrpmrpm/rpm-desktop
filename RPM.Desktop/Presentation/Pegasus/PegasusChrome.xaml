@@ -926,6 +926,14 @@
       <Grid x:Name="LibraryBottomFade" VerticalAlignment="Bottom" Height="0"
             IsHitTestVisible="False" SizeChanged="LibraryBottomFade_SizeChanged"/>
 
+      <!-- The wall as a carousel, the other view of it chosen in the settings (Album view): the covers on an
+           arc over a black ground, the card naming the record in front, and the remote's stops. Built in
+           code on first use (see PegasusChrome.AlbumCarousel); in the tree only while it is the view chosen
+           and the wall has records. Over the grid's wrapper, which is collapsed while it is shown, and under
+           the tools and the line for an empty wall. -->
+      <Grid x:Name="CarouselHost" Visibility="Collapsed" Background="Black"
+            SizeChanged="CarouselHost_SizeChanged"/>
+
       <!-- What is shown in the wall's place while it is being read, or where there is nothing to read. -->
       <TextBlock x:Name="LibraryEmpty" Visibility="Collapsed"
                  Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"

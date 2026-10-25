@@ -3140,6 +3140,7 @@ public sealed partial class PegasusChrome : UserControl
         TickDrag(dt);
         TickSwipe(dt);   // …and a swiped line coming home
         TickWheel(dt);   // …and the collection travelling under the wheel
+        TickCarousel(dt);   // …and the album carousel turning (see PegasusChrome.AlbumCarousel)
         TickRadio(dt);   // …and radio's banner stepping, its wheel turning, and the tuner's waiting menu
         TickArtistsGenres();   // …and the artists list's photographs, three asked at a time
 

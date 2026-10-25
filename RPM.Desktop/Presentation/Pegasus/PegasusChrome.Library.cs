@@ -429,6 +429,7 @@ public sealed partial class PegasusChrome
         if (screen != CollectionScreen.Wall)
             return;
 
+        ApplyAlbumView();      // the grid or the carousel, in the order the settings say (see AlbumCarousel)
         UpdateLibraryFade();   // the foot of the wall dissolves from the first frame it is up
 
         // A screen that has been collapsed takes its next pass with no viewport to speak of, which is
@@ -608,6 +609,7 @@ public sealed partial class PegasusChrome
         // At the count this screen's scale asks for (see LibraryColumnsAt).
         _wallCards = cards;
         CutWall(LibraryColumnsAt(QueueScale));
+        CarouselWallChanged();   // …and the carousel, when it is the view, starts again at the first record
 
         if (cards.Count == 0)
         {

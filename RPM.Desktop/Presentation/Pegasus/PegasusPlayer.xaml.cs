@@ -1576,6 +1576,11 @@ public sealed partial class PegasusPlayer : UserControl
             Stepped("closed the drawer");
             return;
         }
+        if (_chrome?.CloseCarouselLetters() == true)
+        {
+            Stepped("closed the album carousel's letters");
+            return;
+        }
         if (_chrome is { IsLibrarySearchFocused: true })
         {
             _chrome.DropLibrarySearchFocus();

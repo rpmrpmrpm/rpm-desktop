@@ -320,6 +320,7 @@ public sealed partial class PegasusChrome
         _wallScreenFade.To(1, ScreenCrossMs, null);
         LeaveScreen(from);
 
+        ApplyAlbumView();   // the grid or the carousel, in the order the settings say (see AlbumCarousel)
         UpdateLibraryFade();
         SeatWall();
         CheckAnchorLater();

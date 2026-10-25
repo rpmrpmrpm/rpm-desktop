@@ -117,6 +117,7 @@ public sealed partial class SettingsService
         bool LockedListsHidden = false,
         AlbumOrdering AlbumOrdering = AlbumOrdering.Artist,
         AlbumOrdering PegasusAlbumOrdering = AlbumOrdering.Artist,
+        bool PegasusAlbumCarousel = false,
         AlbumGrouping AlbumGrouping = AlbumGrouping.None,
         ArtistTrackGrouping ArtistTrackGrouping = ArtistTrackGrouping.Letter,
         string? CustomBackgroundPath = null,
@@ -542,6 +543,15 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusAlbumOrdering;
         set => Update(_model with { PegasusAlbumOrdering = value }, notify: false);
+    }
+
+    /// <summary>Whether Pegasus's album wall is shown as a carousel rather than a grid, as the Android TV
+    /// app's Album view setting chooses (Grid until changed). Saved quietly: only Pegasus reads it, when its
+    /// wall comes up.</summary>
+    public bool PegasusAlbumCarousel
+    {
+        get => _model.PegasusAlbumCarousel;
+        set => Update(_model with { PegasusAlbumCarousel = value }, notify: false);
     }
 
     /// <summary>What the album list gathers its records under. See <see cref="AlbumGrouping"/>. It is saved

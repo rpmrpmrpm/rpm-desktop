@@ -179,6 +179,11 @@ public sealed partial class PegasusChrome
         if (ReferenceEquals(screen.Area, TunerLayer))
             return AcrossTuner(from, direction, next);
 
+        // The album wall as a carousel: Up opens its letters, Down the front record's menu, and Down from the
+        // tools comes back to it (see PegasusChrome.AlbumCarousel).
+        if (ReferenceEquals(screen.Area, LibraryLayer) && _collection == CollectionScreen.Wall && _carouselOn)
+            return AcrossCarousel(from, direction, next);
+
         // The album wall and the artists list: Up from the first row reaches the sort key, and Down from
         // the tools comes back (see PegasusChrome.LibraryTools).
         if (ReferenceEquals(screen.Area, LibraryLayer) && _collection is CollectionScreen.Wall or CollectionScreen.Artists)
@@ -304,6 +309,11 @@ public sealed partial class PegasusChrome
             return RadioFocusTarget();
         if (IsArtistsGenres(_collection))
             return ArtistsGenresFocusTarget();
+
+        // The wall as a carousel: its stop over the front cover (see PegasusChrome.AlbumCarousel).
+        if (_carouselOn)
+            return CarouselFocusTarget()
+                   ?? (_wallCards.Count == 0 && LibraryEmpty.Visibility == Visibility.Visible ? LibrarySearch : null);
 
         // The wall: its first card in the rows that are realized. The search field is the target only
         // when the wall has been filled and holds no albums (none exist, or none match), and shows its
@@ -565,6 +575,10 @@ public sealed partial class PegasusChrome
         var since = Math.Min(0.25, (now - _turnedAt) / 1000.0);
         _turnedAt = now;
 
+        // The album carousel's covers and letter wheel turn on their own terms (see PegasusChrome.AlbumCarousel).
+        if (CarouselTurn(focused, way, repeat) is { } carousel)
+            return carousel;
+
         switch (focused)
         {
             case SeekBar bar:
@@ -619,6 +633,7 @@ public sealed partial class PegasusChrome
         LyricSeek.CommitStep();
         LibrarySeek.CommitStep();
         CommitDialStep();
+        CarouselKeyUp();   // …and a held turn of the album carousel glides to rest
     }
 
     // ── a track's menu ──

@@ -173,7 +173,8 @@ public sealed partial class PegasusChrome
         // pointer at the top edge is: the card comes back while the focus is there.
         var focused = KeyboardDriven && FocusWithin(LibraryPlayer);
 
-        var up = !MarkKeptOff
+        // The album carousel's letter wheel covers the card while it is open, as the TV's covers its mini player.
+        var up = !MarkKeptOff && !CarouselLettersOpen
                  && (!inFront || _peek || focused || (!_scrolledAway && (on || _markSeen < PlayerAwayAfter)));
 
         // Out of reach as soon as it starts going, in reach as soon as it starts coming: a card on its
