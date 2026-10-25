@@ -53,7 +53,7 @@ public sealed partial class PegasusFaceMetrics : INotifyPropertyChanged
     /// <summary>The letter drawn where there is no photograph: two fifths of the circle.</summary>
     public double InitialSize => _edge * 0.4;
 
-    /// <summary>The margin of the photograph's holder. It gives the focus zoom room (see
+    /// <summary>The margin of the photograph's holder. It gives the photograph room (see
     /// <see cref="FocusLift"/>).</summary>
     public Thickness HolderMargin => FocusLift.HolderMargin(_edge);
 
@@ -188,8 +188,8 @@ internal sealed class ShelfCard
     private readonly StackPanel _stack = new();
     private readonly CardShape _shape;
 
-    /// <summary>The round photograph's holder, which gives the focus zoom room (see <see cref="FocusLift"/>).
-    /// It is null on a square card, which keeps the glow.</summary>
+    /// <summary>The round photograph's holder, which gives it room on every side (see <see cref="FocusLift"/>).
+    /// It is null on a square card.</summary>
     private readonly Grid? _holder;
 
     /// <param name="stand">What is drawn in the frame until a picture arrives. It stays for good where no
@@ -255,16 +255,12 @@ internal sealed class ShelfCard
             titleRow.Children.Add(_badge);
         }
 
-        // A round card is an artist. It is shown the way the tvOS app shows one (see FocusLift): the photograph
-        // sits in a holder with room for its zoom, and the lines below it are marked to move down. A square
-        // card keeps the glow.
+        // A round card is an artist. Its photograph sits in a holder with room round it (see FocusLift).
         if (shape == CardShape.Round)
         {
             _holder = new Grid();
             _holder.Children.Add(_frame);
             _stack.Children.Add(_holder);
-            FocusLift.SetPart(_frame, LiftPart.Photo);
-            FocusLift.SetPart(titleRow, LiftPart.Below);
         }
         else
         {
@@ -282,8 +278,6 @@ internal sealed class ShelfCard
                 TextAlignment = shape == CardShape.Round ? TextAlignment.Center : TextAlignment.Left,
             };
             _stack.Children.Add(_line);
-            if (shape == CardShape.Round)
-                FocusLift.SetPart(_line, LiftPart.Below);
         }
 
         _key = new Button
@@ -295,9 +289,10 @@ internal sealed class ShelfCard
         _key.Click += (_, _) => press();
         AutomationProperties.SetName(_key, title);
 
+        // A card for the remote's focus, whatever its shape: it grows by 8% and the cards round it dim (see
+        // FocusLift), as the TV's cards do.
+        FocusLift.SetPart(_key, LiftPart.Card);
         Root = menu is null ? _key : RemoteLine.Around(_key, press, menu);
-        if (shape == CardShape.Round)
-            FocusLift.SetPart(Root, LiftPart.Card);
     }
 
     /// <summary>The card's button: what the mouse presses, and what the remote stands on where the card has
@@ -320,9 +315,8 @@ internal sealed class ShelfCard
         _stack.Width = width;
         _stack.Spacing = 7 * scale;
         _key.Padding = new Thickness(CardRoomAround.Points * scale);
-        // A round card uses a square corner. The presenter clips to a rounded corner, which would cut off the
-        // zoomed photograph. A round card also draws no glow for a corner to shape (see FocusLift). The line
-        // around a card with a menu takes the same corner, so the glow follows it.
+        // A round card uses a square corner, as it did for the photograph zoom an act's card had before the
+        // TV's grow (see FocusLift). The line around a card with a menu takes the same corner.
         _key.CornerRadius = _holder is null ? new CornerRadius(8 * scale) : new CornerRadius(0);
         Root.CornerRadius = _key.CornerRadius;
         if (_holder is not null)
@@ -470,6 +464,7 @@ internal sealed class GenreCard
         };
         Root.Click += (_, _) => open(this);
         AutomationProperties.SetName(Root, genre.Name);
+        FocusLift.SetPart(Root, LiftPart.Card);   // grows and dims as a card (see FocusLift)
     }
 
     public Button Root { get; }

@@ -516,14 +516,14 @@ public sealed partial class PegasusChrome
         };
 
         // One stop for the whole ladder, as on the TV: OK on it goes to the first act of the letter in
-        // hand. Marked as a zoomed card whose photograph is empty (see ArtistLadder.Photo), so the host
-        // draws no glow round it: the letter in hand shows the focus.
+        // hand. Marked as a stop that draws its own focus (see FocusLift), so the host neither grows nor dims
+        // it: the letter in hand shows the focus.
         _ladderKey = new RemoteLine(_ladder, press: ToLetterHead, menu: null, turn: null)
         {
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
         };
-        FocusLift.SetPart(_ladderKey, LiftPart.Card);
+        FocusLift.SetPart(_ladderKey, LiftPart.Own);
         _ladderKey.GotFocus += (_, _) =>
         {
             // Entering, the ladder opens on the letter of the card the remote came from.

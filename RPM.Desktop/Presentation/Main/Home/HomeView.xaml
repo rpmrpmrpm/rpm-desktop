@@ -9,6 +9,7 @@
     xmlns:conv="using:RPM.Desktop.Converters"
     xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
     xmlns:common="using:RPM.Desktop.Presentation.Common"
+    xmlns:pegasus="using:RPM.Desktop.Presentation.Pegasus"
     mc:Ignorable="d"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
@@ -55,7 +56,7 @@
     <DataTemplate x:Key="HomeCardTemplate" x:DataType="libmodel:SimilarRow">
       <Grid VerticalAlignment="Top">
       <Button Click="Card_Click" Loaded="Card_Loaded" Tag="{Binding}" Background="Transparent" BorderThickness="0"
-              Padding="8" MinHeight="0" CornerRadius="10"
+              Padding="8" MinHeight="0" CornerRadius="10" pegasus:FocusLift.Part="Card"
               VerticalAlignment="Top" HorizontalContentAlignment="Left">
         <!-- No hover or press wash on a cover, as on the album wall's same kind of card. A wash under the
              whole tile is what the cards that GO somewhere wear on this screen (the lists and the quick
@@ -163,7 +164,7 @@
          Where no picture arrives, the mark is in the middle of the list's own colour. -->
     <DataTemplate x:Key="HomeListTemplate" x:DataType="model:HomeListCard">
       <Button Click="List_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
-              Padding="8" MinHeight="0" CornerRadius="10"
+              Padding="8" MinHeight="0" CornerRadius="10" pegasus:FocusLift.Part="Card"
               VerticalAlignment="Top" HorizontalContentAlignment="Left">
         <Button.Resources>
           <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
@@ -265,7 +266,7 @@
       <Grid HorizontalAlignment="Stretch">
       <Button Click="Quick_Click" Loaded="Quick_Loaded" Tag="{Binding}" Background="Transparent" BorderThickness="0"
               Padding="8,6" MinHeight="0" CornerRadius="8" HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Left">
+              HorizontalContentAlignment="Left" pegasus:FocusLift.Part="Card">
         <Button.Resources>
           <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
           <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>

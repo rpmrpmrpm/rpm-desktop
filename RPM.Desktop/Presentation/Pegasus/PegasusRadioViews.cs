@@ -509,6 +509,7 @@ internal sealed class RadioRowCard
         {
             VerticalAlignment = VerticalAlignment.Top,
         };
+        FocusLift.SetPart(Root, LiftPart.Card);   // grows and dims as a card (see FocusLift)
 
         _name.Text = face.Station.Display;
         _detail.Text = face.Detail;
@@ -711,6 +712,7 @@ internal sealed class RadioModeRow
             VerticalAlignment = VerticalAlignment.Top,
             RenderTransform = _stopPlace,
         };
+        FocusLift.SetPart(Stop, LiftPart.Own);   // its middle key shows the focus (see Paint)
         Stop.GotFocus += (_, _) =>
         {
             _focused = true;

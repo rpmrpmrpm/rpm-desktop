@@ -94,8 +94,8 @@
     <!-- A button that draws nothing of its own, only what is put in it. It turns a tile or a line that
          answered only the pointer into something that the remote can reach and press with OK (Click fires
          on Enter as well as on a press). It has no hover or pressed states and no system focus rectangle:
-         the content keeps its own look, and the focus is drawn by the host's ring (see
-         PegasusPlayer.FocusRing). The view is made for use with a TV remote control. -->
+         the content keeps its own look, and the focus is shown by the host's grow and dim (see
+         FocusLift). The view is made for use with a TV remote control. -->
     <Style x:Key="PegasusPlainButton" TargetType="Button">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
@@ -152,7 +152,7 @@
     <DataTemplate x:Key="PegasusCardTemplate">
       <Grid VerticalAlignment="Top">
       <Button Style="{StaticResource PegasusPlainButton}" Click="LibraryCard_Click" CornerRadius="8"
-              Padding="8" VerticalAlignment="Top" Loaded="LibraryCard_Loaded">
+              Padding="8" VerticalAlignment="Top" Loaded="LibraryCard_Loaded" local:FocusLift.Part="Card">
       <Grid Width="{Binding Metrics.Edge}" Background="Transparent">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -219,10 +219,10 @@
       <!-- Padding 8: the space that every card carries so that the remote's grow effect is not cut off at
            the edge of its row (see CardRoomAround). The rows are spaced 6 instead of 22, and the wall's
            host inset is 8 less. -->
-      <!-- Shown in the way the tvOS app shows an artist (FocusLift): the photograph zooms and the lines
-           move down, with no glow. The corner is square because the presenter clips to a rounded corner,
-           which would cut the zoom. The photograph is in a holder with space for the zoom, and is moved
-           back into place. -->
+      <!-- A card for the remote's focus (FocusLift): it grows by 8% while it has the focus, and is dimmed
+           while another item has it, as the TV's artist cards are. The corner is square because the
+           presenter clips to a rounded corner. The photograph is in a holder with room round it, and is
+           moved back into place. -->
       <Button Style="{StaticResource PegasusPlainButton}" Click="ArtistCard_Click" CornerRadius="0"
               Padding="8" VerticalAlignment="Top" local:FocusLift.Part="Card">
         <Grid Width="{Binding Metrics.Edge}" Background="Transparent">
@@ -232,8 +232,7 @@
           </Grid.RowDefinitions>
           <Grid Grid.Row="0" Margin="{Binding Metrics.HolderMargin}">
             <Border Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}" Margin="{Binding Metrics.PhotoMargin}"
-                    CornerRadius="{Binding Metrics.Round}" Background="#22FFFFFF"
-                    local:FocusLift.Part="Photo">
+                    CornerRadius="{Binding Metrics.Round}" Background="#22FFFFFF">
               <Grid>
                 <TextBlock Text="{Binding Letter}" FontSize="{Binding Metrics.InitialSize}" FontWeight="SemiBold"
                            Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -244,7 +243,7 @@
               </Grid>
             </Border>
           </Grid>
-          <StackPanel Grid.Row="1" Margin="0,9,0,0" Spacing="5" local:FocusLift.Part="Below">
+          <StackPanel Grid.Row="1" Margin="0,9,0,0" Spacing="5">
             <TextBlock Text="{Binding Name}" FontSize="{Binding Metrics.Title}" FontWeight="SemiBold"
                        Foreground="#F2FFFFFF" MinHeight="{Binding Metrics.TitleBox}" TextAlignment="Center"
                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>

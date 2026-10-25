@@ -285,21 +285,21 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// One of the remote's two stops on the carousel: an empty box laid over the front cover or the front
-    /// letter tile. Marked as a zoomed card with an empty photograph (see FocusLift), so the host zooms that
-    /// empty box and draws no glow: the front cover itself is what shows the focus. Left and Right on it turn
-    /// the carousel or the wheel (see <see cref="CarouselTurn"/>), not the line.
+    /// letter tile. Marked as a stop that draws its own focus (see FocusLift), so the host neither grows nor
+    /// dims it: the front cover itself is what shows the focus, at full brightness among the dimmed covers
+    /// round it, as on the TV. Left and Right on it turn the carousel or the wheel (see
+    /// <see cref="CarouselTurn"/>), not the line.
     /// </summary>
     private static (RemoteLine Key, FrameworkElement Box) CarouselStop(Action press, Func<MenuFlyout?>? menu)
     {
         var photo = new Border { Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)) };
-        FocusLift.SetPart(photo, LiftPart.Photo);
         var key = new RemoteLine(photo, press, menu, turn: null)
         {
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
             IsHitTestVisible = false,   // the ground under it takes the mouse
         };
-        FocusLift.SetPart(key, LiftPart.Card);
+        FocusLift.SetPart(key, LiftPart.Own);
         return (key, key);
     }
 

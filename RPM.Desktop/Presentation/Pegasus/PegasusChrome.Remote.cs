@@ -115,6 +115,11 @@ public sealed partial class PegasusChrome
         return new RemoteScreen(wholeView, notDrawn: TransportNotDrawn() is { } part ? [part] : []);
     }
 
+    /// <summary>The screen in front, as the arrow keys search it (see <see cref="FocusScreen"/>). The host's
+    /// focus look dims every stop on it but the focused one (PegasusPlayer.Remote, LightStops).</summary>
+    /// <param name="wholeView">The host's whole view, which is the screen of the turning record.</param>
+    public RemoteScreen ScreenInFront(UIElement wholeView) => FocusScreen(wholeView);
+
     /// <summary>
     /// The part of the turning record that its view does not draw: one of its two transports. The lyric
     /// view alone and the bare room draw the seek bar and keys along the foot (LyricFoot, see FootDrawn)
@@ -902,10 +907,13 @@ public sealed partial class PegasusChrome
             VerticalAlignment = VerticalAlignment.Stretch,
         };
         LibraryPlayer.Children.Add(_playerKey);
+
+        // An empty key shows nothing grown or dimmed: the card it is laid over does that (see FocusLift.Face).
+        FocusLift.SetFace(_playerKey, LibraryPlayer);
     }
 
     /// <summary>Makes the key a stop or not, depending on what the card holds, and gives it the card's
-    /// corner radius so that the ring follows it.</summary>
+    /// corner radius.</summary>
     private void ApplyPlayerKey(bool on, double scale)
     {
         if (_playerKey is not { } key)

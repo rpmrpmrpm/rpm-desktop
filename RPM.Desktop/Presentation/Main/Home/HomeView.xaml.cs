@@ -4513,8 +4513,13 @@ public sealed partial class HomeView : UserControl
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Stretch,
             Width = 0,
-            CornerRadius = new CornerRadius(12),   // the plate's, so the remote's glow follows its corners
+            CornerRadius = new CornerRadius(12),   // the plate's
         };
+
+        // An empty key shows nothing grown or dimmed: the plate does that for it, as a card (see
+        // FocusLift in Pegasus), as the TV's banner plate does.
+        RPM.Desktop.Presentation.Pegasus.FocusLift.SetPart(key, RPM.Desktop.Presentation.Pegasus.LiftPart.Card);
+        RPM.Desktop.Presentation.Pegasus.FocusLift.SetFace(key, FeaturePlate);
 
         // Above the track, so it is not carried by a step; the two arrow keys stay above it.
         FeatureBand.Children.Insert(FeatureBand.Children.IndexOf(FeatureTrack) + 1, key);
@@ -4541,6 +4546,10 @@ public sealed partial class HomeView : UserControl
     private void ApplyBannerStops()
     {
         _plateKey.IsTabStop = _drivenByRemote;
+
+        // The plate grows by 8% while it has the remote's focus, 14 past its foot, so under a remote the dots
+        // stand 30 under it, as the TV's do (DOTS_GAP), and not 12.
+        FeatureDots.Margin = new Thickness(0, _drivenByRemote ? 30 : 12, 0, 0);
         FeatureBack.IsTabStop = !_drivenByRemote;
         FeatureOn.IsTabStop = !_drivenByRemote;
         foreach (var dot in FeatureDots.Children)

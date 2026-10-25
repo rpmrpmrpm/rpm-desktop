@@ -30,12 +30,11 @@
     <!-- The room: the figures and the spectrum, in GL. Sized in code (SizeStage) to fill this host. -->
     <Grid x:Name="StageHost" SizeChanged="StageHost_SizeChanged"/>
 
-    <!-- The focus glow. It shows where the remote's focus is: a soft light behind the focused item, which
-         fades out past its edges. It sits under the screens and over the room, so it is behind whatever has
-         focus. A cover hides the middle of the glow and shows the rest as a halo. A line or a key with
-         nothing painted behind it is lit from behind. The layers are built in code (see
-         PegasusPlayer.Remote, BuildGlow). While keys are in use, the glow is placed and eased onto the
-         focused item every frame, and the item itself is enlarged. It is never hit-testable. -->
+    <!-- The glow behind a focused icon key (the transport, the wall's sort): one soft disc, lit in the
+         middle and fading out past the key's edge, as on the TV. It sits under the screens and over the
+         room, so it is behind the key. Cards, rows and wide keys have none: the focused item grows and every
+         other item dims (see FocusLift). The disc is built in code (see PegasusPlayer.Remote, BuildGlow) and
+         placed on the key every frame while keys are in use. It is never hit-testable. -->
     <Canvas x:Name="FocusLayer" IsHitTestVisible="False">
       <Grid x:Name="FocusRing" Opacity="0">
         <Grid.RenderTransform>

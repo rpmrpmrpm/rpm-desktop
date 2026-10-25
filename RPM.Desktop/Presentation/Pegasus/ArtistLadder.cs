@@ -20,7 +20,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <para><b>The focus look Pegasus is moving to.</b> The letter in hand grows by <see cref="LitGrow"/> and the
 /// other letters dim to <see cref="OthersDim"/> (decision of 2026-10-24: grow 8 %, others at 75 %, no glow).
 /// The ladder is one stop for the remote, not one per letter, as on the TV: Up and Down step the letter in
-/// hand. The host's focus ring is kept off it by an empty photograph (see <see cref="Photo"/>).</para>
+/// hand. The host leaves it to draw that itself: its stop is marked as one that draws its own focus (see
+/// FocusLift, LiftPart.Own).</para>
 ///
 /// <para><b>Moved on the frame tick.</b> The grow changes the letters' type size, which a clip or a scale on
 /// the compositor cannot do without the letters swelling out of shape (the width grows by 1.87 and the type
@@ -109,16 +110,7 @@ internal sealed partial class ArtistLadder : Grid
         };
         _pill = new Border { Background = _fill, Child = _scroll };
         Children.Add(_pill);
-
-        // The ring's lift is pointed at this (see FocusLift and PegasusPlayer.Remote, LiftOf), so the host
-        // zooms an empty box and draws no glow: the letter in hand is what shows the focus.
-        Photo = new Border { Width = 0, Height = 0, IsHitTestVisible = false };
-        FocusLift.SetPart(Photo, LiftPart.Photo);
-        Children.Add(Photo);
     }
-
-    /// <summary>The empty photograph the host's focus lift zooms instead of drawing its glow.</summary>
-    public FrameworkElement Photo { get; }
 
     /// <summary>A letter was clicked with the pointer: its place on the ladder.</summary>
     public event Action<int>? RungClicked;

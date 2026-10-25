@@ -221,6 +221,11 @@ public sealed partial class PegasusChrome
         };
         RadioBanner.Children.Add(_radioBannerKey);
 
+        // An empty key shows nothing grown or dimmed: the card in front does that for it, as a card (see
+        // FocusLift), as the TV's banner plate does.
+        FocusLift.SetPart(_radioBannerKey, LiftPart.Card);
+        FocusLift.SetFace(_radioBannerKey, _bannerHosts[BannerFrontHost].Root);
+
         Radio.Changed += () => DispatcherQueue.TryEnqueue(ShowWhatRadioPlays);
 
         // The server's answer moved: a station hidden, a logo changed, a title, tags or a description
@@ -1147,7 +1152,10 @@ public sealed partial class PegasusChrome
         _bannerPeekInset = peeks ? Math.Max(0, sideRoom + bite - _bannerWidth) : 0;
 
         RadioBanner.Height = _bannerHeight;
-        RadioBanner.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, strip, _bannerHeight) };
+        // Cut at the strip's ends, for the peeks, but not above and below, where the card in front grows past
+        // the banner's edges while it has the remote's focus (FocusLift.CardGrow).
+        var grown = _bannerHeight * (FocusLift.CardGrow - 1) / 2;
+        RadioBanner.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, -grown, strip, _bannerHeight + (2 * grown)) };
         for (var i = 0; i < _bannerHosts.Length; i++)
             _bannerHosts[i]?.Size(_bannerWidth, i == BannerFrontHost ? _bannerHeight : _bannerPeekHeight, scale);
         if (_radioBannerKey is { } key)

@@ -55,9 +55,9 @@ public sealed partial class RemoteLine : ContentControl
     /// being a stop for the keys, so the line takes the focus, and OK, a held OK and the Menu key all arrive
     /// on one element. A click with the mouse still lands on the button.
     ///
-    /// <para>The line takes the button's alignment and corner radius, so it stands where the button stood
-    /// and the focus ring follows the button's corners. A caller that changes the button's corner later
-    /// writes it to the line too.</para>
+    /// <para>The line takes the button's alignment and corner radius, so it stands where the button stood,
+    /// and the button's mark for the focus look (FocusLift.Part), so a card stays a card. A caller that
+    /// changes the button's corner later writes it to the line too.</para>
     ///
     /// <para>A button that is the root of a DataTemplate has no panel to stand in. Such a template puts a
     /// Grid around the button, and the line is made when the button is loaded (see HomeView and
@@ -79,6 +79,7 @@ public sealed partial class RemoteLine : ContentControl
             VerticalAlignment = key.VerticalAlignment,
             CornerRadius = key.CornerRadius,
         };
+        FocusLift.SetPart(line, FocusLift.GetPart(key));
 
         if (at >= 0)
             panel!.Children.Insert(at, line);

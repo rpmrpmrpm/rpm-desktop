@@ -122,6 +122,7 @@ public sealed partial class PegasusChrome
             VerticalAlignment = VerticalAlignment.Stretch,
         };
         TunerDialRow.Children.Add(_tunerDialKey);
+        FocusLift.SetFace(_tunerDialKey, TunerDialBox);   // the dial grows and dims for its empty key
 
         // A drag on the dial with the pointer tunes where the needle lands, as in the main window.
         TunerDial.Tuned += station => _tunerModel?.Tune(station);

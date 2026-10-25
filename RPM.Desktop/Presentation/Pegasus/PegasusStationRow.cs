@@ -324,6 +324,7 @@ public sealed partial class PegasusStationTile : Grid
             Press,
             () => _item is { } item ? _look?.Menu?.Invoke(item) : null,
             turn: null);
+        FocusLift.SetPart(Key, LiftPart.Card);   // grows and dims as a card (see FocusLift)
         Children.Add(Key);
         VerticalAlignment = VerticalAlignment.Top;
         DataContextChanged += (_, _) => Follow(DataContext as RadioStationItem);

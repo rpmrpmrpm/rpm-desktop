@@ -11,24 +11,26 @@ using VirtualKey = Windows.System.VirtualKey;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// Pegasus with a TV remote, on the host's side. It covers whether the listener is using keys, the ring
+/// Pegasus with a TV remote, on the host's side. It covers whether the listener is using keys, the look
 /// that shows where the focus is, and where the focus goes when it is lost.
 ///
 /// <para>The view is meant to be used with a TV remote: arrow keys, Back and the other buttons, with no
-/// clicking and no swiping. A focused item is shown with a ring and is enlarged, so it can be seen from
-/// across a room. The keys arrive through the shell (ShellPage.OnPreviewKeyDown). That is the one handler
-/// every press passes through, wherever the focus is. The arrows then move the focus by XY navigation,
-/// which is switched on at <c>Root</c>.</para>
+/// clicking and no swiping. A focused item is enlarged and drawn at full brightness while every other
+/// item on the screen is dimmed, so it can be seen from across a room. The keys arrive through the shell
+/// (ShellPage.OnPreviewKeyDown). That is the one handler every press passes through, wherever the focus
+/// is. The arrows then move the focus by XY navigation, which is switched on at <c>Root</c>.</para>
 ///
-/// <para><b>Keys and the pointer take turns.</b> A key puts the view in keyboard mode. The ring shows, the
-/// faded keys come up, and the chrome moves the focus when a screen changes. A pointer move takes the view
-/// out of keyboard mode, and the ring goes. The first key after the pointer only shows where the focus is,
-/// without moving it, so the listener sees where they are before they go anywhere.</para>
+/// <para><b>Keys and the pointer take turns.</b> A key puts the view in keyboard mode. The focus shows,
+/// the faded keys come up, and the chrome moves the focus when a screen changes. A pointer move takes the
+/// view out of keyboard mode, and everything is drawn at full brightness and size again. The first key
+/// after the pointer only shows where the focus is, without moving it, so the listener sees where they are
+/// before they go anywhere.</para>
 ///
-/// <para><b>The highlight is one element</b>: a soft glow under the screens and over the room. It is placed
-/// every frame on whatever has the focus, and it eases toward that item. So it slides from one item to the
-/// next, and it follows an item that a scroll is moving. The code still calls it the ring. The item itself
-/// is enlarged by its composition visual's scale, which does not change the layout.</para>
+/// <para><b>The look is the Android TV app's</b> (see <see cref="FocusLift"/>): the focused item grows,
+/// the rest dim, and there is no glow ring, only a soft disc behind a focused icon key. The focus tick
+/// (<see cref="OnRingFrame"/>) grows the focused item by its composition visual's scale and dims the
+/// others by their opacity, neither of which lays anything out or builds anything again. The code still
+/// calls it the ring.</para>
 /// </summary>
 public sealed partial class PegasusPlayer
 {
@@ -109,78 +111,89 @@ public sealed partial class PegasusPlayer
         return _bounceWay * (float)(Math.Sin(Math.PI * t) * BounceReach * scale);
     }
 
-    /// <summary>The item the ring is on, and how much the item is enlarged.</summary>
+    /// <summary>The stop that has the focus, the element that shows it (its face, see FocusLift.Face: the
+    /// stop itself, or what an empty stop is laid over), and how much that element is enlarged.</summary>
     private FrameworkElement? _ringTarget;
+    private FrameworkElement? _ringFace;
     private float _ringGrow = 1;
-
-    /// <summary>Where the ring is drawn now. It eases toward its target.</summary>
-    private Rect _ringAt;
-    private bool _ringPlaced;
     private bool _ringTicking;
 
-    /// <summary>How far the focused item grows on each side, before the view's scale, and the most it can
-    /// grow by however small it is. It grows by a fixed number of points, not a share of its size. A share
-    /// that suits a cover would push a full-width track line past both edges of its list.</summary>
+    /// <summary>How far a focused key or row grows on each side, before the view's scale, and the most it
+    /// can grow by however small it is (the TV's deskFocus). It grows by a fixed number of points, not a
+    /// share of its size. A share that suits a cover would push a full-width track line past both edges of
+    /// its list. A card grows by a share, FocusLift.CardGrow.</summary>
     private const double RingGrowPoints = 6;
     private const float RingGrowMost = 1.12f;
 
-    /// <summary>The zoom parts of a focused artist card: its photograph and the lines under it. This is
-    /// used instead of the glow, the way the tvOS app shows a focused card (see FocusLift). Null for every
-    /// other item. They are found when the focus arrives, and put back when it leaves or the ring
-    /// stops.</summary>
-    private Lifted? _lift;
+    /// <summary>How much of the way to where it is going the grow, a dim and the glow move each frame. At
+    /// this value they arrive in about a tenth of a second at sixty frames per second, near the TV's
+    /// 150 ms.</summary>
+    private const double RingEase = 0.35;
 
-    private sealed record Lifted(FrameworkElement Photo, IReadOnlyList<FrameworkElement> Below);
+    /// <summary>The soft glow behind a focused icon key (FocusLift.GlowMost): one disc in the ring's grid,
+    /// lit from its middle and fading to nothing FocusLift.GlowReach past the key's edge, the TV's radial
+    /// gradient. <see cref="_glowEdge"/> is the stop at the key's own edge, which moves with the key's size.
+    /// Built once (see <see cref="BuildGlow"/>). <see cref="_glowNow"/> is how lit it is, eased in.</summary>
+    private Microsoft.UI.Xaml.Shapes.Ellipse? _glow;
+    private GradientStop? _glowEdge;
+    private double _glowNow;
 
-    /// <summary>How many layers the glow has, how far past the last one each layer reaches before the
-    /// view's scale, and how much light each layer adds. Stacked, the layers fill the item's own box with
-    /// the most light, and fade to nothing a few points past its edge.</summary>
-    private const int GlowLayers = 8;
-    private const double GlowStep = 3;
-    private const double GlowLayerAlpha = 0.045;
-
-    /// <summary>The glow's layers, innermost first. Built once (see BuildGlow).</summary>
-    private readonly List<Border> _glow = [];
-
-    /// <summary>The corner radius and the step the layers were last given. They are written only when one
-    /// of them changes.</summary>
-    private double _glowCorner = double.NaN, _glowStep = double.NaN;
-
-    /// <summary>Builds the glow's layers into the ring's grid. Each layer is a filled rounded box that
-    /// reaches one step further out than the one before. All of them are one faint white, so the light adds
-    /// up in the middle and fades out past the item's edge.</summary>
+    /// <summary>Builds the glow's disc into the ring's grid: white at 30% in the middle, 16% at the key's
+    /// edge, nothing at the disc's own edge (the TV's FocusSpot).</summary>
     private void BuildGlow()
     {
-        if (_glow.Count > 0)
+        if (_glow is not null)
             return;
-        var white = new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(255 * GlowLayerAlpha), 0xFF, 0xFF, 0xFF));
-        for (var i = 0; i < GlowLayers; i++)
+        _glowEdge = new GradientStop { Offset = 0.5, Color = Windows.UI.Color.FromArgb(41, 0xFF, 0xFF, 0xFF) };
+        _glow = new Microsoft.UI.Xaml.Shapes.Ellipse
         {
-            var layer = new Border { Background = white, IsHitTestVisible = false };
-            _glow.Add(layer);
-            FocusRing.Children.Add(layer);
-        }
+            IsHitTestVisible = false,
+            Fill = new RadialGradientBrush
+            {
+                GradientStops =
+                {
+                    new GradientStop { Offset = 0, Color = Windows.UI.Color.FromArgb(77, 0xFF, 0xFF, 0xFF) },
+                    _glowEdge,
+                    new GradientStop { Offset = 1, Color = Windows.UI.Color.FromArgb(0, 0xFF, 0xFF, 0xFF) },
+                },
+            },
+        };
+        FocusRing.Children.Add(_glow);
     }
 
-    /// <summary>Gives each layer its reach and its corner radius: the item's corner radius, plus the
-    /// reach.</summary>
-    private void ShapeGlow(double corner, double step)
+    /// <summary>How strong a focused key's glow is, 1 at full: 70% on the tuner and none on a record's
+    /// page, as on the TV (29be467c5 for the tuner; TrackPage gives its keys none, where it stood out hard
+    /// beside the play key).</summary>
+    private double GlowStrength => _chrome switch
     {
-        if (Math.Abs(corner - _glowCorner) < 0.25 && Math.Abs(step - _glowStep) < 0.01)
-            return;
-        _glowCorner = corner;
-        _glowStep = step;
-        for (var i = 0; i < _glow.Count; i++)
-        {
-            var reach = i * step;
-            _glow[i].Margin = new Thickness(-reach);
-            _glow[i].CornerRadius = new CornerRadius(corner + reach);
-        }
+        { RecordUp: true } => 0,
+        { TunerUp: true } => 0.7,
+        _ => 1,
+    };
+
+    /// <summary>An element the focus look has dimmed, or is lighting again: how bright it is drawn now,
+    /// where it is going, and the opacity last written to it. An element whose opacity is found to be other
+    /// than the one written has been faded by its own code since, and is let go: the look never writes over
+    /// a fade it did not make, and only dims an element from full opacity.</summary>
+    private sealed class Lit(FrameworkElement element)
+    {
+        public FrameworkElement Element { get; } = element;
+        public double Now = 1, Goal = 1, Wrote = 1;
+        public bool Moving;
     }
 
-    /// <summary>How much of the way to its target the ring moves each frame. At this value the ring arrives
-    /// in about a tenth of a second at sixty frames per second.</summary>
-    private const double RingEase = 0.35;
+    /// <summary>Every element dimmed now, and those of them easing toward a new brightness.</summary>
+    private readonly Dictionary<FrameworkElement, Lit> _lit = new();
+    private readonly List<Lit> _moving = [];
+
+    /// <summary>Frames since the focus moved. The screen's stops are dimmed again at <see cref="RescanAt"/>
+    /// of them, and then every <see cref="RescanEvery"/> up to <see cref="RescanFor"/>, for the cards a
+    /// scroll or a late list brought in after the move: a cover a repeater realizes is drawn at full
+    /// brightness until then. After that the screen is left alone until the next move, so a player left
+    /// on screen for an evening walks nothing.</summary>
+    private int _framesSinceMove;
+    private static readonly int[] RescanAt = [3, 10, 24, 48];
+    private const int RescanEvery = 90, RescanFor = 900;
 
     /// <summary>
     /// A key the shell handed over. This turns on keyboard mode, brings up the faded keys, and starts the
@@ -208,7 +221,6 @@ public sealed partial class PegasusPlayer
         if (!_ringTicking)
         {
             _ringTicking = true;
-            _ringPlaced = false;
             CompositionTarget.Rendering += OnRingFrame;
             Say("ring: keys in use");
         }
@@ -294,8 +306,9 @@ public sealed partial class PegasusPlayer
         StopRing();
     }
 
-    /// <summary>Removes the ring and puts the enlarged item back to its normal size. This runs when the
-    /// pointer is used, and when the view is put away.</summary>
+    /// <summary>Takes the focus look away: the enlarged item goes back to its normal size, every dimmed item
+    /// to full brightness, and the glow goes. This runs when the pointer is used, and when the view is put
+    /// away.</summary>
     private void StopRing()
     {
         if (_ringTicking)
@@ -304,14 +317,18 @@ public sealed partial class PegasusPlayer
             CompositionTarget.Rendering -= OnRingFrame;
         }
 
-        Grow(_ringTarget, 1);
-        Nudge(_ringTarget, Vector2.Zero);
-        Unlift(_lift);
-        _lift = null;
+        Grow(_ringFace, 1);
+        Nudge(_ringFace, Vector2.Zero);
         _ringTarget = null;
+        _ringFace = null;
         _ringGrow = 1;
         _bounceWay = Vector2.Zero;
-        FocusRing.Opacity = 0;
+        foreach (var lit in _lit.Values)
+            if (Math.Abs(lit.Element.Opacity - lit.Wrote) < 0.002)
+                lit.Element.Opacity = 1;
+        _lit.Clear();
+        _moving.Clear();
+        HideGlow();
     }
 
     /// <summary>
@@ -349,10 +366,11 @@ public sealed partial class PegasusPlayer
     }
 
     /// <summary>
-    /// One frame of the ring. It moves onto whatever has the focus, enlarges that item, and eases the ring
-    /// round it. A new target is also scrolled into view (see RemoteScroll). Three of this view's scrollers
-    /// do not follow the focus on their own. They were turned off so a recycled element cannot drag the
-    /// wall to itself (see LibraryScroll in the chrome's XAML). The rest only scroll as far as the edge.
+    /// One frame of the focus look. It moves onto whatever has the focus, enlarges that item (its face, see
+    /// FocusLift.Face), dims every other item on the screen in front, and eases the glow in behind an icon
+    /// key. A new target is also scrolled into view (see RemoteScroll). Three of this view's scrollers do
+    /// not follow the focus on their own. They were turned off so a recycled element cannot drag the wall to
+    /// itself (see LibraryScroll in the chrome's XAML). The rest only scroll as far as the edge.
     /// </summary>
     private void OnRingFrame(object? sender, object e)
     {
@@ -361,100 +379,260 @@ public sealed partial class PegasusPlayer
         if (!ReferenceEquals(target, _ringTarget))
         {
             var was = _ringTarget;
-            Grow(_ringTarget, 1);
-            Nudge(_ringTarget, Vector2.Zero);
-            Unlift(_lift);
-            _lift = LiftOf(target);
+            Grow(_ringFace, 1);
+            Nudge(_ringFace, Vector2.Zero);
             _bounceWay = Vector2.Zero;   // A bounce belongs to the item it started on.
             _ringTarget = target;
+            _ringFace = target is null ? null : FocusLift.GetFace(target) ?? target;
             _ringGrow = 1;
+            _glowNow = 0;
+            _framesSinceMove = 0;
             Say(target is null ? "ring: on nothing" : "ring: on " + Describe(target));
 
             // Brings the target into view in every scroller above it. It is centred down the screen, unless
-            // the move stayed within its row (see RemoteScroll).
+            // the move stayed within its row (see RemoteScroll). Then the item left dims with the rest of the
+            // screen and the new one lights. A focus that went to nothing (a row's menu, which is a popup
+            // outside this view) leaves the item it was on at full brightness and its own size, as the TV
+            // draws the item a menu is open on.
             if (target is not null)
+            {
                 RemoteScroll.IntoView(target, Root, keepHeight: was is not null && SameHeight(was, target));
+                LightStops(was);
+            }
+        }
+        else if (target is not null)
+        {
+            var frames = _framesSinceMove = Math.Min(_framesSinceMove + 1, RescanFor + 1);
+            if (Array.IndexOf(RescanAt, frames) >= 0
+                || (frames > RescanAt[^1] && frames <= RescanFor && frames % RescanEvery == 0))
+                LightStops(null);
         }
 
-        // No ring on nothing. No ring on the transport while it is faded away either. A ring standing alone
-        // where the keys were looks like a fault.
-        if (target is not { ActualWidth: > 0, ActualHeight: > 0 } || FocusOnFadedKeys)
-        {
-            FocusRing.Opacity = 0;
-            _ringPlaced = false;
-            return;
-        }
+        EaseLights();
 
-        Rect box;
-        try
+        // Nothing grows on nothing, nor on the transport while it is faded away. A key growing alone where
+        // the keys were looks like a fault.
+        if (target is not { ActualWidth: > 0, ActualHeight: > 0 } || _ringFace is not { ActualWidth: > 0, ActualHeight: > 0 } face
+            || FocusOnFadedKeys)
         {
-            box = target.TransformToVisual(FocusLayer)
-                        .TransformBounds(new Rect(0, 0, target.ActualWidth, target.ActualHeight));
-        }
-        catch (ArgumentException)
-        {
-            // The element was removed from the tree since the last frame.
-            FocusRing.Opacity = 0;
+            if (_ringGrow != 1)
+            {
+                _ringGrow = 1;
+                Grow(_ringFace, 1);
+            }
+            HideGlow();
             return;
         }
 
         var scale = _chrome?.TextScale ?? 1;
+        var part = FocusLift.GetPart(target);
 
-        // An artist's card (see FocusLift): its photograph zooms, and the lines under it move down with the
-        // same easing as the grow. No glow is drawn. The bounce moves the whole card, as it does for any
-        // item.
-        if (_lift is { } lift)
+        // A stop that draws its own focus (the carousel, the ladder, radio's modes) only bounces.
+        if (part == LiftPart.Own)
         {
-            _ringGrow += (float)((FocusLift.ScaleFor(lift.Photo.ActualWidth) - _ringGrow) * RingEase);
-            Lift(lift, _ringGrow);
-            Nudge(target, BounceNow(scale));
-            FocusRing.Opacity = 0;
-            _ringPlaced = false;
+            Nudge(face, BounceNow(scale));
+            HideGlow();
             return;
         }
 
-        // The item grows a few points on each side, eased over a few frames.
-        var longest = Math.Max(box.Width, box.Height);
-        var want = (float)Math.Min(RingGrowMost, 1 + (2 * RingGrowPoints * scale / Math.Max(1, longest)));
+        // The middle of the face, which a grow about it does not move, and its size before the grow.
+        Point middle;
+        try
+        {
+            middle = face.TransformToVisual(FocusLayer).TransformPoint(new Point(face.ActualWidth / 2, face.ActualHeight / 2));
+        }
+        catch (ArgumentException)
+        {
+            // The element was removed from the tree since the last frame.
+            HideGlow();
+            return;
+        }
+
+        // A card grows by 8%, a key or a row by a few points on each side, eased over a few frames.
+        var longest = Math.Max(face.ActualWidth, face.ActualHeight);
+        var want = part == LiftPart.Card
+            ? FocusLift.CardGrow
+            : (float)Math.Min(RingGrowMost, 1 + (2 * RingGrowPoints * scale / Math.Max(1, longest)));
         _ringGrow += (float)((want - _ringGrow) * RingEase);
-        Grow(target, _ringGrow);
+        Grow(face, _ringGrow);
 
-        // Then moved by the bounce. The ring moves with it.
+        // Then moved by the bounce. The glow moves with it.
         var bounce = BounceNow(scale);
-        Nudge(target, bounce);
-        box = new Rect(box.X + bounce.X, box.Y + bounce.Y, box.Width, box.Height);
+        Nudge(face, bounce);
 
-        // The glow is drawn on the grown box. Its layers reach out past the box on their own.
-        var grownW = box.Width * _ringGrow;
-        var grownH = box.Height * _ringGrow;
-        var goal = new Rect(
-            box.X - ((grownW - box.Width) / 2),
-            box.Y - ((grownH - box.Height) / 2),
-            grownW,
-            grownH);
-
-        _ringAt = _ringPlaced
-            ? new Rect(
-                _ringAt.X + ((goal.X - _ringAt.X) * RingEase),
-                _ringAt.Y + ((goal.Y - _ringAt.Y) * RingEase),
-                _ringAt.Width + ((goal.Width - _ringAt.Width) * RingEase),
-                _ringAt.Height + ((goal.Height - _ringAt.Height) * RingEase))
-            : goal;
-        _ringPlaced = true;
-
-        FocusRingShift.X = _ringAt.X;
-        FocusRingShift.Y = _ringAt.Y;
-        // A size that was never set is NaN, and every comparison with NaN is false. If the check only asked
-        // "has it changed", the ring would never get a size and would stay a dot.
-        if (double.IsNaN(FocusRing.Width) || Math.Abs(FocusRing.Width - _ringAt.Width) > 0.5)
-            FocusRing.Width = _ringAt.Width;
-        if (double.IsNaN(FocusRing.Height) || Math.Abs(FocusRing.Height - _ringAt.Height) > 0.5)
-            FocusRing.Height = _ringAt.Height;
+        // The glow, behind an icon key only: a card, a row or a wide key shows the focus by its grow and the
+        // dim alone.
+        var strength = GlowStrength;
+        var most = FocusLift.GlowMost * scale;
+        if (part == LiftPart.Card || strength <= 0 || face.ActualWidth > most || face.ActualHeight > most)
+        {
+            HideGlow();
+            return;
+        }
 
         BuildGlow();
-        ShapeGlow(CornerOf(target) * _ringGrow, GlowStep * scale);
+        var half = longest * _ringGrow / 2;
+        var radius = half + (FocusLift.GlowReach * scale);
+        FocusRingShift.X = middle.X + bounce.X - radius;
+        FocusRingShift.Y = middle.Y + bounce.Y - radius;
+        // A size that was never set is NaN, and every comparison with NaN is false. If the check only asked
+        // "has it changed", the glow would never get a size and would stay a dot.
+        if (double.IsNaN(FocusRing.Width) || Math.Abs(FocusRing.Width - (2 * radius)) > 0.5)
+            FocusRing.Width = FocusRing.Height = 2 * radius;
+        if (_glowEdge is { } edge && Math.Abs(edge.Offset - (half / radius)) > 0.01)
+            edge.Offset = half / radius;
 
-        FocusRing.Opacity = 1;
+        _glowNow += (strength - _glowNow) * RingEase;
+        FocusRing.Opacity = _glowNow;
+    }
+
+    /// <summary>Puts the glow out at once.</summary>
+    private void HideGlow()
+    {
+        _glowNow = 0;
+        FocusRing.Opacity = 0;
+    }
+
+    /// <summary>
+    /// Dims every stop on the screen in front but the focused one, and lights the focused one, the TV's
+    /// look: a card to FocusLift.CardLight, a key or a row to FocusLift.KeyLight, each through its face.
+    /// What holds the focused stop or its face is not dimmed, or it would dim them with it. A stop that
+    /// draws its own focus is left alone. The stops are found as the arrow keys find them (RemoteSearch),
+    /// so a part the screen does not draw is not walked.
+    ///
+    /// <para>What was dimmed and is no longer on the screen in front (the collection under the side menu
+    /// or a record's page) stays dimmed, as every item without the focus is on the TV. An element that has
+    /// left the window is put back to full brightness and forgotten.</para>
+    /// </summary>
+    /// <param name="left">The stop the focus has just left, dimmed even where it is not on the screen in
+    /// front now (a card on home, after Left opened the side menu). Null on a later pass.</param>
+    private void LightStops(FrameworkElement? left)
+    {
+        if (_ringTarget is not { } target || _ringFace is not { } face)
+            return;
+
+        var holding = new HashSet<DependencyObject>();
+        for (DependencyObject? node = target; node is not null && !ReferenceEquals(node, Root); node = VisualTreeHelper.GetParent(node))
+            holding.Add(node);
+        for (DependencyObject? node = face; node is not null && !ReferenceEquals(node, Root); node = VisualTreeHelper.GetParent(node))
+            holding.Add(node);
+
+        LightTo(face, 1, start: false);
+        if (left is Control leftStop && !holding.Contains(leftStop))
+            DimStop(leftStop, holding);
+
+        var screen = _chrome?.ScreenInFront(Root) ?? new RemoteScreen(Root, notDrawn: []);
+        var open = new Stack<DependencyObject>();
+        open.Push(screen.Area);
+        while (open.Count > 0)
+        {
+            var node = open.Pop();
+            if (node is UIElement { Visibility: Visibility.Collapsed } || screen.LeavesOut(node))
+                continue;
+
+            if (node is Control { IsTabStop: true, IsEnabled: true, IsLoaded: true, ActualWidth: > 0, ActualHeight: > 0 } stop
+                && !holding.Contains(stop))
+                DimStop(stop, holding);
+
+            for (var i = VisualTreeHelper.GetChildrenCount(node) - 1; i >= 0; i--)
+                open.Push(VisualTreeHelper.GetChild(node, i));
+        }
+
+        List<Lit>? gone = null;
+        foreach (var lit in _lit.Values)
+            if (!lit.Element.IsLoaded)
+                (gone ??= []).Add(lit);
+        if (gone is null)
+            return;
+        foreach (var lit in gone)
+        {
+            if (Math.Abs(lit.Element.Opacity - lit.Wrote) < 0.002)
+                lit.Element.Opacity = 1;
+            Forget(lit);
+        }
+    }
+
+    /// <summary>Dims one stop without the focus, through its face, unless it draws its own focus or its
+    /// face holds the focused one.</summary>
+    private void DimStop(Control stop, HashSet<DependencyObject> holding)
+    {
+        var part = FocusLift.GetPart(stop);
+        if (part == LiftPart.Own)
+            return;
+        var face = FocusLift.GetFace(stop) ?? stop;
+        if (holding.Contains(face))
+            return;
+        LightTo(face, part == LiftPart.Card ? FocusLift.CardLight : FocusLift.KeyLight, start: true);
+    }
+
+    /// <summary>Sends an element toward a brightness, eased by <see cref="EaseLights"/>. An element not
+    /// dimmed yet is taken on only when <paramref name="start"/> is set and it stands at full opacity; any
+    /// other opacity is a fade of its own, which the look leaves alone.</summary>
+    private void LightTo(FrameworkElement element, double goal, bool start)
+    {
+        if (_lit.TryGetValue(element, out var lit) && Math.Abs(element.Opacity - lit.Wrote) >= 0.002)
+        {
+            Forget(lit);   // faded by its own code since it was dimmed
+            lit = null;
+        }
+
+        if (lit is null)
+        {
+            if (!start || Math.Abs(element.Opacity - 1) >= 0.002)
+                return;
+            lit = new Lit(element);
+            _lit[element] = lit;
+        }
+
+        if (lit.Goal == goal)
+            return;
+        lit.Goal = goal;
+        if (!lit.Moving)
+        {
+            lit.Moving = true;
+            _moving.Add(lit);
+        }
+    }
+
+    /// <summary>One frame of every dim and every light under way. An element back at full brightness is
+    /// forgotten. Only the elements that are changing are written, two on most moves: the one left and the
+    /// one arrived at.</summary>
+    private void EaseLights()
+    {
+        for (var i = _moving.Count - 1; i >= 0; i--)
+        {
+            var lit = _moving[i];
+            var element = lit.Element;
+            if (Math.Abs(element.Opacity - lit.Wrote) >= 0.002)
+            {
+                Forget(lit);   // faded by its own code meanwhile
+                continue;
+            }
+
+            lit.Now += (lit.Goal - lit.Now) * RingEase;
+            if (Math.Abs(lit.Goal - lit.Now) < 0.004)
+                lit.Now = lit.Goal;
+            element.Opacity = lit.Wrote = lit.Now;
+
+            if (lit.Now == lit.Goal)
+            {
+                lit.Moving = false;
+                _moving.RemoveAt(i);
+                if (lit.Goal >= 1)
+                    _lit.Remove(element);
+            }
+        }
+    }
+
+    /// <summary>Stops following an element's brightness, leaving its opacity as it is.</summary>
+    private void Forget(Lit lit)
+    {
+        _lit.Remove(lit.Element);
+        if (lit.Moving)
+        {
+            lit.Moving = false;
+            _moving.Remove(lit);
+        }
     }
 
     /// <summary>Whether two elements stand in one row in this view. They share at least half the height of
@@ -477,15 +655,6 @@ public sealed partial class PegasusPlayer
         }
     }
 
-    /// <summary>The corner radius an item is drawn with, so the ring's corner follows it. It is the
-    /// control's or the border's own corner radius, or a small default.</summary>
-    private static double CornerOf(FrameworkElement element) => element switch
-    {
-        Control control => control.CornerRadius.TopLeft,
-        Border border => border.CornerRadius.TopLeft,
-        _ => 6,
-    };
-
     /// <summary>Moves an item by its composition visual's Translation, for the bounce. Nothing in the
     /// layout moves. Translation must be switched on for the element before it is written. Otherwise the
     /// write is ignored, with no error.</summary>
@@ -497,71 +666,6 @@ public sealed partial class PegasusPlayer
         ElementCompositionPreview.SetIsTranslationEnabled(element, true);
         ElementCompositionPreview.GetElementVisual(element).Properties
             .InsertVector3("Translation", new Vector3(by.X, by.Y, 0));
-    }
-
-    /// <summary>
-    /// The zoom parts of a card marked <see cref="LiftPart.Card"/>: the element under it marked <see
-    /// cref="LiftPart.Photo"/> and every one marked <see cref="LiftPart.Below"/>. Null for an item that is
-    /// not such a card, or one whose photograph is not in its tree.
-    /// </summary>
-    private static Lifted? LiftOf(FrameworkElement? target)
-    {
-        if (target is null || FocusLift.GetPart(target) != LiftPart.Card)
-            return null;
-
-        FrameworkElement? photo = null;
-        var below = new List<FrameworkElement>(2);
-        var open = new Stack<DependencyObject>();
-        open.Push(target);
-        while (open.Count > 0)
-        {
-            var node = open.Pop();
-            if (!ReferenceEquals(node, target) && node is FrameworkElement element)
-            {
-                var part = FocusLift.GetPart(element);
-                if (part == LiftPart.Photo)
-                {
-                    photo ??= element;
-                    continue;
-                }
-                if (part == LiftPart.Below)
-                {
-                    below.Add(element);
-                    continue;
-                }
-            }
-            for (var i = VisualTreeHelper.GetChildrenCount(node) - 1; i >= 0; i--)
-                open.Push(VisualTreeHelper.GetChild(node, i));
-        }
-
-        return photo is null ? null : new Lifted(photo, below);
-    }
-
-    /// <summary>Zooms a card's photograph by <paramref name="by"/> about its middle, and moves the lines
-    /// under it down by how much the photograph grew at its foot. This keeps the lines their distance from
-    /// it.</summary>
-    /// <remarks>The lines are moved with a render transform, not with the composition visual's Translation.
-    /// The Skia head does not draw that property. Other code sets it only on the WinUI head (see
-    /// MainPage.PinHeading). On macOS, the lines do not move with the zoomed photograph when Translation is
-    /// used.</remarks>
-    private static void Lift(Lifted lift, float by)
-    {
-        Grow(lift.Photo, by);
-        var down = lift.Photo.ActualHeight * (by - 1) / 2;
-        foreach (var line in lift.Below)
-        {
-            if (line.RenderTransform is TranslateTransform shift)
-                shift.Y = down;
-            else
-                line.RenderTransform = new TranslateTransform { Y = down };
-        }
-    }
-
-    /// <summary>Puts a card's zoom back, if it has one.</summary>
-    private static void Unlift(Lifted? lift)
-    {
-        if (lift is not null)
-            Lift(lift, 1);
     }
 
     /// <summary>Enlarges an item by its composition visual's scale, about its middle. Nothing in the layout
