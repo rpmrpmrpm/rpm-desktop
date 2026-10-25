@@ -197,16 +197,19 @@ public sealed partial class PegasusTileMetrics : INotifyPropertyChanged
         nameof(Line), nameof(LineBox), nameof(Badge),
     ];
 
-    // The sizes of home's record cards (HomeTextSizes.CardTitle, CardTitleBox, CardLine, CardLineBox,
-    // Badge), on the same figure, so a record reads the same on the wall as in home's rows: the album
-    // name in bold, the spacing of the text under it and the spacing between covers.
+    // The sizes of home's record cards in Pegasus (HomeTextSizes.CardTitle, CardTitleBox, CardLine,
+    // CardLineBox, Badge, at their Couch sizes), on the same figure, so a record reads the same on the
+    // wall as in home's rows: the album name in bold, the spacing of the text under it and the spacing
+    // between covers. They are the Android TV app's couch sizes (CARD_TITLE_TEXT and CARD_LINE_TEXT, 17
+    // and 15, in boxes of 22 and 20, the E 16), where the desktop's were 12 and 11, so a name reads from
+    // across a room.
 
     /// <summary>The record's name, in SemiBold as home writes it.</summary>
-    public double Title => 12 * _scale;
+    public double Title => 17 * _scale;
 
     /// <summary>The name's line, held whether or not there is a name: see the card template on why every
     /// tile's two lines are the same height.</summary>
-    public double TitleBox => 16 * _scale;
+    public double TitleBox => 22 * _scale;
 
     /// <summary>How wide the name may be before it trims: the sleeve, less the E and the gap before it,
     /// which stand right after the name as on home's cards. A StackPanel measures its children with
@@ -218,12 +221,12 @@ public sealed partial class PegasusTileMetrics : INotifyPropertyChanged
     private const double BadgeGap = 4;
 
     /// <summary>The line under the name: the act.</summary>
-    public double Line => 11 * _scale;
+    public double Line => 15 * _scale;
 
-    public double LineBox => 15 * _scale;
+    public double LineBox => 20 * _scale;
 
     /// <summary>The E, square.</summary>
-    public double Badge => 12 * _scale;
+    public double Badge => 16 * _scale;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 }
@@ -2020,7 +2023,7 @@ public sealed partial class PegasusChrome
         LibrarySortButton.FontSize = 12 * scale;
         LibraryFavoritesIcon.FontSize = 12 * scale;
 
-        LibraryEmpty.FontSize = 14 * scale;
+        LibraryEmpty.FontSize = 22 * scale;   // the TV's couch size for a screen's message
     }
 
     /// <summary>The tile's side as the last layout worked it out, so the decode ladder has something to

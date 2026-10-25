@@ -103,7 +103,7 @@ public sealed partial class PegasusChrome
     /// for another number to a row.</summary>
     private void SizeGenres(double scale)
     {
-        GenresEmpty.FontSize = 14 * scale;
+        GenresEmpty.FontSize = 22 * scale;   // the TV's couch size for a screen's message
 
         var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
         if (width <= 1)

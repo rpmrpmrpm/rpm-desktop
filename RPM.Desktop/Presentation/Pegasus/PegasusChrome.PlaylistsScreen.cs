@@ -306,7 +306,7 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void SizePlaylists(double scale)
     {
-        PlaylistsEmpty.FontSize = 14 * scale;
+        PlaylistsEmpty.FontSize = 22 * scale;   // the TV's couch size for a screen's message
 
         // Cut before the width is known: the count to a row depends on the scale alone, and cards that are
         // in no row would not be on the screen at all until the next size pass.

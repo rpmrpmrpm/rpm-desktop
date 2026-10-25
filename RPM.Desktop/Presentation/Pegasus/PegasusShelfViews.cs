@@ -60,12 +60,13 @@ public sealed partial class PegasusFaceMetrics : INotifyPropertyChanged
     /// <summary>The photograph's margin inside its holder.</summary>
     public Thickness PhotoMargin => FocusLift.PhotoMargin(_edge);
 
-    /// <summary>The name, at the size that a radio row card's name uses (14 before the scale).</summary>
-    public double Title => 14 * _scale;
+    /// <summary>The name, at the TV's couch size for a card's name (CARD_TITLE_TEXT, 17 before the
+    /// scale), as on the album wall.</summary>
+    public double Title => 17 * _scale;
 
     /// <summary>The height of the name's line. It is kept whether or not there is a name, so every row has
     /// the same height (see PegasusCardTemplate).</summary>
-    public double TitleBox => 19 * _scale;
+    public double TitleBox => 22 * _scale;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -331,11 +332,13 @@ internal sealed class ShelfCard
         }
 
         _stand.FontSize = width * 0.36;
-        _title.FontSize = 14 * scale;
+        // The TV's couch sizes for a card's two lines and its E (CARD_TITLE_TEXT, CARD_LINE_TEXT), as on
+        // the album wall, up from 14 and 12.
+        _title.FontSize = 17 * scale;
         if (_line is not null)
-            _line.FontSize = 12 * scale;
+            _line.FontSize = 15 * scale;
 
-        var badge = 12 * scale;
+        var badge = 16 * scale;
         if (_badge is not null)
         {
             _badge.Width = _badge.Height = badge;

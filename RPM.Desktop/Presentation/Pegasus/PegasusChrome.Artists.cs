@@ -482,7 +482,7 @@ public sealed partial class PegasusChrome
         ArtistsSortButton.Width = 34 * scale;
         ArtistsSortButton.Height = 28 * scale;
         ArtistsSortButton.FontSize = 12 * scale;
-        ArtistsEmpty.FontSize = 14 * scale;
+        ArtistsEmpty.FontSize = 22 * scale;   // the TV's couch size for a screen's message
 
         var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
         if (width <= 0)
