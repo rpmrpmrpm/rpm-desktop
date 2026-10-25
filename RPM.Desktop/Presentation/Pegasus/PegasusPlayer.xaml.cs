@@ -225,7 +225,9 @@ public sealed partial class PegasusPlayer : UserControl
         var openingOnLibrary = !_greeting && _amp?.Deck is null;
 
         // The whole view is black before anything is stood up. The room, the shaders and the collection all arrive
-        // behind that black (see the loading note below).
+        // behind that black (see the loading note below). The gallery's still capture (the only caller that names a
+        // composition) opens without the opening sound.
+        _openingSoundWanted = openOn is null;
         BeginLoading();
 
         // The room waits when the collection is the opening screen and no room is standing yet.
@@ -434,6 +436,7 @@ public sealed partial class PegasusPlayer : UserControl
         // This happens before the chrome stands down, whose own stand-down lands the fade.
         _chrome?.HideLibrary();
         _chrome?.SetActive(false);
+        StopOpening();   // the band, and the opening sound if this visit started it
         StopRing();
         _idle?.Stop();
         _rootFade.Stop();
@@ -1083,44 +1086,36 @@ public sealed partial class PegasusPlayer : UserControl
     /// The cover goes up before anything is stood up. It is not faded in, because there is nothing to dissolve
     /// from. The view itself is arriving underneath it.
     ///
-    /// <para>The record turns on every opening, including the collection's. A wall of covers could appear without
-    /// announcing itself, but that holds only for a short wait. On a first launch the collection has never been
-    /// packed, and every record in it is read from disk. That is a wait long enough that a black screen with nothing
-    /// turning on it looks like a hung app. So the record turns, and the counter under it shows how far the reading
-    /// has got.</para>
+    /// <para>The band sweeps across the wordmark on every opening, including the collection's. A wall of covers
+    /// could appear without announcing itself, but that holds only for a short wait. On a first launch the
+    /// collection has never been packed, and every record in it is read from disk. That is a wait long enough that a
+    /// black screen with nothing moving on it looks like a hung app. So the band moves, and the line under the
+    /// wordmark says the library is being read (see <see cref="ShowWarmProgress"/>).</para>
     /// </summary>
     private void BeginLoading()
     {
         _loadingUp = true;
+        _openingHandOver++;   // a hand-over still waiting for the end of its pass is called off
         Loading.Visibility = Visibility.Visible;
         _loadingFade.To(1, 0);
-        LoadingRecord.Spinning = true;
+        StartSweep();
 
-        ShowWarmProgress(double.NaN);   // no figure yet: the counter stays away until there is one
+        ShowWarmProgress(double.NaN);   // nothing being read yet: the line stays away until there is
 
         ArmLoadingGiveUp();
     }
 
     /// <summary>
-    /// The percentage under the ring. <paramref name="done"/> is the fraction of the collection that is dressed. It
+    /// The line under the wordmark. <paramref name="done"/> is the fraction of the collection that is dressed. It
     /// is NaN for "nothing to say yet". Everything that is not the collection's first read is in that state, and the
-    /// counter stays hidden in it.
+    /// line stays away in it.
+    ///
+    /// <para>The figure itself is not shown. This screen used to give it as a percentage; the Android TV app, which
+    /// is the spec for this view, says only "Reading your library" while its first read runs, with no count, and
+    /// this does the same. The figure still restarts the wait's clock (see <see cref="OnLibraryWarmProgress"/>), so
+    /// a long first read is still waited for as long as it keeps answering.</para>
     /// </summary>
-    private void ShowWarmProgress(double done)
-    {
-        if (double.IsNaN(done))
-        {
-            LoadingCount.Text = "";
-            LoadingCount.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        // Rounded down, never up. A counter that reads 100% while records are still coming has lied about the one
-        // number it exists to give.
-        var percent = (int)(Math.Clamp(done, 0, 1) * 100);
-        LoadingCount.Text = percent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%";
-        LoadingCount.Visibility = Visibility.Visible;
-    }
+    private void ShowWarmProgress(double done) => ShowOpeningReading(!double.IsNaN(done));
 
     /// <summary>Starts the wait's own clock. It starts AGAIN when something else joins the wait. The room is held back
     /// until the collection is in, and then it gets its four seconds, not what is left of somebody else's.</summary>
@@ -1153,7 +1148,6 @@ public sealed partial class PegasusPlayer : UserControl
         _loadingUp = false;
         _waitStage = _waitLibrary = false;
         _loadingTimer?.Stop();
-        _loadingFade.To(0, 380);
 
         // A room that was held back for a collection that never arrived gets its turn here. That happens when a read
         // does not answer, or when the wait runs out. It is booked once either way. The collection's own cue has
@@ -1163,15 +1157,25 @@ public sealed partial class PegasusPlayer : UserControl
         // The screensaver's wait starts once there is a screen to look at.
         ArmScreensaver();
 
-        // The record is stopped, and the cover collapses, once the fade has run. A timer is used rather than a callback,
-        // because this fade has none. A turning record left in the tree at zero opacity would keep a timer repainting
-        // the window behind a shader for the rest of the visit.
+        // The cover hands over at the end of a pass of the band, never in the middle of one, as the TV's does: the
+        // band is clear of the letters when the screen starts to fade. Then the opening sound starts, and the cover
+        // fades away over 600 ms (see PegasusPlayer.Opening).
+        var handOver = ++_openingHandOver;
         DispatcherQueue?.TryEnqueue(async () =>
         {
-            await Task.Delay(420);
-            if (_loadingUp)
+            await Task.Delay(SweepLeft());
+            if (_loadingUp || handOver != _openingHandOver)
                 return;
-            LoadingRecord.Spinning = false;
+            _loadingFade.To(0, OpeningFadeMs);
+            PlayOpeningSound();
+
+            // The band is stopped, and the cover collapses, once the fade has run. A timer is used rather than a
+            // callback, because this fade has none. A band left running in the tree at zero opacity would keep the
+            // compositor drawing it for the rest of the visit.
+            await Task.Delay(OpeningFadeMs + 40);
+            if (_loadingUp || handOver != _openingHandOver)
+                return;
+            StopSweep();
             ShowWarmProgress(double.NaN);
             Loading.Visibility = Visibility.Collapsed;
         });

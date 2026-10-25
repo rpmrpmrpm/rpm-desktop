@@ -53,6 +53,17 @@ public static class AppSound
         try { if (player is { HasExited: false }) player.Kill(); } catch { }
     }
 
+    /// <summary>Whether the opening sound is sounding now. Pegasus's opening asks, so its sound never starts
+    /// over the window's own (see PegasusPlayer.PlayOpeningSound).</summary>
+    public static bool IsPlaying
+    {
+        get
+        {
+            try { return Volatile.Read(ref _playing) is { HasExited: false }; }
+            catch { return false; }
+        }
+    }
+
     private static Process? _playing;
 
     private static void Play(string path, int volume, Func<bool>? stop)

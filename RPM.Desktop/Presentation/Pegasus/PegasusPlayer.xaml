@@ -186,21 +186,40 @@
          It is over EVERYTHING, the keys included. It is the one thing that is ready immediately, and a way
          out shown over an empty screen would invite a press that cancels the wait. It is taken down when
          the room has answered and the first screen has content (see TryEndLoading). TryEndLoading also
-         gives up after a few seconds, so nobody is left under a spinner on a machine with no GL at all. -->
-    <Grid x:Name="Loading" Background="#FF000000" Visibility="Collapsed">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
-        <!-- The app's turning record (see RecordSpinner), at the size of the wait on every main screen
-             (ShelfLoader), not the platform's ring. -->
-        <ctl:RecordSpinner x:Name="LoadingRecord" Width="64" Height="64" HorizontalAlignment="Center"/>
+         gives up after a few seconds, so nobody is left under the cover on a machine with no GL at all.
 
-        <!-- How far the collection has got. It is empty until there is a figure to show. The room standing
-             up has no percentage, and a counter at 0% while a shader compiles would suggest progress that
-             has not started. It is centred and has a fixed width, so the text does not move sideways when
-             the number gains a digit. -->
-        <TextBlock x:Name="LoadingCount" Text="" FontSize="12.5" Foreground="#8CFFFFFF"
-                   Width="64" HorizontalAlignment="Center" TextAlignment="Center"
-                   Visibility="Collapsed"/>
-      </StackPanel>
+         What it shows is the Android TV app's opening screen (its Opening.kt): the rpm wordmark on black,
+         dimmed, with a band of light sweeping across it once a second, lighting the letters it passes. It is
+         sized in code, at the TV's 260 by 100 on a 1080 screen (see PegasusPlayer.Opening, SizeOpening). -->
+    <Grid x:Name="Loading" Background="#FF000000" Visibility="Collapsed" SizeChanged="Loading_SizeChanged">
+      <Grid x:Name="OpeningMark" HorizontalAlignment="Center" VerticalAlignment="Center" Width="260" Height="100"
+            IsHitTestVisible="False">
+        <!-- The wordmark at the TV's dim level, 0.32 white. The same geometry as the splash card's mark
+             (SplashCard.Mark) and Assets/Svg/rpm.svg. -->
+        <Path x:Name="OpeningDim" Stretch="Uniform" Fill="#52FFFFFF"
+              Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+
+        <!-- The same wordmark in full white, never seen as it is: its wrapper is cut away entirely, and a
+             live copy of it is painted back through the moving band (see PegasusPlayer.Opening). -->
+        <Grid x:Name="OpeningLitCut">
+          <Path x:Name="OpeningLit" Stretch="Uniform" Fill="#FFFFFFFF"
+                Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
+        </Grid>
+
+        <!-- Where the band is painted: a sprite of the lit wordmark seen through the band. -->
+        <Grid x:Name="OpeningSweep"/>
+      </Grid>
+
+      <!-- The one line the opening says, under the wordmark: only while the collection is first being read,
+           which on a first launch is a wait long enough to need saying. It says what is happening, not how
+           far it has got, as on the TV. It comes up over 300 ms. Placed in code (SizeOpening). -->
+      <TextBlock x:Name="OpeningReading" Text="{loc:Str Key=Rpm_Library_Reading}" Foreground="#99FFFFFF"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="NoWrap"
+                 Opacity="0" Visibility="Collapsed" IsHitTestVisible="False">
+        <TextBlock.RenderTransform>
+          <TranslateTransform x:Name="OpeningReadingShift"/>
+        </TextBlock.RenderTransform>
+      </TextBlock>
     </Grid>
 
   </Grid>
