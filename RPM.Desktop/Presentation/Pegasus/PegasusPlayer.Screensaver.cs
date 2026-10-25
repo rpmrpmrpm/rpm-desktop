@@ -167,6 +167,11 @@ public sealed partial class PegasusPlayer
         _saver.PutAway();
         Say("screensaver: the screens are put away");
 
+        // A room stopped under the pages' background starts again before the screens fade, so it is moving as it is
+        // uncovered (see ApplyRoomCovered).
+        _saverBack++;
+        ApplyRoomCovered();
+
         ChromeHost.IsHitTestVisible = false;
         SaverFade.To(0, ScreensaverOutMs);
         HideFlash();
@@ -183,7 +188,21 @@ public sealed partial class PegasusPlayer
         ChromeHost.IsHitTestVisible = true;
         SaverFade.To(1, ScreensaverInMs);
         ArmScreensaver();
+
+        // Once the screens are fully back, a room under the pages' background stops again. Not before: it shows
+        // through while they fade in. A later put-away cancels this.
+        var back = ++_saverBack;
+        DispatcherQueue?.TryEnqueue(async () =>
+        {
+            await Task.Delay(ScreensaverInMs + 40);
+            if (back == _saverBack && !_saver.Shown)
+                ApplyRoomCovered();
+        });
     }
+
+    /// <summary>Counts put-aways and returns, so a return's late room stop is dropped when the screens have gone
+    /// again since.</summary>
+    private int _saverBack;
 
     /// <summary>The view is going away: the screens are put back at once and the watch stops, so the next
     /// visit opens with them up and the full wait ahead.</summary>

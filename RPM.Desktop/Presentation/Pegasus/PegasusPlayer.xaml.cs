@@ -630,12 +630,14 @@ public sealed partial class PegasusPlayer : UserControl
     /// <summary>Stops the room while the pages' background covers it, and starts it again when it does not. Only a
     /// room that has drawn a frame is stopped: the view's cover waits for that first frame (see HasPainted), and a
     /// room never started would never draw it. Not while the collection is dressing itself, which holds the room
-    /// still for reasons of its own (see <see cref="OnLibraryWarming"/>).</summary>
+    /// still for reasons of its own (see <see cref="OnLibraryWarming"/>). While the screensaver is up the room runs
+    /// whatever the background says: the background is in the chrome, which the screensaver has faded away, and the
+    /// moving room is the whole point of it (see PegasusPlayer.Screensaver).</summary>
     private void ApplyRoomCovered()
     {
         if (!IsShowing || _libraryWarming || _stage is not { HasPainted: true } stage)
             return;
-        stage.SetActive(!_roomCovered);
+        stage.SetActive(!_roomCovered || _saver.Shown);
     }
 
     /// <summary>
