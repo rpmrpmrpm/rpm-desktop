@@ -526,6 +526,8 @@ public sealed partial class PegasusPlayer
         var screen = _chrome?.ScreenInFront(Root) ?? new RemoteScreen(Root, notDrawn: []);
         var open = new Stack<DependencyObject>();
         open.Push(screen.Area);
+        int found = 0, own = 0, faded = 0;
+        string? fadedSample = null;
         while (open.Count > 0)
         {
             var node = open.Pop();
@@ -534,11 +536,27 @@ public sealed partial class PegasusPlayer
 
             if (node is Control { IsTabStop: true, IsEnabled: true, IsLoaded: true, ActualWidth: > 0, ActualHeight: > 0 } stop
                 && !holding.Contains(stop))
+            {
+                found++;
+                var stopFace = FocusLift.GetFace(stop) ?? stop;
+                if (FocusLift.GetPart(stop) == LiftPart.Own)
+                    own++;
+                else if (!_lit.ContainsKey(stopFace) && Math.Abs(stopFace.Opacity - 1) >= 0.002)
+                {
+                    faded++;
+                    fadedSample ??= $"{stopFace.GetType().Name} at {stopFace.Opacity:0.###}";
+                }
                 DimStop(stop, holding);
+            }
 
             for (var i = VisualTreeHelper.GetChildrenCount(node) - 1; i >= 0; i--)
                 open.Push(VisualTreeHelper.GetChild(node, i));
         }
+
+        // What the look did on this screen, once per move: a stop left at full brightness is either drawn by
+        // its own look or was faded by its own code, which the look leaves alone (see LightTo).
+        if (left is not null)
+            Say($"focus look: {found} stops on {(screen.Area as FrameworkElement)?.Name}, {_lit.Count} dimmed, {own} own, {faded} left at their own opacity{(fadedSample is null ? "" : $" ({fadedSample})")}");
 
         List<Lit>? gone = null;
         foreach (var lit in _lit.Values)
