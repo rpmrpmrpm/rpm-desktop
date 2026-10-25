@@ -11,11 +11,14 @@ public readonly record struct WallLetter(string Letter, int First);
 /// The letters a wall of albums runs through, for a wheel that jumps along it: the TV screens' album carousel
 /// (the Android TV app's and Pegasus's) opens one on Up.
 ///
-/// <para>Only an order by name has letters. By album name a record is filed under the first letter of its
-/// title, and by artist under the first letter of its artist, folded the way the artist index folds it
-/// (<see cref="ArtistWall.Initial"/>: accents off, "#" for a digit, a symbol or another script). By date the
-/// stops are decades instead: 1970, 1980, and "#" for a record with no year. Every other order has none, and
-/// the wheel does not open.</para>
+/// <para>Only an order by name has letters. By album name a record is filed under the first character of its
+/// title, and by artist under the first character of its artist, with its accent off: a letter A to Z, or "#"
+/// for a digit, a symbol or another script (the TV's initialOf). That is the character the wall sorts it by, so
+/// "$uicideboy$" and "*NSYNC" stand under "#" with "!!!", where the wall puts them, at its start. The artists
+/// list's own index skips a leading symbol (<see cref="ArtistWall.Initial"/>) because that list is sorted that
+/// way too; a wall of records is not, and filing them by that rule put T, N and U between "#" and A. By date
+/// the stops are decades instead: 1970, 1980, and "#" for a record with no year. Every other order has none,
+/// and the wheel does not open.</para>
 ///
 /// <para>The stops come in the order the wall first reaches them, not in alphabetical order. So the wheel
 /// always agrees with the wall it jumps along, whatever rule the wall was sorted by: a letter the sort places
@@ -31,13 +34,25 @@ public static class AlbumLetters
     /// letters.</summary>
     public static string Of(AlbumFacts album, AlbumOrdering ordering) => ordering switch
     {
-        AlbumOrdering.Album => ArtistWall.Initial(album.Album).ToString(),
-        AlbumOrdering.Artist => ArtistWall.Initial(album.Artist).ToString(),
+        AlbumOrdering.Album => FirstLetter(album.Album),
+        AlbumOrdering.Artist => FirstLetter(album.Artist),
         AlbumOrdering.Date => album.Year > 0
             ? (album.Year / 10 * 10).ToString(CultureInfo.InvariantCulture)
             : "#",
         _ => "#",
     };
+
+    /// <summary>A name's first character in capitals with its accent off, when that leaves a letter A to Z;
+    /// otherwise "#". Only the first character: the wall sorts by the whole name, symbols and all.</summary>
+    private static string FirstLetter(string? name)
+    {
+        var trimmed = (name ?? "").TrimStart();
+        if (trimmed.Length == 0)
+            return "#";
+
+        var first = char.ToUpperInvariant(trimmed[0]).ToString().Normalize(System.Text.NormalizationForm.FormD)[0];
+        return first is >= 'A' and <= 'Z' ? first.ToString() : "#";
+    }
 
     /// <summary>The stops <paramref name="wall"/> runs through in <paramref name="ordering"/>, each with its
     /// first record, in the order the wall reaches them. Empty for an order with no letters, and for an empty

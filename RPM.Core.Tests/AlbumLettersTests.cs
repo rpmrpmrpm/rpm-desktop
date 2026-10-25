@@ -29,6 +29,26 @@ public class AlbumLettersTests
     }
 
     [Fact]
+    public void By_artist_a_name_that_starts_with_a_symbol_is_filed_under_hash_where_the_wall_sorts_it()
+    {
+        // The wall sorts by the whole name, so these four come before A. Filed by their first letter instead
+        // (T, N, U), the wheel read "#, T, N, U, A, B ..." (seen in Pegasus, 2026-10-25).
+        List<AlbumFacts> wall =
+        [
+            Facts("Wallop", "!!!"),
+            Facts("The Rocky Horror Picture Show", "\"The Rocky Horror Picture Show\" Original Cast"),
+            Facts("No Strings Attached", "*NSYNC"),
+            Facts("Eternal Grey", "$uicideboy$"),
+            Facts("Abbey Road", "Beatles"),
+            Facts("Ágætis byrjun", "Ólafur Arnalds"),
+        ];
+
+        var stops = AlbumLetters.For(wall, AlbumOrdering.Artist, f => f);
+
+        Assert.Equal([new WallLetter("#", 0), new WallLetter("B", 4), new WallLetter("O", 5)], stops);
+    }
+
+    [Fact]
     public void By_album_the_stops_are_the_titles_first_letters_with_accents_folded()
     {
         List<AlbumFacts> wall =
