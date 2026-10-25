@@ -261,8 +261,13 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>A key was pressed: the transport and its playhead appear again, as they do on a pointer
-    /// move, so that the key the focus moves to is always visible.</summary>
-    public void WakeForKeys() => WakeTransport();
+    /// move, so that the key the focus moves to is always visible. The queue drawer's line on how to
+    /// rearrange goes (see PegasusChrome.QueueRearrange).</summary>
+    public void WakeForKeys()
+    {
+        WakeTransport();
+        HideRearrangeHint();
+    }
 
     /// <summary>
     /// Whether the player's controls are hidden: the turning record is in front (not the collection, not the

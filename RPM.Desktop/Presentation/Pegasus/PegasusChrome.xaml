@@ -2368,6 +2368,7 @@
         <Grid Margin="0,12,0,12">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -2384,6 +2385,7 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
 
@@ -2470,7 +2472,17 @@
           <!-- Its own way out, on the panel and not only on the key that opened it. A card over the
                picture should close where it is, without the user having to find the button it came from.
                It is on both screens, because it closes the drawer and not the screen. -->
-          <Button x:Name="QueueCloseButton" Click="QueueClose_Click" Grid.Column="2"
+          <!-- Beside it, on the queue only, the key that turns rearranging on (see
+               PegasusChrome.QueueRearrange): the rows show their grips, and OK on a row picks it up. It
+               stays lit while rearranging is on. -->
+          <Button x:Name="QueueRearrangeButton" Click="QueueRearrange_Click" Grid.Column="2"
+                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                  Padding="0" MinWidth="0" MinHeight="0"
+                  Content="&#xf338;" FontFamily="{StaticResource PegasusFa}"
+                  Foreground="#99FFFFFF"
+                  ToolTipService.ToolTip="{loc:Str Key=Rpm_Queue_Rearrange}"
+                  AutomationProperties.Name="{loc:Str Key=Rpm_Queue_Rearrange}"/>
+          <Button x:Name="QueueCloseButton" Click="QueueClose_Click" Grid.Column="3"
                   HorizontalAlignment="Right" VerticalAlignment="Center"
                   Padding="0" MinWidth="0" MinHeight="0"
                   Content="&#xf00d;" FontFamily="{StaticResource PegasusFa}"
@@ -2479,12 +2491,18 @@
                   AutomationProperties.Name="{loc:Str Key=Viz_QueueClose}"/>
         </Grid>
 
+        <!-- How a song is moved, under the head while rearranging is turned on, until the next key (see
+             PegasusChrome.QueueRearrange). Sized in code. -->
+        <TextBlock x:Name="QueueRearrangeHint" Grid.Row="1" Visibility="Collapsed"
+                   Text="{loc:Str Key=Tv_QueueRearrangeHint}" TextWrapping="Wrap"
+                   Foreground="#B3FFFFFF" IsHitTestVisible="False"/>
+
         <!-- The two screens, one over the other with a cross-fade between them (see ShowBrowse). Both are
              in the tree the whole time the drawer is shown: they are lists of a few dozen rows, and a
              screen built on the way in is a layout pass in front of the shader at the moment when the
              user is watching the slide. Only the screen being viewed is ever FILLED, which is where the
              cost really is. -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
           <ScrollViewer x:Name="QueueScroll"
                         VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
                         ViewChanged="Drawer_ViewChanged">

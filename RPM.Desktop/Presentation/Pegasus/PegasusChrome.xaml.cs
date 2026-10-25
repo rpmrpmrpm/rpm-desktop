@@ -3772,6 +3772,7 @@ public sealed partial class PegasusChrome : UserControl
             // records, because of where somebody was standing in it last time, would be answering a
             // question nobody had asked.
             ResetToQueue();
+            SetQueueRearranging(false);   // a drawer opens to play from, with no grips
 
             BuildQueue();
             LayoutQueue();
@@ -3800,6 +3801,7 @@ public sealed partial class PegasusChrome : UserControl
             _queueHover = false;
             CancelDrag();   // A row still in the air when the panel closes has nothing left to land in.
             EndQueueMove(place: false);   // A row the keys were carrying is put back as well.
+            SetQueueRearranging(false);
             Watch(false);
             _queueFade.To(0, 260, () =>
             {
@@ -3945,6 +3947,8 @@ public sealed partial class PegasusChrome : UserControl
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 10 * scale, 0),
                 Opacity = 0.42,
+                // Shown only while the queue is being rearranged (see PegasusChrome.QueueRearrange).
+                Visibility = _queueRearranging ? Visibility.Visible : Visibility.Collapsed,
             };
             Grid.SetColumn(grip, 0);
 
@@ -4028,7 +4032,7 @@ public sealed partial class PegasusChrome : UserControl
             // PegasusChrome.QueueRemote), not the song's. That menu's entries are about putting a song on,
             // and this song is already on.
             var queued = track;
-            row.Child = new RemoteLine(grid, () => PlayQueued(queued), () => QueueMenu(queued), turn: null)
+            row.Child = new RemoteLine(grid, () => QueueRowOk(queued), () => QueueMenu(queued), turn: null)
             {
                 CornerRadius = row.CornerRadius,
             };

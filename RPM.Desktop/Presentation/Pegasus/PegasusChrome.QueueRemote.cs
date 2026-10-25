@@ -177,6 +177,7 @@ public sealed partial class PegasusChrome
         _queueMove = null;
 
         Lift(move.Row, lifted: false);
+        ShowGrip(move.Row, _queueRearranging);   // the grip stays only while rearranging is on
 
         // The panel may have been built again under the move; then there is nothing of it left to put down.
         var stillThere = move.From < _queueSlots.Count
@@ -251,6 +252,10 @@ public sealed partial class PegasusChrome
         if (row.Child is RemoteLine { Content: Grid grid })
             foreach (var cell in grid.Children)
                 if (cell is TextBlock grip && Grid.GetColumn(grip) == 0)
+                {
                     grip.Opacity = lifted ? 1 : 0.42;
+                    if (lifted)
+                        grip.Visibility = Visibility.Visible;   // a carried row shows its grip, rearranging or not
+                }
     }
 }

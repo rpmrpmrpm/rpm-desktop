@@ -267,6 +267,9 @@ public sealed partial class PegasusChrome
         IconName.Set(QueueCloseButton,
             Strings.Loc.Get(toLibrary ? "Viz_Library" : "Viz_QueueClose"));
 
+        // The rearrange key is the queue's own (see PegasusChrome.QueueRearrange).
+        QueueRearrangeButton.Visibility = _screen == DrawerScreen.Queue ? Visibility.Visible : Visibility.Collapsed;
+
         // All three words are shown on BOTH lists, and none of them on a record screen. What is playing,
         // what you have made and what you own are three answers to one question, so they stand together. A
         // record is not an answer to that question. The head there is about that record, and a row of tabs
@@ -986,6 +989,15 @@ public sealed partial class PegasusChrome
         QueueCloseButton.Width = QueueCloseButton.Height = 26 * scale;
         QueueCloseButton.CornerRadius = new CornerRadius(13 * scale);
         QueueCloseButton.FontSize = 11 * scale;
+
+        // The rearrange key beside it, the same size, and the line under the head that says how a song is
+        // moved, in from the left as the rows' titles are.
+        QueueRearrangeButton.Width = QueueRearrangeButton.Height = 26 * scale;
+        QueueRearrangeButton.CornerRadius = new CornerRadius(13 * scale);
+        QueueRearrangeButton.FontSize = 11 * scale;
+        QueueRearrangeButton.Margin = new Thickness(0, 0, 6 * scale, 0);
+        QueueRearrangeHint.FontSize = 15 * QueueScale;
+        QueueRearrangeHint.Margin = new Thickness(18 + (10 * scale), 0, 18, 8 * QueueScale);
 
         // The band the record dissolves in, which grows with everything else (see PegasusChrome.TopFade).
         DrawerTopFade.Height = TopFadeDepth * scale;

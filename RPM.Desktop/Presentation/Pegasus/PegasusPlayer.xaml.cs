@@ -1611,6 +1611,11 @@ public sealed partial class PegasusPlayer : UserControl
             Stepped("put the carried queue row back");
             return;
         }
+        if (_chrome?.EndQueueRearranging() == true)
+        {
+            Stepped("stopped rearranging the queue");
+            return;
+        }
         if (_chrome?.CloseMenuPanel() == true)
         {
             Stepped("closed the menu's panel");
