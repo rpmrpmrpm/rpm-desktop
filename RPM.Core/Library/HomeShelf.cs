@@ -376,10 +376,11 @@ public static class HomeShelf
         => Shuffled([.. pool.Select(s => s.Folder)], draw, seed);
 
     /// <summary>One pool, shuffled by the draw and by a salt the caller chooses. This is shared by
-    /// <see cref="Drawn"/> and by the taste row, which has no seed. A single copy of the generator means
-    /// the two cannot drift apart and answer differently.
+    /// <see cref="Drawn"/>, by the taste row, which has no seed, and by a borrowed shelf's home
+    /// (<see cref="BorrowedHome"/>). A single copy of the generator means they cannot drift apart and
+    /// answer differently.
     /// </summary>
-    private static List<string> Shuffled(List<string> folders, int draw, string salt)
+    internal static List<string> Shuffled(List<string> folders, int draw, string salt)
     {
         // A stable hash of the salt, folded into the draw. The shuffle belongs to this caller and does not
         // change when the framework's string hashing does. That hashing is per process, and it would break
