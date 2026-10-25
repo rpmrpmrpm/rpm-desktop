@@ -270,14 +270,14 @@ public sealed partial class PegasusChrome
         // The rearrange key is the queue's own (see PegasusChrome.QueueRearrange).
         QueueRearrangeButton.Visibility = _screen == DrawerScreen.Queue ? Visibility.Visible : Visibility.Collapsed;
 
-        // All three words are shown on BOTH lists, and none of them on a record screen. What is playing,
-        // what you have made and what you own are three answers to one question, so they stand together. A
-        // record is not an answer to that question. The head there is about that record, and a row of tabs
-        // over it would offer to leave a screen the listener has just arrived at.
-        var tabs = _screen == DrawerScreen.Album ? Visibility.Collapsed : Visibility.Visible;
-        BrowseQueueTab.Visibility = tabs;
-        BrowsePlaylistsTab.Visibility = tabs;
-        BrowseAlbumsTab.Visibility = tabs;
+        // The drawer holds the queue alone, as the Android TV app's does, so its head names it ("Now
+        // playing") and the three words stay collapsed. The collection's Playlists and Albums are screens of
+        // their own, in the side menu. The shelf and record screens below are kept, and are reached only
+        // through those words.
+        QueueTitle.Visibility = _screen == DrawerScreen.Queue ? Visibility.Visible : Visibility.Collapsed;
+        BrowseQueueTab.Visibility = Visibility.Collapsed;
+        BrowsePlaylistsTab.Visibility = Visibility.Collapsed;
+        BrowseAlbumsTab.Visibility = Visibility.Collapsed;
         PaintBrowseTabs();
         ApplySearchBox();
 
@@ -986,16 +986,21 @@ public sealed partial class PegasusChrome
     /// figure, see <see cref="QueueScale"/>.</summary>
     private void SizeBrowseHead(double scale)
     {
-        QueueCloseButton.Width = QueueCloseButton.Height = 26 * scale;
-        QueueCloseButton.CornerRadius = new CornerRadius(13 * scale);
-        QueueCloseButton.FontSize = 11 * scale;
+        // The title and the two keys at the TV's sizes, on the collection's scale as the side menu is: the
+        // title 26 points, the keys boxed 52 square with the side menu's corner and a 20 point glyph, 8
+        // apart. The title stands in from the left as the rows' titles do.
+        var couch = QueueScale;
+        QueueTitle.FontSize = 26 * couch;
+        QueueTitle.Margin = new Thickness(10 * scale, 0, 10 * couch, 0);
+        foreach (var key in (Button[])[QueueRearrangeButton, QueueCloseButton])
+        {
+            key.Width = key.Height = 52 * couch;
+            key.CornerRadius = new CornerRadius(PlayerCorner * couch);
+            key.FontSize = 20 * couch;
+        }
+        QueueRearrangeButton.Margin = new Thickness(0, 0, 8 * couch, 0);
 
-        // The rearrange key beside it, the same size, and the line under the head that says how a song is
-        // moved, in from the left as the rows' titles are.
-        QueueRearrangeButton.Width = QueueRearrangeButton.Height = 26 * scale;
-        QueueRearrangeButton.CornerRadius = new CornerRadius(13 * scale);
-        QueueRearrangeButton.FontSize = 11 * scale;
-        QueueRearrangeButton.Margin = new Thickness(0, 0, 6 * scale, 0);
+        // The line under the head that says how a song is moved, in from the left as the rows' titles are.
         QueueRearrangeHint.FontSize = 15 * QueueScale;
         QueueRearrangeHint.Margin = new Thickness(18 + (10 * scale), 0, 18, 8 * QueueScale);
 

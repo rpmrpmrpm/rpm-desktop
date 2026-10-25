@@ -515,7 +515,7 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// Where the focus belongs in the drawer: the album screen's play key; the shelf's first row, else
-    /// its highlighted tab; the queue's playing row, else its first row, else its tab.
+    /// its highlighted tab; the queue's playing row, else its first row, else its close key.
     /// </summary>
     private Control? DrawerFocusTarget() => _screen switch
     {
@@ -524,7 +524,7 @@ public sealed partial class PegasusChrome
                                ?? (_browseAlbums ? BrowseAlbumsTab : BrowsePlaylistsTab),
         _ => QueueLineFor(_queueCurrent)
              ?? FocusManager.FindFirstFocusableElement(QueueRows) as Control
-             ?? BrowseQueueTab,
+             ?? QueueCloseButton,
     };
 
     /// <summary>The queue row of one track, as the remote focuses it: the line inside the row's Border

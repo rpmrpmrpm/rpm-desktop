@@ -2255,9 +2255,9 @@
          dropped on the screen, and a drawer that covers the words means that opening the list to see what
          is next hides what is playing now.
 
-         It is flush to the edge and full height, which makes it a drawer and not a card. Only the right
-         corners are rounded and only the right edge is drawn. The other three sides belong to the screen,
-         and a border along them would draw a box around the window.
+         It is a card of frosted glass, as the Android TV app's drawer is: the side menu's corner and its
+         margin from the left, top and bottom edges (set in LayoutQueue), and the light glass's rim all
+         round (LightSmokeRimBrush).
 
          The rows are built in code (BuildQueue), as the lyric sheet next door is: a hand-built list is a
          few TextBlocks laid out once, whereas an ItemsControl would bring a template, a panel and a layout
@@ -2267,7 +2267,7 @@
             HorizontalAlignment="Left" VerticalAlignment="Stretch"
             PointerEntered="Queue_PointerEntered" PointerExited="Queue_PointerExited"
             PointerMoved="Queue_PointerMoved"
-            BorderBrush="#26FFFFFF" BorderThickness="0,0,1,0">
+            BorderBrush="{StaticResource LightSmokeRimBrush}" BorderThickness="1">
       <Border.RenderTransform>
         <TranslateTransform x:Name="QueueShift"/>
       </Border.RenderTransform>
@@ -2298,21 +2298,22 @@
            That is affordable only because the drawer is a few hundred points wide and hides after three
            seconds: nobody leaves it on screen.
 
-           The veil over it is the tint, exactly as the grids do it. It is heavier than theirs, and it
-           must be: they frost a still photograph, and this frosts a room that goes from black to white
-           and back while a track plays. Under a lighter veil the words on this panel would come and go
-           with the music. -->
+           The veil over it is frosted rather than smoked, as the Android TV app's drawer is: a milky
+           white (#33FFFFFF) with a tenth of black over it (#1A000000), worked out as one colour. The room
+           behind is soft already, so a dark veil over its blur showed no glass at all; the milk is what
+           makes it read as frosted, and the tenth of black keeps the white words readable on it. The
+           frost and the veil are Borders so they take the card's corner (set in LayoutQueue). -->
       <Grid>
-        <Rectangle>
-          <Rectangle.Fill>
+        <Border x:Name="QueueFrost">
+          <Border.Background>
             <ui:GlassBrush BlurAmount="34"/>
-          </Rectangle.Fill>
-        </Rectangle>
+          </Border.Background>
+        </Border>
 
         <!-- The tint, and the fallback. Where the frost cannot read what is behind it (for example a
-             machine with no composition backdrop to sample), this is the whole colour of the panel, and
-             it is a near-black. Nothing about the panel depends on the blur being available. -->
-        <Rectangle Fill="#B0000000"/>
+             machine with no composition backdrop to sample), this is the whole colour of the panel.
+             Nothing about the panel depends on the blur being available. -->
+        <Border x:Name="QueueTint" Background="#47A4A4A4"/>
 
         <!-- ═══ The album's own wash ═══ the open album's cover, enlarged to fill the drawer and blurred
              until no detail is left (see ArtScaler.Wash), so the screen that shows one album is coloured
@@ -2353,18 +2354,6 @@
           </Rectangle>
         </Grid>
 
-        <!-- A light edge down the leading side, which stops frosted glass from looking like a grey
-             rectangle: the edge nearest the picture catches a little of it. -->
-        <Rectangle Width="1" HorizontalAlignment="Right">
-          <Rectangle.Fill>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-              <GradientStop Offset="0.0" Color="#00FFFFFF"/>
-              <GradientStop Offset="0.35" Color="#26FFFFFF"/>
-              <GradientStop Offset="1.0" Color="#00FFFFFF"/>
-            </LinearGradientBrush>
-          </Rectangle.Fill>
-        </Rectangle>
-
         <Grid Margin="0,12,0,12">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -2372,15 +2361,12 @@
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- No heading over the list. "Now playing" would name the one thing on this screen that is never
-             in doubt, because the record turns in the middle of it, and a row of titles under a label
-             looks like a section of a page and not like the queue itself. The head of the drawer holds
-             the way OUT of it, and the way BACK from it. All of it is sized in code (LayoutQueue), with
-             the rows underneath.
-
-             There is no arrow on the left either. The three words beside it are peers: what is playing,
-             what you made and what you own are one question with three answers, and a back arrow over
-             three peers goes nowhere. -->
+        <!-- The head, as the Android TV app's drawer has it: "Now playing" (QueueTitle, 26 points SemiBold,
+             the settings panel's title size), and at the right the rearrange key and the close key, boxed
+             as the side menu's keys are. The drawer holds the queue alone, as the TV's does, so the title
+             names that and nothing else: the Playlists and Albums words stay collapsed (see ApplyHead),
+             and the collection's own Playlists and Albums screens are in the side menu. All of it is sized
+             in code (SizeBrowseHead), with the rows underneath. -->
         <Grid Grid.Row="0" Margin="8,0,10,6">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
@@ -2398,6 +2384,8 @@
                  They are three peers, not one screen with two tabs. The three lists are one question:
                  what should be playing. They are shown together on both screens, and hidden on an album,
                  whose head is about that album. -->
+            <TextBlock x:Name="QueueTitle" Text="{loc:Str Key=Viz_BrowseQueue}" FontWeight="SemiBold"
+                       Foreground="#FFFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             <Button x:Name="BrowseQueueTab" Click="BrowseTab_Click" Tag="queue"
                     Visibility="Collapsed" VerticalAlignment="Center"
                     MinWidth="0" MinHeight="0"
@@ -2471,7 +2459,8 @@
 
           <!-- Its own way out, on the panel and not only on the key that opened it. A card over the
                picture should close where it is, without the user having to find the button it came from.
-               It is on both screens, because it closes the drawer and not the screen. -->
+               It is on both screens, because it closes the drawer and not the screen. Both keys are
+               boxed as the side menu's are (PegasusMenuButton's fill and rim). -->
           <!-- Beside it, on the queue only, the key that turns rearranging on (see
                PegasusChrome.QueueRearrange): the rows show their grips, and OK on a row picks it up. It
                stays lit while rearranging is on. -->
@@ -2479,14 +2468,14 @@
                   HorizontalAlignment="Right" VerticalAlignment="Center"
                   Padding="0" MinWidth="0" MinHeight="0"
                   Content="&#xf338;" FontFamily="{StaticResource PegasusFa}"
-                  Foreground="#99FFFFFF"
+                  Foreground="#E6FFFFFF" Background="#14FFFFFF" BorderBrush="#B3FFFFFF" BorderThickness="1"
                   ToolTipService.ToolTip="{loc:Str Key=Rpm_Queue_Rearrange}"
                   AutomationProperties.Name="{loc:Str Key=Rpm_Queue_Rearrange}"/>
           <Button x:Name="QueueCloseButton" Click="QueueClose_Click" Grid.Column="3"
                   HorizontalAlignment="Right" VerticalAlignment="Center"
                   Padding="0" MinWidth="0" MinHeight="0"
                   Content="&#xf00d;" FontFamily="{StaticResource PegasusFa}"
-                  Foreground="#99FFFFFF"
+                  Foreground="#E6FFFFFF" Background="#14FFFFFF" BorderBrush="#B3FFFFFF" BorderThickness="1"
                   ToolTipService.ToolTip="{loc:Str Key=Viz_QueueClose}"
                   AutomationProperties.Name="{loc:Str Key=Viz_QueueClose}"/>
         </Grid>

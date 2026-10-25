@@ -3649,9 +3649,10 @@ public sealed partial class PegasusChrome : UserControl
     /// <see cref="_pushSlide"/> says.</summary>
     private void ApplyQueueShift()
     {
-        var width = double.IsNaN(QueuePanel.Width) ? 0 : QueuePanel.Width;
+        // The card's width with its margin from the edge, which is what it takes of the screen.
+        var width = (double.IsNaN(QueuePanel.Width) ? 0 : QueuePanel.Width) + QueuePanel.Margin.Left;
 
-        // The drawer, from wholly off the edge to flush against it.
+        // The drawer, from wholly off the edge to its place.
         QueueShift.X = -width * (1 - _queueSlide);
 
         // …and everything else moves by the whole of the drawer's width, not half of it. Half would
@@ -4763,9 +4764,14 @@ public sealed partial class PegasusChrome : UserControl
         // PegasusChrome.Library).
         SizeLibrary(QueueScale);
 
-        // Full height, flush to the edge. The height and the margin are what make the difference between a
-        // drawer and a card. Both come from the window, not from the composition.
-        QueuePanel.Margin = new Thickness(0);
+        // A card of frosted glass, as the TV's drawer and the side menu are: their corner, and their margin
+        // from the left, top and bottom edges, on the collection's scale. The frost and the veil inside take
+        // the corner too, within the rim (see the drawer in PegasusChrome.xaml).
+        var edge = 10 * QueueScale;
+        var corner = PlayerCorner * QueueScale;
+        QueuePanel.Margin = new Thickness(edge, edge, 0, edge);
+        QueuePanel.CornerRadius = new CornerRadius(corner);
+        QueueFrost.CornerRadius = QueueTint.CornerRadius = new CornerRadius(Math.Max(0, corner - 1));
 
         // The width may have changed under an open drawer, during a resize while it is up. The slide and
         // the push are both worked out from it. So it is written now, rather than on the next tick.

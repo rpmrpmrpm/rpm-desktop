@@ -87,15 +87,20 @@ public sealed partial class PegasusChrome
             grip.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>The rearrange key lit while rearranging is on (the TV's #4DFFFFFF fill and white glyph), so
-    /// the mode shows from across the room wherever the focus is.</summary>
+    /// <summary>The rearrange key lit while rearranging is on (the TV's #4DFFFFFF fill, the lit rim and a white
+    /// glyph), so the mode shows from across the room wherever the focus is. Off, it is boxed as the close key
+    /// beside it (see the drawer's head in PegasusChrome.xaml).</summary>
     private void PaintRearrangeKey()
     {
-        QueueRearrangeButton.Background = new SolidColorBrush(_queueRearranging
+        var on = _queueRearranging;
+        QueueRearrangeButton.Background = new SolidColorBrush(on
             ? Color.FromArgb(0x4D, 0xFF, 0xFF, 0xFF)
-            : Microsoft.UI.Colors.Transparent);
-        QueueRearrangeButton.Foreground = new SolidColorBrush(_queueRearranging
+            : Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
+        QueueRearrangeButton.BorderBrush = new SolidColorBrush(on
+            ? Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)
+            : Color.FromArgb(0xB3, 0xFF, 0xFF, 0xFF));
+        QueueRearrangeButton.Foreground = new SolidColorBrush(on
             ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)
-            : Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+            : Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
     }
 }
