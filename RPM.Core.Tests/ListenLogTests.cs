@@ -141,6 +141,36 @@ public class ListenLogTests : IDisposable
         Assert.True(history[1].Counted);
     }
 
+    // ── what was heard lately ──
+
+    [Fact]
+    public void What_was_heard_lately_reads_back_newest_first_and_leaves_out_skips()
+    {
+        Add("a/01.flac");
+        Add("a/02.flac");
+        Add("a/03.flac");
+        _db.NoteListen(Heard(Evening, "a/01.flac"));
+        _db.NoteListen(Heard(Evening.AddMinutes(5), "a/02.flac", heard: 20, length: 200));   // a skip
+        _db.NoteListen(Heard(Evening.AddMinutes(10), "a/03.flac"));
+        _db.NoteListen(Heard(Evening.AddMinutes(15), "a/01.flac"));
+
+        Assert.Equal(["a/01.flac", "a/03.flac", "a/01.flac"], _db.RecentlyHeard(10));
+    }
+
+    [Fact]
+    public void What_was_heard_lately_stops_at_the_count_asked_for()
+    {
+        Add("a/01.flac");
+        Add("a/02.flac");
+        Add("a/03.flac");
+        _db.NoteListen(Heard(Evening, "a/01.flac"));
+        _db.NoteListen(Heard(Evening.AddMinutes(5), "a/02.flac"));
+        _db.NoteListen(Heard(Evening.AddMinutes(10), "a/03.flac"));
+
+        Assert.Equal(["a/03.flac", "a/02.flac"], _db.RecentlyHeard(2));
+        Assert.Empty(_db.RecentlyHeard(0));
+    }
+
     // ── sessions ──
 
     [Fact]

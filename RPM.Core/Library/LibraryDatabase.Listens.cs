@@ -279,4 +279,33 @@ public sealed partial class LibraryDatabase
             return listens;
         }
     }
+
+    /// <summary>
+    /// The tracks of the latest <paramref name="count"/> listens that counted as plays, newest first, as
+    /// relative paths. A track heard twice among them is named twice. A mixtape reads this so it does not
+    /// queue a song that was just heard (see <see cref="Playback.Mixtape.Spares"/>). A listen that did not
+    /// count is a skip, and a skipped song is not one the listener has just heard.
+    /// </summary>
+    public IReadOnlyList<string> RecentlyHeard(int count)
+    {
+        if (count <= 0)
+            return [];
+
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT relative_path FROM listen
+                WHERE counted = 1 ORDER BY at_utc_ticks DESC, id DESC LIMIT $count
+                """;
+            cmd.Parameters.AddWithValue("$count", count);
+
+            using var reader = cmd.ExecuteReader();
+            var heard = new List<string>(count);
+            while (reader.Read())
+                heard.Add(reader.GetString(0));
+            return heard;
+        }
+    }
 }
