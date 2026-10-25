@@ -121,8 +121,8 @@ public sealed partial class PegasusChrome
 
         amp.RemoveAt([at]);
 
-        var rows = QueueRows.Children.Count;
-        if (rows > 0 && QueueRows.Children[Math.Min(at, rows - 1)] is Border { Child: RemoteLine line })
+        var rows = _queueSlots.Count;
+        if (rows > 0 && _queueSlots[Math.Min(at, rows - 1)] is { Child: RemoteLine line })
             FocusScreenLater(line);
     }
 
@@ -136,10 +136,10 @@ public sealed partial class PegasusChrome
             return;
 
         var from = -1;
-        for (var i = 0; i < QueueRows.Children.Count; i++)
-            if (QueueRows.Children[i] is Border { Tag: PlaylistTrack t } && ReferenceEquals(t, track))
+        for (var i = 0; i < _queueSlots.Count; i++)
+            if (_queueSlots[i] is { Tag: PlaylistTrack t } && ReferenceEquals(t, track))
                 from = i;
-        if (from < 0 || QueueRows.Children[from] is not Border { Child: RemoteLine line } row)
+        if (from < 0 || _queueSlots[from] is not { Child: RemoteLine line } row)
             return;
 
         _queueMove = new QueueMove(row, line, from);
@@ -156,7 +156,7 @@ public sealed partial class PegasusChrome
             return false;
 
         var to = move.At + way;
-        if (to < 0 || to >= QueueRows.Children.Count)
+        if (to < 0 || to >= _queueSlots.Count)
             return false;
 
         move.At = to;
@@ -179,8 +179,8 @@ public sealed partial class PegasusChrome
         Lift(move.Row, lifted: false);
 
         // The panel may have been built again under the move; then there is nothing of it left to put down.
-        var stillThere = move.From < QueueRows.Children.Count
-                         && ReferenceEquals(QueueRows.Children[move.From], move.Row);
+        var stillThere = move.From < _queueSlots.Count
+                         && ReferenceEquals(_queueSlots[move.From], move.Row);
 
         if (!place || move.At == move.From || _amp is null || !stillThere)
         {
@@ -188,10 +188,22 @@ public sealed partial class PegasusChrome
             return;
         }
 
+        // With headings in the drawer the row's mark moves with it, so the headings may stand elsewhere now:
+        // the queue is told, the change builds the drawer again, and the focus goes to the track's new row.
+        if (_queueHeadings)
+        {
+            ResetShifts();
+            _amp.Playlist.Move(move.From, move.At);
+            FocusScreenLater(QueueLineFor(move.Row.Tag as PlaylistTrack));
+            return;
+        }
+
         // As a landing drag does it: the rows in the new order, arranged now, the offsets dropped in the
         // same frame, then the queue told (see TickDrop for why all three land together).
         QueueRows.Children.RemoveAt(move.From);
         QueueRows.Children.Insert(move.At, move.Row);
+        _queueSlots.RemoveAt(move.From);
+        _queueSlots.Insert(move.At, move.Row);
         QueueRows.UpdateLayout();
         ResetShifts();
         _amp.Playlist.Move(move.From, move.At);
@@ -208,24 +220,24 @@ public sealed partial class PegasusChrome
     /// scrolled so the carried row stands in the middle of it.</summary>
     private void ShowQueueMove(QueueMove move)
     {
-        var pitch = QueueRows.Children.Count > 0 && QueueRows.Children[0] is FrameworkElement first
-            ? first.ActualHeight + QueueRows.Spacing
-            : 0;
+        var pitch = QueueRowPitch();
         if (pitch <= 0)
             return;
 
-        for (var i = 0; i < QueueRows.Children.Count; i++)
+        // Where each row's line starts: one pitch a slot, or further down past a heading (see
+        // PegasusChrome.QueueHeadings).
+        var tops = QueueSlotTops(pitch);
+        for (var i = 0; i < _queueSlots.Count; i++)
         {
-            if (QueueRows.Children[i] is not Border row)
-                continue;
+            var row = _queueSlots[i];
             Shift(row).Y = ReferenceEquals(row, move.Row)
-                ? (move.At - move.From) * pitch
-                : QueueGesture.Displaced(i, move.From, move.At) * pitch;
+                ? tops[move.At] - tops[move.From]
+                : tops[i + QueueGesture.Displaced(i, move.From, move.At)] - tops[i];
         }
 
         // Worked out from the slot, as the drag's own edge scroll is: a bring-into-view reads the row's
         // place in the layout, which is still the slot it was picked up from.
-        var target = (move.At * pitch) - ((QueueScroll.ViewportHeight - pitch) / 2);
+        var target = tops[move.At] - ((QueueScroll.ViewportHeight - pitch) / 2);
         QueueScroll.ChangeView(null, Math.Clamp(target, 0, QueueScroll.ScrollableHeight), null, disableAnimation: false);
     }
 

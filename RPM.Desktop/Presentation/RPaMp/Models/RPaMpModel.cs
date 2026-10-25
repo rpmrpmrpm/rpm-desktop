@@ -207,8 +207,12 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
         ForgetSource();
         NoteQueueIsTheirs();
         int firstNew = Playlist.Count;
+
+        // Added to a queue that holds songs, without playing: the listener's own "up next" (see
+        // PlaylistTrack.IsUpNext). Into an empty queue they are the list itself.
+        var upNext = !startPlaying && firstNew > 0;
         foreach (var t in tracks)
-            Playlist.Add(new PlaylistTrack(t, radio: null));
+            Playlist.Add(new PlaylistTrack(t, radio: null) { IsUpNext = upNext });
         Renumber();
         OnChanged(nameof(HasTracks));
         OnChanged(nameof(TotalTimeText));
@@ -225,7 +229,9 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
     /// never shifts it, so the playing track keeps playing.</summary>
     public void InsertNext(IEnumerable<TrackInfo> tracks)
     {
-        var items = tracks.Select(t => new PlaylistTrack(t, radio: null)).ToList();
+        // Put in a queue that holds songs: the listener's own "up next" (see PlaylistTrack.IsUpNext).
+        var upNext = Playlist.Count > 0;
+        var items = tracks.Select(t => new PlaylistTrack(t, radio: null) { IsUpNext = upNext }).ToList();
         if (items.Count == 0) return;
 
         NoteQueueIsTheirs();

@@ -52,6 +52,12 @@ public sealed partial class PlaylistTrack : INotifyPropertyChanged
     /// radio for more songs (RPaMpModel.Radio).</summary>
     public SongRadioRun? Radio { get; }
 
+    /// <summary>Whether the listener added this row themselves, with Play next or Add to now playing, to a queue
+    /// that held songs already. Pegasus's queue drawer lists these under an "Up next" heading, apart from the list
+    /// that was played (see RPM.Core.Playback.QueueHeadings). The mark is the row's own, so it moves with the row.
+    /// The main window does not read it.</summary>
+    public bool IsUpNext { get; init; }
+
     /// <summary>The file's own audio facts, for the LCD's readout. Null where the tags do not say.</summary>
     public int? BitrateKbps => _track.BitrateKbps;
     public int? SampleRate => _track.SampleRate;

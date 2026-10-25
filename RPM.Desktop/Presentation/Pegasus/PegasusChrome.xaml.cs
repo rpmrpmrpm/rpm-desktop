@@ -3544,6 +3544,18 @@ public sealed partial class PegasusChrome : UserControl
     /// asking each one. It is read once, when the drag starts.</summary>
     private double _rowHeight;
 
+    /// <summary>Where each row's line starts, by slot, read with <see cref="_rowHeight"/> when the drag starts
+    /// (see PegasusChrome.QueueHeadings).</summary>
+    private double[] _slotTops = [];
+
+    /// <summary>Where the line of slot <paramref name="slot"/> starts. Past the table's end, one pitch a
+    /// slot.</summary>
+    private double SlotTop(int slot) => slot >= 0 && slot < _slotTops.Length ? _slotTops[slot] : slot * _rowHeight;
+
+    /// <summary>How far down the line of slot <paramref name="to"/> starts from that of slot
+    /// <paramref name="from"/>.</summary>
+    private double SlotGap(int from, int to) => SlotTop(to) - SlotTop(from);
+
     /// <summary>The landing: how far the carried row still has to fall, and how long it has been falling.
     /// This is over a stated time, not an eased approach. The queue is told when the row arrives. An
     /// exponential approach closes by a fraction each frame, so it would report that the row had landed
@@ -3866,7 +3878,9 @@ public sealed partial class PegasusChrome : UserControl
         DropQueueMove();  // A row carried by the keys is among the rows being thrown away.
         LightRow(null);   // The rows being thrown away include the lit one.
         QueueRows.Children.Clear();
+        _queueSlots.Clear();
         _queueTitles.Clear();
+        _queueHeadings = false;
         if (_amp is null)
             return;
 
@@ -3875,8 +3889,19 @@ public sealed partial class PegasusChrome : UserControl
         var scale = DrawerScale;
         _queueBuiltAt = scale;
 
+        // "Up next" over the songs the listener added, "After that" where the list goes on (see
+        // PegasusChrome.QueueHeadings).
+        var headings = QueueHeadingsOf(_amp.Playlist);
+        var slot = 0;
+
         foreach (var track in _amp.Playlist)
         {
+            if (headings[slot++] is not QueueHeading.None and var heading)
+            {
+                QueueRows.Children.Add(QueueHeadingLine(heading, scale));
+                _queueHeadings = true;
+            }
+
             // A Border, not a Button. The reason is the drag, not the look. A Button marks PointerPressed
             // as handled on its way past, so a capture taken in a handler on the row would never be asked
             // for, and the reorder would not start. A Button gave a hover wash and a press state. Both are
@@ -4017,6 +4042,7 @@ public sealed partial class PegasusChrome : UserControl
             row.PointerReleased += QueueRow_PointerReleased;
 
             QueueRows.Children.Add(row);
+            _queueSlots.Add(row);
         }
 
         PaintQueue();
@@ -4325,7 +4351,7 @@ public sealed partial class PegasusChrome : UserControl
             return;
 
         _dragRow = row;
-        _dragStart = _dragAt = QueueRows.Children.IndexOf(row);
+        _dragStart = _dragAt = _queueSlots.IndexOf(row);
         _dragMoved = false;
         _dragStartY = e.GetCurrentPoint(QueueRows).Position.Y;
         _pointerViewY = e.GetCurrentPoint(QueueScroll).Position.Y;
@@ -4357,11 +4383,13 @@ public sealed partial class PegasusChrome : UserControl
         // from. What is wanted is the PITCH, which is one row's top to the next row's top, so the gap
         // between rows counts. Everything below uses this as the distance a row travels to change places. A
         // figure a few points short of it drifts a whole row out over a long list.
-        _rowHeight = QueueRows.Children.Count > 0 && QueueRows.Children[0] is FrameworkElement first
-            ? first.ActualHeight + QueueRows.Spacing
-            : 0;
-        if (_rowHeight <= 0)
+        _rowHeight = QueueRowPitch();
+        if (_rowHeight <= 0 || _dragStart < 0)
             return;
+
+        // …and where each row's line starts, which a heading between rows moves down (see
+        // PegasusChrome.QueueHeadings). With no heading it is one pitch a slot.
+        _slotTops = QueueSlotTops(_rowHeight);
 
         _dragMoved = true;
         _pointerViewY = e.GetCurrentPoint(QueueScroll).Position.Y;
@@ -4416,16 +4444,16 @@ public sealed partial class PegasusChrome : UserControl
 
         // How far the carried row is being held from the slot it occupies now. This is a loop and not an
         // if, because a list running on at an end can cross several boundaries between two frames.
-        var y = travel - ((_dragAt - _dragStart) * _rowHeight);
+        var y = travel - SlotGap(_dragStart, _dragAt);
 
         while (QueueGesture.Step(y, _rowHeight) is var step && step != 0)
         {
             var to = _dragAt + step;
-            if (to < 0 || to >= QueueRows.Children.Count)
+            if (to < 0 || to >= _queueSlots.Count)
                 break;
 
+            y -= SlotGap(_dragAt, to);
             _dragAt = to;
-            y -= step * _rowHeight;
         }
 
         // This is the whole travel, not what is left of it after the slots are taken. The carried row never
@@ -4453,12 +4481,13 @@ public sealed partial class PegasusChrome : UserControl
     {
         var ease = 1.0 - Math.Exp(-dt * StepRate);
 
-        for (var i = 0; i < QueueRows.Children.Count; i++)
+        for (var i = 0; i < _queueSlots.Count; i++)
         {
-            if (i == _dragStart || QueueRows.Children[i] is not Border row)
+            if (i == _dragStart)
                 continue;
 
-            var to = QueueGesture.Displaced(i, _dragStart, _dragAt) * _rowHeight;
+            var row = _queueSlots[i];
+            var to = SlotGap(i, i + QueueGesture.Displaced(i, _dragStart, _dragAt));
 
             var shift = Shift(row);
             shift.Y += (to - shift.Y) * ease;
@@ -4478,7 +4507,7 @@ public sealed partial class PegasusChrome : UserControl
         // This is worked out rather than measured from the row. Every row is the same height, so where the
         // carried row is on the screen is its slot, minus how far the list is scrolled, plus how far it is
         // being held from that slot.
-        var top = (_dragAt * _rowHeight) + y - QueueScroll.VerticalOffset;
+        var top = SlotTop(_dragAt) + y - QueueScroll.VerticalOffset;
 
         // This is scaled by the frame time actually taken. The phone's figure is per frame, because a phone
         // draws at a rate it decides. This screen is capped at sixty, but it drops below that under a heavy
@@ -4508,7 +4537,7 @@ public sealed partial class PegasusChrome : UserControl
         _dragMoved = false;
         _dropping = true;
         _dropFrom = Shift(_dragRow).Y;
-        _dropTo = (_dragAt - _dragStart) * _rowHeight;
+        _dropTo = SlotGap(_dragStart, _dragAt);
         _dropAt = 0;
 
         QueueRows.ReleasePointerCaptures();
@@ -4551,6 +4580,15 @@ public sealed partial class PegasusChrome : UserControl
             return;
         }
 
+        // With headings in the drawer the row's mark moves with it, so the headings may stand elsewhere now.
+        // The queue is told, and the change it reports builds the drawer again (see OnQueueChanged).
+        if (_queueHeadings)
+        {
+            ResetShifts();
+            _amp.Playlist.Move(from, to);
+            return;
+        }
+
         // The rows are PUT in the new order before the collection is told, and their offsets are dropped in
         // the same step. The two cancel exactly. A row at slot i held a row above is a row at slot i-1 held
         // nowhere. So this moves nothing on the screen. The CollectionChanged that follows finds the panel
@@ -4560,6 +4598,8 @@ public sealed partial class PegasusChrome : UserControl
         // async fetch. A list that blinks each time a row is moved is the result.
         QueueRows.Children.RemoveAt(from);
         QueueRows.Children.Insert(to, row);
+        _queueSlots.RemoveAt(from);
+        _queueSlots.Insert(to, row);
 
         // The two halves of this must land in the SAME frame. Where a row sits is decided by layout, and
         // how far it is drawn from there is decided by a transform. Those are different passes. Reordering
@@ -4604,11 +4644,11 @@ public sealed partial class PegasusChrome : UserControl
     /// </summary>
     private bool RowsInStep()
     {
-        if (_amp is null || QueueRows.Children.Count != _amp.Playlist.Count)
+        if (_amp is null || _queueSlots.Count != _amp.Playlist.Count)
             return false;
 
-        for (var i = 0; i < QueueRows.Children.Count; i++)
-            if (QueueRows.Children[i] is not Border row || !ReferenceEquals(row.Tag, _amp.Playlist[i]))
+        for (var i = 0; i < _queueSlots.Count; i++)
+            if (!ReferenceEquals(_queueSlots[i].Tag, _amp.Playlist[i]))
                 return false;
 
         return true;
@@ -4634,7 +4674,7 @@ public sealed partial class PegasusChrome : UserControl
             return;
 
         var i = _amp?.Playlist.IndexOf(_queueCurrent) ?? -1;
-        if (i < 0 || i >= QueueRows.Children.Count)
+        if (i < 0 || i >= _queueSlots.Count)
             return;
 
         // This is queued rather than measured now. The rows were added in this pass and have no height
@@ -4642,10 +4682,9 @@ public sealed partial class PegasusChrome : UserControl
         // nothing.
         DispatcherQueue?.TryEnqueue(() =>
         {
-            if (!_queueOpen || i >= QueueRows.Children.Count)
+            if (!_queueOpen || i >= _queueSlots.Count)
                 return;
-            if (QueueRows.Children[i] is not FrameworkElement row)
-                return;
+            var row = _queueSlots[i];
 
             var top = row.TransformToVisual(QueueRows).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
             var target = top - (QueueScroll.ViewportHeight - row.ActualHeight) / 2;
