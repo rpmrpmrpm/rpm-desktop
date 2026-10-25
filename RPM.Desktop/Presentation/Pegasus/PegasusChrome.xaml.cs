@@ -2643,7 +2643,15 @@ public sealed partial class PegasusChrome : UserControl
     private double WordsOpacity => _view is PegasusView.Room or PegasusView.Lyrics ? 0 : 1;
     private double ScrimOpacity => _view == PegasusView.Spread ? 1 : 0;
     private double CentreOpacity => _view is PegasusView.Room or PegasusView.Lyrics ? 0 : 1;
-    private double LyricOpacity => _view.IsLyric() ? 1 : 0;
+    private double LyricOpacity => LyricShownIn(_view) ? 1 : 0;
+
+    /// <summary>
+    /// Whether the lyric is on screen in a view: a lyric view, with the queue drawer closed. The drawer and the
+    /// lyric both want the room beside the record, so the drawer puts the lyric away while it is open, and it
+    /// comes back as it was once the drawer closes, as on the Android TV app. The lyric key keeps showing the
+    /// choice throughout (see ShowLyricKey).
+    /// </summary>
+    private bool LyricShownIn(PegasusView view) => view.IsLyric() && !_queueOpen;
 
     /// <summary>The lyric's own foot, its seek bar and keys. These show for the lyric alone, the one view
     /// that draws no column of words (see <see cref="FootDrawn"/>). Beside the record, the column's own bar
@@ -2664,7 +2672,7 @@ public sealed partial class PegasusChrome : UserControl
         var target = _viewTo;
         _centreFade.To(target is PegasusView.Room or PegasusView.Lyrics ? 0 : 1, SwapOutMs + SwapInMs, null);
         _scrimFade.To(target == PegasusView.Spread ? 1 : 0, SwapOutMs + SwapInMs, null);
-        _lyricFade.To(target.IsLyric() ? 1 : 0, SwapOutMs + SwapInMs, null);
+        _lyricFade.To(LyricShownIn(target) ? 1 : 0, SwapOutMs + SwapInMs, null);
         _lyricFootFade.To(FootDrawn(target) ? 1 : 0, SwapOutMs + SwapInMs, null);
 
         _wordsFade.To(0, SwapOutMs, () =>
@@ -3765,6 +3773,10 @@ public sealed partial class PegasusChrome : UserControl
         if (_queueOpen == open)
             return;
         _queueOpen = open;
+
+        // The lyric goes away while the drawer is open and comes back as it was (see LyricShownIn), at the
+        // drawer's own pace. A dissolve under way aims at the view it is going to.
+        _lyricFade.To(LyricShownIn(_swapping ? _viewTo : _view) ? 1 : 0, open ? 180 : 260, null);
 
         if (open)
         {
