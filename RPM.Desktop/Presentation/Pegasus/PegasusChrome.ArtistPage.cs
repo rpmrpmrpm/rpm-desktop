@@ -323,8 +323,8 @@ public sealed partial class PegasusChrome
             press: () => ShowRecordAsync(folder));
     }
 
-    /// <summary>Queues a record's sleeve for a card, at the card's size, out of the listener's own
-    /// collection.</summary>
+    /// <summary>Queues a record's sleeve for a card, at the card's size, out of the collection on
+    /// screen.</summary>
     /// <param name="stillWanted">Asked after each await: whether the page the card is
     /// on is still the one built.</param>
     private void QueueSleeve(PictureQueue queue, CardPlace place, ShelfCard card, string folder, Func<bool> stillWanted)
@@ -334,7 +334,7 @@ public sealed partial class PegasusChrome
             if (!stillWanted())
                 return;
             var edge = CardDecodeEdgeFor(card.Edge);
-            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge, ownCollection: true);
+            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
             if (bytes is not { Length: > 0 } || !stillWanted())
                 return;
             var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
@@ -609,12 +609,12 @@ public sealed partial class PegasusChrome
         ArtistWallItem act, ArtistShelves shelves, LibraryAlbumIndex.ArtistShelf shelf, int read)
     {
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
         var own = shelves.OwnInPageOrder.ToList();
         var appearances = shelves.Appearances;
-        var db = library.Db;
+        var db = library.Shelf;
         var asked = await Task.Run(() => library.Read(db, "an artist's popular songs for Pegasus", mirror =>
         {
             var elsewhere = new HashSet<string>(appearances, StringComparer.OrdinalIgnoreCase);
@@ -789,7 +789,7 @@ public sealed partial class PegasusChrome
                 if (read != _artistPageRead)
                     return;
                 var edge = CardDecodeEdgeFor(64 * QueueScale);
-                var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge, ownCollection: true);
+                var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
                 if (bytes is not { Length: > 0 } || read != _artistPageRead)
                     return;
                 var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
@@ -989,10 +989,10 @@ public sealed partial class PegasusChrome
     {
         var read = _artistPageRead;
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root || _artistShelves is not { } shelves)
+        if (!library.IsOpen || library.ShelfRoot is not { } root || _artistShelves is not { } shelves)
             return;
 
-        var db = library.Db;
+        var db = library.Shelf;
         var asked = await Task.Run(() => library.Read(db, "an artist's songs for Pegasus", mirror =>
         {
             var songs = new List<TrackInfo>();

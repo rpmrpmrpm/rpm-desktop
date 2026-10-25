@@ -338,7 +338,11 @@ public sealed partial class PegasusChrome
         if (await ReadRecordAsync(folder) is not { } found || read != _recordRead || !LibraryUp)
             return;
 
-        var card = _libraryCards.Find(c => string.Equals(c.Folder, folder, StringComparison.OrdinalIgnoreCase))
+        // The wall's card only where the wall is of this collection: the same folder name on another one is
+        // another record (see WallOffAnotherCollection).
+        var card = (WallOffAnotherCollection
+                       ? null
+                       : _libraryCards.Find(c => string.Equals(c.Folder, folder, StringComparison.OrdinalIgnoreCase)))
                    ?? CardFor(folder, found.Rows);
         PutRecordUp(card, found, read, scale);
     }
@@ -352,10 +356,10 @@ public sealed partial class PegasusChrome
     private static async Task<RecordRead?> ReadRecordAsync(string folder)
     {
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
             return null;
 
-        var db = library.Db;
+        var db = library.Shelf;
 
         // Both off the thread that is driving the shader, and in one hop: the tracks and the row the
         // mark and the stars live on.
@@ -1187,7 +1191,7 @@ public sealed partial class PegasusChrome
 
         // False means there was nowhere to write it. Nothing is said and the heart does not fill in, a
         // mark that was not stored must not be reported as one that was.
-        if (!Library.SetAlbumFavorite(card.Folder, next, AlbumShelf.Own))
+        if (!Library.SetAlbumFavorite(card.Folder, next, AlbumShelf.OnScreen))
             return;
 
         _recordFavorite = next;
@@ -1371,7 +1375,7 @@ public sealed partial class PegasusChrome
                 {
                     // False means there was nowhere to write it: nothing is said, as on the page's heart.
                     var next = !favored;
-                    if (!Library.SetAlbumFavorite(folder, next, AlbumShelf.Own))
+                    if (!Library.SetAlbumFavorite(folder, next, AlbumShelf.OnScreen))
                         return;
                     favored = next;
                     if (card is not null)
@@ -1395,7 +1399,7 @@ public sealed partial class PegasusChrome
             if (!library.IsOpen)
                 return;
 
-            var db = library.Db;
+            var db = library.Shelf;
             try
             {
                 var asked = await Task.Run(() => library.Read(db, "a record's marks for Pegasus's menu",
@@ -1646,7 +1650,7 @@ public sealed partial class PegasusChrome
     /// </summary>
     private async void ReadRecordDiscAsync(PegasusAlbumCard card, int read)
     {
-        if (card.Folder is not { Length: > 0 } folder || Library.Root is not { } root)
+        if (card.Folder is not { Length: > 0 } folder || Library.ShelfRoot is not { } root)
             return;
 
         var edge = (int)Math.Ceiling((_recordSleeve?.Width ?? 320)
@@ -1721,7 +1725,7 @@ public sealed partial class PegasusChrome
 
         try
         {
-            if (await AlbumCovers.LoadAsync(card.Folder, CancellationToken.None, edge, ownCollection: true)
+            if (await AlbumCovers.LoadAsync(card.Folder, CancellationToken.None, edge)
                 is not { Length: > 0 } bytes)
                 return;
 

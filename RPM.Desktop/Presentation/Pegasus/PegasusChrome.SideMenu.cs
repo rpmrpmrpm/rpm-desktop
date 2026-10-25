@@ -702,9 +702,9 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// Switches to another collection, or back to the user's own, as the main window's share button
-    /// does. Somebody else's collection needs the sign-in; the user's own never does. Home reads the
-    /// collection again by itself (it listens for the change); the header is filled again here. The wall
-    /// always stays on the user's own collection (see FillLibraryAsync).
+    /// does. Somebody else's collection needs the sign-in; the user's own never does. The collection opens
+    /// on its home, as on the TV: home reads it again by itself (it listens for the change), and the other
+    /// screens follow it (see PegasusChrome.Follow). The header is filled again here.
     /// </summary>
     private async void PickCollection(string deviceId)
     {
@@ -738,6 +738,11 @@ public sealed partial class PegasusChrome
         // Asked after the switch, in the same dispatcher turn. Home hears of the change through the
         // library's event and reads again on a later turn, so that reading is the next one to start.
         var read = _home?.NextReadingDone() ?? Task.CompletedTask;
+
+        // Then home is put in front, so that it reads: a home that is not shown reads nothing, and the
+        // switching screen would stay up to its longest over any other screen.
+        HideRecord();
+        CrossToHome();
 
         if (LibraryMenuOpen)
             FillMenuHeader();

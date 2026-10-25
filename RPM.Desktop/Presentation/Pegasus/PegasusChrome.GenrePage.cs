@@ -374,10 +374,10 @@ public sealed partial class PegasusChrome
     private async void ReadGenreShelvesAsync(GenreWallItem genre, int read)
     {
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
-        var db = library.Db;
+        var db = library.Shelf;
         var now = DateTime.UtcNow.Ticks;
         var asked = await Task.Run(() => library.Read(db, "a genre page's shelves for Pegasus", mirror =>
         {
@@ -448,7 +448,7 @@ public sealed partial class PegasusChrome
                     press: () =>
                     {
                         if (Library is { IsOpen: true } open)
-                            ShowListRecordAsync(GeneratedListEntry(open.Db, id));
+                            ShowListRecordAsync(GeneratedListEntry(open.Shelf, id));
                     });
                 row.Cards.Children.Add(list.Root);
                 list.Size(card, scale);
@@ -580,15 +580,15 @@ public sealed partial class PegasusChrome
         PlayFromDrawer(songs.Take(GenreShuffleSongs).ToList(), 0, new SleeveInHand.None());
     }
 
-    /// <summary>The songs of some records of the listener's own collection, each record in disc order,
+    /// <summary>The songs of some records of the collection on screen, each record in disc order,
     /// read on a worker. Empty where the collection did not answer.</summary>
     private static async Task<List<TrackInfo>> ReadSongsAsync(IReadOnlyList<string> folders)
     {
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root || folders.Count == 0)
+        if (!library.IsOpen || library.ShelfRoot is not { } root || folders.Count == 0)
             return [];
 
-        var db = library.Db;
+        var db = library.Shelf;
         var asked = await Task.Run(() => library.Read(db, "a genre's songs for Pegasus", mirror =>
         {
             var songs = new List<TrackInfo>();

@@ -324,7 +324,7 @@ public sealed partial class PegasusChrome
         UpdateLibraryFade();
         SeatWall();
         CheckAnchorLater();
-        if (_libraryRows.Count == 0)
+        if (_libraryRows.Count == 0 || WallOffAnotherCollection)
             FillLibraryAsync();
         FocusScreenLater(null);   // with the remote in use: the wall's first record
     }

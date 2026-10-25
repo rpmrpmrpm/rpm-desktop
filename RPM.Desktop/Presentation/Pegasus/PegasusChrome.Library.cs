@@ -437,7 +437,7 @@ public sealed partial class PegasusChrome
         SeatWall();
         CheckAnchorLater();
 
-        if (_libraryRows.Count == 0)
+        if (_libraryRows.Count == 0 || WallOffAnotherCollection)
             FillLibraryAsync();
     }
 
@@ -539,7 +539,7 @@ public sealed partial class PegasusChrome
         // pictures, what is on screen, what is in flight, and a folder that happens to appear in both
         // is not the same record. This is checked here rather than assumed, because a search and a sort
         // also run through a fill, and those must NOT throw the pictures away.
-        var root = library.Root ?? "";
+        var root = library.ShelfRoot ?? "";
         if (!string.Equals(root, _libraryRootFor, StringComparison.OrdinalIgnoreCase))
         {
             _libraryRootFor = root;
@@ -550,7 +550,9 @@ public sealed partial class PegasusChrome
         // The ring, if this turns out to be slow. It costs nothing when it is not, see ShowLibraryBusy.
         ShowLibraryBusyLater();
 
-        var db = library.Db;
+        // The collection on screen, as the window's wall reads it: somebody else's while theirs is open
+        // (see FollowCollection).
+        var db = library.Shelf;
         var search = string.IsNullOrWhiteSpace(_librarySearch) ? null : _librarySearch;
 
         // The years are a fourth question, asked only for the By date order. Counting every track's year
@@ -563,9 +565,9 @@ public sealed partial class PegasusChrome
         var answer = (await Task.Run(() => library.Read(db, "Pegasus's wall", mirror => new LibraryRead(
                 mirror.QueryAlbumFacts(search),
                 new HashSet<string>(mirror.QueryExplicitAlbums(search), StringComparer.OrdinalIgnoreCase),
-                // The same mirror the two questions above it are asked of. This wall lists the
-                // listener's OWN records whatever the window is browsing, and reading the hearts off
-                // the shelf instead put a friend's marks on this collection's sleeves.
+                // The same mirror the two questions above it are asked of. A folder name has a meaning
+                // only inside the collection it came from, so hearts read off another mirror would be
+                // marks on different records.
                 mirror.FavoriteAlbumFolders(),
                 byDate ? YearsOf(mirror, search) : null))))
             // Unanswered is an empty wall. A refusal has put the problem screen up over the app and

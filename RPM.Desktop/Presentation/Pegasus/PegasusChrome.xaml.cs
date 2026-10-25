@@ -2341,9 +2341,14 @@ public sealed partial class PegasusChrome : UserControl
             // as unchanged.
             _lyricKey = null;
             RefreshLyrics();
+
+            // The collection the window has open, which may have changed while this was down (see
+            // PegasusChrome.Follow).
+            ListenForCollection(true);
         }
         else
         {
+            ListenForCollection(false);
             _clock.Stop();
             CompositionTarget.Rendering -= OnRendering;
         Services.Shell.FrameWatch.Ended("pegasus-chrome");

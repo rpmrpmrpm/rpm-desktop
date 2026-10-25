@@ -3,14 +3,14 @@ using RPM.Core.Library;
 namespace RPM.Desktop.Services.Library;
 
 /// <summary>
-/// The collection that a record's heart belongs to. There is no default, because the two surfaces that ask
-/// can be looking at different collections at the same moment.
+/// The collection that a record's heart belongs to. There is no default, because a surface that asks
+/// can be looking at a different collection from the window.
 ///
 /// <para>A folder name has a meaning only inside the collection it came from. The window's album wall, the
-/// album list and the album page all draw the shelf: a borrowed shelf while one is open. A heart pressed
-/// there is about a record on another computer's disk. The visualizer's wall always lists the listener's
-/// own records, whatever the window is browsing. A heart pressed there is about one of the listener's own
-/// records. A row of this library's own with the same folder name is a different record.</para>
+/// album list and the album page all draw the shelf: a borrowed shelf while one is open. So does Pegasus.
+/// A heart pressed there is about a record on another computer's disk. A surface that lists the
+/// listener's own records whatever the window is browsing asks about <see cref="Own"/>. A row of this
+/// library's own with the same folder name is a different record.</para>
 ///
 /// <para>This is the same distinction that <c>AlbumCovers.LoadAsync</c> makes with <c>ownCollection</c>,
 /// for the same reason. Asked of the wrong mirror, the answer is not an error. It is a plausible mark on

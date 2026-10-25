@@ -244,14 +244,14 @@ public sealed partial class PegasusChrome
             return;
 
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
         {
             SearchLanded(read, new SearchFound([], [], [], ""));
             return;
         }
 
         var shelf = _shelf;
-        var db = library.Db;
+        var db = library.Shelf;
         try
         {
             var asked = await Task.Run(() => library.Read(db, "Pegasus's search",
@@ -721,7 +721,7 @@ public sealed partial class PegasusChrome
             if (built != _searchBuilt)
                 return;
             var edge = CardDecodeEdgeFor(SearchPicture * _searchScale);
-            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge, ownCollection: true);
+            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
             if (bytes is not { Length: > 0 } || built != _searchBuilt)
                 return;
             var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);

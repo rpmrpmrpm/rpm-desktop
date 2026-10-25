@@ -57,7 +57,7 @@ public sealed partial class PegasusChrome
         var scale = DrawerScale;
 
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
         // A record is put into disc and track order. The folder query returns tracks by file name, and a
@@ -515,12 +515,13 @@ public sealed partial class PegasusChrome
         row.Children.Add(shuffle);
 
         // The record's own heart, which is a different mark from a song's. album_meta stores it, the wall's
-        // sticker is drawn from it, and the header's toggle narrows the shelf to it.
-        if (entry.Folder is { } folder)
+        // sticker is drawn from it, and the header's toggle narrows the shelf to it. Not on somebody else's
+        // collection, as on the record page (see RecordBorrowed).
+        if (entry.Folder is { } folder && !RecordBorrowed)
         {
             var favorite = Key("", "");   // heart, dressed below
             favorite.Click += (_, _) => ToggleAlbumFavorite(folder, favorite, scale);
-            PaintAlbumFavorite(favorite, Library.IsAlbumFavorite(folder, AlbumShelf.Own), scale);
+            PaintAlbumFavorite(favorite, Library.IsAlbumFavorite(folder, AlbumShelf.OnScreen), scale);
             Grid.SetColumn(favorite, 2);
             row.Children.Add(favorite);
         }
@@ -574,14 +575,13 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>
-    /// The record's heart, in the listener's OWN collection, which is what this wall lists, whatever the
-    /// window behind it happens to be browsing. See <see cref="AlbumShelf"/>: a folder name off this wall
-    /// and the same name off a borrowed shelf are two different records.
+    /// The record's heart, in the collection on screen, which is what this drawer lists. See
+    /// <see cref="AlbumShelf"/>: a folder name has a meaning only inside the collection it came from.
     /// </summary>
     private void ToggleAlbumFavorite(string folder, Button key, double scale)
     {
-        var next = !Library.IsAlbumFavorite(folder, AlbumShelf.Own);
-        if (Library.SetAlbumFavorite(folder, next, AlbumShelf.Own))
+        var next = !Library.IsAlbumFavorite(folder, AlbumShelf.OnScreen);
+        if (Library.SetAlbumFavorite(folder, next, AlbumShelf.OnScreen))
             PaintAlbumFavorite(key, next, scale);
     }
 

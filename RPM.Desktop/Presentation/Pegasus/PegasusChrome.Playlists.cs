@@ -46,8 +46,10 @@ public sealed partial class PegasusChrome
         if (index < 0 || index >= _albumTracks.Count)
             return;
 
+        // Not on somebody else's collection, as a song's menu has no Add to playlist there (see
+        // RecordBorrowed). The lists are the listener's own, and the song is not.
         var library = Library;
-        if (!library.IsOpen)
+        if (!library.IsOpen || RecordBorrowed)
             return;
 
         // Unanswered opens nothing rather than an empty sheet: a refusal has put the problem screen up

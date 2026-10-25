@@ -379,7 +379,7 @@ public sealed partial class PegasusChrome
         _frontRead = null;
         _frontReadFolder = null;
 
-        var root = Library.Root ?? "";
+        var root = Library.ShelfRoot ?? "";
         if (!string.Equals(root, _carouselCoversRoot, StringComparison.OrdinalIgnoreCase))
         {
             _carouselCoversRoot = root;
@@ -918,7 +918,7 @@ public sealed partial class PegasusChrome
         {
             image = await Task.Run(async () =>
             {
-                var bytes = await AlbumCovers.LoadForSquareAsync(folder, stop.Token, edge, ownCollection: true);
+                var bytes = await AlbumCovers.LoadForSquareAsync(folder, stop.Token, edge);
                 return bytes is { Length: > 0 } ? DecodeSquare(bytes, edge) : null;
             }, stop.Token);
         }

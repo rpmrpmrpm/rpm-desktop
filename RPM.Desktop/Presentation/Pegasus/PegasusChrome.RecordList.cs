@@ -70,7 +70,7 @@ public sealed partial class PegasusChrome
         var scale = QueueScale;
 
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
         List<LibraryTrack> rows;

@@ -18,8 +18,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// <para>What is left here is only what belongs to THIS wall. Eight fixed columns rather than a size
 /// slider, so its tier follows the tile instead of standing at a floor, which is why it throws away what
 /// it holds when the window settles at a new size, and why it holds ONE picture rather than a small one
-/// under a large. No cloud marks to fetch. Its own collection, always the user's, where the window's shelf
-/// may be somebody else's. And a room that stands still while the first pass runs, which is what
+/// under a large. No cloud marks to fetch. And a room that stands still while the first pass runs, which is what
 /// <see cref="LibraryWarming"/> is for.</para>
 /// </summary>
 public sealed partial class PegasusChrome
@@ -57,12 +56,11 @@ public sealed partial class PegasusChrome
         // Named after the COLLECTION, not the wall, so this and the library window's wall share one pack
         // file whenever they are drawing the same records at the same size, and the first-run cost is paid
         // once between them.
-        PackScope: () => ThumbPack.ScopeFor(Library.Root),
+        PackScope: () => ThumbPack.ScopeFor(Library.ShelfRoot),
 
-        // The user's own collection, because that is what this wall lists, the window next door may well
-        // be browsing somebody else's.
-        CollectionRoot: () => Library.Root,
-        Read: (folder, edge, ct) => AlbumCovers.LoadForSquareAsync(folder, ct, edge, ownCollection: true),
+        // The collection on screen, which is what this wall lists (see FillLibraryAsync).
+        CollectionRoot: () => Library.ShelfRoot,
+        Read: (folder, edge, ct) => AlbumCovers.LoadForSquareAsync(folder, ct, edge),
 
         // Nothing on this screen paints a record's colour. They are read for the PACK, to carry them to the
         // wall in the library window, which would otherwise decode every cover in the collection to find

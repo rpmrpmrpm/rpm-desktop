@@ -26,7 +26,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// lists and is crossed to and from in the same way (see PegasusChrome.ArtistsGenres): the side menu starts
 /// the trail with it, and Back on it goes to home.</para>
 ///
-/// <para>Read from the listener's own collection (<c>library.Db</c>), as the drawer's tab and the wall read
+/// <para>Read from the collection on screen (<c>library.Shelf</c>), as the drawer's tab and the wall read
 /// it, on every visit from the side menu, so a list made since the last visit is there. A read that lands
 /// after a newer one has started is dropped.</para>
 /// </summary>
@@ -102,8 +102,9 @@ public sealed partial class PegasusChrome
         }
 
         PlaylistsSpinner.Spinning = !_playlistsKnown;
-        var db = library.Db;
-        var asked = await Task.Run(() => library.Read(db, "Pegasus's playlists", ReadPlaylistCards));
+        var db = library.Shelf;
+        var whose = library.IsPeerView ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
+        var asked = await Task.Run(() => library.Read(db, "Pegasus's playlists", mirror => ReadPlaylistCards(mirror, whose)));
         if (read != _playlistsRead)
             return;
         PlaylistsSpinner.Spinning = false;
@@ -128,13 +129,13 @@ public sealed partial class PegasusChrome
     /// A generated list's totals are one query; a made list is flattened, because a list can hold other
     /// lists.
     /// </summary>
-    private static PlaylistsRead ReadPlaylistCards(LibraryDatabase db)
+    private static PlaylistsRead ReadPlaylistCards(LibraryDatabase db, PlaylistShelf whose)
     {
         var now = DateTime.UtcNow.Ticks;
         var generated = new List<PlaylistCardFacts>();
         var own = new List<PlaylistCardFacts>();
 
-        foreach (var entry in ReadPlaylists(db).Entries)
+        foreach (var entry in ReadPlaylists(db, whose).Entries)
         {
             switch (entry.Cover)
             {

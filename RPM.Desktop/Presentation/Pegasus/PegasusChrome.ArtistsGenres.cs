@@ -20,7 +20,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// menu's Artists or Genres starts the trail with that list. Opening a page adds a stop; Back removes one
 /// and shows the stop below it, and Back on the list goes to home. A genre's page can open an artist's page
 /// and another genre's page, so the trail can be several stops deep. See <see cref="TrailStop"/>.</item>
-/// <item><b>The listener's own collection.</b> Read off <c>library.Db</c>, as Pegasus's wall and record
+/// <item><b>The collection on screen.</b> Read off <c>library.Shelf</c>, as Pegasus's wall and record
 /// page read it, so every record on these screens opens on the record page. The read is the main window's
 /// own (<see cref="LibraryAlbumIndex.ReadArtistShelf"/>), done again on every visit from the side menu, so
 /// a collection changed since the last visit is current.</item>
@@ -72,7 +72,7 @@ public sealed partial class PegasusChrome
     /// <summary>The trail, bottom first. Empty while none of the four screens is up.</summary>
     private readonly List<TrailStop> _trail = [];
 
-    /// <summary>The artists and genres side of the listener's own collection, as last read. Null until the
+    /// <summary>The artists and genres side of the collection on screen, as last read. Null until the
     /// first read lands.</summary>
     private LibraryAlbumIndex.ArtistShelf? _shelf;
 
@@ -343,7 +343,7 @@ public sealed partial class PegasusChrome
     // Reading.
 
     /// <summary>
-    /// Reads the artists and genres of the listener's own collection on a worker. What is on screen stays
+    /// Reads the artists and genres of the collection on screen on a worker. What is on screen stays
     /// until the answer lands; a screen built from an answer that says the same thing keeps its cards (see
     /// FillArtists and BuildGenres).
     /// </summary>
@@ -358,7 +358,7 @@ public sealed partial class PegasusChrome
         }
 
         ShowArtistsGenresSpinner(_shelf is null);
-        var db = library.Db;
+        var db = library.Shelf;
         var asked = await Task.Run(() => library.Read(db, "Pegasus's artists and genres", LibraryAlbumIndex.ReadArtistShelf));
         if (read != _shelfRead)
             return;

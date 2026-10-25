@@ -507,21 +507,23 @@ public sealed partial class PegasusChrome
         _browseBuiltFor = BrowseKey;
 
         var library = Library;
-        if (!library.IsOpen || library.Root is not { } root)
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
         {
             ShowBrowseEmpty("Viz_BrowseNoLibrary", scale);
             return;
         }
 
+        // The collection on screen, as the wall reads it (see FillLibraryAsync).
         var albums = _browseAlbums;
-        var db = library.Db;
+        var db = library.Shelf;
+        var whose = library.IsPeerView ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
         var search = SearchTerm;
 
         List<BrowseEntry> entries;
         var capped = 0;
         try
         {
-            (entries, capped) = await Task.Run(() => albums ? ReadAlbums(db, search) : ReadPlaylists(db));
+            (entries, capped) = await Task.Run(() => albums ? ReadAlbums(db, search) : ReadPlaylists(db, whose));
         }
         catch
         {
@@ -601,7 +603,9 @@ public sealed partial class PegasusChrome
     /// <para>The pinned Now playing node is not here. It is the queue, and the queue is the screen this one
     /// steps back from.</para>
     /// </summary>
-    private static (List<BrowseEntry> Entries, int Capped) ReadPlaylists(LibraryDatabase db)
+    /// <param name="whose">Whose tree <paramref name="db"/> is, for the lists' covers (see
+    /// <see cref="StoredListEntry"/>).</param>
+    private static (List<BrowseEntry> Entries, int Capped) ReadPlaylists(LibraryDatabase db, PlaylistShelf whose)
     {
         var entries = new List<BrowseEntry>();
 
@@ -628,8 +632,7 @@ public sealed partial class PegasusChrome
             if (node.Kind != PlaylistNodeKind.Playlist || node.IsNowPlaying)
                 continue;
 
-            // The tab reads the listener's own database (library.Db), so these are the listener's own tree.
-            made.Add(StoredListEntry(db, node, byId, PlaylistShelf.Own));
+            made.Add(StoredListEntry(db, node, byId, whose));
         }
 
         // By name, because the tree's own sibling order means nothing once the tree is gone.
