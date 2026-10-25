@@ -19,9 +19,10 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// One artist's page in Pegasus: a band across the top with their photograph at the right and, left of it,
 /// their name (or logo), the first whole sentences of what the encyclopedia says about them, how much of
 /// their work the collection holds, a key to play all of it and one to shuffle it; then, under the band,
-/// their popular songs in columns of four, and their records on shelves that scroll sideways. OK on a song
-/// plays the popular songs from it, and a held OK or the Menu key opens the song's menu (see
-/// <see cref="PopularSongMenu"/>); OK on a record opens the record page, and Back comes back here.
+/// their popular songs in columns of four, their records on shelves that scroll sideways, and the lists
+/// that hold their songs (see <see cref="ReadArtistListsAsync"/>). OK on a song plays the popular songs
+/// from it, and a held OK or the Menu key opens the song's menu (see <see cref="PopularSongMenu"/>); OK on a
+/// record or a list opens its page, and Back comes back here.
 ///
 /// <para><b>The band reads as the Android TV app's</b> (PageBand, see <see cref="PageHeaderArt"/>). The
 /// photograph fills the right of the screen, dissolving toward its left and its foot, and the page's room
@@ -271,10 +272,15 @@ public sealed partial class PegasusChrome
         AddArtistShelf("Artists_Singles", shelves.Singles, shelf, plain, read);
         AddArtistShelf("Artists_AppearsOn", shelves.Appearances, shelf, plain, read);
 
+        // The lists that hold their songs, filled when they are read (see ReadArtistListsAsync).
+        _artistListsSlot = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        ArtistPageContent.Children.Add(_artistListsSlot);
+
         SizeArtistPage(scale);
         ArtistPageScroll.ChangeView(null, 0, null, disableAnimation: true);
 
         ReadArtistPopularAsync(act, shelves, shelf, read);
+        ReadArtistListsAsync(act, shelves, read);
 
         // The compilations shelf is not a person: nothing is asked of the catalogues about it (see
         // MainPage.NobodyInParticular).
@@ -900,6 +906,155 @@ public sealed partial class PegasusChrome
         return menu;
     }
 
+    // ── the lists that hold their songs ──
+
+    /// <summary>Where the lists that hold their songs stand, under the shelves of records.</summary>
+    private StackPanel? _artistListsSlot;
+
+    /// <summary>One list on the page, as read: what opens it, where its cover comes from, the line under
+    /// its name, and whether it holds an explicit song.</summary>
+    private sealed record ArtistListCard(BrowseEntry Entry, ListCoverDoor Door, string Line, bool IsExplicit);
+
+    /// <summary>What the page reads of the lists: the playlists that hold their songs, and the generated
+    /// ones that do.</summary>
+    private sealed record ArtistListsRead(IReadOnlyList<ArtistListCard> Playlists, IReadOnlyList<ArtistListCard> Moods);
+
+    /// <summary>
+    /// The lists of the collection on screen that hold a song of theirs, on two rows as the Android TV app
+    /// has them under the records: the playlists somebody made (Artists_InPlaylists), most of their songs
+    /// first, and the generated lists, the drawer's Made for you, in the drawer's order
+    /// (Genres_MoodPlaylists). OK on one opens the list's page (<see cref="ShowListRecordAsync"/>).
+    ///
+    /// <para><b>The collection on screen, on its own terms.</b> Their songs and the lists are read off the
+    /// one shelf (<c>library.Shelf</c>), as the desktop artist page reads them
+    /// (MainPage.LoadArtistPlaylistsAsync). On somebody else's collection these are that collection's lists,
+    /// as on the TV; the listener's own lists are never shown about somebody else's records.</para>
+    ///
+    /// <para>"Theirs" is the page's own Play all: their own records whole, and the songs that name them on
+    /// somebody else's. A list holds one of them when an entry has the song's id or its path (see
+    /// LibraryDatabase.PlaylistsHolding); a list that only points at another list does not count.</para>
+    /// </summary>
+    private async void ReadArtistListsAsync(ArtistWallItem act, ArtistShelves shelves, int read)
+    {
+        var library = Library;
+        if (!library.IsOpen)
+            return;
+
+        var db = library.Shelf;
+        var whose = library.IsPeerView ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
+        var own = shelves.OwnInPageOrder.ToList();
+        var appearances = shelves.Appearances;
+        var asked = await Task.Run(() => library.Read(db, "the lists holding an artist's songs for Pegasus", mirror =>
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Theirs(LibraryTrack track)
+            {
+                if (track.RpmId is { Length: > 0 } id)
+                    ids.Add(id);
+                paths.Add(track.RelativePath);
+            }
+            foreach (var folder in own)
+                foreach (var track in mirror.FolderTracks(folder))
+                    Theirs(track);
+            foreach (var folder in appearances)
+                foreach (var track in mirror.FolderTracks(folder).Where(t => ArtistWall.Names(t.Artist, act.Name)))
+                    Theirs(track);
+
+            bool Holds(LibraryTrack track) =>
+                (track.RpmId is { Length: > 0 } id && ids.Contains(id)) || paths.Contains(track.RelativePath);
+
+            // The playlists, as the drawer and the playlists screen draw them.
+            var nodes = mirror.GetPlaylistNodes().ToDictionary(n => n.Id);
+            var playlists = new List<ArtistListCard>();
+            foreach (var holding in mirror.PlaylistsHolding(ids, paths))
+            {
+                if (!nodes.TryGetValue(holding.NodeId, out var node))
+                    continue;
+                var entry = StoredListEntry(mirror, node, nodes, whose);
+                var tracks = entry.Tracks();
+                playlists.Add(new ArtistListCard(
+                    entry, entry.Cover!, entry.Under ?? SongsLine(tracks.Count),
+                    tracks.Any(t => t.Advisory == ContentAdvisory.Explicit)));
+            }
+
+            // The generated lists the drawer offers, each asked as it stands (as opening it from the drawer
+            // asks it), kept where it holds one of their songs.
+            var now = DateTime.UtcNow.Ticks;
+            var moods = new List<ArtistListCard>();
+            foreach (var kind in SmartPlaylists.All)
+            {
+                var id = SmartPlaylistId.WholeShelf(kind);
+                var (count, _, isExplicit) = mirror.SmartPlaylistTotals(id, now);
+                if (count < SmartPlaylists.LeastToShow(id))
+                    continue;
+                if (!mirror.QuerySmartPlaylist(id, now, advance: false).Any(Holds))
+                    continue;
+                var entry = GeneratedListEntry(mirror, id);
+                moods.Add(new ArtistListCard(entry, entry.Cover!, SongsLine(count), isExplicit));
+            }
+
+            return new ArtistListsRead(playlists, moods);
+        }));
+
+        if (read != _artistPageRead || !asked.Answers(out var lists, out _) || _artistListsSlot is not { } slot)
+            return;
+
+        var plain = (Style)Resources["PegasusPlainButton"];
+        AddArtistLists(slot, "Artists_InPlaylists", lists.Playlists, plain, read);
+        AddArtistLists(slot, "Genres_MoodPlaylists", lists.Moods, plain, read);
+
+        static string SongsLine(int songs) =>
+            songs == 1 ? Loc.Get("Stats_SongsOne") : Loc.Format("Stats_Songs", songs);
+    }
+
+    /// <summary>One row of lists, if there are any, at the page's present size, with each card's cover
+    /// queued: the doors the playlists screen draws its covers through.</summary>
+    private void AddArtistLists(StackPanel slot, string heading, IReadOnlyList<ArtistListCard> lists, Style plain, int read)
+    {
+        if (lists.Count == 0)
+            return;
+
+        var scale = QueueScale;
+        var width = GenreCardWidth(scale);   // six to the width, as the page's other shelves
+        var row = new ShelfRow(Loc.Get(heading));
+        _artistPageRows.Add(row);
+        slot.Children.Add(row.Root);
+        row.Size(scale, LibraryEdgeInset);
+        var at = ArtistPageContent.Children.IndexOf(slot);
+
+        for (var i = 0; i < lists.Count; i++)
+        {
+            var (entry, door, line, isExplicit) = lists[i];
+            var glyph = door is ListCoverDoor.Generated g ? SmartPlaylistFace.Glyph(g.Id.Kind) : "";   // list-music
+            var card = new ShelfCard(
+                entry.Name, line, CardShape.Square, isExplicit,
+                stand: glyph, standFont: (FontFamily)Resources["PegasusFa"], plain,
+                press: () => ShowListRecordAsync(entry));
+            row.Cards.Children.Add(card.Root);
+            card.Size(width, scale);
+            _artistPageCards.Add(card);
+
+            _artistPagePictures.Add(new CardPlace(at, i), async () =>
+            {
+                if (read != _artistPageRead)
+                    return;
+                var bytes = door switch
+                {
+                    ListCoverDoor.Generated generated => await GeneratedCover.SquareAsync(generated.Id, CancellationToken.None),
+                    ListCoverDoor.Kept kept => (await PlaylistCovers.MadeAsync(
+                        kept.NodeId, kept.Name, kept.Cover, kept.Shelf, CancellationToken.None)).Cover,
+                    _ => null,
+                };
+                if (bytes is not { Length: > 0 } || read != _artistPageRead)
+                    return;
+                var bitmap = await RemoteImage.DecodeArtAsync(bytes, CardDecodeEdgeFor(card.Edge));
+                if (read == _artistPageRead)
+                    card.Show(bitmap);
+            });
+        }
+    }
+
     /// <summary>The width the page's content stands in: the screen less the side insets.</summary>
     private double ArtistStrip()
     {
@@ -1075,6 +1230,7 @@ public sealed partial class PegasusChrome
         _artistAboutProse = null;
         _artistAboutCutAt = default;
         _artistPopularSlot = null;
+        _artistListsSlot = null;
         _artistPopular = [];
         _artistPopularSize = null;
         LandArrivals();
