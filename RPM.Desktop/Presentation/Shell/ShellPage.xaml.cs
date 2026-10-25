@@ -535,6 +535,12 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         if (e.Handled)
             return;
 
+        // Every key while Pegasus is up starts its screensaver's wait again. The press that brings its
+        // screens back does nothing else, down to its release, except the media keys and the shortcuts
+        // below, which still do their own work: a pause pressed over the room pauses (see
+        // PegasusPlayer.Screensaver).
+        var waking = PegasusOverlay.IsShowing && PegasusOverlay.ScreensaverKeyDown(e.Key);
+
         // The media keys, wherever the listener is: play and pause, next and previous track, stop.
         // A TV remote sends these, and so does a keyboard with media keys. On the WinUI head the
         // Windows media controls also answer them when another app is in front (NowPlayingService).
@@ -552,6 +558,12 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         // not an arrow that moves the focus.
         if (TakeShortcut(e))
             return;
+
+        if (waking)
+        {
+            e.Handled = true;
+            return;
+        }
 
         if (PegasusOverlay.IsShowing && TakePegasusKey(e))
             return;
@@ -877,6 +889,13 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     {
         if (e.Handled || !PegasusOverlay.IsShowing)
             return;
+
+        // The release of the press that brought the screensaver's screens back (see OnPreviewKeyDown).
+        if (PegasusOverlay.ScreensaverKeyUp(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
 
         var sideways = ArrowDirection(e.Key) is Microsoft.UI.Xaml.Input.FocusNavigationDirection.Left
                                              or Microsoft.UI.Xaml.Input.FocusNavigationDirection.Right;

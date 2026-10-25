@@ -71,4 +71,13 @@ public interface IPegasusSettings
 
     /// <summary>Moves to the next order, wrapping, in the order the wall's sort key lists them.</summary>
     void NextAlbumOrdering();
+
+    // ── the screensaver: the General section, after the album wall's rows, as on the TV ──
+
+    /// <summary>After how many minutes without a key the screens make way for the room (see
+    /// PegasusPlayer.Screensaver): one of <see cref="Screensaver.Choices"/>, 0 for off.</summary>
+    int ScreensaverMinutes { get; }
+
+    /// <summary>Moves to the next choice, wrapping from the longest to off.</summary>
+    void NextScreensaver();
 }

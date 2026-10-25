@@ -155,6 +155,8 @@ public sealed partial class SettingsService
         bool PegasusLyrics = false,
         // ...and the animation its room draws.
         string? PegasusRoomStyle = null,
+        // ...and the minutes without a key before its screensaver.
+        int PegasusScreensaverMinutes = RPM.Core.Viz.Screensaver.DefaultMinutes,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -731,6 +733,18 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusRoomStyle;
         set => Update(_model with { PegasusRoomStyle = value }, notify: false);
+    }
+
+    /// <summary>
+    /// After how many minutes without a key or a pointer move Pegasus puts its screens away and only the
+    /// room shows: one of <see cref="RPM.Core.Viz.Screensaver.Choices"/>, 0 for off, 2 until the settings
+    /// panel's Screensaver row has been used. A figure that is not a choice is read as the default (see
+    /// <see cref="RPM.Core.Viz.Screensaver.Minutes"/>). Saved quietly, as <see cref="PegasusLayout"/> is.
+    /// </summary>
+    public int PegasusScreensaverMinutes
+    {
+        get => _model.PegasusScreensaverMinutes;
+        set => Update(_model with { PegasusScreensaverMinutes = value }, notify: false);
     }
 
     /// <summary>

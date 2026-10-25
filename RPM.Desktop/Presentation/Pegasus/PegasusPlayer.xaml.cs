@@ -156,6 +156,7 @@ public sealed partial class PegasusPlayer : UserControl
         _flashFade = new ChromeFade(Flash);
 
         Unloaded += (_, _) => Hide();
+        HookScreensaver();
 
         // Escape and Back are not listened for here. The shell passes them on as it goes down (see TakeBack).
 
@@ -212,6 +213,8 @@ public sealed partial class PegasusPlayer : UserControl
             ApplyView(immediate: false);
             ShowKeys();
             RestartIdle();
+            ScreensaverUsed();
+            ArmScreensaver();
             return;
         }
 
@@ -340,6 +343,7 @@ public sealed partial class PegasusPlayer : UserControl
 
         ShowKeys(immediate: true);
         RestartIdle();
+        ScreensaverUsed();
         TryEndLoading();   // a warm stage and a filled wall are both possible on a second visit
 
         // The window goes fully full screen where the platform can. The view covers the app either way. This also
@@ -408,6 +412,7 @@ public sealed partial class PegasusPlayer : UserControl
         // lands. An empty panel at zero opacity costs one arrange for the rest of this visit. Hide() collapses it
         // properly on the way out.
         ApplyView(immediate: false);
+        ArmScreensaver();
     }
 
     /// <summary>Takes the view down and stops it rendering. It does NOT raise <see cref="Closed"/>. This is the
@@ -422,6 +427,7 @@ public sealed partial class PegasusPlayer : UserControl
         SetCovers(false);
 
         _stage?.SetActive(false);
+        StopScreensaver();
 
         // The collection goes away with the view. It does not wait behind it. The next visit decides for itself which
         // screen it opens on, so a wall left standing would be the last visit's answer to a question asked again.
@@ -595,6 +601,7 @@ public sealed partial class PegasusPlayer : UserControl
         _library = up;
         ApplyView(immediate: false);
         ShowKeys();
+        ArmScreensaver();   // watched over the collection only
     }
 
     /// <summary>
@@ -1153,6 +1160,9 @@ public sealed partial class PegasusPlayer : UserControl
         // usually taken it long before this.
         StandUpRoomLater();
 
+        // The screensaver's wait starts once there is a screen to look at.
+        ArmScreensaver();
+
         // The record is stopped, and the cover collapses, once the fade has run. A timer is used rather than a callback,
         // because this fade has none. A turning record left in the tree at zero opacity would keep a timer repainting
         // the window behind a shader for the rest of the visit.
@@ -1424,6 +1434,7 @@ public sealed partial class PegasusPlayer : UserControl
         // focus, also raises pointer events. Those must not take keyboard mode away.
         if (PointerReallyUsed(e))
         {
+            ScreensaverUsed();
             PointerUsed();
             ShowKeys();
             RestartIdle();

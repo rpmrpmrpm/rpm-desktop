@@ -139,4 +139,19 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         var at = Array.IndexOf(orders, AlbumOrdering);
         App.Services.GetRequiredService<SettingsService>().PegasusAlbumOrdering = orders[(at + 1) % orders.Length];
     }
+
+    // ── the screensaver: the General section ──
+
+    /// <inheritdoc/>
+    public int ScreensaverMinutes =>
+        Screensaver.Minutes(App.Services.GetRequiredService<SettingsService>().PegasusScreensaverMinutes);
+
+    /// <inheritdoc/>
+    public void NextScreensaver()
+    {
+        App.Services.GetRequiredService<SettingsService>().PegasusScreensaverMinutes = Screensaver.Next(ScreensaverMinutes);
+
+        // The wait starts again on the new choice. The press that made it was a key, so it counts from now.
+        ArmScreensaver();
+    }
 }

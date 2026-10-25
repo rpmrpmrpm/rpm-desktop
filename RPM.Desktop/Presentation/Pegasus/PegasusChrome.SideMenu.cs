@@ -860,6 +860,12 @@ public sealed partial class PegasusChrome
             new("Tv_SettingsAlbumView", s => Loc.Get(s.AlbumCarousel ? "Tv_AlbumViewCarousel" : "Tv_AlbumViewGrid"),
                 s => s.ToggleAlbumCarousel()),
             new("Tv_SettingsAlbumSort", s => Loc.Get(OrderingName(s.AlbumOrdering)), s => s.NextAlbumOrdering()),
+            new("Tv_SettingsScreensaver", s => s.ScreensaverMinutes switch
+            {
+                0 => Loc.Get("Viz_SettingOff"),
+                1 => Loc.Get("Tv_SettingsAfterMinute"),
+                var minutes => Loc.Format("Tv_SettingsAfterMinutes", minutes),
+            }, s => s.NextScreensaver()),
         ]),
         new("Settings_Profile", "", []),
         new("Settings_Display", "", []),
