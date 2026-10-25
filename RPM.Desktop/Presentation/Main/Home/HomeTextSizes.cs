@@ -12,6 +12,12 @@ namespace RPM.Desktop.Presentation.Main.Home;
 /// way as the player above it. Pegasus is read from a distance, and at 1 the headings and the quick
 /// selection would be too small to read.</para>
 ///
+/// <para>Pegasus also sets <see cref="Couch"/>, which swaps the desktop's figures for the Android TV
+/// app's couch sizes (headings 22, a card's two lines 17 and 15, the quick selection's 19 and 16 beside a
+/// 64 square, the banner's kicker 18). The TV states its sizes in the desktop's units (its <c>ts</c> is
+/// a desktop figure times the scale), so each is the TV's number times <see cref="Scale"/>, as the
+/// desktop's are. The main window never sets it, so its sizes are the ones written first below.</para>
+///
 /// <para>There is one instance per <see cref="HomeView"/>. It is never replaced, and every card the view
 /// builds holds it: the row, list and quick cards through their
 /// <see cref="Library.Models.SimilarTileMetrics"/>. A card realized later reads the current size, and a
@@ -47,6 +53,32 @@ public sealed partial class HomeTextSizes : INotifyPropertyChanged
         }
     }
 
+    private bool _couch;
+
+    /// <summary>
+    /// Whether the text is at the Android TV app's couch sizes, Pegasus's profile, rather than the
+    /// desktop's. Each size below names both: the desktop's first, the TV's second. The TV made its
+    /// text larger to be read from across a room (FOBO 6f08f6b7c, 77d2d7f03, 974baa2b5, 8fad30cd8),
+    /// and Pegasus is read from the same distance.
+    /// </summary>
+    public bool Couch
+    {
+        get => _couch;
+        set
+        {
+            if (_couch == value)
+                return;
+            _couch = value;
+            foreach (var name in Sizes)
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            foreach (var metrics in Followers())
+                metrics.TextScaled();
+        }
+    }
+
+    /// <summary>The desktop's figure or the TV's, at the scale.</summary>
+    private double At(double desk, double couch) => (_couch ? couch : desk) * _scale;
+
     // ── who else is told about a change of scale ──
 
     private readonly List<WeakReference<SimilarTileMetrics>> _followers = [];
@@ -81,18 +113,18 @@ public sealed partial class HomeTextSizes : INotifyPropertyChanged
     // ── headings ──
 
     /// <summary>A section's name: "Quick selection", "Made for you", and each row's.</summary>
-    public double Heading => 12 * _scale;
+    public double Heading => At(12, 22);
 
     // ── a card in a row: a record or a list ──
 
-    public double CardTitle => 12 * _scale;
+    public double CardTitle => At(12, 17);
 
     /// <summary>The box the title sits in. A minimum rather than a fixed height, so a descender is never cut.</summary>
-    public double CardTitleBox => 16 * _scale;
+    public double CardTitleBox => At(16, 22);
 
-    public double CardLine => 11 * _scale;
+    public double CardLine => At(11, 15);
 
-    public double CardLineBox => 15 * _scale;
+    public double CardLineBox => At(15, 20);
 
     /// <summary>
     /// The row keys' margins. The bottom one is the height of the text under the cover, so the key,
@@ -107,7 +139,7 @@ public sealed partial class HomeTextSizes : INotifyPropertyChanged
 
     /// <summary>The E after a title, square. <see cref="SimilarTileMetrics.TitleRoom"/> keeps this
     /// much room free, plus the gap in front of it.</summary>
-    public double Badge => 12 * _scale;
+    public double Badge => At(12, 16);
 
     // ── the arrow keys ──
 
@@ -121,19 +153,50 @@ public sealed partial class HomeTextSizes : INotifyPropertyChanged
 
     // ── the quick selection ──
 
-    public double QuickTitle => 12.5 * _scale;
+    public double QuickTitle => At(12.5, 19);
 
-    public double QuickLine => 11 * _scale;
+    public double QuickLine => At(11, 16);
 
     /// <summary>The square beside each entry. It grows with the text so the two lines still fit beside it.</summary>
-    public double QuickSquare => 48 * _scale;
+    public double QuickSquare => At(48, 64);
 
     /// <summary>The kind's mark, drawn in the square when there is no picture.</summary>
-    public double QuickMark => 15 * _scale;
+    public double QuickMark => At(15, 20);
 
-    public double PlayAll => 11.5 * _scale;
+    public double PlayAll => At(11.5, 16);
 
-    public double PlayAllMark => 10 * _scale;
+    public double PlayAllMark => At(10, 14);
+
+    // ── the banner ──
+    //
+    // Unscaled, unlike everything above: the banner is drawn larger by the ScaleBox it stands in (see
+    // HomeView.FeatureScale), so a scaled size here would be scaled twice. Only Couch changes them. The
+    // desktop's figures are the ones its markup had (the FeatureKicker and FeatureLine styles, the
+    // station face's lines); the TV's are its banner's (Home.kt BannerFace and StationFace).
+
+    /// <summary>The kicker over a card's title, the row it comes from.</summary>
+    public double BannerKicker => _couch ? 18 : 11;
+
+    /// <summary>The third line: the act's name or the line that puts the record forward.</summary>
+    public double BannerLine => _couch ? 19 : 13.5;
+
+    /// <summary>The height of that line's cell, and the most an act's lettering is drawn in it.</summary>
+    public double BannerLogoHigh => _couch ? 34 : 26;
+
+    public double BannerLogoWide => _couch ? 340 : 260;
+
+    /// <summary>What a station is, on its card: two lines. The width keeps its proportion to the
+    /// size, so StationBlurb.Longest still fits in the two lines.</summary>
+    public double StationBlurb => _couch ? 18 : 13;
+
+    public double StationBlurbLine => _couch ? 24 : 18;
+
+    public double StationBlurbWide => _couch ? 420 : 300;
+
+    /// <summary>What the tuned station is playing, under that.</summary>
+    public double StationOn => _couch ? 16 : 11.5;
+
+    public double StationOnWide => _couch ? 520 : 360;
 
     /// <summary>Every property that changes with <see cref="Scale"/>. Each is raised by name, one at a
     /// time, so nothing depends on how a binding engine reads an empty property name.</summary>
@@ -145,6 +208,9 @@ public sealed partial class HomeTextSizes : INotifyPropertyChanged
         nameof(KeyWidth), nameof(KeyHeight), nameof(KeyMark),
         nameof(QuickTitle), nameof(QuickLine), nameof(QuickSquare), nameof(QuickMark),
         nameof(PlayAll), nameof(PlayAllMark),
+        nameof(BannerKicker), nameof(BannerLine), nameof(BannerLogoHigh), nameof(BannerLogoWide),
+        nameof(StationBlurb), nameof(StationBlurbLine), nameof(StationBlurbWide),
+        nameof(StationOn), nameof(StationOnWide),
     ];
 
     public event PropertyChangedEventHandler? PropertyChanged;

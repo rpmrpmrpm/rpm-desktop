@@ -504,6 +504,11 @@ public sealed partial class HomeFeatureCard : INotifyPropertyChanged, Services.A
     /// <summary>The line over the title, saying why this card is on screen.</summary>
     public string Kicker { get; init; } = "";
 
+    /// <summary>The sizes its lines are drawn at: the screen's own, handed over when the strip is shown
+    /// (see HomeView.ShowFeatures), so Pegasus's couch sizes reach the banner. The desktop's until
+    /// then.</summary>
+    public HomeTextSizes TextSizes { get; set; } = new();
+
     public string Title { get; init; } = "";
 
     /// <summary>The artist on a record, the number of songs on a list.</summary>
@@ -3086,6 +3091,20 @@ public sealed partial class HomeView : UserControl
     }
 
     /// <summary>
+    /// Whether this screen's text is at the Android TV app's couch sizes (see
+    /// <see cref="HomeTextSizes.Couch"/>). Pegasus sets it; the main window leaves it off.
+    /// </summary>
+    public bool CouchText
+    {
+        get => _textSizes.Couch;
+        set
+        {
+            _textSizes.Couch = value;
+            ApplyTextSizes();
+        }
+    }
+
+    /// <summary>
     /// The sizes on the elements written out in the markup and not templated. The templates bind to
     /// <see cref="_textSizes"/> and follow it on their own; these are named, so they are written here.
     /// It is called from the constructor as well, so the markup's own values are never what is drawn.
@@ -4197,6 +4216,8 @@ public sealed partial class HomeView : UserControl
     {
         _features.Clear();
         _features.AddRange(cards);
+        foreach (var card in cards)
+            card.TextSizes = _textSizes;   // before any host draws it, so its lines bind this screen's sizes
 
         FeatureScale.Visibility = _features.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         // Both keys, together: a strip with one card in it has nothing to step to in either direction.

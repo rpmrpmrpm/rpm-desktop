@@ -150,6 +150,7 @@ public sealed partial class PegasusChrome
             Visibility = Visibility.Collapsed,
             HeadingShown = false,
             TextScale = QueueScale,
+            CouchText = true,   // the Android TV app's couch sizes, read from across a room (HomeTextSizes.Couch)
             ContentTop = HomeTopPad,
 
             // OK on a record in the rows opens its page, as a press on the wall does (the mouse still

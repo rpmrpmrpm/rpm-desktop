@@ -734,7 +734,7 @@
               <Border common:TextShade.Under="KickerFace" common:TextShade.Ink="#B3000000"
                       common:TextShade.Blur="0.30" common:TextShade.Drop="1"/>
               <TextBlock x:Name="KickerFace" Text="{Binding Kicker}"
-                         Style="{StaticResource FeatureKicker}"/>
+                         Style="{StaticResource FeatureKicker}" FontSize="{Binding TextSizes.BannerKicker}"/>
             </Grid>
 
             <Grid>
@@ -755,7 +755,9 @@
                  must not be squashed. It is left-aligned, which is where the text above it starts, and that
                  only holds because the mark arrives already cut to its lettering (see ArtistLogos and
                  ArtScaler.Trim). -->
-            <Grid Height="26">
+            <!-- The line's sizes come from the card's TextSizes: the styles' 13.5 and this 26 on the desktop,
+                 the TV's couch sizes in Pegasus (HomeTextSizes.Couch). -->
+            <Grid Height="{Binding TextSizes.BannerLogoHigh}">
               <!-- What the encyclopedia says is worth knowing about this record, where it says anything. It
                    is first of the three because it is the only one that gives a reason to press the card: the
                    act's name is already implied by the photograph behind it. See HomeFeatureCard.HypeShown,
@@ -768,10 +770,12 @@
               <Border common:TextShade.Under="ActFace" common:TextShade.Ink="#99000000"
                       common:TextShade.Blur="0.30" common:TextShade.Drop="1"/>
               <TextBlock x:Name="HypeFace" Text="{Binding Hype}" Style="{StaticResource FeatureLine}"
-                         Visibility="{Binding HypeShown}"/>
+                         FontSize="{Binding TextSizes.BannerLine}" Visibility="{Binding HypeShown}"/>
               <TextBlock x:Name="ActFace" Text="{Binding Subtitle}" Style="{StaticResource FeatureLine}"
+                         FontSize="{Binding TextSizes.BannerLine}"
                          VerticalAlignment="Center" Visibility="{Binding SubtitleShown}"/>
-              <Image Source="{Binding Logo}" Stretch="Uniform" MaxHeight="26" MaxWidth="260"
+              <Image Source="{Binding Logo}" Stretch="Uniform"
+                     MaxHeight="{Binding TextSizes.BannerLogoHigh}" MaxWidth="{Binding TextSizes.BannerLogoWide}"
                      HorizontalAlignment="Left" VerticalAlignment="Center"
                      Visibility="{Binding LogoShown}"/>
             </Grid>
@@ -829,8 +833,10 @@
                  eighty characters, and eighty is what that constant caps a description at, so the ellipsis
                  should be the rare case. Change one and change the other, or trimming will start again. The
                  whole text is in the tooltip for a line that does overrun. -->
-            <TextBlock Text="{Binding Blurb}" FontSize="13" Foreground="#D1FFFFFF" LineHeight="18"
-                       TextAlignment="Center" MaxWidth="300" MaxLines="2" TextWrapping="Wrap"
+            <!-- 13, 18 and 300 on the desktop; larger in Pegasus, in the same proportion (HomeTextSizes). -->
+            <TextBlock Text="{Binding Blurb}" FontSize="{Binding TextSizes.StationBlurb}" Foreground="#D1FFFFFF"
+                       LineHeight="{Binding TextSizes.StationBlurbLine}"
+                       TextAlignment="Center" MaxWidth="{Binding TextSizes.StationBlurbWide}" MaxLines="2" TextWrapping="Wrap"
                        TextTrimming="CharacterEllipsis" Visibility="{Binding BlurbShown}"
                        ToolTipService.ToolTip="{Binding Blurb}"/>
 
@@ -840,8 +846,8 @@
 
                  One line, not wrapped: a song title is not a sentence, and a second line here would move the
                  whole block off the plate's centre every time a long title came round. -->
-            <TextBlock Text="{Binding NowPlaying}" FontSize="11.5" Foreground="#8CFFFFFF"
-                       TextAlignment="Center" MaxWidth="360" MaxLines="1"
+            <TextBlock Text="{Binding NowPlaying}" FontSize="{Binding TextSizes.StationOn}" Foreground="#8CFFFFFF"
+                       TextAlignment="Center" MaxWidth="{Binding TextSizes.StationOnWide}" MaxLines="1"
                        TextTrimming="CharacterEllipsis" Visibility="{Binding NowPlayingShown}"
                        ToolTipService.ToolTip="{Binding NowPlaying}"/>
           </StackPanel>
