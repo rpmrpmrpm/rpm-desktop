@@ -549,104 +549,14 @@ public sealed partial class PegasusChrome : UserControl
     /// one. It is much fainter than an unsung line. The whole line is being read, and a reader whose eye
     /// runs ahead of the singer must be able to see where it is going. This only shows where the voice has
     /// got to.</summary>
-    private const double WordRest = 0.42;
+    private const double WordRest = KaraokeLight.Rest;
 
-    /// <summary>
-    /// How much of a word's own moment the highlight takes to arrive, when that moment was GUESSED. It is a
-    /// fraction of the moment: at six tenths, a word is at full strength by about its own middle.
-    ///
-    /// <para><b>A lower value means an earlier and sharper arrival.</b> The word snaps up near its start.
-    /// <b>A higher value means a later and gentler arrival.</b> This is stated plainly, because the number
-    /// reads backwards from the effect: turning it down makes the arrival earlier.</para>
-    ///
-    /// <para>The whole span is the wrong window for a guess. If the word fades in across all of its own
-    /// moment, it only reaches full strength once the singer has FINISHED saying it. The brightest word on
-    /// the line is then always the one just sung. The eye reads the brightest word as the current one, so
-    /// the display looks like it is lagging behind.</para>
-    ///
-    /// <para>Six tenths is used rather than less, because a guessed span cannot be trusted to the tenth. A
-    /// slower arrival is also a blurrier one, and blur is the right way to show a number that might be
-    /// wrong. Where the span was MEASURED there is nothing to blur. See <see
-    /// cref="MeasuredArrival"/>.</para>
-    /// </summary>
-    private const double WordArrivesOver = 0.60;
-
-    /// <summary>
-    /// How long the highlight takes to arrive when the word's moment was MEASURED off the record, in
-    /// seconds. Unlike the guess above, it arrives so as to FINISH on that moment, rather than to start
-    /// there.
-    ///
-    /// <para>The two cases need opposite treatment, which is not obvious. A guessed span is a statement
-    /// about the line, with the word's own position inside it estimated. Easing into it hides the estimate.
-    /// A measured span says when this word begins. If the highlight then spends the first half of the word
-    /// arriving, the word is dim at the very moment it is sung. That is the "words come in too late"
-    /// problem that measuring was meant to fix. So the fade runs BEFORE the start of the word and lands on
-    /// it. The word is at full strength as the singer reaches it.</para>
-    ///
-    /// <para>This is short, and shorter still on a short word. A syllable must not be lit while the
-    /// syllable before it is still being sung.</para>
-    /// </summary>
-    private const double MeasuredArrival = 0.16;
-
-    /// <summary>
-    /// How long the light takes to arrive at one LETTER. This sets how soft the edge of the sweep is.
-    ///
-    /// <para>This is wider than a letter usually lasts, on purpose. A letter of an ordinary sung word lasts
-    /// forty or fifty milliseconds. If the arrival were exactly that long, each letter would be fully lit
-    /// before the next one began, and the line would look like a row of lights coming on in order. At a
-    /// fifth of a second, three or four letters are always part-way lit at once. Then the eye sees one soft
-    /// edge travelling along the line.</para>
-    ///
-    /// <para>This is a minimum, not a fixed width, and it only applies up to <see cref="SlowestGlyph"/>.
-    /// Past that point the edge would be wider than the sweep is long. A fade that began a second before
-    /// the letter it is about would be the light running ahead of the singer, not a soft edge.</para>
-    /// </summary>
-    private const double GlyphSoftness = 0.20;
-
-    /// <summary>
-    /// The slowest the light may cross a letter, in seconds, however long the word it is in was measured to
-    /// last.
-    ///
-    /// <para><b>A word's measured length is not always a length of singing.</b> The aligner reports a word
-    /// as running from the first frame of its first letter to the last frame of its last letter. Where the
-    /// model loses the thread in the middle of a word, those two frames are separated by a gap with nothing
-    /// in it: a letter placed, then a bar of blanks, then the rest of the word. Measured over four records,
-    /// about one word in twenty carries a gap of over half a second. The gap averages near a second and
-    /// reaches two and a quarter. The aligner's own confidence does not tell those letters from sung ones,
-    /// because the scores on either side of a gap are the same. So the span cannot be repaired where it is
-    /// made, and it should not be. The span is what the record says, and <see cref="SungAt"/> needs the
-    /// whole span to know when a line is over.</para>
-    ///
-    /// <para>The damage is fixed here, where it happens. If the time were shared out evenly, a word
-    /// stretched across a gap would crawl. A three letter word would take a second and a third, one letter
-    /// every four hundred milliseconds, while the singer is already two words on. The eye reads that as the
-    /// sheet stalling mid-word and then lurching. So the light crosses a word at a singing rate, and then
-    /// waits on it. A seventh of a second per character is the same rate that <see cref="LyricTiming"/>
-    /// caps a whole line at. It is the same argument, one level down. A sweep that finishes early and holds
-    /// is a small error that nobody reads as one. A sweep still crawling through the middle of a word is
-    /// the failure people notice.</para>
-    /// </summary>
-    private const double SlowestGlyph = 1.0 / 7.0;
-
-    /// <summary>
-    /// How quickly a HELD last word comes up, in seconds. It comes up as one word, not letter by letter.
-    ///
-    /// <para>A hold cannot be swept. The last word of a line is where a singer carries a note. The record
-    /// reports that word as lasting two or three seconds, and the measurement is correct. But the letters
-    /// of the word were sung in the first part of that time, and the rest is one vowel being held. If the
-    /// word were shared out across its letters, the last letter would light seconds after it was sung. The
-    /// eye would see the sheet crawling through the end of every line.</para>
-    ///
-    /// <para>So a held last word is not swept at all. It arrives whole and quickly, as a word did before
-    /// letters were drawn one at a time. It then stays lit for as long as the note is carried. That is the
-    /// truth, and it is what the singer is doing.</para>
-    ///
-    /// <para>Only the LAST word is treated this way, and only a held one. In the middle of a line, a word
-    /// that measures long is usually the model having lost the thread, not a singer holding a note. That
-    /// case is handled by <see cref="SlowestGlyph"/>. The other words of a line are swept as they always
-    /// were.</para>
-    /// </summary>
-    private const double HeldArrival = 0.22;
+    // How the light moves through the line, letter by letter, is KaraokeLight's rule (RPM.Core/Lyrics). The
+    // Android TV app lights a line with the same rule, so the two screens agree. Two cases are worth knowing
+    // here. A held word, longer than its letters take to sing, is swept slowly over the whole time it is
+    // held, so the light keeps moving through a carried note. A line's last word reaches back to where the
+    // word before it ended, so a measurement that caught only the tail of a held note does not leave the word
+    // grey through the note and then snap it on.
 
     /// <summary>Where each word of each line sits in its text, and when it is sung. This is null for a line
     /// that nothing sweeps across, such as a break, or a line whose words could not be read off.</summary>
@@ -670,8 +580,8 @@ public sealed partial class PegasusChrome : UserControl
     private const double AsideScale = 0.76;
 
     /// <summary>Which lines have had their words MEASURED off the record, rather than shared out across the
-    /// line. Only these are placed to the tenth, and only these are lit to arrive ON the word rather than
-    /// INTO it. See <see cref="MeasuredArrival"/>.</summary>
+    /// line. Only these say when a line really ends, so only these can hold a line up past the next stamp
+    /// (see <see cref="SungAt"/>).</summary>
     private bool[] _lyricWordMeasured = [];
 
     /// <summary>One run per LETTER. This lets the light move THROUGH a word rather than switch it on. A run
@@ -1012,7 +922,7 @@ public sealed partial class PegasusChrome : UserControl
     }
 
     /// <summary>How long before its first measured word a line takes over, in seconds: about when the
-    /// light starts to arrive on it (see <see cref="MeasuredArrival"/> and <see cref="GlyphSoftness"/>).
+    /// light starts to arrive on it (see <see cref="KaraokeLight.GlyphSoftness"/>).
     /// The TV waits the same.</summary>
     private const double VoiceLead = 0.35;
 
@@ -1040,32 +950,17 @@ public sealed partial class PegasusChrome : UserControl
 
         for (var k = 0; k < runs.Length && k < glyphs.Length; k++)
         {
-            var (word, c, of) = glyphs[k];
+            var (word, c, _) = glyphs[k];
             if (word >= spans.Length)
                 continue;
 
+            // The light arrives FINISHING on each letter's moment, over a window wider than one letter, so
+            // two or three letters are always part-way lit and the edge reads as a wipe. A held word is swept
+            // over its hold. See KaraokeLight. The first word may not reach back before the line's own first
+            // moment; any other word not past where the word before it ended.
             var span = spans[word];
-            var held = span.To - span.From;
-
-            // A held last word is not swept. Every letter of it takes the WORD's own moment, not a share of
-            // it. So the whole word comes up together, and then stays lit while the note is carried. "Held"
-            // means the record says the word lasted longer than it takes to sing. The extra time is the
-            // hold, and a hold has nothing in it to sweep across. See HeldArrival.
-            var carried = word == spans.Length - 1 && held > of * SlowestGlyph;
-
-            // Otherwise, this is how long the light spends on each letter: the word's own moment, shared
-            // out evenly. It is never slower than a singing rate. The share is even because nothing here
-            // knows better. The record was asked about words, not letters. The rate is capped because a
-            // word's measured length is not always a length of singing. See SlowestGlyph.
-            var step = carried ? 0 : Math.Min(held / Math.Max(1, of), SlowestGlyph);
-            var opens = span.From + step * c;
-
-            // The arrival takes a window wider than one letter, so two or three letters are always
-            // mid-arrival together. That overlap is the effect. A hard edge that steps from letter to
-            // letter reads as a row of lights. A soft edge reads as a wipe. The arrival lands ON the
-            // letter, not into it, for the same reason a measured word does. See MeasuredArrival.
-            var arriving = carried ? HeldArrival : Math.Max(GlyphSoftness, step);
-            var through = Math.Clamp((pos - (opens - arriving)) / arriving, 0, 1);
+            var earliest = word == 0 ? span.From : spans[word - 1].To;
+            var through = KaraokeLight.Through(span, c, word == spans.Length - 1, pos, earliest);
 
             Light(runs[k], WordRest + (1 - WordRest) * through);
         }

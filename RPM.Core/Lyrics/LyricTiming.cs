@@ -108,8 +108,27 @@ public static class LyricTiming
             spans[i] = new WordSpan(start, length, opens, closes);
         }
 
+        // The line's last word holds on into the time the sweep left over, where the next line is known. A
+        // line's last word is often the held note ("...and sends it on"). Lit at singing speed, it sat lit
+        // while the voice still carried it. It takes the time left before the next line, up to LastHeld, and
+        // ends BeforeNext short of it, so the light is still moving through it while it is sung.
+        if (double.IsFinite(until))
+        {
+            var last = spans[^1];
+            var held = Math.Min(until - BeforeNext, last.To + LastHeld);
+            if (held > last.To)
+                spans[^1] = last with { To = held };
+        }
+
         return spans;
     }
+
+    /// <summary>The longest a line's last word is held for, in seconds, past the singing-speed sweep. The
+    /// Android TV app holds it the same.</summary>
+    public const double LastHeld = 3.0;
+
+    /// <summary>How far short of the next line a held last word ends, in seconds.</summary>
+    public const double BeforeNext = 0.25;
 
     // Words the aligner cannot spell.
     //

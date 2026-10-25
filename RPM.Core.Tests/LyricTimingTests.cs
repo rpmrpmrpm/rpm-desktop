@@ -253,4 +253,38 @@ public class LyricTimingTests
 
         Assert.Same(elsewhere, whole);
     }
+
+    // ── the guessed sweep's held last word ──
+
+    [Fact]
+    public void The_sweep_is_never_slower_than_its_cap_and_the_last_word_holds_on()
+    {
+        // Seven letters before the last word, swept at the cap; the last word then holds on, at most
+        // LastHeld past its singing-speed end.
+        var spans = LyricTiming.Sweep("seven!! on", 0, 60);
+
+        Assert.Equal(7 / 7.0, spans[0].To, 9);
+        Assert.Equal((9 / 7.0) + LyricTiming.LastHeld, spans[^1].To, 9);
+    }
+
+    [Fact]
+    public void A_held_last_word_ends_just_short_of_the_next_line()
+    {
+        // "sends it on" is swept by 11/7 s; the next line is at 2.5 s, so "on" holds until a quarter second
+        // before it.
+        var spans = LyricTiming.Sweep("sends it on", 0, 2.5);
+
+        Assert.Equal(2.5 - LyricTiming.BeforeNext, spans[^1].To, 9);
+    }
+
+    [Fact]
+    public void The_sweep_shares_a_line_by_length_and_ends_on_the_next_line()
+    {
+        var spans = LyricTiming.Sweep("aa bbbb", 10, 10.6);
+
+        Assert.Equal(2, spans.Count);
+        Assert.Equal(10.0, spans[0].From, 9);
+        Assert.Equal(10.2, spans[0].To, 9);
+        Assert.Equal(10.6, spans[1].To, 9);
+    }
 }
