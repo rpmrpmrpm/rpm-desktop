@@ -114,10 +114,20 @@ public sealed partial class PegasusChrome : UserControl
         _lyricLookup = cts;
 
         var sheet = LyricSheet.Empty;
+        var timing = MeasuredAnswer.None;
         try
         {
+            // The sheet the owner chose on a desktop comes first, where the record is in the cloud (see
+            // LyricsService.ForAsync).
             sheet = await App.Services.GetRequiredService<LyricsService>()
-                .ForAsync(deck!.Artist, deck.Title, deck.Album, deck.DurationSeconds, deck.FilePath, cts.Token);
+                .ForAsync(deck!.Artist, deck.Title, deck.Album, deck.DurationSeconds, deck.FilePath, cts.Token,
+                          rpmId: deck.RpmId);
+
+            // What the cloud keeps of this record's lyrics: how far the sheet is off the record, and the words
+            // measured off it. It is read before the sheet goes up, so the sheet goes up once, where the record
+            // sings it. The read is quick or given up (see LyricCloud).
+            if (sheet.IsSynced)
+                timing = await App.Services.GetRequiredService<LyricCloud>().TimingAsync(deck.RpmId, cts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -133,19 +143,202 @@ public sealed partial class PegasusChrome : UserControl
             return;
 
         LyricsPending = false;
-        _sheet = sheet;
-        BuildLyrics();
+        Show(sheet, timing);
         LyricsChanged?.Invoke();
+
+        FollowTiming(deck!.RpmId, sheet, cts.Token);
+        ReadAhead(deck, cts.Token);
 
         void Drop()
         {
             if (!_sheet.IsSynced && _lyricLines.Length == 0)
                 return;
-            _sheet = LyricSheet.Empty;
-            BuildLyrics();
+            Show(LyricSheet.Empty, MeasuredAnswer.None);
             LyricsChanged?.Invoke();
         }
     }
+
+    /// <summary>
+    /// Puts a sheet up, where the record sings it.
+    ///
+    /// <para>The cloud may say that the sheet is off the record by a few seconds (<see
+    /// cref="MeasuredAnswer.Offset"/>). The offset is taken only where it was worked out for this very sheet
+    /// (<see cref="MeasuredLyrics.OffsetFor"/>), and then every line is shown that much later or earlier, plain
+    /// or swept. The sheet as it was looked up is kept beside it (<see cref="_sheetRaw"/>). Every device names
+    /// a line by its time on that sheet, so what this machine measures is sent under those times.</para>
+    /// </summary>
+    private void Show(LyricSheet raw, MeasuredAnswer timing)
+    {
+        _sheetRaw = raw;
+        _timing = timing;
+        _offset = MeasuredLyrics.OffsetFor(timing, raw);
+        _sheet = raw.Shifted(_offset);
+        BuildLyrics();
+        TakeCloudWords();
+    }
+
+    /// <summary>The sheet as it was looked up, before any offset moved it. See <see cref="Show"/>.</summary>
+    private LyricSheet _sheetRaw = LyricSheet.Empty;
+
+    /// <summary>What the cloud said last about the record's lyrics.</summary>
+    private MeasuredAnswer _timing = MeasuredAnswer.None;
+
+    /// <summary>How far the sheet on screen was moved from <see cref="_sheetRaw"/>, in seconds.</summary>
+    private double _offset;
+
+    /// <summary>
+    /// Puts the words the cloud measured on the lines they belong to: the owner's other desktops, and the
+    /// transcoder, measured them off the same record.
+    ///
+    /// <para>Only where the words are followed by measurement (<see cref="AlignWords"/>), as with this
+    /// machine's own measuring, and only on a line that is the same line here: the same text, the same time
+    /// and the same words (<see cref="MeasuredLyrics.Heard"/>). A line this machine measured itself keeps its
+    /// own answer. A line taken from the cloud is not measured again here.</para>
+    /// </summary>
+    private void TakeCloudWords()
+    {
+        if (!_alignWords || _timing.Lines.Count == 0 || !_sheet.IsSynced)
+            return;
+
+        // The measured lines are named by the sheet's own times, so they are moved with the sheet.
+        var measured = MeasuredLyrics.Shifted(_timing.Lines, _offset);
+        for (var i = 0; i < _sheet.Lines.Count && i < _lyricWordSpans.Length && i < _lyricWordMeasured.Length; i++)
+        {
+            if (_lyricWordSpans[i] is not { } guess || _lyricWordMeasured[i])
+                continue;
+
+            var line = _sheet.Lines[i];
+            var next = i + 1 < _sheet.Lines.Count ? _sheet.Lines[i + 1].Seconds : double.PositiveInfinity;
+            if (MeasuredLyrics.Heard(measured, line.Text, line.Seconds, next) is not { } words)
+                continue;
+
+            // The cloud's words index the line as it was written, and the runs index it as it is shown. The
+            // censor keeps every word's length, so the two agree. A line where they do not keeps its guess.
+            if (words.Count != guess.Length)
+                continue;
+            var same = true;
+            for (var w = 0; w < words.Count && same; w++)
+                same = words[w].Start == guess[w].Start && words[w].Length == guess[w].Length;
+            if (!same)
+                continue;
+
+            _lyricWordSpans[i] = [.. words];
+            _lyricWordMeasured[i] = true;
+            _asked.Add(i);
+        }
+    }
+
+    /// <summary>
+    /// Asks the cloud to measure the record's words where this machine cannot, and reads the answer as it
+    /// comes in.
+    ///
+    /// <para>Only where the words are followed by measurement, the record is in the cloud, this machine has no
+    /// measuring of its own (<see cref="LyricAlignment.IsAvailable"/>), and the cloud's measurement does not
+    /// already cover most of the sheet. The transcoder takes about half a minute for a song. The answer is
+    /// read at <see cref="MeasureWait"/> and then every <see cref="MeasureEvery"/>, at most <see
+    /// cref="MeasureReads"/> times, while the same sheet is up. The server works out the sheet's offset after
+    /// the words, so the reads go on until both are in.</para>
+    /// </summary>
+    private async void FollowTiming(string? rpmId, LyricSheet raw, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(rpmId) || !raw.IsSynced || !_alignWords)
+            return;
+        if (App.Services.GetRequiredService<LyricAlignment>().IsAvailable
+            || MeasuredLyrics.Covers(_timing.Lines, raw))
+            return;
+
+        var cloud = App.Services.GetRequiredService<LyricCloud>();
+        try
+        {
+            if (!await cloud.AskAsync(rpmId, raw, ct))
+                return;
+
+            for (var read = 0; read < MeasureReads; read++)
+            {
+                await Task.Delay(read == 0 ? MeasureWait : MeasureEvery, ct);
+                var answer = await cloud.TimingAsync(rpmId, ct);
+                if (ct.IsCancellationRequested || !ReferenceEquals(_sheetRaw, raw))
+                    return;
+
+                Retime(answer);
+                if (answer.Offset is not null && MeasuredLyrics.Covers(answer.Lines, raw))
+                    return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The record changed, or the screen went away.
+        }
+    }
+
+    /// <summary>Takes a newer answer from the cloud for the sheet on screen. A new offset moves the whole
+    /// sheet, which is built again; otherwise only the newly measured lines change.</summary>
+    private void Retime(MeasuredAnswer answer)
+    {
+        if (MeasuredLyrics.OffsetFor(answer, _sheetRaw) != _offset)
+        {
+            Show(_sheetRaw, answer);
+            return;
+        }
+
+        _timing = answer;
+        TakeCloudWords();
+    }
+
+    /// <summary>
+    /// Looks up the next record's sheet while this one plays, and asks for its words to be measured.
+    ///
+    /// <para>The sheet is then waiting in the service's memory when the record comes up, so the column does
+    /// not stand empty while it is looked up. Where the cloud measures the words, the transcoder's half minute
+    /// was the first half minute of the song itself, sung with guessed timing. Asked now, it is done before
+    /// the song starts. Only while this screen is up, as every lookup here is, and only when the next record is
+    /// known: in order, not shuffled.</para>
+    /// </summary>
+    private async void ReadAhead(RPM.Desktop.Presentation.RPaMp.Models.PlaylistTrack deck, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(AheadAfter, ct);
+            if (_amp is not { Shuffle: false } amp)
+                return;
+
+            var at = amp.Playlist.IndexOf(deck);
+            if (at < 0 || at + 1 >= amp.Playlist.Count)
+                return;
+
+            // The sheet is picked by the record's length. Without one it could be another sheet than the one
+            // looked up when the record plays.
+            var next = amp.Playlist[at + 1];
+            if (next.DurationSeconds <= 0)
+                return;
+
+            var sheet = await App.Services.GetRequiredService<LyricsService>()
+                .ForAsync(next.Artist, next.Title, next.Album, next.DurationSeconds, next.FilePath, ct,
+                          rpmId: next.RpmId);
+            if (!sheet.IsSynced || !_alignWords || string.IsNullOrWhiteSpace(next.RpmId)
+                || App.Services.GetRequiredService<LyricAlignment>().IsAvailable)
+                return;
+
+            var cloud = App.Services.GetRequiredService<LyricCloud>();
+            if (!MeasuredLyrics.Covers((await cloud.TimingAsync(next.RpmId, ct)).Lines, sheet))
+                await cloud.AskAsync(next.RpmId, sheet, ct);
+        }
+        catch
+        {
+            // The record changed, the screen went away, or nothing could be read. The next record is looked up
+            // when it comes, as it would be without this.
+        }
+    }
+
+    /// <summary>When a measurement asked of the cloud is first read, and how often after that, and how many
+    /// times at most. The Android TV app reads the same.</summary>
+    private static readonly TimeSpan MeasureWait = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan MeasureEvery = TimeSpan.FromSeconds(5);
+    private const int MeasureReads = 23;
+
+    /// <summary>How long into a record the next one is looked up. Long enough that a listener skipping
+    /// through the queue does not look up every record on the way.</summary>
+    private static readonly TimeSpan AheadAfter = TimeSpan.FromSeconds(6);
 
     /// <summary>
     /// Takes a sheet that was swapped somewhere else. The track pane's "another version" does this. The
@@ -179,9 +372,10 @@ public sealed partial class PegasusChrome : UserControl
             if (!sheet.IsSynced)
                 return;
 
-            _sheet = sheet;
-            BuildLyrics();
+            Show(sheet, _timing);
             LyricsChanged?.Invoke();
+            if (_lyricLookup is { } lookup)
+                FollowTiming(deck.RpmId, sheet, lookup.Token);
         }
     }
 
@@ -774,7 +968,12 @@ public sealed partial class PegasusChrome : UserControl
         if (at < text.Length && GroupAt(at) < 0)
             block.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = Shown(text[at..], at) });
 
-        _lyricWordSpans[i] = [.. spans];
+        // A line already measured keeps its measured times. A rewrap (a resize, the censor) builds the runs
+        // again from the same words, and the guess must not replace what the record said.
+        _lyricWordSpans[i] = i < _lyricWordMeasured.Length && _lyricWordMeasured[i]
+                             && _lyricWordSpans[i] is { } had && had.Length == spans.Count
+            ? had
+            : [.. spans];
         _lyricWordRuns[i] = [.. runs];
         _lyricGlyphs[i] = [.. glyphs];
     }
@@ -807,6 +1006,9 @@ public sealed partial class PegasusChrome : UserControl
     {
         if (!_alignWords || _sheet is not { IsSynced: true } sheet)
             return;
+
+        // The sheet as it was looked up. Every device names a line by its time there (see Show).
+        var raw = _sheetRaw;
 
         if (App.Services.GetRequiredService<LyricAlignment>() is not { IsAvailable: true } alignment)
             return;
@@ -846,7 +1048,7 @@ public sealed partial class PegasusChrome : UserControl
                 // Other devices can use this too. What the record said about this line is filed under the
                 // track playing.
                 App.Services.GetRequiredService<LyricTimingShare>().Note(
-                    App.Services.GetRequiredService<Services.Audio.PlaybackService>().PlayingRpmId, sheet, line, placed);
+                    App.Services.GetRequiredService<Services.Audio.PlaybackService>().PlayingRpmId, raw, line, placed);
             }
             catch
             {
@@ -876,7 +1078,10 @@ public sealed partial class PegasusChrome : UserControl
             // better answer than the guess it replaced. Throwing it away would make the sheet worse, just
             // to show that the switch had an effect.
             if (_alignWords)
+            {
+                TakeCloudWords();
                 AlignLines(_lyricAt);
+            }
         }
     }
 

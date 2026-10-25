@@ -46,10 +46,12 @@ public sealed class LyricsService
     public event Action<string, LyricSheet>? Replaced;
 
     private readonly Library.LibraryService _library;
+    private readonly LyricCloud _cloud;
 
-    public LyricsService(Library.LibraryService library)
+    public LyricsService(Library.LibraryService library, LyricCloud cloud)
     {
         _library = library;
+        _cloud = cloud;
 
         // The timeout is short on purpose. The lyrics are extra detail on a picture that is already
         // running. A lookup that has not answered in a few seconds has missed its moment, so the view
@@ -65,17 +67,23 @@ public sealed class LyricsService
     /// <param name="filePath">The record's own file, where there is one. The file
     /// is checked before the internet. Many files hold a timed sheet in their own lyrics tag, and that copy
     /// belongs to the user.</param>
+    /// <param name="rpmId">The record's cloud id, where the caller wants the sheet its owner chose on a
+    /// desktop. That sheet comes after the file's own tag and before this machine's cache folder and
+    /// LRCLIB, because it is the newest choice the owner made, on any of their computers. It is kept for
+    /// the session only, like the tag's: the cloud is where it lives. Leave it out to keep to this
+    /// machine and LRCLIB.</param>
     public async Task<LyricSheet> ForAsync(
         string? artist, string? title, string? album, double durationSeconds,
-        string? filePath = null, CancellationToken ct = default)
+        string? filePath = null, CancellationToken ct = default, string? rpmId = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             return LyricSheet.Empty;
 
         var key = Key(artist, title, album, durationSeconds);
 
-        // Four places to look, cheapest and closest first: this session, the file itself, this user's
-        // own folder, then LRCLIB.
+        // Five places to look, cheapest and closest first: this session, the file itself, the sheet the
+        // owner chose on a desktop (where the caller gave the record's cloud id), this user's own folder,
+        // then LRCLIB.
         lock (_seen)
         {
             if (_seen.TryGetValue(key, out var hit))
@@ -102,6 +110,21 @@ public sealed class LyricsService
             }
             _ = Task.Run(() => Score(filePath, own));
             return own;
+        }
+
+        // ── the sheet the owner chose on a desktop ──
+        //
+        // "Try another" and a sheet of the listener's own are sent to the cloud (see LyricSheetShare), so a
+        // second computer shows the sheet chosen on the first. This machine's cache folder may still hold
+        // LRCLIB's first answer from an earlier play, so the cloud is asked before it.
+        if (!string.IsNullOrWhiteSpace(rpmId) && await _cloud.ChosenSheetAsync(rpmId, ct) is { } chosen)
+        {
+            lock (_seen)
+            {
+                _seen[key] = chosen;
+            }
+            _ = Task.Run(() => Score(filePath, chosen));
+            return chosen;
         }
 
         // Runs off the UI thread. This code runs while a visualizer is drawing, and a frame must not wait

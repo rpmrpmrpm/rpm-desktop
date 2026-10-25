@@ -432,6 +432,7 @@ public partial class App : Application
                         .AddSingleton<LyricAlignment>()
                         .AddSingleton<LyricTimingShare>()
                         .AddSingleton<LyricSheetShare>()
+                        .AddSingleton<LyricCloud>()
                         // The keychain, DPAPI or the sealed file. This is decided once, from what this
                         // build and this system can use. For a harness run, it is a store in memory. See
                         // SessionStore.For.

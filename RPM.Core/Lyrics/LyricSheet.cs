@@ -249,4 +249,33 @@ public sealed class LyricSheet
         }
         return found;
     }
+
+    /// <summary>
+    /// This sheet moved by <paramref name="seconds"/>, to where a record sings it: every line and every
+    /// word stamp, and no moment before the start of the record. Positive moves the words later.
+    ///
+    /// <para>The <see cref="Source"/> stays the text as it was written, unmoved. A moved sheet is for
+    /// showing. It is not a new answer to keep or to send anywhere.</para>
+    /// </summary>
+    public LyricSheet Shifted(double seconds)
+    {
+        if (seconds == 0 || Lines.Count == 0)
+            return this;
+
+        static double Moved(double at, double by) => Math.Max(0, at + by);
+
+        var lines = new LyricLine[Lines.Count];
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = Lines[i];
+            lines[i] = line with
+            {
+                Seconds = Moved(line.Seconds, seconds),
+                Words = line.Words is { } words
+                    ? [.. words.Select(w => w with { Seconds = Moved(w.Seconds, seconds) })]
+                    : null,
+            };
+        }
+        return new LyricSheet(lines, Source);
+    }
 }

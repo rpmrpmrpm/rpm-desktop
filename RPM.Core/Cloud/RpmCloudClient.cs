@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
+using RPM.Core.Lyrics;
 using RPM.Fingerprint;
 
 namespace RPM.Core.Cloud;
@@ -878,6 +879,84 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     /// The other devices then use the sheet LRCLIB gives.</summary>
     public Task DeleteLyricSheetAsync(string rpmId, CancellationToken ct = default)
         => SendAsync<object>(HttpMethod.Delete, $"cloud/lyric-sheet/{Uri.EscapeDataString(rpmId)}", null, ct);
+
+    /// <summary>
+    /// The word timing measured for a track's lyrics, by the owner's desktops and by the transcoder, and how
+    /// far its sheet is off the record (<c>GET cloud/lyric-timing/{rpmId}</c>).
+    ///
+    /// <para><see cref="MeasuredAnswer.None"/> where nothing was measured. The store answers 404 for that,
+    /// and 403 for a listener who does not support rpm where it has no offset either. A missing key in the
+    /// store's bucket can also come back as 403. All of these are "none", not an error. A caller who does not
+    /// support rpm is given the offset alone, with no lines.</para>
+    /// </summary>
+    /// <param name="shelf">Whose track. An answer that names another owner is refused, as for every
+    /// borrowed read.</param>
+    public async Task<MeasuredAnswer> GetLyricTimingAsync(CloudShelf shelf, string rpmId, CancellationToken ct = default)
+    {
+        LyricTimingAnswerBody answer;
+        try
+        {
+            answer = await SendAsync<LyricTimingAnswerBody>(
+                HttpMethod.Get, $"cloud/lyric-timing/{Uri.EscapeDataString(rpmId)}" + Owned(shelf), null, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return MeasuredAnswer.None;
+        }
+        catch (CloudRejectedException)
+        {
+            return MeasuredAnswer.None;
+        }
+
+        if (!shelf.IsOwn && !string.Equals(answer.Owner, shelf.OwnerId, StringComparison.Ordinal))
+            throw new CloudShelfNotServedException(shelf.OwnerId);
+
+        return new MeasuredAnswer(
+            [.. (answer.Lines ?? []).Select(l => new MeasuredLine(
+                l.Index, l.Seconds, l.Text ?? "", [.. (l.Words ?? []).Select(w => new MeasuredWord(w.From, w.To))]))],
+            answer.Offset,
+            [.. (answer.OffsetLines ?? []).Select(l => new SheetLine(l.Index, l.Seconds, l.Text ?? ""))]);
+    }
+
+    /// <summary>The lyric sheet the track's owner chose on a desktop, as LRC text, or null where they chose
+    /// none (<c>GET cloud/lyric-sheet/{rpmId}</c>). A 404, and a 403 from a missing key in the store's
+    /// bucket, are both "none".</summary>
+    /// <param name="shelf">Whose track. An answer that names another owner is refused.</param>
+    public async Task<string?> GetLyricSheetAsync(CloudShelf shelf, string rpmId, CancellationToken ct = default)
+    {
+        LyricSheetAnswerBody answer;
+        try
+        {
+            answer = await SendAsync<LyricSheetAnswerBody>(
+                HttpMethod.Get, $"cloud/lyric-sheet/{Uri.EscapeDataString(rpmId)}" + Owned(shelf), null, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (CloudRejectedException)
+        {
+            return null;
+        }
+
+        if (!shelf.IsOwn && !string.Equals(answer.Owner, shelf.OwnerId, StringComparison.Ordinal))
+            throw new CloudShelfNotServedException(shelf.OwnerId);
+
+        return string.IsNullOrWhiteSpace(answer.Lrc) ? null : answer.Lrc;
+    }
+
+    /// <summary>Asks for a track's lyrics to be timed off its recording
+    /// (<c>POST cloud/lyric-timing/{rpmId}/measure</c>). The server answers at once and the transcoder works
+    /// behind it; <see cref="GetLyricTimingAsync"/> reads the answer later. Supporters only: a refusal
+    /// throws <see cref="CloudRejectedException"/>.</summary>
+    /// <param name="lines">The sheet's lines, by their own index, time and text.</param>
+    public Task AskLyricTimingAsync(
+        CloudShelf shelf, string rpmId, IReadOnlyList<SheetLine> lines, CancellationToken ct = default)
+        => SendAsync<object>(HttpMethod.Post,
+            $"cloud/lyric-timing/{Uri.EscapeDataString(rpmId)}/measure" + Owned(shelf),
+            JsonContent.Create(
+                new LyricMeasureRequest([.. lines.Select(l => new LyricMeasureLineBody(l.Index, l.Seconds, l.Text))]),
+                RpmCloudJson.Default.LyricMeasureRequest), ct);
 
     /// <summary>Takes a share back.</summary>
     public Task RevokeShareAsync(string granteeId, CancellationToken ct = default)
@@ -1757,6 +1836,29 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
 
     private sealed record LyricSheetRequest(string Lrc);
 
+    private sealed record LyricMeasureLineBody(int Index, double Seconds, string Text);
+
+    private sealed record LyricMeasureRequest(IReadOnlyList<LyricMeasureLineBody> Lines);
+
+    /// <summary>What <c>GET cloud/lyric-timing/{rpmId}</c> answers: the measured lines, whose they are,
+    /// and the sheet's offset where one was worked out.</summary>
+    private sealed record LyricTimingAnswerBody(
+        [property: JsonPropertyName("lines")] IReadOnlyList<LyricTimingLineBody>? Lines,
+        [property: JsonPropertyName("owner")] string? Owner = null,
+        [property: JsonPropertyName("offset")] double? Offset = null,
+        [property: JsonPropertyName("offsetLines")] IReadOnlyList<LyricOffsetLineBody>? OffsetLines = null);
+
+    /// <summary>One line of the sheet an offset was worked out for.</summary>
+    private sealed record LyricOffsetLineBody(
+        [property: JsonPropertyName("index")] int Index,
+        [property: JsonPropertyName("seconds")] double Seconds,
+        [property: JsonPropertyName("text")] string? Text);
+
+    /// <summary>What <c>GET cloud/lyric-sheet/{rpmId}</c> answers.</summary>
+    private sealed record LyricSheetAnswerBody(
+        [property: JsonPropertyName("lrc")] string? Lrc,
+        [property: JsonPropertyName("owner")] string? Owner = null);
+
     private sealed record KeyBundle(IReadOnlyList<string> Keys);
 
     private sealed record KeyBundlesRequest(IReadOnlyList<KeyBundle> Bundles);
@@ -1856,6 +1958,9 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(AlbumMarkRequest))]
     [JsonSerializable(typeof(LyricTimingRequest))]
     [JsonSerializable(typeof(LyricSheetRequest))]
+    [JsonSerializable(typeof(LyricMeasureRequest))]
+    [JsonSerializable(typeof(LyricTimingAnswerBody))]
+    [JsonSerializable(typeof(LyricSheetAnswerBody))]
     [JsonSerializable(typeof(AlbumClassicalRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(MoodListsPayload))]
