@@ -675,8 +675,10 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     /// the focus on the screen's own default instead of going nowhere. The first one after the pointer was
     /// in use only shows where the focus is, without moving it, and so does the first one after the
     /// transport faded with the focus on it.</item>
-    /// <item>While a track's menu is open, or the focus is in any other open menu (the wall's sort menu),
-    /// every key but Back is left to the menu.</item>
+    /// <item>While a menu is open (a track's, a record's, the wall's sort menu: every Pegasus menu is the
+    /// TV's glass card), the arrows and OK go to it (see PegasusPlayer.LineMenuKey). The press that opened
+    /// it, and the OK that chose in it, are dropped until they come up (see PegasusPlayer.MenuPressHeld).
+    /// While the focus is in any other open popup, every key but Back is left to it.</item>
     /// <item>While a queue row is carried by the keys, the arrows and OK move it and put it down (see
     /// PegasusPlayer.QueueMoveKey).</item>
     /// <item>While radio's wheel is open, the arrows turn it and OK opens its entry (see
@@ -718,6 +720,14 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         // on that side (see PegasusPlayer.SideKey). The held key's own repeats do not end it.
         pegasus.SideHoldSees(e.Key);
 
+        // The rest of a press that a menu owns: the press that opened it, or the OK that chose in it. Its
+        // repeats go nowhere until it has come up (see PegasusPlayer.MenuPressHeld).
+        if (pegasus.MenuPressHeld(e.Key))
+        {
+            e.Handled = true;
+            return true;
+        }
+
         if (IsBackKey(e.Key, typing: focused is TextBox))
         {
             e.Handled = true;
@@ -726,11 +736,22 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
             return true;
         }
 
-        // A track's menu is open: the arrows, OK and the other keys belong to the menu. Keys pressed in
-        // the menu's popup still pass through here. If they were handled as Pegasus keys, the focus
-        // would count as "lost" (it is in the popup, outside the view) and be moved back to the screen,
-        // which would close the menu.
-        if (pegasus.LineMenuOpen || pegasus.FocusInPopup)
+        // A menu is open, as the TV's glass card: the arrows and OK move through it and choose, and
+        // nothing behind it moves (see PegasusPlayer.LineMenuKey). Back was handled above, and closes it
+        // or leaves its submenu.
+        if (pegasus.LineMenuOpen)
+        {
+            if (!IsNavigationKey(e.Key) && !IsMenuKey(e.Key))
+                return false;
+            e.Handled = true;
+            pegasus.LineMenuKey(e.Key, ArrowDirection(e.Key), IsOkKey(e.Key));
+            return true;
+        }
+
+        // The focus is in another open popup (a dialog over the view): its keys belong to it. Keys pressed
+        // in a popup still pass through here. If they were handled as Pegasus keys, the focus would count
+        // as "lost" (it is in the popup, outside the view) and be moved back to the screen.
+        if (pegasus.FocusInPopup)
             return false;
 
         // A queue row is being carried by the keys: the arrows and OK belong to the move (see

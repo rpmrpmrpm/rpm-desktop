@@ -439,6 +439,7 @@ public sealed partial class PegasusPlayer : UserControl
         _chrome?.HideLibrary();
         _chrome?.SetActive(false);
         StopOpening();   // the band, and the opening sound if this visit started it
+        DismissMenuCard();
         StopRing();
         _idle?.Stop();
         _rootFade.Stop();
@@ -580,6 +581,7 @@ public sealed partial class PegasusPlayer : UserControl
             _chrome.LibraryWarmProgress += OnLibraryWarmProgress;
             _chrome.RoomPalette += OnRoomPalette;
             _chrome.LineMenuOpen = () => LineMenuOpen;
+            BuildMenuCard(_chrome);   // every Pegasus menu, as the TV's glass card (see PegasusMenuCard)
             _chrome.Settings = this;   // the side menu's settings panel (see PegasusPlayer.Settings)
             _chrome.ExitRequested += Leave;
             ChromeHost.Children.Add(_chrome);

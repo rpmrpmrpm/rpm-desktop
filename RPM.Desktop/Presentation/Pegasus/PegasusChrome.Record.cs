@@ -1336,7 +1336,7 @@ public sealed partial class PegasusChrome
             withPlay: false);
 
         menu.Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft;
-        ForThisView(menu).ShowAt(at);
+        ShowMenu(ForThisView(menu), at);
     }
 
     /// <summary>

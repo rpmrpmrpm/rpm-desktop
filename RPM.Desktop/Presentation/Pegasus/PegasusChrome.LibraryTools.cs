@@ -142,7 +142,7 @@ public sealed partial class PegasusChrome
         Add(AlbumOrdering.Date, "\uf073");   // a calendar
         Add(AlbumOrdering.Plays, "");     // headphones
 
-        menu.ShowAt(LibrarySortButton);
+        ShowMenu(menu, LibrarySortButton);
 
         void Add(AlbumOrdering ordering, string glyph)
         {

@@ -773,7 +773,7 @@ public sealed partial class PegasusChrome
     private void ShowTunerMenu(MenuFlyout menu, FrameworkElement at)
     {
         menu.Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft;
-        ForThisView(menu).ShowAt(at);
+        ShowMenu(ForThisView(menu), at);
     }
 
     /// <summary>A row realized: it is given the look, and reads its station itself.</summary>

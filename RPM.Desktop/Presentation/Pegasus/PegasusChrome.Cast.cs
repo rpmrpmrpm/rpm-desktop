@@ -166,45 +166,33 @@ public sealed partial class PegasusChrome
         };
         FillCastMenu(menu, amp, at);
 
-        menu.Closed += (_, _) =>
+        _castMenu = menu;
+        _castMenuAt = at;
+        ShowMenu(menu, at, closed: () =>
         {
             if (!ReferenceEquals(_castMenu, menu))
                 return;
             _castMenu = null;
             _castMenuAt = null;
             WakeTransport();   // the five quiet seconds start again from here, with the key on screen
-        };
-
-        _castMenu = menu;
-        _castMenuAt = at;
-        menu.ShowAt(at);
+        });
     }
 
     /// <summary>
     /// Puts what was found into the open menu: a speaker that answered, the tick moving to the speaker now
     /// in use, or the end of the look. Does nothing while the menu is closed. The lines are built again in
-    /// place. Where the remote's focus was on a line, it is put back on the line at the same place.
+    /// place, and the card reads them again (see PegasusMenuCard.Refresh). The lit line stays at the same
+    /// place, or the nearest above it that can be lit: the menu may have become shorter, and a note or a
+    /// divider cannot be lit.
     /// </summary>
     private void RefreshCastMenu()
     {
         if (_castMenu is not { } menu || _castMenuAt is not { } at || _amp is not { } amp)
             return;
 
-        var focused = -1;
-        if (XamlRoot is not null && FocusManager.GetFocusedElement(XamlRoot) is MenuFlyoutItemBase had)
-            focused = menu.Items.IndexOf(had);
-
         menu.Items.Clear();
         FillCastMenu(menu, amp, at);
-
-        if (focused >= 0 && KeyboardDriven)
-        {
-            // The nearest line that can take the focus, at or above where it was. The menu may have become
-            // shorter, and a note or a divider cannot be focused.
-            for (var i = Math.Min(focused, menu.Items.Count - 1); i >= 0; i--)
-                if (menu.Items[i] is MenuFlyoutItem { IsEnabled: true } line && line.Focus(FocusState.Keyboard))
-                    break;
-        }
+        MenuCard?.Refresh(menu);
     }
 
     /// <summary>The menu's lines: this computer, the speakers found (or a note while there are none), a

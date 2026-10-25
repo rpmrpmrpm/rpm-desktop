@@ -727,7 +727,7 @@ public sealed partial class PegasusChrome
         DispatcherQueue.TryEnqueue(() =>
         {
             if (CarouselInFront && !CarouselLettersOpen)
-                menu.ShowAt(key);
+                ShowMenu(menu, key);
         });
     }
 

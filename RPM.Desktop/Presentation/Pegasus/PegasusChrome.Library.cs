@@ -1505,10 +1505,8 @@ public sealed partial class PegasusChrome
         if (index < 0 || index >= songs.Count || TrackMenu(songs[index]) is not { } menu)
             return;
 
-        if (args.TryGetPosition(sender, out var point))
-            menu.ShowAt(sender, new FlyoutShowOptions { Position = point });
-        else if (sender is FrameworkElement element)
-            menu.ShowAt(element);
+        if (sender is FrameworkElement element)
+            ShowMenu(menu, element, args.TryGetPosition(sender, out var point) ? point : null);
         args.Handled = true;
     }
 

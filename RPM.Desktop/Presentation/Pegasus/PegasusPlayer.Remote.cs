@@ -374,7 +374,9 @@ public sealed partial class PegasusPlayer
     /// </summary>
     private void OnRingFrame(object? sender, object e)
     {
-        var target = KeyboardMode ? FocusedInView() : null;
+        // An open menu has the focus on its card, and the item it was opened on stays at full brightness
+        // and its own size under it, as the TV draws it (see PegasusMenuCard).
+        var target = KeyboardMode && !LineMenuOpen ? FocusedInView() : null;
 
         if (!ReferenceEquals(target, _ringTarget))
         {
@@ -391,9 +393,9 @@ public sealed partial class PegasusPlayer
 
             // Brings the target into view in every scroller above it. It is centred down the screen, unless
             // the move stayed within its row (see RemoteScroll). Then the item left dims with the rest of the
-            // screen and the new one lights. A focus that went to nothing (a row's menu, which is a popup
-            // outside this view) leaves the item it was on at full brightness and its own size, as the TV
-            // draws the item a menu is open on.
+            // screen and the new one lights. A focus that went to nothing, or to a menu's card, leaves the
+            // item it was on at full brightness and its own size, as the TV draws the item a menu is open
+            // on.
             if (target is not null)
             {
                 RemoteScroll.IntoView(target, Root, keepHeight: was is not null && SameHeight(was, target));
@@ -684,9 +686,9 @@ public sealed partial class PegasusPlayer
     //
     // Holding OK, or the Menu key, opens a track's menu. A line says what both keys do (see RemoteLine). OK
     // on a line with a menu is delayed as it goes down. If it comes up within HoldMs, the line is pressed.
-    // If it is still down after HoldMs, the menu opens. The menu takes the focus while the key is still
-    // down, so the menu receives the key's repeats and its release is hidden from it (see SwallowHeldKey).
-    // Without this, the release would choose the menu's first entry, which is Play.
+    // If it is still down after HoldMs, the menu opens, as the TV's glass card (see PegasusMenuCard). The
+    // key is still down then: its repeats and its release are kept from the card (see MenuPressHeld).
+    // Without this, a repeat would choose the menu's first entry, which is Play.
 
     /// <summary>How long OK must be held on a line with a menu before the menu opens, in
     /// milliseconds.</summary>
@@ -704,19 +706,96 @@ public sealed partial class PegasusPlayer
     private OkHold? _okHold;
     private DispatcherQueueTimer? _okTimer;
 
-    /// <summary>The menu a line opened, while it is open. Back closes it before anything else.</summary>
-    private MenuFlyout? _lineMenu;
+    /// <summary>Where every Pegasus menu is shown: a line's, and those the chrome opens from a key (the
+    /// record page's, the sort menus, the cast menu, the tuner's). Built with the chrome (see
+    /// <see cref="MenuCardFor"/>). Back closes it, or leaves its submenu, before anything else.</summary>
+    private PegasusMenuCard? _menuCard;
 
-    /// <summary>Whether a line's menu is open. While it is, the shell passes every key except Back to
-    /// it.</summary>
-    public bool LineMenuOpen => _lineMenu is not null;
+    /// <summary>Whether a menu is open. While it is, the shell hands the arrows, OK and the Menu key to
+    /// <see cref="LineMenuKey"/>, and nothing behind the menu moves.</summary>
+    public bool LineMenuOpen => _menuCard?.IsOpen == true;
+
+    /// <summary>The key that is down now, from its press to its release, as the shell reports both (see
+    /// <see cref="SideHoldSees"/> and <see cref="KeyReleased"/>). Null when none is.</summary>
+    private VirtualKey? _keyDown;
 
     /// <summary>
-    /// Whether the focus is inside an open popup over this view. This covers any menu, not only a line's
-    /// menu. The wall's sort menu is one example. While a popup is open, the shell passes every key except
-    /// Back to it. Without this check, arrow keys pressed in the wall's sort menu found the focus "lost",
-    /// because the focus was in the popup and outside the view. The view then put the focus back on the
-    /// wall, which closed the menu.
+    /// A press that a menu owns until its release: the press that opened it (a held OK, the Menu key, Down on
+    /// the album carousel, OK on the record page's menu key), and the OK that chose in it. Its repeats are
+    /// kept from everything, as the TV keeps every key that went down before its menu was shown, and so is
+    /// its release. On the Skia head a repeat carries no repeat flag and looks like a new press (see
+    /// HeldKeys.IsRepeat), so the press is told by its release, not by the flag: without this a held OK
+    /// would choose the menu's first line, and the OK that chose Move on a queue row would put the row
+    /// down at once.
+    /// </summary>
+    private VirtualKey? _menuPress;
+
+    /// <summary>Builds the menu card into the view, over everything but the loading screen, with the
+    /// chrome's icon font and glass, and hands it to the chrome. Called once, when the chrome is
+    /// built.</summary>
+    private void BuildMenuCard(PegasusChrome chrome)
+    {
+        if (_menuCard is null)
+        {
+            var card = new PegasusMenuCard(chrome.Resources, () => chrome.TextScale, () => KeyboardMode, FocusDefault);
+            card.Opening += () =>
+            {
+                EndHold();
+                _menuPress = _keyDown;
+            };
+            Root.Children.Insert(Root.Children.IndexOf(Keys) + 1, card);
+            _menuCard = card;
+        }
+        chrome.MenuCard = _menuCard;
+    }
+
+    /// <summary>Whether a key going down is the rest of a press a menu owns (see <see cref="_menuPress"/>).
+    /// The shell asks first, and drops it.</summary>
+    public bool MenuPressHeld(VirtualKey key) => _menuPress == key;
+
+    /// <summary>
+    /// A key while a menu is open, handed over by the shell: Up and Down move the lit line, OK chooses it,
+    /// Right opens a submenu and Left leaves one. The Menu key does nothing. The OK that chooses is kept
+    /// from whatever has the focus next until it comes up (see <see cref="_menuPress"/>).
+    /// </summary>
+    public void LineMenuKey(VirtualKey key, FocusNavigationDirection? direction, bool ok)
+    {
+        if (_menuCard is not { IsOpen: true } card)
+            return;
+
+        KeysUsed();
+        switch (direction)
+        {
+            case FocusNavigationDirection.Up:
+                card.Step(-1);
+                return;
+            case FocusNavigationDirection.Down:
+                card.Step(1);
+                return;
+            case FocusNavigationDirection.Right:
+                card.Enter();
+                return;
+            case FocusNavigationDirection.Left:
+                card.Leave();
+                return;
+        }
+
+        if (!ok)
+            return;
+        _menuPress = key;
+        if (card.Choose())
+            Say("menu: chose a line");
+    }
+
+    /// <summary>Takes an open menu away at once, for the view being put away.</summary>
+    private void DismissMenuCard() => _menuCard?.Dismiss();
+
+    /// <summary>
+    /// Whether the focus is inside an open popup over this view: a dialog (the supporter dialog, the
+    /// firewall's question, New playlist). Pegasus's own menus are not popups; they are the menu card, in
+    /// the view (see <see cref="LineMenuOpen"/>). While a popup holds the focus, the shell passes every key
+    /// except Back to it. Without this check, arrow keys pressed in it found the focus "lost", because the
+    /// focus was in the popup and outside the view, and the view put the focus back on the screen.
     /// </summary>
     public bool FocusInPopup => PopupWithFocus() is not null;
 
@@ -832,10 +911,19 @@ public sealed partial class PegasusPlayer
     {
         if (sideways)
             _swallowLeft = false;
+        if (_keyDown == key)
+            _keyDown = null;
 
         // Left or Right was released before its menu opened, so nothing opens.
         if (_sideHeld?.Pressed == key)
             EndSideHold();
+
+        // The release of the press that opened a menu, or chose in one. Nothing under the menu sees it.
+        if (_menuPress == key)
+        {
+            _menuPress = null;
+            return true;
+        }
 
         // The release of the OK that brought the controls up. It is kept from the play key, which has the
         // focus by now. A button that saw the key go down would press itself as it comes up.
@@ -883,7 +971,7 @@ public sealed partial class PegasusPlayer
             return false;
 
         EndHold();
-        OpenLineMenu(line, key);
+        OpenLineMenu(line);
         return true;
     }
 
@@ -1087,9 +1175,11 @@ public sealed partial class PegasusPlayer
     }
 
     /// <summary>A key went down, so a hold of any other key is over. The held key's own repeats leave its
-    /// hold counting. The shell asks before it routes the key.</summary>
+    /// hold counting. The shell asks before it routes the key. The key is also remembered as the one down
+    /// until it comes up, for a menu it may open (see <see cref="_menuPress"/>).</summary>
     public void SideHoldSees(VirtualKey key)
     {
+        _keyDown = key;
         if (_sideHeld is { } hold && hold.Pressed != key)
             EndSideHold();
     }
@@ -1141,12 +1231,12 @@ public sealed partial class PegasusPlayer
         if (_okHold is not { } hold)
             return;
 
-        // The press is over as far as this host is concerned. Its release goes to the menu, which keeps it
-        // (see SwallowHeldKey). If no menu opens, the release comes back here and finds nothing held.
+        // The press is over as far as this host is concerned. The menu owns its repeats and its release
+        // (see _menuPress). If no menu opens, the release comes back here and finds nothing held.
         _okHold = null;
 
         if (ReferenceEquals(FocusedInView(), hold.Line))
-            OpenLineMenu(hold.Line, hold.Key);
+            OpenLineMenu(hold.Line);
     }
 
     /// <summary>Forgets a held OK and stops its timer.</summary>
@@ -1156,89 +1246,18 @@ public sealed partial class PegasusPlayer
         _okHold = null;
     }
 
-    /// <summary>Opens a line's menu at the line. <paramref name="heldKey"/> is the key that opened it, and
-    /// it is still down.</summary>
-    private void OpenLineMenu(RemoteLine line, VirtualKey heldKey)
+    /// <summary>Opens a line's menu beside the line, as the TV's glass card. The key that opened it is
+    /// still down, and the card keeps its repeats and its release (see <see cref="_menuPress"/>).</summary>
+    private void OpenLineMenu(RemoteLine line)
     {
-        if (line.BuildMenu() is not { } menu)
+        if (_menuCard is not { } card || line.BuildMenu() is not { } menu)
             return;
 
-        CloseLineMenu();
-        _lineMenu = menu;
-        menu.Opened += (_, _) => SwallowHeldKey(menu, heldKey);
-        menu.Closed += (_, _) =>
-        {
-            if (ReferenceEquals(_lineMenu, menu))
-                _lineMenu = null;
-        };
-        menu.ShowAt(line);
+        card.Show(menu, line);
         Say("menu: opened on " + Describe(line));
     }
 
-    /// <summary>Closes a line's menu. True if one was open.</summary>
-    public bool CloseLineMenu()
-    {
-        if (_lineMenu is not { } menu)
-            return false;
-        _lineMenu = null;
-        menu.Hide();
-        return true;
-    }
-
-    /// <summary>
-    /// The key that opened a menu is still down when the menu takes the focus. Its repeats and its release
-    /// are kept from the menu until the key has come up once. A press of the key after that goes through,
-    /// and that is how an entry is chosen. The remote's Back also closes the menu. The menu answers Escape
-    /// on its own, but not every remote sends Escape.
-    ///
-    /// <para>It is attached to the menu's presenter, which is found among the open popups. The shell leaves
-    /// the menu's keys alone while the menu is open (see LineMenuOpen), so the presenter is the first place
-    /// that can keep them.</para>
-    /// </summary>
-    private void SwallowHeldKey(MenuFlyout menu, VirtualKey key)
-    {
-        if (XamlRoot is null)
-            return;
-
-        foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot))
-        {
-            if (popup.Child is not MenuFlyoutPresenter presenter)
-                continue;
-
-            var holding = true;
-
-            void Down(object sender, KeyRoutedEventArgs e)
-            {
-                if (e.Key is VirtualKey.GoBack or VirtualKey.NavigationCancel)
-                {
-                    e.Handled = true;
-                    menu.Hide();
-                    return;
-                }
-                if (!holding || e.Key != key)
-                    return;
-                if (HeldKeys.IsRepeat(e))
-                    e.Handled = true;    // This is a repeat of the held press.
-                else
-                    holding = false;     // A new press. The release was missed, and this press is meant.
-            }
-
-            void Up(object sender, KeyRoutedEventArgs e)
-            {
-                if (!holding || e.Key != key)
-                    return;
-                e.Handled = true;
-                holding = false;
-            }
-
-            presenter.PreviewKeyDown += Down;
-            presenter.PreviewKeyUp += Up;
-            menu.Closed += (_, _) =>
-            {
-                presenter.PreviewKeyDown -= Down;
-                presenter.PreviewKeyUp -= Up;
-            };
-            Say("menu: holding the key that opened it");
-        }
-    }
+    /// <summary>Back in a menu: a submenu goes back to its menu, a menu closes. True if one was
+    /// open.</summary>
+    public bool CloseLineMenu() => _menuCard?.Back() == true;
 }

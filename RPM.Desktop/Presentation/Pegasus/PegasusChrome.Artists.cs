@@ -437,7 +437,7 @@ public sealed partial class PegasusChrome
         Add(ArtistOrdering.Tracks, "ArtistSort_Tracks", "\uf001"); // a note
         Add(ArtistOrdering.Added, "ArtistSort_Added", "\uf274");   // a date
 
-        menu.ShowAt(ArtistsSortButton);
+        ShowMenu(menu, ArtistsSortButton);
 
         void Add(ArtistOrdering ordering, string key, string glyph)
         {

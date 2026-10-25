@@ -665,7 +665,7 @@ public sealed partial class PegasusChrome
             inside.RightTapped += (_, e) =>
             {
                 e.Handled = true;
-                menu()?.ShowAt(line);
+                ShowMenu(menu(), line);
             };
 
         part.Children.Add(line);

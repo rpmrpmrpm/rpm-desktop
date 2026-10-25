@@ -792,6 +792,39 @@ public sealed partial class PegasusChrome
         }
     }
 
+    // ── menus as the TV's glass card ──
+
+    /// <summary>Where this view's menus are shown: the host's card, laid over the whole view (see
+    /// PegasusMenuCard). The host hands it over when it builds the chrome.</summary>
+    internal PegasusMenuCard? MenuCard { get; set; }
+
+    /// <summary>
+    /// Opens a menu built for this view beside <paramref name="at"/>, the key or the row it is about, as the
+    /// TV draws its menus: a card of the light glass over the screen blurred, with <paramref name="at"/>
+    /// left sharp. <paramref name="pointer"/> is where a right-click was, in <paramref name="at"/>'s points;
+    /// <paramref name="closed"/> is called once when it closes. Every menu the chrome opens itself comes
+    /// here; a line's menu, from a held OK or the Menu key, is opened by the host on the same card. Without
+    /// a host's card it opens as the desktop's MenuFlyout.
+    /// </summary>
+    private void ShowMenu(MenuFlyout? menu, FrameworkElement at, Windows.Foundation.Point? pointer = null, Action? closed = null)
+    {
+        if (menu is null)
+            return;
+
+        if (MenuCard is { } card)
+        {
+            card.Show(menu, at, pointer, closed);
+            return;
+        }
+
+        if (closed is not null)
+            menu.Closed += (_, _) => closed();
+        if (pointer is { } point)
+            menu.ShowAt(at, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions { Position = point });
+        else
+            menu.ShowAt(at);
+    }
+
     // ── menus at this view's size ──
 
     /// <summary>The size of a menu's words in this view: the same as a track line, so a menu opened from
