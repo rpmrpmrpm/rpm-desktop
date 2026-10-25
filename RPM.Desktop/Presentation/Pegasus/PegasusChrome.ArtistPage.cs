@@ -605,17 +605,27 @@ public sealed partial class PegasusChrome
         if (at == _artistAboutCutAt)
             return;
         _artistAboutCutAt = at;
+        _artistAbout.Text = WholeSentencesAt(_artistAbout, paragraph, _artistAboutWidth);
+    }
 
+    /// <summary>
+    /// The longest run of <paramref name="paragraph"/>'s first sentences that fits in
+    /// <see cref="ArtistAboutLines"/> lines of <paramref name="look"/>'s face and size at
+    /// <paramref name="width"/> (see <see cref="WholeSentences"/>). The article on an artist's page and on a
+    /// genre's.
+    /// </summary>
+    private static string WholeSentencesAt(TextBlock look, string paragraph, double width)
+    {
         // A probe of the same face and size, measured at the same width, counts the lines a text takes. One
         // line's height is the height of the paragraph's first letter alone.
         var probe = new TextBlock
         {
-            FontSize = _artistAbout.FontSize,
-            FontFamily = _artistAbout.FontFamily,
+            FontSize = look.FontSize,
+            FontFamily = look.FontFamily,
             TextWrapping = TextWrapping.Wrap,
             Text = paragraph[..1],
         };
-        var room = new Windows.Foundation.Size(_artistAboutWidth, double.PositiveInfinity);
+        var room = new Windows.Foundation.Size(width, double.PositiveInfinity);
         probe.Measure(room);
         var line = Math.Max(1, probe.DesiredSize.Height);
 
@@ -626,7 +636,7 @@ public sealed partial class PegasusChrome
             return (int)Math.Round(probe.DesiredSize.Height / line);
         }
 
-        _artistAbout.Text = WholeSentences(paragraph, ArtistAboutLines, Lines);
+        return WholeSentences(paragraph, ArtistAboutLines, Lines);
     }
 
     /// <summary>

@@ -155,57 +155,6 @@ internal static class PageHeaderArt
         return new Drawn(bitmap.Bytes, width, height);
     }
 
-    /// <summary>
-    /// Draws a header across the whole width: the photograph covering it, a colour laid across it from the
-    /// left where the page asks for one, and its foot faded out. Off the UI thread.
-    /// </summary>
-    public static Drawn? Draw(
-        byte[]? photo, int width, int height, double down, double foot,
-        IReadOnlyList<(double Offset, Windows.UI.Color Colour)>? across)
-    {
-        if (width <= 0 || height <= 0 || (photo is not { Length: > 0 } && across is null))
-            return null;
-
-        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        using var bitmap = new SKBitmap(info);
-        using (var canvas = new SKCanvas(bitmap))
-        {
-            canvas.Clear(SKColors.Transparent);
-
-            if (photo is { Length: > 0 })
-            {
-                using var image = SKImage.FromEncodedData(photo);
-                if (image is null)
-                    return null;
-
-                var scale = Math.Max((double)width / image.Width, (double)height / image.Height);
-                var drawnWide = image.Width * scale;
-                var drawnTall = image.Height * scale;
-                var left = (width - drawnWide) / 2;
-                var top = (height - drawnTall) * Math.Clamp(down, 0, 1);
-                canvas.DrawImage(
-                    image,
-                    SKRect.Create((float)left, (float)top, (float)drawnWide, (float)drawnTall),
-                    new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-            }
-
-            if (across is { Count: > 0 })
-            {
-                using var shader = SKShader.CreateLinearGradient(
-                    new SKPoint(0, 0), new SKPoint(width, 0),
-                    [.. across.Select(stop => new SKColor(stop.Colour.R, stop.Colour.G, stop.Colour.B, stop.Colour.A))],
-                    [.. across.Select(stop => (float)stop.Offset)],
-                    SKShaderTileMode.Clamp);
-                using var paint = new SKPaint { Shader = shader };
-                canvas.DrawRect(SKRect.Create(width, height), paint);
-            }
-
-            Dissolve(canvas, width, height, new SKPoint(0, 0), new SKPoint(0, height), foot, rising: false);
-        }
-
-        return new Drawn(bitmap.Bytes, width, height);
-    }
-
     /// <summary>How many stops a dissolve's curve is drawn with.</summary>
     private const int Steps = 12;
 

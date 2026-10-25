@@ -15,27 +15,30 @@ using Loc = RPM.Desktop.Strings.Loc;
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// One genre's page in Pegasus: a header across the whole width from the top of the screen, the genre's
-/// photograph in its colour with its wordmark on it, then how much of it the collection holds, a key to
-/// play it and one to shuffle it, what the encyclopedia says about it, and then shelves that scroll
-/// sideways: the songs of it the world plays most, its notable artists, its generated playlists, the
-/// records added most recently, the genres beside it, and its records decade by decade. OK on a song
-/// plays the popular songs from there; on an artist, the artist's page; on a record, the record page; on
-/// a playlist, the list's page; on a genre, that genre's page. Back comes back here from each. A held OK
-/// or the Menu key on a song opens the song's menu, as on the artist's page.
+/// One genre's page in Pegasus, laid out as an artist's page is: a band across the top with the genre's
+/// photograph at the right and, left of it, its wordmark, the first whole sentences of what the
+/// encyclopedia says about it, how much of it the collection holds, a key to play it and one to shuffle
+/// it; then, under the band, shelves that scroll sideways: the songs of it the world plays most, its
+/// notable artists, its generated playlists, the records added most
+/// recently, the genres beside it, and its records decade by decade. OK on a song plays the popular songs
+/// from there; on an artist, the artist's page; on a record, the record page; on a playlist, the list's
+/// page; on a genre, that genre's page. Back comes back here from each. A held OK or the Menu key on a song
+/// opens the song's menu, as on the artist's page.
 ///
 /// <para><b>From the desktop genre page, for a remote.</b> The same head (<see cref="GenrePhotos"/>, the
 /// genre's colour falling over the photograph, its wordmark), the same shelves read by the same rules as
 /// MainPage.BuildGenreShelf (the popular songs one per record, the acts in the wall's order, the lists
 /// that hold enough to be lists, the decades oldest first and newest record first in each), and the same
 /// subgenres (<see cref="RPM.Core.Metadata.Genres.Related"/>, narrowed to genres the collection holds).
-/// The desktop's two columns become a head and shelves, as on the artist page. Play all plays the popular
+/// The desktop's two columns become a band and shelves, as on the artist page. Play all plays the popular
 /// songs, or the most recently added records where the world's play counts have not arrived yet; Shuffle
 /// plays two hundred songs drawn from across the genre.</para>
 ///
-/// <para><b>The head is the page's header</b>, not a card on it: the whole width, from the top of the
-/// screen, its foot fading into the page (see <see cref="PageHeaderArt"/>). The back key sits on it;
-/// the mini player sits on it only while something is playing (see PegasusChrome.PlayerAway).</para>
+/// <para><b>The band is the Android TV app's</b> (GenrePage.kt, PageBand; see
+/// <see cref="PageHeaderArt"/>): the photograph dissolving toward its left and its foot, the column
+/// centred, the band fixed while the rows scroll under it and fade out under its foot, as on the artist's
+/// page. The page's room is in the genre's colours. The back key sits on the band; the mini player sits on
+/// it only while something is playing (see PegasusChrome.PlayerAway).</para>
 /// </summary>
 public sealed partial class PegasusChrome
 {
@@ -68,44 +71,45 @@ public sealed partial class PegasusChrome
     private readonly List<GenreCard> _genrePageGenres = [];
     private readonly List<ShelfRow> _genrePageRows = [];
 
-    /// <summary>The header's height as a share of the screen's, where that is taller than the photograph's
-    /// own 6 to 1 across the width. Without it a narrow window has a strip too short to hold the wordmark
-    /// under the back key.</summary>
-    private const double GenreHeadLeast = 0.3;
-
-    /// <summary>How much of the header, from its foot, fades into the page.</summary>
-    private const double GenreHeadFoot = 0.45;
-
-    // The head's parts, kept so a resize can size them.
-    private Grid? _genreHead;
-    private Image? _genreHeadPicture;
+    // The band's parts, kept so a resize can size them.
+    private Image? _genreBandPhoto;
+    private StackPanel? _genreColumn;
+    private Grid? _genreNameBox;
     private Image? _genreBandName;
     private TextBlock? _genreBandPlainName;
-
-    /// <summary>The genre's photograph, once read; null where it has none.</summary>
-    private byte[]? _genrePhotoBytes;
-
-    /// <summary>Whether the photograph has been read, with or without one. The header is drawn only
-    /// after: drawn before, a genre with a photograph would show its colour alone first.</summary>
-    private bool _genrePhotoRead;
-
-    /// <summary>Where the colour across the header is solid to, as a share of its width: the wordmark's
-    /// right edge. Written by the size pass and drawn into the header.</summary>
-    private double _genreHeadSolid;
-
-    /// <summary>What the header was last drawn for (its pixels and the colour's edge), so a size pass
-    /// that changed neither draws nothing.</summary>
-    private (int W, int H, double Solid) _genreHeadDrawnFor;
-
-    /// <summary>The header drawing in flight. Each drawing takes the next number, and one that finishes
-    /// to find a newer number drops what it drew.</summary>
-    private int _genreHeadDraw;
     private TextBlock? _genreCounts;
     private Grid? _genreKeys;
     private TextBlock? _genreAbout;
     private GenreWordmark? _genreMark;
     private GenreAccent _genreAccent;
     private (int W, int H) _genreNameDrawnAt;
+
+    /// <summary>What the article sits in: what a late article grows from nothing (see Arrival).</summary>
+    private Grid? _genreAboutHost;
+
+    /// <summary>The article's first paragraph, whole, once it is known, and the width and size it was last
+    /// cut at (see <see cref="CutGenreAbout"/>).</summary>
+    private string? _genreAboutProse;
+    private (double Width, double Size) _genreAboutCutAt;
+
+    /// <summary>The genre's photograph, once read; null where it has none.</summary>
+    private byte[]? _genrePhotoBytes;
+
+    /// <summary>The pixels the photograph was last drawn at, so a size pass that changed nothing draws
+    /// nothing.</summary>
+    private (int W, int H) _genreHeadDrawnFor;
+
+    /// <summary>The photograph drawing in flight. Each drawing takes the next number, and one that finishes
+    /// to find a newer number drops what it drew.</summary>
+    private int _genreHeadDraw;
+
+    /// <summary>The rows fading under the band. Made on the first build, for the life of the
+    /// chrome.</summary>
+    private PageRowsFade? _genreRowsFade;
+
+    /// <summary>When the page was built, on the chrome's clock: an article that lands later than
+    /// <see cref="LateAfter"/> after it arrives late, and eases in.</summary>
+    private double _genrePageBuiltAt;
 
     /// <summary>The slots the shelves read after the build stand in, in their places, so a shelf that
     /// arrives later does not push the ones under it down.</summary>
@@ -117,6 +121,7 @@ public sealed partial class PegasusChrome
     {
         DropGenrePage();
         _genrePageFor = genre;
+        _genrePageBuiltAt = _clock.Elapsed.TotalSeconds;
         var read = _genrePageRead;
         var plain = (Style)Resources["PegasusPlainButton"];
         var scale = QueueScale;
@@ -127,26 +132,37 @@ public sealed partial class PegasusChrome
             ? new RoomColours(_genreAccent.Colour, GenreWordmarks.Lit(_genreAccent), GenreWordmarks.Deep(_genreAccent))
             : null;
 
-        // ── the header: the photograph with the genre's colour laid over its left and its foot faded
-        // out, drawn as one picture (DrawGenreHead), and the wordmark on the colour at the lower left.
-        // The page's room is in the genre's colours behind it, so where the picture fades the page is
-        // the same colour. The desktop band's own drifting room is left out: it cannot fade with the
-        // picture, and it would end in a line across the page. ──
-        var band = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
-        _genreHead = band;
-        _genreHeadPicture = new Image { Stretch = Stretch.Fill, IsHitTestVisible = false };
-        band.Children.Add(_genreHeadPicture);
+        // ── the band: the photograph at the right (drawn when it is read, see DrawGenreHead), and in the
+        // left column the wordmark, the article, the counts and the keys, centred in the column, as on the
+        // artist's page. The page's room is in the genre's colours behind it, so where the photograph
+        // dissolves the page is the genre's colour. ──
+        var band = GenrePageBand;
+        band.Children.Clear();
+        _genreBandPhoto = new Image
+        {
+            Stretch = Stretch.Fill,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+        };
+        band.Children.Add(_genreBandPhoto);
+
+        var words = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        _genreColumn = words;
+        band.Children.Add(words);
+
+        _genreNameBox = new Grid();
         if (_genreMark is not null)
         {
             _genreBandName = new Image
             {
                 Stretch = Stretch.Fill,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_genreBandName, genre.Name);
-            band.Children.Add(_genreBandName);
+            _genreNameBox.Children.Add(_genreBandName);
         }
         else
         {
@@ -155,47 +171,59 @@ public sealed partial class PegasusChrome
                 Text = genre.Name,
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
             };
-            band.Children.Add(_genreBandPlainName);
+            _genreNameBox.Children.Add(_genreBandPlainName);
         }
-        GenrePageContent.Children.Add(band);
+        words.Children.Add(_genreNameBox);
 
-        // ── what it is and what can be done with it ──
-        var words = new StackPanel();
+        // The article, under the name and over the counts. Collapsed until there is one; its host is what a
+        // late article grows (see Arrival).
+        _genreAbout = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            TextAlignment = TextAlignment.Center,
+            Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
+            TextWrapping = TextWrapping.Wrap,
+            MaxLines = ArtistAboutLines,
+            TextTrimming = TextTrimming.WordEllipsis,
+            Visibility = Visibility.Collapsed,
+        };
+        _genreAboutHost = new Grid { VerticalAlignment = VerticalAlignment.Top };
+        _genreAboutHost.Children.Add(_genreAbout);
+        words.Children.Add(_genreAboutHost);
+
+        // Dimmer than the article, as on the artist's page.
         _genreCounts = new TextBlock
         {
             Text = Loc.Format("Genres_InLibrary", genre.Folders.Count, genre.Artists.Count),
-            Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
+            Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
+            TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
         };
         words.Children.Add(_genreCounts);
 
-        _genreKeys = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        _genreKeys = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
         _genreKeys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _genreKeys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        _genrePlayKey = RecordKey("\uf04b", Loc.Get("Genres_PopularPlayAll"), scale, 46 * scale,
+        _genrePlayKey = RecordKey("\uf04b", Loc.Get("Genres_PopularPlayAll"), scale, PageKeyHeight * scale,
                                   () => PlayGenreAsync(genre), out _);
-        _genreShuffleKey = RecordKey("\uf074", null, scale, 46 * scale, () => ShuffleGenreAsync(genre), out _);
+        _genreShuffleKey = RecordKey("\uf074", null, scale, PageKeyHeight * scale, () => ShuffleGenreAsync(genre), out _);
         IconName.Set(_genreShuffleKey, Loc.Get("AlbumMenu_Shuffle"));
         Grid.SetColumn(_genreShuffleKey, 1);
         _genreKeys.Children.Add(_genrePlayKey);
         _genreKeys.Children.Add(_genreShuffleKey);
         words.Children.Add(_genreKeys);
 
-        _genreAbout = new TextBlock
-        {
-            // Left, not stretched: a TextBlock capped short of its column is centred in it otherwise.
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
-            TextWrapping = TextWrapping.Wrap,
-            MaxLines = 4,
-            TextTrimming = TextTrimming.WordEllipsis,
-            Visibility = Visibility.Collapsed,
-        };
-        words.Children.Add(_genreAbout);
-        GenrePageContent.Children.Add(words);
+        _genreRowsFade ??= new PageRowsFade(GenrePageScroll, GenrePageRows, GenrePageRowsFade);
 
         // ── the shelves, in the desktop page's order ──
         _genrePopularSlot = new StackPanel();
@@ -444,60 +472,60 @@ public sealed partial class PegasusChrome
         }
     }
 
-    /// <summary>The genre's photograph, a file the app ships (no network), and then the header drawn with
-    /// it. A genre with no photograph gets the header with its colour alone.</summary>
+    /// <summary>The genre's photograph, a file the app ships (no network), and then the band drawn with it.
+    /// A genre with no photograph has the band's column alone, on the genre's room.</summary>
     private async void LoadGenrePhotoAsync(string genre, int read)
     {
         var bytes = await GenrePhotos.BytesAsync(genre, CancellationToken.None);
         if (read != _genrePageRead)
             return;
         _genrePhotoBytes = bytes is { Length: > 0 } ? bytes : null;
-        _genrePhotoRead = true;
         DrawGenreHead();
     }
 
     /// <summary>
-    /// Draws the header's picture for its present size on a worker (<see cref="PageHeaderArt.Draw"/>) and
+    /// Draws the band's photograph for its present size on a worker (<see cref="PageHeaderArt.Draw"/>) and
     /// shows it, if the page and the size are still the ones it was drawn for. Asked by the photograph
     /// landing and by every size pass; a pass that changed nothing draws nothing.
+    ///
+    /// <para>The photographs the app ships are cut for the desktop page's band, six to one. The band's box
+    /// is about 1.7 to one, so the middle of the photograph is drawn, larger than it was cut.</para>
     /// </summary>
     private async void DrawGenreHead()
     {
-        if (!_genrePhotoRead || _genreHead is not { Width: > 0, Height: > 0 } head)
+        if (_genrePhotoBytes is not { } photo || _genreBandPhoto is not { Width: > 0, Height: > 0 } box)
             return;
 
         var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
-        var (wide, tall) = PageHeaderArt.PixelsFor(head.Width, head.Height, raster);
-        var solid = Math.Round(_genreHeadSolid, 3);
-        if (_genreHeadDrawnFor == (wide, tall, solid))
+        var (wide, tall) = PageHeaderArt.PixelsFor(box.Width, box.Height, raster);
+        if (_genreHeadDrawnFor == (wide, tall))
             return;
-        _genreHeadDrawnFor = (wide, tall, solid);
+        _genreHeadDrawnFor = (wide, tall);
 
         var read = _genrePageRead;
         var draw = ++_genreHeadDraw;
-        var photo = _genrePhotoBytes;
-        var across = GenreWordmarks.OverTheBandStops(_genreAccent, solid);
 
         PageHeaderArt.Drawn? drawn;
         try
         {
-            drawn = await Task.Run(() => PageHeaderArt.Draw(photo, wide, tall, down: 0.5, GenreHeadFoot, across));
+            drawn = await Task.Run(() => PageHeaderArt.Draw(photo, wide, tall, down: 0.5));
         }
         catch (Exception ex)
         {
-            // Not a picture the decoder reads. The wordmark stands on the room.
+            // Not a picture the decoder reads. The column stands on the room.
             RPM.Core.Diagnostics.Faults.Note("pegasus", "a genre page's header", ex);
             return;
         }
 
-        if (read != _genrePageRead || draw != _genreHeadDraw || drawn is null || _genreHeadPicture is null)
+        if (read != _genrePageRead || draw != _genreHeadDraw || drawn is null || _genreBandPhoto is null)
             return;
-        _genreHeadPicture.Source = PageHeaderArt.Show(drawn);
+        _genreBandPhoto.Source = PageHeaderArt.Show(drawn);
     }
 
-    /// <summary>The opening of the encyclopedia's article about the genre, four lines at most. In English
-    /// only, as on the desktop (see TrackInfoService.GenreArticleAsync). Nothing where there is
-    /// none.</summary>
+    /// <summary>The opening of the encyclopedia's article about the genre: its first paragraph, cut at the
+    /// last whole sentence that fits in four lines, as on the artist's page. In English only, as on the
+    /// desktop (see TrackInfoService.GenreArticleAsync). Nothing where there is none. One that arrives after
+    /// the page opened eases in (see <see cref="Arrival"/>).</summary>
     private async void LoadGenreAboutAsync(string genre, int read)
     {
         RPM.Core.Metadata.Providers.EncyclopediaArticle? article;
@@ -511,10 +539,32 @@ public sealed partial class PegasusChrome
             return;
         }
 
-        if (read != _genrePageRead || article?.Extract is not { Length: > 0 } prose || _genreAbout is null)
+        if (read != _genrePageRead || article?.Extract is not { Length: > 0 } prose
+            || _genreAbout is null || _genreAboutHost is null)
             return;
-        _genreAbout.Text = prose.Trim();
+
+        _genreAboutProse = prose.Split("\n\n").Select(p => p.Trim()).FirstOrDefault(p => p.Length > 0);
+        if (_genreAboutProse is null)
+            return;
+        _genreAboutCutAt = default;
+        CutGenreAbout();
         _genreAbout.Visibility = Visibility.Visible;
+
+        if (_clock.Elapsed.TotalSeconds - _genrePageBuiltAt > LateAfter && _genreColumn is { Width: > 0 } column)
+            StartArrival(_genreAboutHost, _genreAbout, column.Width);
+    }
+
+    /// <summary>The article cut to the sentences that fit at the column's width (see
+    /// <see cref="WholeSentencesAt"/>). Cut again when the width or the text size changes.</summary>
+    private void CutGenreAbout()
+    {
+        if (_genreAbout is null || _genreAboutProse is not { } paragraph || _genreColumn is not { Width: > 0 } column)
+            return;
+        var at = (column.Width, _genreAbout.FontSize);
+        if (at == _genreAboutCutAt)
+            return;
+        _genreAboutCutAt = at;
+        _genreAbout.Text = WholeSentencesAt(_genreAbout, paragraph, column.Width);
     }
 
     // ── playing it ──
@@ -599,11 +649,10 @@ public sealed partial class PegasusChrome
         _genreShuffleKey = null;
         _genrePopular = [];
         _genreRecent = [];
-        _genreHead = null;
-        _genreHeadPicture = null;
+        _genreBandPhoto = null;
+        _genreColumn = null;
+        _genreNameBox = null;
         _genrePhotoBytes = null;
-        _genrePhotoRead = false;
-        _genreHeadSolid = 0;
         _genreHeadDrawnFor = default;
         _genreHeadDraw++;
         _genreBandName = null;
@@ -611,6 +660,9 @@ public sealed partial class PegasusChrome
         _genreCounts = null;
         _genreKeys = null;
         _genreAbout = null;
+        _genreAboutHost = null;
+        _genreAboutProse = null;
+        _genreAboutCutAt = default;
         _genreMark = null;
         _genreNameDrawnAt = default;
         _genrePopularSlot = _genreMoodsSlot = _genreEssentialSlot = null;
@@ -618,6 +670,7 @@ public sealed partial class PegasusChrome
         _genrePageGenres.Clear();
         _genrePageRows.Clear();
         GenrePageContent.Children.Clear();
+        GenrePageBand.Children.Clear();
     }
 
     // ── sizes ──
@@ -632,89 +685,66 @@ public sealed partial class PegasusChrome
     }
 
     /// <summary>
-    /// The page at this scale: the header across the whole width at the photograph's own 6 to 1 (and no
-    /// shorter than <see cref="GenreHeadLeast"/> of the screen), the wordmark at two fifths of the
-    /// header's height on the colour in its lower left, the words and keys under the header, and the
+    /// The page at this scale: the band as on the artist's page (see <see cref="SizePageBand"/>), the
+    /// wordmark as large as the name's box takes it, the rest of the column at the TV's couch size, and the
     /// shelves' cards six to the width.
     /// </summary>
     private void SizeGenrePage(double scale)
     {
-        if (_genreHead is null)
+        if (_genreBandPhoto is null || _genreColumn is null || _genreNameBox is null)
             return;
 
         var width = LibraryLayer.ActualWidth > 0 ? LibraryLayer.ActualWidth : Root.ActualWidth;
-        var height = LibraryLayer.ActualHeight > 0 ? LibraryLayer.ActualHeight : Root.ActualHeight;
         if (width <= 1)
             return;
 
-        var inset = LibraryEdgeInset;
-        // The content's own padding, not the scroller's padding or the content's margin: a scroller
-        // clips at its content's bounds (see ShelfRow.Size). Nothing at the top: the header starts at
-        // the top of the screen, and reaches out over the side padding to both edges.
-        GenrePageContent.Padding = new Thickness(inset, 0, inset, 34 * scale);
+        var at = SizePageBand(
+            scale, width, _genreBandPhoto, _genreColumn, _genreNameBox,
+            GenrePageRows, GenrePageRowsFade, GenrePageContent, _genreRowsFade);
 
-        var bandHeight = Math.Max(width / GenrePhotos.Shape, height * GenreHeadLeast);
-        _genreHead.Width = width;
-        _genreHead.Height = bandHeight;
-        _genreHead.Margin = new Thickness(-inset, 0, -inset, 0);
-
-        var foot = 16 * scale;
-        double nameEnds;
         if (_genreMark is { } mark && _genreBandName is not null)
         {
-            // Held clear of the back key's strip at the top of the screen, however short the header is.
-            var boxHeight = Math.Min(bandHeight * 0.4 / mark.Base, bandHeight - HomeTopPad - foot);
-            var boxWidth = Math.Min(boxHeight * mark.Aspect, width * 0.6);
-            boxHeight = boxWidth / mark.Aspect;
+            // The wordmark's full height is its letters over its base: as tall as nine tenths of the box, or
+            // as wide (the TV's GenreTitle).
+            var boxHeight = Math.Min(at.NameHeight * GenreTitleFill, at.Column * GenreTitleFill / mark.Aspect);
+            var boxWidth = boxHeight * mark.Aspect;
             _genreBandName.Width = boxWidth;
             _genreBandName.Height = boxHeight;
-            _genreBandName.Margin = new Thickness(inset, 0, 0, foot);
-            nameEnds = inset + boxWidth;
 
             var raster = XamlRoot?.RasterizationScale is > 0 and var s ? s : 1;
             var pixels = ((int)Math.Round(boxWidth * raster), (int)Math.Round(boxHeight * raster));
-            if (pixels != _genreNameDrawnAt)
+            if (pixels != _genreNameDrawnAt && pixels.Item1 > 0 && pixels.Item2 > 0)
             {
                 _genreNameDrawnAt = pixels;
                 _genreBandName.Source = GenreWordmarks.Lettering(mark, _genreAccent, GenreFlush.Left, pixels.Item1, pixels.Item2);
             }
         }
-        else
-        {
-            nameEnds = inset + (width * 0.4);
-            if (_genreBandPlainName is not null)
-            {
-                _genreBandPlainName.FontSize = bandHeight * 0.3;
-                _genreBandPlainName.Margin = new Thickness(inset, 0, 0, foot);
-            }
-        }
-        _genreHeadSolid = nameEnds / width;
+        if (_genreBandPlainName is not null)
+            _genreBandPlainName.FontSize = 44 * scale;   // the name's couch size, as on the artist's page
 
         if (_genreCounts is not null)
-        {
-            _genreCounts.FontSize = 19 * scale;   // the TV's couch size for a page's text (PAGE_TEXT)
-            _genreCounts.Margin = new Thickness(0, 12 * scale, 0, 0);
-        }
+            _genreCounts.FontSize = PageText * scale;
         if (_genreKeys is not null)
         {
             _genreKeys.ColumnSpacing = 10 * scale;
-            _genreKeys.Margin = new Thickness(0, 16 * scale, 0, 0);
+            _genreKeys.Margin = new Thickness(0, PageKeysGap * scale, 0, 0);
         }
         if (_genrePlayKey is not null)
         {
-            _genrePlayKey.Height = 46 * scale;
+            _genrePlayKey.Height = PageKeyHeight * scale;
             _genrePlayKey.Padding = new Thickness(24 * scale, 0, 24 * scale, 0);
         }
         if (_genreShuffleKey is not null)
         {
-            _genreShuffleKey.Height = 46 * scale;
+            _genreShuffleKey.Height = PageKeyHeight * scale;
             _genreShuffleKey.Width = 56 * scale;
         }
         if (_genreAbout is not null)
         {
-            _genreAbout.FontSize = 19 * scale;
-            _genreAbout.MaxWidth = 900 * scale;
-            _genreAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
+            _genreAbout.FontSize = PageText * scale;
+            _genreAbout.MaxWidth = at.Column;
+            _genreAbout.Margin = new Thickness(0, 0, 0, PageAboutGap * scale);
+            CutGenreAbout();
         }
 
         var card = GenreCardWidth(scale);
@@ -728,4 +758,7 @@ public sealed partial class PegasusChrome
 
         DrawGenreHead();
     }
+
+    /// <summary>How much of the name's box the wordmark fills, across or down (the TV's TITLE_FILL).</summary>
+    private const double GenreTitleFill = 0.9;
 }
