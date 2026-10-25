@@ -235,10 +235,12 @@
                     CornerRadius="{Binding Metrics.Round}" Background="#22FFFFFF">
               <Grid>
                 <TextBlock Text="{Binding Letter}" FontSize="{Binding Metrics.InitialSize}" FontWeight="SemiBold"
-                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding Bare, Converter={StaticResource BoolToVisible}}"/>
                 <TextBlock Text="{Binding Glyph}" FontSize="{Binding Metrics.InitialSize}"
                            FontFamily="{StaticResource PegasusFa}"
-                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           Foreground="#8CFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding Bare, Converter={StaticResource BoolToVisible}}"/>
                 <Image Source="{Binding Picture}" Stretch="UniformToFill"/>
               </Grid>
             </Border>

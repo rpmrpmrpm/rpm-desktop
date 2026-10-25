@@ -123,8 +123,14 @@ public sealed partial class PegasusArtistCard : INotifyPropertyChanged
         {
             _picture = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Picture)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Bare)));
         }
     }
+
+    /// <summary>Whether the card has no photograph, so its letter or glyph is drawn. The letter is taken away
+    /// once the photograph is in, not left under it: a card that is not focused is dimmed by its opacity,
+    /// which is applied to each layer on its own, and the letter showed through the photograph.</summary>
+    public bool Bare => _picture is null;
 
     /// <summary>The act on the card.</summary>
     internal ArtistWallItem Act { get; init; } = new("", [], [], [], 0);
