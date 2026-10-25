@@ -1361,6 +1361,10 @@ public sealed partial class HomeView : UserControl
         {
             Library.Changed -= OnShelfChanged;
             Library.Changed += OnShelfChanged;
+
+            // A borrowed shelf's quick selection is dealt again when its owner's favourites land.
+            Services.Sharing.OwnerFavourites.Landed -= OnOwnerFavouritesLanded;
+            Services.Sharing.OwnerFavourites.Landed += OnOwnerFavouritesLanded;
         };
 
         // What the tuned station is announcing, put on whichever card is that station. There is ONE
@@ -1384,6 +1388,7 @@ public sealed partial class HomeView : UserControl
         Unloaded += (_, _) =>
         {
             Library.Changed -= OnShelfChanged;
+            Services.Sharing.OwnerFavourites.Landed -= OnOwnerFavouritesLanded;
             if (Tuner is { } radio)
                 radio.Changed -= OnTunedChanged;
             _loading?.Cancel();
@@ -2086,6 +2091,7 @@ public sealed partial class HomeView : UserControl
             var listsMs = Took();
 
             var keptLists = ReadKeptLists(db, library.IsPeerView, tiles);
+            var lentMoods = ReadLentMoods(db, keptLists, App.Launch);
             var keptMs = Took();
 
             var bannerList = ReadBannerList(db, library.IsPeerView, now, local, cuts);
@@ -2104,7 +2110,7 @@ public sealed partial class HomeView : UserControl
                     + $"traits {traitsMs:F0}, lists {listsMs:F0}, kept {keptMs:F0}, "
                     + $"banner {bannerMs:F0}, explicit {explicitMs:F0}");
 
-            return (facts, readTraits, lists, keptLists, bannerList, profile, explicitAlbums, cuts);
+            return (facts, readTraits, lists, keptLists, lentMoods, bannerList, profile, explicitAlbums, cuts);
         }), ct);
 
         shelfMs = clock.Elapsed.TotalMilliseconds;
@@ -2118,7 +2124,7 @@ public sealed partial class HomeView : UserControl
             return;
         }
 
-        var (facts, traits, lists, kept, banner, profile, marked, cuts) = shelf;
+        var (facts, traits, lists, kept, lentMoods, banner, profile, marked, cuts) = shelf;
 
         var listened = HomeShelf.Listened(facts, HomeShelf.RowLength);
         var played = HomeShelf.Played(facts, HomeShelf.RowLength);
@@ -2196,11 +2202,13 @@ public sealed partial class HomeView : UserControl
         // collection there are none of the second kind: their playlists are one press away on the
         // rail, and home's row is what the library WROTE. A borrowed shelf is the other case. Almost
         // nothing there can be written (see SmartPlaylists.OnABorrowedShelf), and what it has instead
-        // is the lender's own lists, mirrored with the records.
+        // is the lists the lender's computer wrote, mirrored with the records: its moods, dealt one of
+        // each in turn and drawn again at each launch (see ReadLentMoods), as the TV deals them. The
+        // lender's own playlists are not made for anybody here; the quick selection offers them.
         // The collection is observable because the mood lists join this row after the screen is up.
         // It is replaced as a whole on every reading and not added to: what is in it is a reading of
         // the shelf, not a collection somebody is editing.
-        _listCards = new ObservableCollection<HomeListCard>(kept.Count > 0 ? [.. lists, .. kept] : lists);
+        _listCards = new ObservableCollection<HomeListCard>(lentMoods.Count > 0 ? [.. lists, .. lentMoods] : lists);
         var offered = _listCards;
         ListRow.ItemsSource = offered;
         ListsBlock.Visibility = offered.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2208,9 +2216,9 @@ public sealed partial class HomeView : UserControl
         // Nothing sizes these cards to the row: they are the wall's own tile size and stay it, and a
         // row too narrow for all of them slides. See Row_SizeChanged.
 
-        // ...and the row is named for what is actually in it. Somebody else's playlists are not made
-        // for anybody here.
-        ListsHeading.Text = Loc.Get(kept.Count > 0 ? "Playlists_Title" : "Home_MadeForYou");
+        // ...and the row is named for what is in it, on either shelf: lists a library wrote, this
+        // listener's or the lender's computer's, as the TV names it.
+        ListsHeading.Text = Loc.Get("Home_MadeForYou");
 
         // The banner is drawn from the same five answers as everything else on this screen, and it is
         // built after the lists because one of its cards is one of them. Its heading is read from the
@@ -2231,9 +2239,18 @@ public sealed partial class HomeView : UserControl
         // whose one brush is made on first read, which is what lets them be built off the thread.
         var peer = library.IsPeerView;
         var shelfRoot = library.ShelfRoot ?? "";
+
+        // On a borrowed shelf, what the selection is recommended from instead of what is played most
+        // (see LentQuick). It is kept, so the selection can be dealt again when the owner's favourites
+        // land after the screen is up.
+        var lent = _lentQuick = peer
+            ? LentQuick.For(db, shelfRoot, stationsHeard, names, kept, lentMoods,
+                            [.. suggested, .. added], OwnerOf(library), tiles)
+            : null;
+
         var quick = await Cancellable.RunAsync(
             () => library.Read(db, "home's quick picks",
-                mirror => ReadQuickPicks(mirror, peer, shelfRoot, stationsHeard, names, offered, tiles)),
+                mirror => ReadQuickPicks(mirror, peer, shelfRoot, stationsHeard, names, offered, tiles, lent)),
             ct);
 
         // Unanswered leaves the quick picks off. A refusal has put the problem screen up over the app.
@@ -2381,6 +2398,9 @@ public sealed partial class HomeView : UserControl
     /// its picture comes through the same door as every kept list's, which draws it as that generated
     /// list (see PlaylistCover.Generated).</para>
     ///
+    /// <para>All of them, not a row's worth: the row takes the generated ones dealt by mood (see
+    /// <see cref="ReadLentMoods"/>), and the quick selection the rest (<see cref="ReadLentQuickPicks"/>).</para>
+    ///
     /// <para>Empty lists are left out, and so is the pinned Now playing: one opens nothing, and the
     /// other is this machine's queue and has nothing to do with whose shelf is up. Lists are counted
     /// by the items stored on them and not by what the items resolve to. A nested list is not counted,
@@ -2424,9 +2444,6 @@ public sealed partial class HomeView : UserControl
                 ChosenCover = node.Cover,
                 IsExplicit = marked.Contains(node.Id),
             });
-
-            if (cards.Count == HomeShelf.RowLength)
-                break;
         }
 
         return cards;
@@ -3648,7 +3665,8 @@ public sealed partial class HomeView : UserControl
     ///
     /// <para>Nothing is read on a borrowed shelf's own terms: the plays there are the borrower's few
     /// plays of somebody else's records, which is a question about nobody. The listening profile
-    /// keeps the same rule.</para>
+    /// keeps the same rule. That shelf's selection is recommended from what it holds instead
+    /// (<see cref="ReadLentQuickPicks"/>).</para>
     /// </remarks>
     private static List<HomeQuickCard> ReadQuickPicks(
         LibraryDatabase db,
@@ -3657,10 +3675,11 @@ public sealed partial class HomeView : UserControl
         IReadOnlyList<RadioListen> stations,
         IReadOnlyDictionary<string, LibraryDatabase.AlbumFactsRow> names,
         IReadOnlyList<HomeListCard> lists,
-        SimilarTileMetrics tiles)
+        SimilarTileMetrics tiles,
+        LentQuick? lent)
     {
         if (peer)
-            return [];
+            return lent is null ? [] : ReadLentQuickPicks(db, lent);
 
         // Each kind is asked for the whole selection's worth, not a quarter of it. A collection with
         // no stations and no lists fills all sixteen from songs and records, and a source asked for
@@ -3695,7 +3714,24 @@ public sealed partial class HomeView : UserControl
             radios);
 
         var byPath = songs.ToDictionary(t => t.RelativePath, t => t, StringComparer.OrdinalIgnoreCase);
-        var byUuid = stations.ToDictionary(l => l.Station.Uuid, l => l.Station, StringComparer.OrdinalIgnoreCase);
+
+        return QuickCards(picks, byPath, names, byKey, stations, root, tiles);
+    }
+
+    /// <summary>The cards for a selection, looked up from what was read to choose it. An entry with
+    /// nothing to look it up in is left out.</summary>
+    private static List<HomeQuickCard> QuickCards(
+        IReadOnlyList<QuickPick> picks,
+        IReadOnlyDictionary<string, LibraryTrack> byPath,
+        IReadOnlyDictionary<string, LibraryDatabase.AlbumFactsRow> names,
+        IReadOnlyDictionary<string, HomeListCard> byKey,
+        IReadOnlyList<RadioListen> stations,
+        string root,
+        SimilarTileMetrics tiles)
+    {
+        var byUuid = new Dictionary<string, RadioStation>(StringComparer.OrdinalIgnoreCase);
+        foreach (var listen in stations)
+            byUuid.TryAdd(listen.Station.Uuid, listen.Station);
 
         var cards = new List<HomeQuickCard>(picks.Count);
         foreach (var pick in picks)
@@ -3780,6 +3816,226 @@ public sealed partial class HomeView : UserControl
         }
 
         return cards;
+    }
+
+    /// <summary>
+    /// What a borrowed shelf's quick selection is recommended from, read with the rest of the screen.
+    /// </summary>
+    /// <remarks>
+    /// It is kept after the reading (<see cref="_lentQuick"/>) because one of its answers can arrive
+    /// later than the screen: the owner's favourite songs are read from the cloud the first time their
+    /// collection is open (see <see cref="Services.Sharing.OwnerFavourites"/>), and the selection is
+    /// dealt again with them when they land (<see cref="OnOwnerFavouritesLanded"/>).
+    /// </remarks>
+    /// <param name="Kept">Every list on the shelf (<see cref="ReadKeptLists"/>).</param>
+    /// <param name="MadeForYou">The lists the row of lists holds (<see cref="ReadLentMoods"/>).</param>
+    /// <param name="Shown">The records the rows below show: Recommended for you and Recently added.</param>
+    /// <param name="Owner">The account whose collection this is, or null where it is not known (a
+    /// computer on this network that proved no account, or one of the listener's own).</param>
+    /// <param name="Favourites">The owner's favourite songs by RPM id, or null while they have not been
+    /// read (or cannot be: no owner).</param>
+    private sealed record LentQuick(
+        LibraryDatabase Db,
+        string Root,
+        IReadOnlyList<RadioListen> Stations,
+        IReadOnlyDictionary<string, LibraryDatabase.AlbumFactsRow> Names,
+        IReadOnlyList<HomeListCard> Kept,
+        IReadOnlyList<HomeListCard> MadeForYou,
+        IReadOnlyList<string> Shown,
+        string? Owner,
+        IReadOnlySet<string>? Favourites,
+        SimilarTileMetrics Tiles)
+    {
+        public static LentQuick For(
+            LibraryDatabase db, string root, IReadOnlyList<RadioListen> stations,
+            IReadOnlyDictionary<string, LibraryDatabase.AlbumFactsRow> names,
+            IReadOnlyList<HomeListCard> kept, IReadOnlyList<HomeListCard> madeForYou,
+            IReadOnlyList<string> shown, string? owner, SimilarTileMetrics tiles) =>
+            new(db, root, stations, names, kept, madeForYou, shown, owner,
+                owner is null ? null : Services.Sharing.OwnerFavourites.Of(owner), tiles);
+
+        /// <summary>The same, with the owner's favourites as they are held now.</summary>
+        public LentQuick Again() => this with { Favourites = Owner is null ? null : Services.Sharing.OwnerFavourites.Of(Owner) };
+    }
+
+    /// <summary>The borrowed shelf's selection, as it was last read for the screen. Null on the user's
+    /// own collection.</summary>
+    private LentQuick? _lentQuick;
+
+    /// <summary>Whose collection is open, where it is somebody else's and their account is known: the
+    /// account the shelf's music and pictures are read from the cloud under (SharingService.CloudOwner).</summary>
+    private static string? OwnerOf(LibraryService library) =>
+        library.ViewingPeer is { Length: > 0 } peer
+            ? App.Services.GetService<Services.Sharing.SharingService>()?.CloudOwner(peer)
+            : null;
+
+    /// <summary>How many of a record's songs are read to draw one of them from. A record is a few dozen
+    /// at most; a folder of thousands of loose songs is cut, as it would be anywhere.</summary>
+    private const int LentRecordSongs = 200;
+
+    /// <summary>
+    /// A borrowed shelf's quick selection: the owner's favourite songs, records and lists, chosen by
+    /// <see cref="BorrowedHome.Quick"/> as the TV chooses them, with the stations this listener hears
+    /// most dealt in. What is done here is the looking up.
+    /// </summary>
+    /// <remarks>
+    /// The favourites are looked up by id, one by one, because that is how the cloud names them; a song
+    /// the cloud holds that this shelf does not is stepped past. A record's songs are read only for the
+    /// few records at the front, which are all the selection can take a song from.
+    /// </remarks>
+    private static List<HomeQuickCard> ReadLentQuickPicks(LibraryDatabase db, LentQuick lent)
+    {
+        var byPath = new Dictionary<string, LibraryTrack>(StringComparer.OrdinalIgnoreCase);
+
+        BorrowedSong? Song(LibraryTrack track)
+        {
+            if (string.IsNullOrEmpty(track.RelativePath))
+                return null;
+            byPath.TryAdd(track.RelativePath, track);
+            return new BorrowedSong(track.RelativePath, track.RpmId ?? "", track.Folder, track.Artist, track.Title);
+        }
+
+        var favourites = new List<BorrowedSong>();
+        foreach (var id in lent.Favourites ?? new HashSet<string>())
+            if (db.FindByRpmId(id) is { } track && Song(track) is { } song)
+                favourites.Add(song);
+
+        // A folder whose songs name no album is loose songs and not a record, as the TV leaves out.
+        var records = lent.Names.Values
+            .Where(f => !string.IsNullOrWhiteSpace(f.Album))
+            .Select(f => f.Folder)
+            .ToList();
+
+        IReadOnlyList<BorrowedSong> SongsOf(string folder) =>
+            [.. db.QueryFolderPage(folder, 0, LentRecordSongs).Select(Song).OfType<BorrowedSong>()];
+
+        var byKey = new Dictionary<string, HomeListCard>(StringComparer.Ordinal);
+        foreach (var list in lent.Kept)
+            if (KeyOf(list.Door) is { Length: > 0 } key)
+                byKey[key] = list;
+
+        // Made for you's own cards over the kept ones: they carry the mood's sentence.
+        foreach (var list in lent.MadeForYou)
+            if (KeyOf(list.Door) is { Length: > 0 } key)
+                byKey[key] = list;
+
+        var picks = BorrowedHome.Quick(
+            favourites,
+            records,
+            lent.Shown,
+            SongsOf,
+            [.. lent.MadeForYou.Select(l => KeyOf(l.Door)).Where(k => k.Length > 0)],
+            [.. byKey.Keys],
+            [.. lent.Stations.Select(l => l.Station.Uuid)],
+            App.Launch);
+
+        RPM.Core.Diagnostics.Scope.Said(
+            "home",
+            $"borrowed quick selection: draw {App.Launch}, {favourites.Count} favourites"
+            + $"{(lent.Favourites is null ? " (not read)" : "")}, {records.Count} records, {byKey.Count} lists");
+
+        return QuickCards(picks, byPath, lent.Names, byKey, lent.Stations, lent.Root, lent.Tiles);
+    }
+
+    /// <summary>
+    /// Made for you on a borrowed shelf: the lists the owner's computer wrote, the moods first, one of
+    /// each in turn, in a draw that changes at each launch (<see cref="BorrowedHome.MadeForYou"/>, the
+    /// TV's rule).
+    /// </summary>
+    /// <remarks>
+    /// Each mood card says what it holds in the sentence the playlist page prints under it
+    /// (<see cref="MoodBlurbText"/>), worked out from the songs of that list on this shelf: the
+    /// genres of the owner's music, not of the listener's. Only the cards the row takes are read for
+    /// it. Empty on the user's own collection, where <paramref name="kept"/> is.
+    /// </remarks>
+    private static IReadOnlyList<HomeListCard> ReadLentMoods(
+        LibraryDatabase db, IReadOnlyList<HomeListCard> kept, int draw)
+    {
+        if (kept.Count == 0)
+            return [];
+
+        var byKey = new Dictionary<string, HomeListCard>(StringComparer.Ordinal);
+        var lists = new List<BorrowedList>(kept.Count);
+        foreach (var card in kept)
+        {
+            if (KeyOf(card.Door) is not { Length: > 0 } key || !byKey.TryAdd(key, card))
+                continue;
+            lists.Add(new BorrowedList(key, (card.ChosenCover as PlaylistCover.Generated)?.Id.Kind));
+        }
+
+        var row = new List<HomeListCard>();
+        foreach (var key in BorrowedHome.MadeForYou(lists, draw))
+        {
+            var card = byKey[key];
+            var blurb = card.ChosenCover is PlaylistCover.Generated lent && card.Door.Kept is { } node
+                ? MoodBlurbText.For(lent.Id, db.FlattenPlaylistTracks(node).Select(t => t.Genre))
+                : null;
+
+            row.Add(blurb is null ? card : new HomeListCard
+            {
+                Door = card.Door,
+                Name = card.Name,
+                Glyph = card.Glyph,
+                Count = card.Count,
+                Caption = blurb,
+                Metrics = card.Metrics,
+                ChosenCover = card.ChosenCover,
+                IsExplicit = card.IsExplicit,
+            });
+        }
+
+        return row;
+    }
+
+    /// <summary>
+    /// The owner's favourite songs have been read: the borrowed shelf's selection is dealt again with
+    /// them, where it was drawn without them.
+    /// </summary>
+    /// <remarks>
+    /// Only the selection, not the screen: everything else on it is the same answer as before, and a
+    /// rebuild would take the screen down under the reader. Not while the keys are on one of its
+    /// entries either, which would be pulled out from under them; nor while home is not shown or is
+    /// being read. The screen is then marked stale instead, and its next reading deals the selection
+    /// with them.
+    /// </remarks>
+    private void OnOwnerFavouritesLanded(string owner) => DispatcherQueue.TryEnqueue(async () =>
+    {
+        if (_lentQuick is not { Favourites: null } was || was.Owner != owner)
+            return;
+
+        if (_reading || Visibility != Visibility.Visible || FocusIn(QuickBlock)
+            || !ReferenceEquals(was.Db, Library.Shelf))
+        {
+            WentStale();
+            return;
+        }
+
+        var lent = _lentQuick = was.Again();
+        var ct = _loading?.Token ?? CancellationToken.None;
+        var quick = await Cancellable.RunAsync(
+            () => Library.Read(lent.Db, "home's quick picks", mirror => ReadLentQuickPicks(mirror, lent)), ct);
+
+        if (quick is not { Ran: true, Value: { } asked } || !asked.Answers(out var picks, out _)
+            || ct.IsCancellationRequested || !ReferenceEquals(_lentQuick, lent) || _reading)
+            return;
+
+        ShowQuickPicks(picks);
+        foreach (var card in _quick)
+            _ = FillQuickCoverAsync(card, ct);
+    });
+
+    /// <summary>Whether the focus is on something inside <paramref name="within"/>.</summary>
+    private bool FocusIn(DependencyObject within)
+    {
+        if (XamlRoot is null
+            || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot) is not DependencyObject focused)
+            return false;
+
+        for (DependencyObject? node = focused; node is not null; node = VisualTreeHelper.GetParent(node))
+            if (ReferenceEquals(node, within))
+                return true;
+
+        return false;
     }
 
     /// <summary>The line under an album's or a playlist's name in the quick selection: the kind, then
