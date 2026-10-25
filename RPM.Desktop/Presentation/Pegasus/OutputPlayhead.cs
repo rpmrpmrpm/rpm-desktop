@@ -20,7 +20,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// </para>
 /// </para>
 ///
-/// <para>This is kept apart from the screen that reads it, for the reason <see cref="LyricHush"/> gives: a
+/// <para>This is kept apart from the screen that reads it, for the reason <see cref="RPM.Core.Lyrics.LyricScore"/> gives: a
 /// rule with no window around it can be tested.</para>
 /// </summary>
 internal sealed class OutputPlayhead

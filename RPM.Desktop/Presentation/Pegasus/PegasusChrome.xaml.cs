@@ -105,6 +105,7 @@ public sealed partial class PegasusChrome : UserControl
         var asking = _running && deck is not null && deck.DurationSeconds > 0;
         LyricsPending = asking;
         Drop();
+        ShowWaiting();
 
         if (!asking)
             return;
@@ -218,10 +219,21 @@ public sealed partial class PegasusChrome : UserControl
             _lyricAside = [];
             _asideBlocks = [];
             _asideOpen = [];
+            _score = LyricScore.Empty;
+            _lineSection = [];
             LyricLayer.Visibility = Visibility.Collapsed;
+            ShowWaiting();
             ApplyLyricFootHits();   // The sheet is gone, so the bar under it stops taking presses.
             return;
         }
+
+        // The sheet cut into stretches of singing and rests, and the stretch each line belongs to. Every line
+        // is a piece of its own, a line of words or a break line, so each one has a stretch.
+        _score = LyricScore.Of(_sheet);
+        _lineSection = new int[_sheet.Lines.Count];
+        foreach (var piece in _score.Parts)
+            if (piece.Line >= 0 && piece.Line < _lineSection.Length)
+                _lineSection[piece.Line] = piece.Section;
 
         _lyricLines = new TextBlock[_sheet.Lines.Count];
         _lyricDots = new Microsoft.UI.Xaml.Documents.Run[]?[_sheet.Lines.Count];
@@ -293,7 +305,7 @@ public sealed partial class PegasusChrome : UserControl
                 LyricBody.Children.Add(aside);
             }
 
-            if (string.IsNullOrWhiteSpace(_sheet.Lines[i].Text))
+            if (LyricSheet.IsWordless(_sheet.Lines[i].Text))
                 _lyricDots[i] = FillDots(block);
             else
                 FillWords(block, i, []);
@@ -871,7 +883,8 @@ public sealed partial class PegasusChrome : UserControl
     private bool _alignWords;
 
     /// <summary>
-    /// Which line is being sung. This is not always the line the sheet's stamps point at.
+    /// Which piece of the score is being sung (see <see cref="LyricScore"/>), or -1 before the first line.
+    /// This is not always the piece the sheet's stamps point at.
     ///
     /// <para>An LRC file says when each line STARTS. It never says when a line ends. So the only end it can
     /// offer is the start of the next line. Those are different facts. It is normal for a singer to hold
@@ -882,43 +895,49 @@ public sealed partial class PegasusChrome : UserControl
     /// <para>Where a line's words have been MEASURED, the record itself says when the line ends. So the
     /// line is held until its last word is done. It is only held until the NEXT line actually starts,
     /// though. Two lines cannot both be sung at once. When the singer reaches the next line, that line has
-    /// the floor, however long the last one ran.</para>
+    /// the floor, however long the last one ran. A rest that no line marks starts a few seconds after the
+    /// line before it, and that line is held past it the same way.</para>
     ///
     /// <para>A guessed line has no measured end to rely on. It falls through to the sheet's own stamps.
     /// This is the behaviour it has always had.</para>
     ///
     /// <para><b>A line waits for its voice.</b> A line measured to start well after its stamp would take
-    /// over at the stamp and stand there unlit until the singer reached it. So the line before it stays up
+    /// over at the stamp and stand there unlit until the singer reached it. So the piece before it stays up
     /// until the light is about to arrive on the new line's first word (<see cref="VoiceLead"/> before it),
     /// but never longer than <see cref="VoiceWaitLongest"/> past the stamp. A measurement that went astray
     /// cannot hold the sheet back for longer than that.</para>
     /// </summary>
     private int SungAt(double pos)
     {
-        var at = _sheet.IndexAt(pos);
+        var at = _score.IndexAt(pos);
         if (at < 0)
             return at;
 
-        // Where the line on the sheet actually begins: its first measured word where it has been measured,
-        // and its own stamp otherwise, which is all there is to go on.
-        double? measuredStart = at < _lyricWordMeasured.Length && _lyricWordMeasured[at]
-                                && at < _lyricWordSpans.Length && _lyricWordSpans[at] is { Length: > 0 } next
-            ? next[0].From
-            : null;
-        var stamp = _sheet.Lines[at].Seconds;
+        // Where the line actually begins: its first measured word where it has been measured, and its own
+        // stamp otherwise, which is all there is to go on.
+        double? measuredStart = Measured(at) is { } next ? next[0].From : null;
+        var stamp = _score.Parts[at].From;
 
         var last = at - 1;
-        if (last >= 0 && last < _lyricWordMeasured.Length && _lyricWordMeasured[last]
-            && _lyricWordSpans[last] is { Length: > 0 } previous
-            && pos < previous[^1].To)
+        if (last >= 0 && Measured(last) is { } previous && pos < previous[^1].To)
             return pos < (measuredStart ?? stamp) ? last : at;
 
-        // The line before is done (or was never measured), and this one is measured to start well after its
-        // stamp. The line before stays up until the light is about to reach this one, within the limit.
+        // The piece before is done (or was never measured), and this one is measured to start well after its
+        // stamp. The piece before stays up until the light is about to reach this one, within the limit.
         if (measuredStart is { } starts && pos < starts - VoiceLead && pos < stamp + VoiceWaitLongest)
             return last;
 
         return at;
+
+        // The measured words of a piece, or null for a rest and for a line whose words were shared out.
+        WordSpan[]? Measured(int part)
+        {
+            var line = _score.Parts[part] is { IsRest: false } words ? words.Line : -1;
+            return line >= 0 && line < _lyricWordMeasured.Length && _lyricWordMeasured[line]
+                   && line < _lyricWordSpans.Length && _lyricWordSpans[line] is { Length: > 0 } spans
+                ? spans
+                : null;
+        }
     }
 
     /// <summary>How long before its first measured word a line takes over, in seconds: about when the
@@ -1051,8 +1070,8 @@ public sealed partial class PegasusChrome : UserControl
     /// on one row. A rap verse or a long chorus line has a great many words. It still stops short of the
     /// full width of a big monitor, which would read as a paragraph rather than a lyric.
     ///
-    /// <para>This has its own method because three things are placed against it: the sheet, the intro card
-    /// that stands in the sheet's place, and the box the room is told to keep the mirror ball out
+    /// <para>This has its own method because three things are placed against it: the sheet, the dots that
+    /// stand where no line does, and the box the room is told to keep the mirror ball out
     /// of.</para>
     /// </summary>
     private static double LyricColumn(double w) => Math.Min(w * 0.78, 1400);
@@ -1098,6 +1117,7 @@ public sealed partial class PegasusChrome : UserControl
         _lyricSize = size;
         _lyricColumn = column;
         _lyricLeft = left;
+        PlaceCount(w, h);
 
         LayoutFoot(w, h);
         for (int i = 0; i < _lyricLines.Length; i++)
@@ -1383,7 +1403,16 @@ public sealed partial class PegasusChrome : UserControl
             return;
 
         var pos = _amp?.Position ?? 0;
-        var at = SungAt(pos);
+        var part = SungAt(pos);
+        var piece = part >= 0 ? _score.Parts[part] : default;
+
+        // The sheet line being sung: a line of words, or a break line with its dots. It is -1 before the
+        // first line, and in a rest that no line marks, where no line is lit.
+        var at = part >= 0 ? piece.Line : -1;
+
+        // The line the sheet is held on: the one being sung; in a rest that no line marks, the last line sung
+        // before it; before the first line, the first line.
+        var still = at >= 0 ? at : part > 0 ? Math.Max(0, _score.Parts[part - 1].Line) : 0;
         if (_lineY.Length != _lyricLines.Length)
             return;
 
@@ -1395,7 +1424,7 @@ public sealed partial class PegasusChrome : UserControl
         // layout would have the sheet easing toward a place that no longer exists.
         FoldAsides(dt, at);
 
-        var idx = Math.Clamp(at < 0 ? 0 : at, 0, _lineY.Length - 1);
+        var idx = Math.Clamp(still, 0, _lineY.Length - 1);
         var target = _lineY[idx] + _lineH[idx] / 2;
 
         // The ease does not depend on the frame rate. When there is no frame to interpolate from, the sheet
@@ -1428,7 +1457,7 @@ public sealed partial class PegasusChrome : UserControl
         LyricGlow.Opacity = at < 0 ? 0 : 0.10 + _glowBass * 0.55;
         LyricGlowScale.ScaleX = LyricGlowScale.ScaleY = 1 + _glowBass * 0.14;
 
-        Hush(pos, at);
+        TickCount(dt, pos, part);
 
         // This runs every frame, like the glow. A break filling in is the one thing on this sheet that
         // moves between one line and the next. It is the whole reason a break is worth drawing.
@@ -1456,7 +1485,7 @@ public sealed partial class PegasusChrome : UserControl
         // The line that has arrived, and the one after it, are measured from the record where this machine
         // can manage it. This runs when the line changes, not every frame, and each line is only ever asked
         // about once.
-        AlignLines(at);
+        AlignLines(part >= 0 && at < 0 ? still : at);
 
         if (_lineFadeFrom.Length != _lyricLines.Length)
         {
@@ -1467,19 +1496,19 @@ public sealed partial class PegasusChrome : UserControl
 
         // Only on a change of line, which is a few times a minute. The sung line is lit and the ones
         // around it fall away, so the eye is told where it is without the rest becoming a wall of text.
+        //
+        // Only the stretch being sung is shown (see LyricScore). The lines of the next stretch come up when it
+        // starts, not through the solo before it. In a rest, the words go and only its dots stand. Before the
+        // first line nothing of the sheet stands: the dots count in to it (see TickCount).
+        var resting = part >= 0 && piece.IsRest;
         for (int i = 0; i < _lyricLines.Length; i++)
         {
             var distance = Math.Abs(i - at);
             var block = _lyricLines[i];
-            var strength = at < 0
-                ? (i == 0 ? 0.55 : Math.Max(0, 0.34 - i * 0.10))
-                : distance switch
-                {
-                    0 => 1.0,
-                    1 => 0.42,
-                    2 => 0.24,
-                    _ => distance <= LyricReach ? 0.12 : 0.0,
-                };
+            var ours = part >= 0 && i < _lineSection.Length && _lineSection[i] == piece.Section;
+            var strength = !ours ? 0.0
+                : resting ? (i == at ? 1.0 : 0.0)
+                : distance <= LyricReach ? LyricScore.Fade(distance) : 0.0;
 
             // A second voice that has been sung is over. It stays in the column while it is coming in, so a
             // reader can see the answer arriving. It goes as soon as the singer is past it, so it does not
@@ -1763,38 +1792,78 @@ public sealed partial class PegasusChrome : UserControl
     }
 
     /// <summary>
-    /// Takes the sheet away while nothing is being sung, and brings it back before the singer starts.
-    /// During a long intro, the record's own name stands in its place.
+    /// The three dots that stand in the middle of the column where no line does: before the first line,
+    /// counting in to it, and in a rest that no line marks (a long wait, and the outro), filling across it.
     ///
-    /// <para>The rule is <see cref="LyricHush"/>'s, and it depends only on the playhead. This method only
-    /// writes the result to the screen. The change is eased, so the hush fades like every other fade in
-    /// this window, even though no <see cref="Fader"/> drives it.</para>
+    /// <para>They fill from the playhead, as a break line's dots do (see <see cref="TickDots"/>), so a seek
+    /// into the middle of a wait finds them part filled. A rest that never ends never fills. They come and
+    /// go on the lines' own fade. They are not part of the sheet, so they do not scroll with it.</para>
     /// </summary>
-    private void Hush(double pos, int at)
+    private void TickCount(double dt, double pos, int part)
     {
-        // The wait being sat through. Before the first line this is the intro, measured from the top of the
-        // record. After the last line it never ends. An infinity is used to say so.
-        var intro = at < 0;
-        var from = intro ? 0 : _sheet.Lines[at].Seconds;
-        var until = at + 1 < _sheet.Lines.Count ? _sheet.Lines[at + 1].Seconds : double.PositiveInfinity;
+        var want = 0.0;
+        var through = 0.0;
+        if (part < 0 && _sheet.Lines.Count > 0)
+        {
+            var first = _sheet.Lines[0].Seconds;
+            want = 1;
+            through = first <= 0 ? 1 : Math.Clamp(pos / first, 0, 1);
+        }
+        else if (part >= 0 && _score.Parts[part] is { IsRest: true, Line: < 0 } rest)
+        {
+            want = 1;
+            through = LyricScore.Through(pos, rest.From, rest.Until);
+        }
 
-        var show = Fader.Ease(LyricHush.Show(pos, from, until, intro));
+        _countShow = dt <= 0 || Math.Abs(want - _countShow) <= dt / LineFadeSeconds
+            ? want
+            : _countShow + (Math.Sign(want - _countShow) * dt / LineFadeSeconds);
 
-        // The card takes exactly what the sheet gives up, and it is only shown before the first line. A
-        // break in the middle of a song is a break in something the listener is already following.
-        // Announcing the title there would tell them what they already know. Once the singing has started,
-        // this is zero on every frame, and the card is not there.
-        //
-        // It is never shown beside the record. The record's own title is on screen next to the sheet, and a
-        // second one would name the record twice.
-        var card = intro && !_lyricBeside ? 1 - show : 0;
+        // Guarded, as everything written every frame here is. An opacity write is a composition pass.
+        var shown = Fader.Ease(_countShow);
+        if (LyricCount.Opacity != shown)
+            LyricCount.Opacity = shown;
+        if (shown <= 0)
+            return;
 
-        // This runs every frame, and the answer is the same on nearly every one. So it is guarded. Writing
-        // an opacity is a composition pass, and the stage next door pays for it.
-        if (LyricBody.Opacity != show)
-            LyricBody.Opacity = show;
-        if (LyricIntro.Opacity != card)
-            LyricIntro.Opacity = card;
+        var dots = CountDots();
+        for (var d = 0; d < dots.Length; d++)
+            Light(dots[d], DotRest + ((1 - DotRest) * Math.Clamp((through * dots.Length) - d, 0, 1)));
+    }
+
+    /// <summary>How far the count's dots have come up, from nought to one, before easing.</summary>
+    private double _countShow;
+
+    private Microsoft.UI.Xaml.Documents.Run[]? _countDots;
+
+    /// <summary>The count's three dots, made the first time they are needed.</summary>
+    private Microsoft.UI.Xaml.Documents.Run[] CountDots() => _countDots ??= FillDots(LyricCount);
+
+    /// <summary>
+    /// The count's dots while the record's sheet is still being looked up: faint and unfilled, so the
+    /// column says that words are coming. They stand only while a lookup runs and no sheet is built, and
+    /// the layer is put away when the answer is that there is none.
+    /// </summary>
+    private void ShowWaiting()
+    {
+        if (_lyricLines.Length > 0)
+            return;
+
+        LyricLayer.Visibility = LyricsPending ? Visibility.Visible : Visibility.Collapsed;
+        _countShow = LyricsPending ? 1 : 0;
+        LyricCount.Opacity = _countShow;
+        foreach (var dot in CountDots())
+            Light(dot, DotRest);
+    }
+
+    /// <summary>Puts the count's dots in the middle of the column the sheet is read through, at the
+    /// sheet's own type size.</summary>
+    private void PlaceCount(double w, double h)
+    {
+        var (left, column) = SheetColumn(w, h);
+        LyricCount.FontSize = Math.Clamp(h * 0.030, 15, 34);
+        LyricCount.Width = Math.Max(0, column);
+        LyricCount.Margin = new Thickness(left, 0, 0, 0);
     }
 
     /// <summary>The two brushes a lyric is drawn in, made once. Making a brush for each line on each frame
@@ -1904,6 +1973,15 @@ public sealed partial class PegasusChrome : UserControl
     private readonly LyricBrushes _lyricInk = new();
 
     private LyricSheet _sheet = LyricSheet.Empty;
+
+    /// <summary>The sheet cut into stretches and rests (see <see cref="LyricScore"/>), made with the
+    /// lines.</summary>
+    private LyricScore _score = LyricScore.Empty;
+
+    /// <summary>The stretch of singing each sheet line belongs to. Only the stretch being sung is
+    /// shown.</summary>
+    private int[] _lineSection = [];
+
     private TextBlock[] _lyricLines = [];
     private TranslateTransform _lyricShift = new();
     private CancellationTokenSource? _lyricLookup;
@@ -1977,8 +2055,8 @@ public sealed partial class PegasusChrome : UserControl
         _wordsFade = new Fader(Words);
         _scrimFade = new Fader(WordScrim);
         _centreFade = new Fader(Centre);
-        // The LAYER, not the sheet inside it. The view's dissolve has to take the intro card with the
-        // words. The sheet's own opacity underneath is the hush's to write.
+        // The LAYER, not the sheet inside it. The view's dissolve has to take the count's dots with the
+        // words. Each line's own opacity underneath is the singer's to write (TickLyrics).
         _lyricFade = new Fader(LyricLayer);
         _coverAFade = new Fader(CoverA);
         _coverBFade = new Fader(CoverB);
@@ -2706,13 +2784,6 @@ public sealed partial class PegasusChrome : UserControl
         SetText(_lines[1], art.TrackArtist);
         SetText(_lines[2], TitleCensor.Shown(art.TrackAlbum));
 
-        // The same two names again, for the card that stands in for the sheet through a long intro. These
-        // are plain blocks, not Marquees. The card is centred on the whole screen with no column to clip
-        // it, so a long title wraps where a Marquee would have to scroll. Guarded like the rest, because
-        // this runs on every republish and an identical string still costs the measure.
-        SetPlain(LyricIntroTitle, TitleCensor.Shown(art.TrackTitle));
-        SetPlain(LyricIntroArtist, art.TrackArtist);
-
         // …and the mini player over the collection. It asks the same question of the same chrome, on the
         // one screen that is not a picture of the record (see PegasusChrome.Library). Title, artist and
         // album, in that order. A line with nothing on it is taken out, rather than left as a gap.
@@ -2764,15 +2835,6 @@ public sealed partial class PegasusChrome : UserControl
             line.Text.Text = text;
             line.Remeasure();
             line.Rewind();
-        }
-
-        // A block that neither travels nor is clipped has nothing to wind back. Only the write itself is
-        // worth guarding.
-        static void SetPlain(TextBlock block, string? value)
-        {
-            var text = value ?? "";
-            if (block.Text != text)
-                block.Text = text;
         }
 
         static Visibility Shown(string? line) =>
@@ -4872,13 +4934,8 @@ public sealed partial class PegasusChrome : UserControl
         AlbumText.FontSize = title * 0.62;
         Seek.RemainSize = LyricSeek.RemainSize = 18;
 
-        // The intro card uses the same figure, in the same proportion. It is meant to be recognised as the
-        // drawn-in composition's words, met again in the middle of the screen. It is held to the width the
-        // lyric's own lines are read through, not the whole window. So a long title breaks where a sung
-        // line would, and the card stays a card instead of becoming a banner.
-        LyricIntroTitle.FontSize = title;
-        LyricIntroArtist.FontSize = title * 0.75;
-        LyricIntro.MaxWidth = LyricColumn(w);
+        // The count's dots stand in the lyric's column, also with no sheet laid out yet (see PlaceCount).
+        PlaceCount(w, h);
 
         // The column each line is read through, and then its own width within it. Both come from the one
         // number that the seek bar under them is also stretched to. A line whose travel and whose clip come

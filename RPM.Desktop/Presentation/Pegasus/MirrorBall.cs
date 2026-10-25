@@ -23,7 +23,7 @@ namespace RPM.Desktop.Presentation.Pegasus;
 ///
 /// <para>A function of two tags and nothing else: no state, no library lookup, no service. That makes it
 /// testable without a window, which is why it is here and not inside the player (the same approach that
-/// <see cref="LyricHush"/> uses).</para>
+/// <see cref="RPM.Core.Lyrics.LyricScore"/> uses).</para>
 /// </summary>
 internal static class MirrorBall
 {

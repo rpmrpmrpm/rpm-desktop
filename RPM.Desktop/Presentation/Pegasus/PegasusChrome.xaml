@@ -360,13 +360,12 @@
 
       <!-- The sheet that scrolls. The layer above carries the opacity of the VIEW for everything in here,
            so this element can be moved by the singer alone: the scroll transform belongs only to it, and
-           the card below must not move with it. -->
+           the dots below must not move with it. -->
       <Canvas x:Name="LyricHost">
-        <!-- The sheet's own opacity INSIDE the layer's opacity, the same technique as the transport
-             below. The layer says whether this view is on screen, and this says whether anything is being
-             sung now. The two multiply, and neither needs to know about the other. It is a canvas with no
-             size of its own: it is a handle to fade by, not a box, and every line inside it is placed at
-             the same coordinates as without it, on the host's own origin. See TickLyrics. -->
+        <!-- The sheet itself, inside the layer's opacity. The layer says whether this view is on screen;
+             each line's own opacity says whether it belongs to the stretch being sung (see TickLyrics). It
+             is a canvas with no size of its own: every line inside it is placed at the same coordinates as
+             without it, on the host's own origin. -->
         <Canvas x:Name="LyricBody">
           <!-- The light behind the line that is being sung. It is a soft radial gradient, not a blurred
                copy of the words: text drawn twice looks like a double image unless it is really blurred,
@@ -390,27 +389,13 @@
         </Canvas>
       </Canvas>
 
-      <!-- What is shown in place of the sheet during a long intro: the track's own name, in the middle of
-           the screen. It has the same style and size as the words under the cover in the drawn-in
-           composition, on purpose: it answers the same question, "what am I listening to", and a user who
-           has seen one should recognise the other.
-
-           The title and the artist only. The album is on the third line of the second view because there
-           is a column there to carry it. Here there is a short wait before a song starts, and a third
-           line would turn the name into an album cover.
-
-           Its opacity is the exact complement of the sheet's, so the two cross-fade and are not both on
-           screen at once: the card arrives as the words leave and is gone by the time the words are back.
-           It is placed in the LAYER, not the host, so that it stays still while the sheet scrolls behind
-           it. It wraps and does not scroll: a long title here has the whole width of the screen, with no
-           column that clips it, so it never needs to move. -->
-      <StackPanel x:Name="LyricIntro" HorizontalAlignment="Center" VerticalAlignment="Center"
-                  IsHitTestVisible="False" Opacity="0" Spacing="6">
-        <TextBlock x:Name="LyricIntroTitle" FontWeight="SemiBold" TextWrapping="Wrap"
-                   TextAlignment="Center" HorizontalAlignment="Center" Foreground="#FFFFFFFF"/>
-        <TextBlock x:Name="LyricIntroArtist" TextWrapping="Wrap"
-                   TextAlignment="Center" HorizontalAlignment="Center" Foreground="#B3FFFFFF"/>
-      </StackPanel>
+      <!-- The three dots that stand where no line does: before the first line, counting in to it, and in a
+           rest that no line marks, filling across it; faint and unfilled while the sheet is still looked up
+           (TickCount, ShowWaiting). They are in the LAYER, not the host, so they stay still while the sheet
+           scrolls behind them. Their runs are made in code, as a break line's are (FillDots), and they are
+           placed in the lyric's column at its type size (PlaceCount). -->
+      <TextBlock x:Name="LyricCount" HorizontalAlignment="Left" VerticalAlignment="Center"
+                 TextAlignment="Center" FontWeight="SemiBold" IsHitTestVisible="False" Opacity="0"/>
     </Grid>
 
     <!-- The lyric view's own seek bar, along the foot at the width of the words above it.
