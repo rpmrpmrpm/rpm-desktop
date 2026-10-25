@@ -716,7 +716,7 @@ public sealed partial class PegasusChrome
 
         if (_genreCounts is not null)
         {
-            _genreCounts.FontSize = 15 * scale;
+            _genreCounts.FontSize = 19 * scale;   // the TV's couch size for a page's text (PAGE_TEXT)
             _genreCounts.Margin = new Thickness(0, 12 * scale, 0, 0);
         }
         if (_genreKeys is not null)
@@ -736,7 +736,7 @@ public sealed partial class PegasusChrome
         }
         if (_genreAbout is not null)
         {
-            _genreAbout.FontSize = 14 * scale;
+            _genreAbout.FontSize = 19 * scale;
             _genreAbout.MaxWidth = 900 * scale;
             _genreAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
         }

@@ -1089,10 +1089,10 @@ public sealed partial class PegasusChrome
 
         _artistHead.ColumnSpacing = 40 * scale;
         if (_artistName is not null)
-            _artistName.FontSize = 40 * scale;
+            _artistName.FontSize = 44 * scale;   // the TV's couch sizes here: the name 44, the rest 19 (PAGE_TEXT)
         if (_artistCounts is not null)
         {
-            _artistCounts.FontSize = 15 * scale;
+            _artistCounts.FontSize = 19 * scale;
             _artistCounts.Margin = new Thickness(0, 10 * scale, 0, 0);
         }
         if (_artistKeys is not null)
@@ -1115,7 +1115,7 @@ public sealed partial class PegasusChrome
         _artistAboutWidth = Math.Max(160, Math.Min(900 * scale, strip - edge - (40 * scale)));
         if (_artistAbout is not null)
         {
-            _artistAbout.FontSize = 14 * scale;
+            _artistAbout.FontSize = 19 * scale;
             _artistAbout.MaxWidth = _artistAboutWidth;
             _artistAbout.Margin = new Thickness(0, 18 * scale, 0, 0);
             CutArtistAbout();
