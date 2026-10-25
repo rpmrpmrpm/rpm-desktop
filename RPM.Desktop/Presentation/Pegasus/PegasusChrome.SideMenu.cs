@@ -881,6 +881,13 @@ public sealed partial class PegasusChrome
                 PegasusView.Room => "Viz_LayoutVisuals",
                 _ => "Viz_LayoutFull",
             }), s => s.NextLayout()),
+            new("Tv_SettingsRoomStyle", s => Loc.Get(s.RoomStyle switch
+            {
+                RPM.Core.Viz.RoomStyle.Yang => "Tv_RoomStyleYang",
+                RPM.Core.Viz.RoomStyle.Lava => "Tv_RoomStyleLava",
+                RPM.Core.Viz.RoomStyle.Alchemy => "Tv_RoomStyleAlchemy",
+                _ => "Tv_RoomStyleOriginal",
+            }), s => s.NextRoomStyle()),
         ]),
     ];
 

@@ -37,6 +37,13 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// where it is writing (<see cref="SetWordBox"/>), and the ball clears out of that box. A hard white speck on
 /// text would make the text unreadable.</para>
 ///
+/// <para><b>The animation.</b> The figures above are the room every rpm app draws, the original. The listener
+/// can pick another animation in Pegasus's settings (<see cref="RoomStyle"/>, see <see cref="SetStyle"/>): Yang,
+/// Lava or Alchemy, the same three the TV app draws. Each is the same program as the original with another
+/// function in place of <c>rpmRoom</c> (<see cref="RoomStyleSource"/>). Everything after the room, the dim, the
+/// mirror ball, the spectrum, the vignette and the grain, is the same text in all four. Each animation's program
+/// is compiled the first time it is drawn.</para>
+///
 /// <para>Nothing here draws the cover, the record or the words. Those are XAML over this surface. The record
 /// on this screen is the same control that turns in the header, with the same pressing and the same disc art.</para>
 /// </summary>
@@ -99,10 +106,36 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     private Vector4 _wordBox, _wordBoxTo;
     private float _words, _wordsTo;
 
-    private uint _vao, _vbo, _program, _bandTex;
-    private int _uRes, _uTime, _uBass, _uMid, _uAir, _uGround, _uTint, _uGlow, _uShade, _uBands, _uBare, _uBall;
-    private int _uBallSpin, _uWordBox, _uWords;
+    // Which animation the room draws (see SetStyle). A change shows on the next frame, as a cut. A fade
+    // between two animations would draw both, which is twice the room's cost for as long as it lasts.
+    private RoomStyle _style = RoomStyle.Original;
+
+    // Where the figures of the other animations are this frame. All three clocks run on while another
+    // animation is shown, so a switch back finds the figures moving rather than starting again.
+    private readonly RoomFigures _figures = new();
+
+    // Each animation's program and its uniforms, by RoomStyle, built the first time it is drawn in this context.
+    // Compiling all four at the start would spend the slowest step on a cold driver on animations that may never
+    // be shown. An animation whose program failed is not tried again in this context; the original is drawn in
+    // its place.
+    private readonly RoomPass?[] _passes = new RoomPass?[Enum.GetValues<RoomStyle>().Length];
+    private readonly bool[] _failed = new bool[Enum.GetValues<RoomStyle>().Length];
+
+    private uint _vao, _vbo, _bandTex;
     private string _versionDef = "#version 300 es";
+
+    /// <summary>One animation's program, and where its uniforms are. A uniform the program does not use is at
+    /// -1, and is not set.</summary>
+    private sealed class RoomPass
+    {
+        public uint Program;
+        public int Res, Time, Bass, Mid, Air, Ground, Tint, Glow, Shade, Bands, Bare, Ball;
+        public int BallSpin, WordBox, Words;
+
+        /// <summary>The animation's three arrays of figures (see RoomStyleSource.Arrays), and how many vec4
+        /// each holds. Empty for the original.</summary>
+        public (int Location, int Count)[] Arrays = [];
+    }
 
 
     public PegasusStage() : base(static () => Common.GlHost.Window())
@@ -191,6 +224,16 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
             _wordBoxTo = new Vector4((float)left, (float)top, (float)right, (float)bottom);
     }
 
+    /// <summary>
+    /// Which animation the room draws. The change shows on the next frame, as a cut, so it can be seen while
+    /// the settings panel is open over the collection.
+    ///
+    /// <para>The first frame of an animation not drawn before in this context compiles its program, which
+    /// can hold that one frame back a little. If the program does not compile, the original is drawn in its
+    /// place and the reason is reported as the stage's <see cref="LastError"/>.</para>
+    /// </summary>
+    public void SetStyle(RoomStyle style) => _style = style;
+
     private void Start()
     {
         if (_running) return;
@@ -259,7 +302,8 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     // cannot compile still answers at once, through SetError. A room that will never paint must not hold the
     // cover for its full four seconds.
 
-        BuildProgram(gl);
+        // The program of the animation the room opens on, or of the original if that one does not compile.
+        PassFor(gl, _style);
 
         // One quad, already in clip space: everything about this picture is worked out per fragment.
         float[] quad =
@@ -293,32 +337,21 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
         gl.TexImage2D<byte>(TextureTarget.Texture2D, 0, InternalFormat.Rgba8,
             RoomBands.Bands, 1, 0, PixelFormat.Rgba, PixelType.UnsignedByte, _bandRgba);
 
-        _uRes = gl.GetUniformLocation(_program, "uResolution");
-        _uTime = gl.GetUniformLocation(_program, "uTime");
-        _uBass = gl.GetUniformLocation(_program, "uBass");
-        _uMid = gl.GetUniformLocation(_program, "uMid");
-        _uAir = gl.GetUniformLocation(_program, "uAir");
-        _uGround = gl.GetUniformLocation(_program, "uGround");
-        _uTint = gl.GetUniformLocation(_program, "uTint");
-        _uGlow = gl.GetUniformLocation(_program, "uGlow");
-        _uShade = gl.GetUniformLocation(_program, "uShade");
-        _uBands = gl.GetUniformLocation(_program, "uBands");
-        _uBare = gl.GetUniformLocation(_program, "uBare");
-        _uBall = gl.GetUniformLocation(_program, "uBall");
-        _uBallSpin = gl.GetUniformLocation(_program, "uBallSpin");
-        _uWordBox = gl.GetUniformLocation(_program, "uWordBox");
-        _uWords = gl.GetUniformLocation(_program, "uWords");
-
         _glReady = true;
     }
 
     protected override void OnDestroy(GL gl)
     {
-        if (_program != 0) gl.DeleteProgram(_program);
+        for (int i = 0; i < _passes.Length; i++)
+        {
+            if (_passes[i] is { } pass) gl.DeleteProgram(pass.Program);
+            _passes[i] = null;
+            _failed[i] = false;
+        }
         if (_vbo != 0) gl.DeleteBuffer(_vbo);
         if (_vao != 0) gl.DeleteVertexArray(_vao);
         if (_bandTex != 0) gl.DeleteTexture(_bandTex);
-        _program = _vbo = _vao = _bandTex = 0;
+        _vbo = _vao = _bandTex = 0;
         _glReady = false;
 
         // A lost context takes the room's answer with it. The next context has to compile its own shaders and
@@ -358,6 +391,9 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
         _wordBox += (_wordBoxTo - _wordBox) * c;
         _words += (_wordsTo - _words) * c;
 
+        // The other animations' clocks run on whichever animation is shown (see _figures).
+        _figures.Advance(dt, _room.Bass, _room.Mid);
+
         // The ball turns, and turns faster under a kick. Its clock is added up here, not read from the room's
         // clock, so the rate can change without the phase jumping. See _ballSpin.
         _ballSpin += dt * (1.0 + BallSpinBass * _room.Bass);
@@ -371,29 +407,32 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
         gl.Disable(EnableCap.Blend);
         gl.Disable(EnableCap.CullFace);
 
-        if (_program != 0)
+        var style = _style;
+        if (PassFor(gl, style) is { } pass)
         {
-            gl.UseProgram(_program);
-            if (_uRes >= 0) gl.Uniform2(_uRes, w, h);
-            if (_uTime >= 0) gl.Uniform1(_uTime, (float)now);
-            if (_uBass >= 0) gl.Uniform1(_uBass, _room.Bass);
-            if (_uMid >= 0) gl.Uniform1(_uMid, _room.Mid);
-            if (_uAir >= 0) gl.Uniform1(_uAir, _room.Air);
-            if (_uGround >= 0) gl.Uniform3(_uGround, _palette.Ground.X, _palette.Ground.Y, _palette.Ground.Z);
-            if (_uTint >= 0) gl.Uniform3(_uTint, _palette.Tint.X, _palette.Tint.Y, _palette.Tint.Z);
-            if (_uGlow >= 0) gl.Uniform3(_uGlow, _palette.Glow.X, _palette.Glow.Y, _palette.Glow.Z);
-            if (_uShade >= 0) gl.Uniform3(_uShade, _palette.Shade.X, _palette.Shade.Y, _palette.Shade.Z);
-            if (_uBare >= 0) gl.Uniform1(_uBare, _bare);
-            if (_uBall >= 0) gl.Uniform1(_uBall, _ball);
-            if (_uBallSpin >= 0) gl.Uniform1(_uBallSpin, (float)_ballSpin);
-            if (_uWordBox >= 0) gl.Uniform4(_uWordBox, _wordBox.X, _wordBox.Y, _wordBox.Z, _wordBox.W);
-            if (_uWords >= 0) gl.Uniform1(_uWords, _words);
-            if (_uBands >= 0)
+            gl.UseProgram(pass.Program);
+            if (pass.Res >= 0) gl.Uniform2(pass.Res, w, h);
+            if (pass.Time >= 0) gl.Uniform1(pass.Time, (float)now);
+            if (pass.Bass >= 0) gl.Uniform1(pass.Bass, _room.Bass);
+            if (pass.Mid >= 0) gl.Uniform1(pass.Mid, _room.Mid);
+            if (pass.Air >= 0) gl.Uniform1(pass.Air, _room.Air);
+            if (pass.Ground >= 0) gl.Uniform3(pass.Ground, _palette.Ground.X, _palette.Ground.Y, _palette.Ground.Z);
+            if (pass.Tint >= 0) gl.Uniform3(pass.Tint, _palette.Tint.X, _palette.Tint.Y, _palette.Tint.Z);
+            if (pass.Glow >= 0) gl.Uniform3(pass.Glow, _palette.Glow.X, _palette.Glow.Y, _palette.Glow.Z);
+            if (pass.Shade >= 0) gl.Uniform3(pass.Shade, _palette.Shade.X, _palette.Shade.Y, _palette.Shade.Z);
+            if (pass.Bare >= 0) gl.Uniform1(pass.Bare, _bare);
+            if (pass.Ball >= 0) gl.Uniform1(pass.Ball, _ball);
+            if (pass.BallSpin >= 0) gl.Uniform1(pass.BallSpin, (float)_ballSpin);
+            if (pass.WordBox >= 0) gl.Uniform4(pass.WordBox, _wordBox.X, _wordBox.Y, _wordBox.Z, _wordBox.W);
+            if (pass.Words >= 0) gl.Uniform1(pass.Words, _words);
+            if (pass.Bands >= 0)
             {
                 gl.ActiveTexture(TextureUnit.Texture0);
                 gl.BindTexture(TextureTarget.Texture2D, _bandTex);
-                gl.Uniform1(_uBands, 0);
+                gl.Uniform1(pass.Bands, 0);
             }
+            if (pass.Arrays.Length > 0)
+                SetFigures(gl, pass, style, now);
 
             gl.BindVertexArray(_vao);
             gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -447,17 +486,153 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
 
     // shaders
 
-    private void BuildProgram(GL gl)
+    /// <summary>
+    /// The program for <paramref name="style"/>, built the first time it is asked for in this context. If it
+    /// does not compile, the original's program is given in its place, and the animation is not tried again
+    /// until the context is made again. Null only when the original does not compile either.
+    /// </summary>
+    private RoomPass? PassFor(GL gl, RoomStyle style)
     {
-        string vertex = $$"""
-            {{_versionDef}}
-            precision highp float;
-            layout (location = 0) in vec2 aPos;
-            void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
-            """;
+        int i = (int)style;
+        if (_passes[i] is { } built)
+            return built;
+        if (!_failed[i])
+        {
+            if (BuildPass(gl, style) is { } pass)
+                return _passes[i] = pass;
+            _failed[i] = true;
+        }
+        return style == RoomStyle.Original ? null : PassFor(gl, RoomStyle.Original);
+    }
 
-        string fragment = $$"""
-            {{_versionDef}}
+    /// <summary>Hands <paramref name="style"/>'s figures for this frame to its program. The figures are worked
+    /// out here, once a frame, at <paramref name="now"/> on the room's clock (see RoomFigures).</summary>
+    private void SetFigures(GL gl, RoomPass pass, RoomStyle style, double now)
+    {
+        float bass = _room.Bass, mid = _room.Mid, air = _room.Air;
+        switch (style)
+        {
+            case RoomStyle.Yang:
+                _figures.Yang(now, bass, mid, air);
+                SetArrays(gl, pass, _figures.Big, _figures.Small, _figures.Centre);
+                break;
+            case RoomStyle.Lava:
+                _figures.Lava(bass, mid);
+                SetArrays(gl, pass, _figures.Blobs, _figures.Pools, _figures.Back);
+                break;
+            case RoomStyle.Alchemy:
+                _figures.Alchemy(bass, mid, air);
+                SetArrays(gl, pass, _figures.RibbonA, _figures.RibbonB, _figures.RibbonC);
+                break;
+        }
+    }
+
+    /// <summary>The three arrays of vec4, in the order RoomStyleSource.Arrays names them.</summary>
+    private static void SetArrays(GL gl, RoomPass pass, float[] a, float[] b, float[] c)
+    {
+        SetArray(gl, pass.Arrays[0], a);
+        SetArray(gl, pass.Arrays[1], b);
+        SetArray(gl, pass.Arrays[2], c);
+    }
+
+    private static void SetArray(GL gl, (int Location, int Count) array, float[] values)
+    {
+        if (array.Location >= 0)
+            gl.Uniform4(array.Location, (uint)array.Count, (ReadOnlySpan<float>)values.AsSpan(0, array.Count * 4));
+    }
+
+    /// <summary>Compiles and links <paramref name="style"/>'s program and finds its uniforms. Null when it does
+    /// not compile or link; the reason is then the stage's <see cref="LastError"/>.</summary>
+    private RoomPass? BuildPass(GL gl, RoomStyle style)
+    {
+        try
+        {
+            uint vs = Compile(gl, ShaderType.VertexShader, GlslSource.Ascii(VertexSource(_versionDef)));
+            uint fs;
+            try
+            {
+                fs = Compile(gl, ShaderType.FragmentShader, GlslSource.Ascii(FragmentSource(_versionDef, style)));
+            }
+            catch
+            {
+                gl.DeleteShader(vs);
+                throw;
+            }
+            uint program = gl.CreateProgram();
+            gl.AttachShader(program, vs);
+            gl.AttachShader(program, fs);
+            gl.LinkProgram(program);
+            gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int linked);
+            gl.DetachShader(program, vs);
+            gl.DetachShader(program, fs);
+            gl.DeleteShader(vs);
+            gl.DeleteShader(fs);
+            if (linked != (int)GLEnum.True)
+            {
+                string log = gl.GetProgramInfoLog(program);
+                gl.DeleteProgram(program);
+                SetError(Failed(style, "Program link failed: " + log));
+                return null;
+            }
+
+            var pass = new RoomPass
+            {
+                Program = program,
+                Res = gl.GetUniformLocation(program, "uResolution"),
+                Time = gl.GetUniformLocation(program, "uTime"),
+                Bass = gl.GetUniformLocation(program, "uBass"),
+                Mid = gl.GetUniformLocation(program, "uMid"),
+                Air = gl.GetUniformLocation(program, "uAir"),
+                Ground = gl.GetUniformLocation(program, "uGround"),
+                Tint = gl.GetUniformLocation(program, "uTint"),
+                Glow = gl.GetUniformLocation(program, "uGlow"),
+                Shade = gl.GetUniformLocation(program, "uShade"),
+                Bands = gl.GetUniformLocation(program, "uBands"),
+                Bare = gl.GetUniformLocation(program, "uBare"),
+                Ball = gl.GetUniformLocation(program, "uBall"),
+                BallSpin = gl.GetUniformLocation(program, "uBallSpin"),
+                WordBox = gl.GetUniformLocation(program, "uWordBox"),
+                Words = gl.GetUniformLocation(program, "uWords"),
+            };
+            if (RoomStyleSource.Arrays(style) is { } arrays)
+                pass.Arrays = [.. arrays.Select(a => (gl.GetUniformLocation(program, a.Name), a.Count))];
+            SetError(null);
+            return pass;
+        }
+        catch (Exception ex)
+        {
+            SetError(Failed(style, ex.Message));
+            return null;
+        }
+    }
+
+    /// <summary>The error line for a program that failed. An animation other than the original says which
+    /// one, because the original is drawn in its place and the room still looks lit.</summary>
+    private static string Failed(RoomStyle style, string reason)
+        => style == RoomStyle.Original ? reason : $"{style}: {reason}";
+
+    /// <summary>The vertex program: one quad, already in clip space.</summary>
+    internal static string VertexSource(string versionDef) => $$"""
+        {{versionDef}}
+        precision highp float;
+        layout (location = 0) in vec2 aPos;
+        void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
+        """;
+
+    /// <summary>
+    /// The fragment program that draws the room as <paramref name="style"/>, for the GLSL version line
+    /// <paramref name="versionDef"/>. The four animations differ only in the function that gives the room's
+    /// colour (<c>rpmRoom</c> or <c>styleRoom</c>, see RoomStyleSource). Everything done to the room after it is
+    /// the same text in all four.
+    /// </summary>
+    internal static string FragmentSource(string versionDef, RoomStyle style)
+    {
+        string room = style == RoomStyle.Original
+            ? "rpmRoom(p, t, uBass, uMid, uAir, uGround, uTint, uGlow, uShade)"
+            : "styleRoom(p)";
+
+        return $$"""
+            {{versionDef}}
             precision highp float;
 
             uniform vec2  uResolution;
@@ -480,6 +655,8 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
             // The room's own figures, and the lobe they are built from. Shared with the phone rather
             // than written twice — see RoomSource in Core.
             {{RoomSource.Glsl}}
+            // The animation's own figures, when it is not the original. Empty for the original.
+            {{RoomStyleSource.For(style)}}
             const float COLS = {{GlslSource.Num(Columns)}};
             const float SPEC_INSET = {{GlslSource.Num((float)PegasusLayout.SpectrumInset)}};
 
@@ -557,7 +734,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
                 // whole of it is RoomSource in Core, dropped into this program above. The phone paints
                 // the same room on Skia, and one picture drawn by two compilers is only one picture for
                 // as long as it is one text.
-                vec3 col = rpmRoom(p, t, uBass, uMid, uAir, uGround, uTint, uGlow, uShade);
+                vec3 col = {{room}};
 
                 // ── standing back ──
                 //
@@ -827,34 +1004,6 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
                 fragColor = vec4(max(col, vec3(0.0)), 1.0);
             }
             """;
-
-        try
-        {
-            uint vs = Compile(gl, ShaderType.VertexShader, GlslSource.Ascii(vertex));
-            uint fs = Compile(gl, ShaderType.FragmentShader, GlslSource.Ascii(fragment));
-            uint program = gl.CreateProgram();
-            gl.AttachShader(program, vs);
-            gl.AttachShader(program, fs);
-            gl.LinkProgram(program);
-            gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int linked);
-            gl.DetachShader(program, vs);
-            gl.DetachShader(program, fs);
-            gl.DeleteShader(vs);
-            gl.DeleteShader(fs);
-            if (linked != (int)GLEnum.True)
-            {
-                string log = gl.GetProgramInfoLog(program);
-                gl.DeleteProgram(program);
-                SetError("Program link failed: " + log);
-                return;
-            }
-            _program = program;
-            SetError(null);
-        }
-        catch (Exception ex)
-        {
-            SetError(ex.Message);
-        }
     }
 
     /// <summary>Bars across the spectrum's run: one per band, exactly. Sampling a different number of columns

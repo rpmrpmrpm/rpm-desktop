@@ -473,6 +473,8 @@ public sealed partial class PegasusPlayer : UserControl
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        // The animation the listener chose, from its first frame.
+        stage.SetStyle(RoomStyle);
         _stage = stage;
         _stageElement = stage;
         StageHost.Children.Add(stage);

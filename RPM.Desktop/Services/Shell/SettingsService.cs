@@ -153,6 +153,8 @@ public sealed partial class SettingsService
         // Pegasus's player: the layout it shows, and the lyric key's choice.
         string? PegasusLayout = null,
         bool PegasusLyrics = false,
+        // ...and the animation its room draws.
+        string? PegasusRoomStyle = null,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -716,6 +718,19 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusLyrics;
         set => Update(_model with { PegasusLyrics = value }, notify: false);
+    }
+
+    /// <summary>
+    /// The animation Pegasus's room draws behind the player and the collection: "Original", "Yang", "Lava" or
+    /// "Alchemy", by the name of the <see cref="RPM.Core.Viz.RoomStyle"/>. Null until the settings panel's Room
+    /// animation row has been used. A name this build does not know draws the original (see
+    /// <see cref="RPM.Core.Viz.RoomStyles.Named"/>). Stored by name for the same reason as
+    /// <see cref="PegasusLayout"/>, and saved quietly too.
+    /// </summary>
+    public string? PegasusRoomStyle
+    {
+        get => _model.PegasusRoomStyle;
+        set => Update(_model with { PegasusRoomStyle = value }, notify: false);
     }
 
     /// <summary>

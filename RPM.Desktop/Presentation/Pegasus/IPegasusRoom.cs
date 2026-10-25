@@ -1,3 +1,4 @@
+using RPM.Core.Viz;
 using Windows.UI;
 
 namespace RPM.Desktop.Presentation.Pegasus;
@@ -64,4 +65,8 @@ internal interface IPegasusRoom : IVizStage
     /// knows it.</para>
     /// </summary>
     void SetWordBox(double left, double top, double right, double bottom);
+
+    /// <summary>Which animation the room draws: the original or one of the TV's three others. The listener
+    /// picks it in the settings panel. A change shows on the next frame, as a cut.</summary>
+    void SetStyle(RoomStyle style);
 }

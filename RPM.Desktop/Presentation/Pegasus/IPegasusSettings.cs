@@ -1,4 +1,5 @@
 using RPM.Core.Analysis;
+using RPM.Core.Viz;
 
 namespace RPM.Desktop.Presentation.Pegasus;
 
@@ -20,6 +21,14 @@ public interface IPegasusSettings
 
     /// <summary>Moves to the next layout, wrapping, in the order the layout key cycles them.</summary>
     void NextLayout();
+
+    /// <summary>The animation the room draws behind the player and the collection (stored in
+    /// SettingsService).</summary>
+    RoomStyle RoomStyle { get; }
+
+    /// <summary>Moves to the next animation, wrapping: Original, Yang, Lava, Alchemy. The room changes on its
+    /// next frame, so the change shows behind the open panel.</summary>
+    void NextRoomStyle();
 
     /// <summary>Whether explicit words in the lyrics are masked.</summary>
     bool MaskProfanity { get; }

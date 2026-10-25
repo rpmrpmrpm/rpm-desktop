@@ -1,5 +1,6 @@
 using RPM.Core.Analysis;
 using RPM.Core.Cloud;
+using RPM.Core.Viz;
 
 namespace RPM.Desktop.Presentation.Pegasus;
 
@@ -39,6 +40,17 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         // Kept in the settings, so the player opens on it after a restart.
         StoreLayout();
         ApplyView(immediate: false);
+    }
+
+    /// <inheritdoc/>
+    public RoomStyle RoomStyle => RoomStyles.Named(App.Services.GetRequiredService<SettingsService>().PegasusRoomStyle);
+
+    /// <inheritdoc/>
+    public void NextRoomStyle()
+    {
+        var next = RoomStyles.Next(RoomStyle);
+        App.Services.GetRequiredService<SettingsService>().PegasusRoomStyle = next.ToString();
+        _stage?.SetStyle(next);
     }
 
     /// <inheritdoc/>
