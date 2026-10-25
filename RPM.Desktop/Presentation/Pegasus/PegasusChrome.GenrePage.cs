@@ -18,8 +18,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// One genre's page in Pegasus, laid out as an artist's page is: a band across the top with the genre's
 /// photograph at the right and, left of it, its wordmark, the first whole sentences of what the
 /// encyclopedia says about it, how much of it the collection holds, a key to play it and one to shuffle
-/// it; then, under the band, shelves that scroll sideways: the songs of it the world plays most, its
-/// notable artists, its generated playlists, the records added most
+/// it; then, under the band, its popular songs in columns of four (see <see cref="GenrePopular"/>), and
+/// shelves that scroll sideways: its notable artists, its generated playlists, the records added most
 /// recently, the genres beside it, and its records decade by decade. OK on a song plays the popular songs
 /// from there; on an artist, the artist's page; on a record, the record page; on a playlist, the list's
 /// page; on a genre, that genre's page. Back comes back here from each. A held OK or the Menu key on a song
@@ -27,8 +27,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 ///
 /// <para><b>From the desktop genre page, for a remote.</b> The same head (<see cref="GenrePhotos"/>, the
 /// genre's colour falling over the photograph, its wordmark), the same shelves read by the same rules as
-/// MainPage.BuildGenreShelf (the popular songs one per record, the acts in the wall's order, the lists
-/// that hold enough to be lists, the decades oldest first and newest record first in each), and the same
+/// MainPage.BuildGenreShelf (the acts in the wall's order, the lists that hold enough to be lists, the
+/// decades oldest first and newest record first in each), and the same
 /// subgenres (<see cref="RPM.Core.Metadata.Genres.Related"/>, narrowed to genres the collection holds).
 /// The desktop's two columns become a band and shelves, as on the artist page. Play all plays the popular
 /// songs, or the most recently added records where the world's play counts have not arrived yet; Shuffle
@@ -44,9 +44,6 @@ public sealed partial class PegasusChrome
 {
     /// <summary>How many cards a shelf holds: the home screen's figure, as on the desktop page.</summary>
     private const int GenreShelfLength = HomeShelf.RowLength;
-
-    /// <summary>How many popular songs, one per record.</summary>
-    private const int GenrePopularSongs = 24;
 
     /// <summary>How many songs Shuffle plays, and from how many records they are drawn.</summary>
     private const int GenreShuffleSongs = 200;
@@ -107,9 +104,12 @@ public sealed partial class PegasusChrome
     /// chrome.</summary>
     private PageRowsFade? _genreRowsFade;
 
-    /// <summary>When the page was built, on the chrome's clock: an article that lands later than
-    /// <see cref="LateAfter"/> after it arrives late, and eases in.</summary>
+    /// <summary>When the page was built, on the chrome's clock: an article or popular songs that land later
+    /// than <see cref="LateAfter"/> after it arrive late, and ease in.</summary>
     private double _genrePageBuiltAt;
+
+    /// <summary>Sizes the popular songs at a scale. Null until they are built.</summary>
+    private Action<double>? _genrePopularSize;
 
     /// <summary>The slots the shelves read after the build stand in, in their places, so a shelf that
     /// arrives later does not push the ones under it down.</summary>
@@ -280,7 +280,7 @@ public sealed partial class PegasusChrome
 
         LoadGenrePhotoAsync(genre.Name, read);
         LoadGenreAboutAsync(genre.Name, read);
-        ReadGenreShelvesAsync(genre, read);
+        ReadGenreShelvesAsync(genre, shelf, read);
     }
 
     private ShelfRow AddGenreRow(Panel into, string heading)
@@ -366,16 +366,20 @@ public sealed partial class PegasusChrome
 
     // ── what is read after the build ──
 
-    /// <summary>What the genre page needs from the collection that the shelf does not hold: the songs of
-    /// the genre the world plays most, and the sizes of its generated lists.</summary>
+    /// <summary>What the genre page needs from the collection that the shelf does not hold: the genre's
+    /// popular songs (<see cref="GenrePopular"/>), and the sizes of its generated lists.</summary>
     private sealed record GenreShelvesRead(List<LibraryTrack> Popular, List<(SmartPlaylistId Id, int Tracks)> Lists);
 
     /// <summary>
     /// Reads the popular songs and the generated lists on a worker, and fills their slots when the answer
     /// lands, if the page is still the one built. A list is shown only where it holds enough to be a list
     /// (<see cref="SmartPlaylists.LeastToShow"/>), as on the desktop page.
+    ///
+    /// <para><b>The popular songs are the Android TV app's</b> (GenrePopular): the songs of the genre's
+    /// forty records played most here, ranked by how often the world plays them, one per title and at most
+    /// three from one act, in columns of four with Play all tracks, as on the artist's page.</para>
     /// </summary>
-    private async void ReadGenreShelvesAsync(GenreWallItem genre, int read)
+    private async void ReadGenreShelvesAsync(GenreWallItem genre, LibraryAlbumIndex.ArtistShelf shelf, int read)
     {
         var library = Library;
         if (!library.IsOpen || library.ShelfRoot is not { } root)
@@ -385,7 +389,17 @@ public sealed partial class PegasusChrome
         var now = DateTime.UtcNow.Ticks;
         var asked = await Task.Run(() => library.Read(db, "a genre page's shelves for Pegasus", mirror =>
         {
-            var popular = mirror.QueryPopularUnder(genre.Folders, GenrePopularSongs).ToList();
+            var records = GenrePopular.RecordsToRank(
+                genre.Folders, f => shelf.AlbumFacts.TryGetValue(f, out var facts) ? facts.Plays : 0);
+            var songs = records.Sum(f => shelf.TrackCounts.GetValueOrDefault(f));
+            var popular = GenrePopular.Ranked(
+                    mirror.QueryWorldPlaysUnder(records), p => p.Track.Title, p => p.Plays,
+                    p => shelf.AlbumFacts.TryGetValue(p.Track.Folder, out var facts) && !string.IsNullOrWhiteSpace(facts.Artist)
+                        ? facts.Artist
+                        : p.Track.AlbumArtist ?? p.Track.Artist,
+                    songs, ArtistPopularMost)
+                .Select(p => p.Track)
+                .ToList();
             var lists = new List<(SmartPlaylistId, int)>();
             foreach (var kind in SmartPlaylists.EssentialForAGenre.Concat(SmartPlaylists.BrokenOutByGenre))
             {
@@ -404,29 +418,19 @@ public sealed partial class PegasusChrome
         var scale = QueueScale;
         var card = GenreCardWidth(scale);
 
-        // The popular songs: each a card with its record's sleeve, OK plays the list from there. A held OK
-        // or the Menu key opens the song's menu, whose Play does the same (see PopularSongMenu).
+        // The popular songs in columns of four, as on the artist's page. OK plays the list from there; a
+        // held OK or the Menu key opens the song's menu, whose Play does the same (see PopularSongMenu).
         _genrePopular = found.Popular.Select(t => t.ToTrackInfo(root)).ToList();
         if (found.Popular.Count > 0 && _genrePopularSlot is { } popularSlot)
         {
-            var row = AddGenreRow(popularSlot, Loc.Get("Genres_PopularTracks"));
-            for (var i = 0; i < found.Popular.Count; i++)
-            {
-                var track = found.Popular[i];
-                var at = i;
-                var song = new ShelfCard(
-                    track.Title ?? track.FileName,
-                    track.Artist ?? track.Album,
-                    CardShape.Square, track.Advisory == ContentAdvisory.Explicit,
-                    stand: "\uf001", standFont: (FontFamily)Resources["PegasusFa"], plain,
-                    press: () => PlayFromDrawer(_genrePopular, at, new SleeveInHand.None()),
-                    menu: () => PopularSongMenu(_genrePopular, at));
-                row.Cards.Children.Add(song.Root);
-                row.Size(scale, LibraryEdgeInset);
-                song.Size(card, scale);
-                _genrePageCards.Add(song);
-                QueueSleeve(_genrePagePictures, GenrePlace(popularSlot, at), song, track.Folder, () => read == _genrePageRead);
-            }
+            var block = BuildPopularSongs(
+                found.Popular, Loc.Get("Genres_PopularTracks"), () => _genrePopular, GenrePageContent, popularSlot,
+                _genrePagePictures, () => read == _genrePageRead, out var size);
+            _genrePopularSize = size;
+            popularSlot.Children.Add(block);
+            size(scale);
+            if (_clock.Elapsed.TotalSeconds - _genrePageBuiltAt > LateAfter)
+                StartArrival(popularSlot, block, ArtistStrip());
         }
 
         // The generated lists, the mood ones and the essential ones on two shelves, as on the desktop.
@@ -663,6 +667,7 @@ public sealed partial class PegasusChrome
         _genreAboutHost = null;
         _genreAboutProse = null;
         _genreAboutCutAt = default;
+        _genrePopularSize = null;
         _genreMark = null;
         _genreNameDrawnAt = default;
         _genrePopularSlot = _genreMoodsSlot = _genreEssentialSlot = null;
@@ -746,6 +751,7 @@ public sealed partial class PegasusChrome
             _genreAbout.Margin = new Thickness(0, 0, 0, PageAboutGap * scale);
             CutGenreAbout();
         }
+        _genrePopularSize?.Invoke(scale);
 
         var card = GenreCardWidth(scale);
         var raster2 = XamlRoot?.RasterizationScale is > 0 and var r ? r : 1;

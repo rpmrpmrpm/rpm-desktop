@@ -708,23 +708,34 @@ public sealed partial class PegasusChrome
             return;
 
         _artistPopular = popular.Select(t => t.ToTrackInfo(root)).ToList();
-        var block = BuildArtistPopular(popular, slot, read);
+        var block = BuildPopularSongs(
+            popular, Loc.Get("Artists_PopularTracks"), () => _artistPopular, ArtistPageContent, slot,
+            _artistPagePictures, () => read == _artistPageRead, out var size);
+        _artistPopularSize = size;
         slot.Children.Add(block);
-        _artistPopularSize?.Invoke(QueueScale);
+        size(QueueScale);
 
         if (_clock.Elapsed.TotalSeconds - _artistPageBuiltAt > LateAfter)
             StartArrival(slot, block, ArtistStrip());
     }
 
     /// <summary>
-    /// The popular songs as the Android TV app lays them out, like Quick selection on home: the heading
-    /// with Play all tracks at its right, then the songs in columns of four, three columns to the width,
-    /// scrolling sideways for more. Each song is its record's cover, the title and the record. OK plays the
-    /// popular songs from that one, and a held OK or the Menu key opens the song's menu (see
-    /// <see cref="PopularSongMenu"/>). The mouse clicks the song's button; the remote stands on the line
-    /// around it (see RemoteLine.Around).
+    /// The popular songs as the Android TV app lays them out on an artist's page and a genre's, like Quick
+    /// selection on home: the heading with Play all tracks at its right, then the songs in columns of four,
+    /// three columns to the width, scrolling sideways for more. Each song is its record's cover, the title
+    /// and the record. OK plays the popular songs from that one, and a held OK or the Menu key opens the
+    /// song's menu (see <see cref="PopularSongMenu"/>). The mouse clicks the song's button; the remote
+    /// stands on the line around it (see RemoteLine.Around).
     /// </summary>
-    private StackPanel BuildArtistPopular(List<LibraryTrack> popular, StackPanel slot, int read)
+    /// <param name="songs">The popular songs as they are played, read when a key is pressed.</param>
+    /// <param name="content">The page's content, where <paramref name="slot"/> stands, for the order the
+    /// covers are fetched in.</param>
+    /// <param name="stillWanted">Asked after each await of a cover: whether the page is still the one
+    /// built.</param>
+    /// <param name="size">Sizes the heading, the key and the songs at a scale.</param>
+    private StackPanel BuildPopularSongs(
+        List<LibraryTrack> popular, string headingText, Func<List<TrackInfo>> songs, Panel content, StackPanel slot,
+        PictureQueue pictures, Func<bool> stillWanted, out Action<double> size)
     {
         var plain = (Style)Resources["PegasusPlainButton"];
         var icons = (FontFamily)Resources["PegasusFa"];
@@ -738,7 +749,7 @@ public sealed partial class PegasusChrome
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var heading = new TextBlock
         {
-            Text = Loc.Get("Artists_PopularTracks"),
+            Text = headingText,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             Foreground = ink,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -771,8 +782,8 @@ public sealed partial class PegasusChrome
         };
         playAll.Click += (_, _) =>
         {
-            if (_artistPopular.Count > 0)
-                PlayFromDrawer(_artistPopular, 0, new SleeveInHand.None());
+            if (songs() is { Count: > 0 } list)
+                PlayFromDrawer(list, 0, new SleeveInHand.None());
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(playAll, playWords.Text);
         Grid.SetColumn(playAll, 1);
@@ -794,7 +805,7 @@ public sealed partial class PegasusChrome
         block.Children.Add(strip);
 
         var entries = new List<(Button Key, RemoteLine Line, StackPanel Words, Border Cover, TextBlock Title, TextBlock Record)>();
-        var at = ArtistPageContent.Children.IndexOf(slot);
+        var at = content.Children.IndexOf(slot);
         StackPanel? column = null;
         for (var i = 0; i < popular.Count; i++)
         {
@@ -845,31 +856,31 @@ public sealed partial class PegasusChrome
                 Content = row,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
             };
-            var play = () => PlayFromDrawer(_artistPopular, from, new SleeveInHand.None());
+            var play = () => PlayFromDrawer(songs(), from, new SleeveInHand.None());
             key.Click += (_, _) => play();
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, title.Text);
-            var line = RemoteLine.Around(key, play, () => PopularSongMenu(_artistPopular, from));
+            var line = RemoteLine.Around(key, play, () => PopularSongMenu(songs(), from));
             column!.Children.Add(line);
             entries.Add((key, line, words, cover, title, record));
 
             var folder = track.Folder;
-            _artistPagePictures.Add(new CardPlace(at, i), async () =>
+            pictures.Add(new CardPlace(at, i), async () =>
             {
-                if (read != _artistPageRead)
+                if (!stillWanted())
                     return;
                 var edge = CardDecodeEdgeFor(64 * QueueScale);
                 var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
-                if (bytes is not { Length: > 0 } || read != _artistPageRead)
+                if (bytes is not { Length: > 0 } || !stillWanted())
                     return;
                 var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
-                if (read == _artistPageRead)
+                if (stillWanted())
                     art.Source = bitmap;
             });
         }
 
         // The couch sizes the Android TV app draws them at: the heading at 22, the title at 17 and the
         // record at 15, the cover 64 across with a corner of 6.
-        _artistPopularSize = scale =>
+        size = scale =>
         {
             var width = ArtistStrip();
             heading.FontSize = 22 * scale;
