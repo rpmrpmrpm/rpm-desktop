@@ -784,8 +784,9 @@ public sealed partial class PegasusChrome
     // ── menus at this view's size ──
 
     /// <summary>The size of a menu's words in this view: the same as a track line, so a menu opened from
-    /// across a room is as readable as the list it was opened on.</summary>
-    private double MenuFontSize => 15 * QueueScale;
+    /// across a room is as readable as the list it was opened on. The TV's couch size for both, PAGE_TEXT,
+    /// 19 where the desktop's track line was 15 (TrackMenu.kt).</summary>
+    private double MenuFontSize => 19 * QueueScale;
 
     /// <summary>The maximum width of a menu at the desktop's size, in points: the framework's own
     /// FlyoutThemeMaxWidth. It is scaled together with the words, so a long playlist name is not cut
