@@ -127,6 +127,19 @@ public sealed partial class PegasusChrome
     private bool CollectionInFront => LibraryUp && !RecordUp && !TunerUp;
 
     /// <summary>
+    /// Whether the card floats over the collection's screen in front: home, the album wall, radio, and the
+    /// artists and genres lists, the Android TV app's hasMiniPlayer. Not the search screen or radio's station
+    /// search, which cover the screen (it lay over the search field), nor an artist's or a genre's page or the
+    /// playlists screen, where the TV has none either. Under a record's screen or the tuner the card's own
+    /// rules apply, as before.
+    /// </summary>
+    private bool MiniPlayerHere =>
+        !CollectionInFront
+        || (_collection is CollectionScreen.Home or CollectionScreen.Wall or CollectionScreen.Radio
+                or CollectionScreen.Artists or CollectionScreen.Genres
+            && !RadioSearchOpen);
+
+    /// <summary>
     /// One frame: whether the card should be up, and one step of it getting there.
     /// </summary>
     private void TickPlayerAway(double dt)
@@ -194,8 +207,9 @@ public sealed partial class PegasusChrome
         var focused = KeyboardDriven && FocusWithin(LibraryPlayer);
 
         // The album carousel's letter wheel covers the card while it is open, as the TV's covers its mini player.
-        // Set Off in the settings, the card is never up.
-        var up = !MarkKeptOff && !CarouselLettersOpen && _miniPlace != MiniPlayerPlace.Off
+        // Set Off in the settings, the card is never up. Nor on a screen the TV gives no mini player (see
+        // MiniPlayerHere).
+        var up = !MarkKeptOff && !CarouselLettersOpen && _miniPlace != MiniPlayerPlace.Off && MiniPlayerHere
                  && (!inFront || _peek || focused || (!_scrolledAway && (on || _markSeen < PlayerAwayAfter)));
 
         // Out of reach as soon as it starts going, in reach as soon as it starts coming: a card on its
