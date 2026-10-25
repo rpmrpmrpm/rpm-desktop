@@ -1350,8 +1350,9 @@
            whole height of the layer behind it. Its place is set in LayOutLibraryTop. -->
       <Grid>
 
-        <!-- ═══ the mini player ═══ what is playing, at the top and in the middle, over the wall and over
-             home. The cover, and beside it the title, the artist and the album, with the playhead under
+        <!-- ═══ the mini player ═══ what is playing, over the wall and over home: at the top and in the
+             middle, or where the settings' Mini player row puts it (see PlaceMiniPlayer, which writes its
+             alignment and margin). The cover, and beside it the title, the artist and the album, with the playhead under
              them and the keys on the card's edge. It has its own SeekBar and its own keys, not the ones
              in the column: that column is faded away while this screen is shown, and a control cannot be
              in two places at once. The lyric view's foot makes the same choice (see LyricFoot). The
@@ -1370,7 +1371,7 @@
              What is IN the card cross-fades between the two (see ApplyLibraryPlayer); the card itself
              does not appear and disappear. -->
         <!-- Over home and the wall it goes away after five seconds of nothing playing and on a scroll
-             down, and comes back by sliding down from above the screen. Its opacity, this shift and
+             down, and comes back by sliding in from the edge it stands at. Its opacity, this shift and
              whether it takes the pointer are written on the tick (see PegasusChrome.PlayerAway). -->
         <Grid x:Name="LibraryPlayer" HorizontalAlignment="Center" VerticalAlignment="Top">
           <Grid.RenderTransform>
@@ -1551,7 +1552,8 @@
         </Grid>
       </Grid>
 
-      <!-- The top edge of the screen: when the pointer reaches it, the mini player comes back until the
+      <!-- The top edge of the screen, or the bottom edge while the mini player stands at the bottom (see
+           PlaceMiniPlayer): when the pointer reaches it, the mini player comes back until the
            screen under it is scrolled again (see PegasusChrome.PlayerAway). It is a strip of its own,
            filled so that it takes the pointer: a screen under it ends where its content ends, and a
            pointer over nothing reaches nothing. It is three points high, so the edge itself is hovered,

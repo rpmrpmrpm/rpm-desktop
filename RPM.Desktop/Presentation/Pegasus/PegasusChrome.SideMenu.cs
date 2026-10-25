@@ -882,6 +882,14 @@ public sealed partial class PegasusChrome
         ]),
         new("Tv_SettingsPlayer", "",
         [
+            new("Tv_SettingsMiniPlayer", s => Loc.Get(s.MiniPlayerPlace switch
+            {
+                MiniPlayerPlace.Bottom => "Tv_MiniBottom",
+                MiniPlayerPlace.BottomLeft => "Tv_MiniBottomLeft",
+                MiniPlayerPlace.BottomRight => "Tv_MiniBottomRight",
+                MiniPlayerPlace.Off => "Viz_SettingOff",
+                _ => "Tv_MiniTop",
+            }), s => s.NextMiniPlayerPlace()),
             new("Viz_SettingsCensor", s => OnOff(s.MaskProfanity), s => s.ToggleMaskProfanity()),
             new("Viz_SettingsAlign", s => OnOff(s.AlignWords), s => s.ToggleAlignWords()),
         ]),

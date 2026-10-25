@@ -157,6 +157,8 @@ public sealed partial class SettingsService
         string? PegasusRoomStyle = null,
         // ...and the minutes without a key before its screensaver.
         int PegasusScreensaverMinutes = RPM.Core.Viz.Screensaver.DefaultMinutes,
+        // ...and where its mini player stands over the collection.
+        string? PegasusMiniPlayer = null,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -745,6 +747,19 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusScreensaverMinutes;
         set => Update(_model with { PegasusScreensaverMinutes = value }, notify: false);
+    }
+
+    /// <summary>
+    /// Where Pegasus's mini player stands over the collection: "Top", "Bottom", "BottomLeft", "BottomRight" or
+    /// "Off", by the name of the Pegasus MiniPlayerPlace, as the Android TV app's Mini player setting chooses.
+    /// Null until the settings panel's Mini player row has been used, which is the top. A name this build does
+    /// not know is the top too. Stored by name for the same reason as <see cref="PegasusLayout"/>, and saved
+    /// quietly: only Pegasus reads it.
+    /// </summary>
+    public string? PegasusMiniPlayer
+    {
+        get => _model.PegasusMiniPlayer;
+        set => Update(_model with { PegasusMiniPlayer = value }, notify: false);
     }
 
     /// <summary>

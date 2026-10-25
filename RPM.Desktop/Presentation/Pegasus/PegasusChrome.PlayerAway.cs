@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 
 namespace RPM.Desktop.Presentation.Pegasus;
@@ -6,8 +7,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// The mini player going away over the collection, and coming back.
 ///
 /// <para>The card hides itself after five seconds when nothing is playing, and comes back with a fade
-/// and a slide from the top. The pointer at the very top of the screen brings it back until the
-/// next scroll. Scrolling down sends it away, even while something is playing.</para>
+/// and a slide from the edge it stands at. The pointer at that very edge of the screen brings it back
+/// until the next scroll. Scrolling down sends it away, even while something is playing.</para>
 ///
 /// <para><b>Where.</b> On every screen the collection shows, home, the wall and radio: all three run the
 /// whole height of the layer under the card, so taking the card away uncovers the screen. Radio keeps
@@ -41,6 +42,16 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// only place that reads the facts and moves the card, so the order those arrive in does not matter:
 /// every frame asks again whether the card should be up. Write the card's opacity, shift or hit test from
 /// a handler and that stops being true.</para>
+///
+/// <para><b>Where it stands</b> is the settings' Mini player row (<see cref="MiniPlayerPlace"/>): at the
+/// top in the middle, at the bottom in the middle, in a bottom corner, or not at all, as on the TV. A card
+/// at the bottom slides in from the bottom edge, and the pointer at the bottom edge brings it back, in the
+/// same way as the top edge does for a card at the top. The rest of the rules do not change with the
+/// place, as on the TV, which shows its card by the same top-of-screen rule wherever it stands: every
+/// screen runs the whole height under the card, the remote's first focus on a screen still scrolls it
+/// from its top (<see cref="FirstFocusAllowance"/>), and a scroll down is still somebody looking further
+/// into the screen, whichever edge the card is on. Off takes the card out of the layout, so the remote
+/// cannot stop on it either.</para>
 /// </summary>
 public sealed partial class PegasusChrome
 {
@@ -120,6 +131,11 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void TickPlayerAway(double dt)
     {
+        // The settings' Mini player row changed: the card takes its new place now, behind the open
+        // panel, rather than on the next visit.
+        if (MiniPlaceWanted != _miniPlace)
+            PlaceMiniPlayer();
+
         if (!LibraryUp)
             return;
 
@@ -174,7 +190,8 @@ public sealed partial class PegasusChrome
         var focused = KeyboardDriven && FocusWithin(LibraryPlayer);
 
         // The album carousel's letter wheel covers the card while it is open, as the TV's covers its mini player.
-        var up = !MarkKeptOff && !CarouselLettersOpen
+        // Set Off in the settings, the card is never up.
+        var up = !MarkKeptOff && !CarouselLettersOpen && _miniPlace != MiniPlayerPlace.Off
                  && (!inFront || _peek || focused || (!_scrolledAway && (on || _markSeen < PlayerAwayAfter)));
 
         // Out of reach as soon as it starts going, in reach as soon as it starts coming: a card on its
@@ -198,17 +215,79 @@ public sealed partial class PegasusChrome
 
     /// <summary>
     /// Writes the card's opacity and shift from <see cref="_playerShown"/>, on the app's move curve
-    /// (<see cref="PaneGlide.EaseAt"/>): ease-out coming down, the same curve backwards going up. Gone
-    /// means faded out and lifted clear of the top of the screen, which is its margin and its own height;
-    /// read here rather than kept, because a resize changes both.
+    /// (<see cref="PaneGlide.EaseAt"/>): ease-out coming in, the same curve backwards going out. Gone
+    /// means faded out and moved clear of the edge it stands at, which is its margin on that edge and its
+    /// own height: lifted above the top of the screen, or lowered below the bottom. Read here rather than
+    /// kept, because a resize changes both.
     /// </summary>
     private void PlacePlayer()
     {
         var eased = PaneGlide.EaseAt(_playerShown);
-        var lift = LibraryPlayer.Margin.Top + LibraryPlayer.ActualHeight;
+        var away = MiniAtTop
+            ? -(LibraryPlayer.Margin.Top + LibraryPlayer.ActualHeight)
+            : LibraryPlayer.Margin.Bottom + LibraryPlayer.ActualHeight;
 
         LibraryPlayer.Opacity = eased;
-        LibraryPlayerSlide.Y = -(1 - eased) * lift;
+        LibraryPlayerSlide.Y = (1 - eased) * away;
+    }
+
+    /// <summary>Where the card stands now, as <see cref="PlaceMiniPlayer"/> last put it.</summary>
+    private MiniPlayerPlace _miniPlace = MiniPlayerPlace.Top;
+
+    /// <summary>Where the settings say the card stands. At the top while there are no settings to
+    /// ask.</summary>
+    private MiniPlayerPlace MiniPlaceWanted => Settings?.MiniPlayerPlace ?? MiniPlayerPlace.Top;
+
+    /// <summary>Whether the card stands at the top of the screen (Off counts as the top, as on the TV: it is
+    /// never shown, so the edge only decides where the pointer's edge strip waits).</summary>
+    private bool MiniAtTop => _miniPlace is MiniPlayerPlace.Top or MiniPlayerPlace.Off;
+
+    /// <summary>
+    /// Puts the card where the settings say: its alignment and its margins, the edge strip that brings it
+    /// back, and whether it is in the layout at all. Called from <see cref="LayOutLibraryTop"/>, which
+    /// lays out the rest of what stands round the edges, and from the tick when the setting changes.
+    ///
+    /// <para>The margins are the wall's inset (<see cref="LibraryEdgeInset"/>) on the edges the card
+    /// stands against: at the top in the middle, clear of the back key and the tools in the two top
+    /// corners; at the bottom in the middle; and in a bottom corner, the same inset from the side as from
+    /// the bottom. The pill hangs below the card's lower edge inside the card's grid (see
+    /// SizeLibraryPlayer), so at the bottom the inset is measured to the pill's foot.</para>
+    /// </summary>
+    private void PlaceMiniPlayer()
+    {
+        var was = _miniPlace;
+        _miniPlace = MiniPlaceWanted;
+        const double inset = LibraryEdgeInset;
+
+        (LibraryPlayer.HorizontalAlignment, LibraryPlayer.VerticalAlignment, LibraryPlayer.Margin) = _miniPlace switch
+        {
+            MiniPlayerPlace.Bottom => (HorizontalAlignment.Center, VerticalAlignment.Bottom, new Thickness(inset, 0, inset, inset)),
+            MiniPlayerPlace.BottomLeft => (HorizontalAlignment.Left, VerticalAlignment.Bottom, new Thickness(inset, 0, 0, inset)),
+            MiniPlayerPlace.BottomRight => (HorizontalAlignment.Right, VerticalAlignment.Bottom, new Thickness(0, 0, inset, inset)),
+            _ => (HorizontalAlignment.Center, VerticalAlignment.Top, new Thickness(inset, inset, inset, 0)),
+        };
+
+        // The pointer's edge strip waits at the edge the card comes in from.
+        PlayerPeekEdge.VerticalAlignment = MiniAtTop ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+
+        // Off takes the card out of the layout, so the remote's search cannot find its stop either (see
+        // RemoteSearch, which leaves out what is collapsed). Coming back, its lines are measured again: a
+        // line measured while it was collapsed is measured at nothing, and never scrolls.
+        var off = _miniPlace == MiniPlayerPlace.Off;
+        LibraryPlayer.Visibility = off ? Visibility.Collapsed : Visibility.Visible;
+        if (off)
+        {
+            _playerShown = 0;
+            LibraryPlayer.IsHitTestVisible = false;
+        }
+        else if (was == MiniPlayerPlace.Off)
+        {
+            FitLibraryPlayerLines(remeasure: true);
+        }
+
+        PlacePlayer();
+        if (was != _miniPlace)
+            SayPlayerAway("placed " + _miniPlace);
     }
 
     /// <summary>The collection coming up: the card is up (down where it would hold the mark off home) and
@@ -221,21 +300,21 @@ public sealed partial class PegasusChrome
         _peek = false;
         _scrolledAway = false;
         _wasAtTop = CollectionAtTop;
-        var up = !MarkKeptOff;
+        var up = !MarkKeptOff && _miniPlace != MiniPlayerPlace.Off;
         _playerShown = up ? 1 : 0;
         LibraryPlayer.IsHitTestVisible = up;
         PlacePlayer();
         SayPlayerAway("up, count reset");
     }
 
-    /// <summary>The pointer at the top edge of the screen. Said once per reveal, not on every
-    /// move.</summary>
+    /// <summary>The pointer at the edge of the screen the card stands at (see PlaceMiniPlayer). Said once
+    /// per reveal, not on every move.</summary>
     private void PlayerPeekEdge_Pointer(object sender, PointerRoutedEventArgs e)
     {
         if (_peek)
             return;
         _peek = true;
-        SayPlayerAway("top edge reached");
+        SayPlayerAway("edge reached");
     }
 
     /// <summary>The screen in front moved, by <paramref name="moved"/> points, positive down: home's
@@ -265,5 +344,20 @@ public sealed partial class PegasusChrome
             "home",
             $"mini player {what}: on {_collection}, mark seen {_markSeen:0.0}s, mark kept off {MarkKeptOff}, peek {_peek}, "
             + $"scrolled away {_scrolledAway}, in front {CollectionInFront}, "
-            + $"playing {LibraryPlayerOn}, shown {_playerShown:0.00}");
+            + $"playing {LibraryPlayerOn}, shown {_playerShown:0.00}, at {_miniPlace}");
+}
+
+/// <summary>
+/// Where the mini player stands over the collection, as the settings' Mini player row names it (the
+/// Android TV app's MiniPlace): at the top in the middle, at the bottom in the middle, in the bottom left
+/// or bottom right corner, or not at all. Stored by name (SettingsService.PegasusMiniPlayer), so keep the
+/// names. The order is the order the row steps through.
+/// </summary>
+public enum MiniPlayerPlace
+{
+    Top,
+    Bottom,
+    BottomLeft,
+    BottomRight,
+    Off,
 }

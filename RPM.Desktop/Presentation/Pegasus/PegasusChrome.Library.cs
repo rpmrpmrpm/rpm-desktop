@@ -1649,9 +1649,10 @@ public sealed partial class PegasusChrome
         // What stands between the top of the screen and the first row of covers at rest.
         var wallTop = WallTop;
 
-        // The player is centred at the top, inside the wall's inset, which keeps it clear of the back key
-        // on the left and the tools on the right. Nothing stands under it, so no air is kept below it.
-        LibraryPlayer.Margin = new Thickness(LibraryEdgeInset, LibraryEdgeInset, LibraryEdgeInset, 0);
+        // The player stands where the settings say, inside the wall's inset (see PlaceMiniPlayer). At the
+        // top it is centred, which keeps it clear of the back key on the left and the tools on the right.
+        // Nothing stands under it, so no air is kept below it.
+        PlaceMiniPlayer();
 
         // The tools end where the COVERS end, not where the scroller does. The wall gives the scrollbar a
         // strip of its own out of the viewport (see SizeLibrary), so the last cover in a row stops that

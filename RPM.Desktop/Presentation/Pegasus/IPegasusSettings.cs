@@ -80,4 +80,14 @@ public interface IPegasusSettings
 
     /// <summary>Moves to the next choice, wrapping from the longest to off.</summary>
     void NextScreensaver();
+
+    // ── the mini player: the Player section (the Android TV app's Mini player row) ──
+
+    /// <summary>Where the mini player stands over the collection, or Off for none (stored in
+    /// SettingsService). At the top until changed.</summary>
+    MiniPlayerPlace MiniPlayerPlace { get; }
+
+    /// <summary>Moves to the next place, wrapping: Top, Bottom, Bottom left, Bottom right, Off. The card
+    /// moves on the chrome's next frame, so the change shows behind the open panel.</summary>
+    void NextMiniPlayerPlace();
 }

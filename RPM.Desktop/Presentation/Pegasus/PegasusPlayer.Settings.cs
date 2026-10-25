@@ -149,4 +149,24 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         // The wait starts again on the new choice. The press that made it was a key, so it counts from now.
         ArmScreensaver();
     }
+
+    // ── the mini player: the Player section ──
+    //
+    // Written straight to the stored settings, by name. The chrome reads it on every frame and moves the card
+    // when it changes (see PegasusChrome.PlaceMiniPlayer).
+
+    /// <inheritdoc/>
+    public MiniPlayerPlace MiniPlayerPlace =>
+        Enum.TryParse<MiniPlayerPlace>(App.Services.GetRequiredService<SettingsService>().PegasusMiniPlayer, out var place)
+        && Enum.IsDefined(place)
+            ? place
+            : MiniPlayerPlace.Top;
+
+    /// <inheritdoc/>
+    public void NextMiniPlayerPlace()
+    {
+        var places = Enum.GetValues<MiniPlayerPlace>();
+        var next = places[(Array.IndexOf(places, MiniPlayerPlace) + 1) % places.Length];
+        App.Services.GetRequiredService<SettingsService>().PegasusMiniPlayer = next.ToString();
+    }
 }
