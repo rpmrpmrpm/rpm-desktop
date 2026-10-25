@@ -49,17 +49,17 @@ public sealed partial class PegasusChrome
 
         var playing = PlayingIndex();
         var menu = new MenuFlyout();
-        menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_Play"), () => PlayQueued(track)));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_Play"), () => PlayQueued(track), PlayGlyph));
 
         // Not on the row playing or on the one already after it, where it would change nothing.
         if (playing >= 0 && at != playing && at != playing + 1)
-            menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueuePlayNext"), () => PlayQueuedNext(track)));
+            menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueuePlayNext"), () => PlayQueuedNext(track), PlayNextGlyph));
 
         if (amp.Playlist.Count > 1)
-            menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueueMove"), () => StartQueueMove(track)));
+            menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueueMove"), () => StartQueueMove(track), MoveGlyph));
 
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueueRemove"), () => RemoveQueued(track)));
+        menu.Items.Add(MenuEntry(Strings.Loc.Get("Viz_QueueRemove"), () => RemoveQueued(track), RemoveGlyph));
         return ForThisView(menu);
     }
 

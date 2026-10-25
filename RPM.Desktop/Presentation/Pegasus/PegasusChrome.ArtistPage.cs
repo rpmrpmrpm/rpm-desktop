@@ -859,7 +859,7 @@ public sealed partial class PegasusChrome
             if (menu.Items[i] is not MenuFlyoutItem item || item.Text != words)
                 continue;
 
-            var play = MenuEntry(words, () => PlayFromDrawer(songs, at, new SleeveInHand.None()));
+            var play = MenuEntry(words, () => PlayFromDrawer(songs, at, new SleeveInHand.None()), PlayGlyph);
             play.FontSize = item.FontSize;
             play.MinHeight = item.MinHeight;
             play.Padding = item.Padding;

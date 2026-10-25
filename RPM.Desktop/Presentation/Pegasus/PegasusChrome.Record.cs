@@ -1409,6 +1409,7 @@ public sealed partial class PegasusChrome
 
                 favored = meta.IsFavorite;
                 favoriteEntry.Text = Strings.Loc.Get(favored ? "Album_UnsetFavorite" : "AlbumMenu_Favorite");
+                favoriteEntry.Icon = FavoriteIcon(favored);
                 var stars = 0;
                 foreach (var item in rateEntry.Items.OfType<ToggleMenuFlyoutItem>())
                     item.IsChecked = ++stars == meta.Rating;
@@ -1470,13 +1471,13 @@ public sealed partial class PegasusChrome
 
         if (withPlay)
             menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_Play"),
-                                     () => on.WithSongs((songs, sleeve) => PlayFromDrawer(songs, 0, sleeve))));
+                                     () => on.WithSongs((songs, sleeve) => PlayFromDrawer(songs, 0, sleeve)), PlayGlyph));
         menu.Items.Add(MenuEntry(Strings.Loc.Get(on.IsList ? "AlbumMenu_Shuffle" : "AlbumGrid_Shuffle"),
-                                 () => on.WithSongs(PlayShuffledList)));
+                                 () => on.WithSongs(PlayShuffledList), ShuffleGlyph));
         menu.Items.Add(MenuEntry(Strings.Loc.Get("Tv_Album_AddToQueue"),
-                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: false, on.Name))));
+                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: false, on.Name)), QueueGlyph));
         menu.Items.Add(MenuEntry(Strings.Loc.Get("AlbumMenu_PlayNext"),
-                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: true, on.Name))));
+                                 () => on.WithSongs((songs, _) => QueueSongs(songs, next: true, on.Name)), PlayNextGlyph));
 
         if (!on.Marks)
             return (menu, null, null);
@@ -1484,6 +1485,7 @@ public sealed partial class PegasusChrome
         menu.Items.Add(new MenuFlyoutSeparator());
         var favorite = MenuEntry(Strings.Loc.Get(on.Favorite ? "Album_UnsetFavorite" : "AlbumMenu_Favorite"),
                                  on.ToggleFavorite);
+        favorite.Icon = FavoriteIcon(on.Favorite);
         menu.Items.Add(favorite);
         var rate = RateRecordMenu(on.Stars, on.Rate);
         menu.Items.Add(rate);
@@ -1501,6 +1503,7 @@ public sealed partial class PegasusChrome
         var sub = new MenuFlyoutSubItem
         {
             Text = Strings.Loc.Get("Tv_Album_Rate"),
+            Icon = MenuIcon(StarGlyph),
             FontSize = 12,
             MinHeight = 26,
             Padding = new Thickness(11, 3, 11, 4),

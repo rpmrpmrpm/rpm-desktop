@@ -678,7 +678,7 @@ public sealed partial class PegasusChrome
         var menu = TrackMenuFactory.Build(
             song, hooks, (FontFamily)Resources["PegasusFa"], (FontFamily)Resources["PegasusFaRegular"]);
 
-        // Before ForThisView, which takes the icons off: the favourite is found by its heart.
+        // The favourite is found by its heart.
         if (RecordBorrowed)
             DropFavoriteEntry(menu.Items);
         else
@@ -730,7 +730,7 @@ public sealed partial class PegasusChrome
 
         if (hooks.NewPlaylistFromTrack is { } create)
         {
-            playlists.Items.Add(MenuEntry(Strings.Loc.Get("Playlists_NewPlaylistFrom"), () => create(song)));
+            playlists.Items.Add(MenuEntry(Strings.Loc.Get("Playlists_NewPlaylistFrom"), () => create(song), PlusGlyph));
             if (entries.Count > 0)
                 playlists.Items.Add(new MenuFlyoutSeparator());
         }
@@ -838,57 +838,29 @@ public sealed partial class PegasusChrome
     private const double MenuDesktopMaxWidth = 456;
 
     /// <summary>
-    /// A menu made for the desktop, adapted for this view: its words at <see cref="MenuFontSize"/>, its
-    /// rows and their padding scaled by the same factor, and without its icons. A desktop-sized menu is
-    /// too small to read from across a room.
+    /// A menu made for the desktop, for this view. It is handed over as it is, icons and all: the menu card
+    /// draws every line at this view's size itself, with the desktop's icon in front of each line, as the
+    /// TV's menus show them (ANDR 6fde7f0; see PegasusMenuCard). The entries, their order and what they do
+    /// are the same as in the desktop menu.
     ///
-    /// <para>The icons are removed because the item template gives an icon a fixed 16 points and places
-    /// the words at a fixed distance after it, from its own visual states. Words scaled to this size
-    /// would run into icons that cannot scale with them. Scaling the icons too would need a copy of the
-    /// item templates, for both heads. The entries, their order and what they do are the same as in the
-    /// desktop menu.</para>
+    /// <para>It used to scale the desktop's sizes up and take the icons off, for a MenuFlyout drawn at
+    /// this view's size: the item template gives an icon a fixed 16 points, which words scaled up ran
+    /// into. The card has no such template.</para>
     /// </summary>
-    private MenuFlyout ForThisView(MenuFlyout menu)
-    {
-        var factor = MenuFontSize / 12;   // the desktop menus are written at 12 points
-        menu.MenuFlyoutPresenterStyle = new Style(typeof(MenuFlyoutPresenter))
-        {
-            Setters = { new Setter(FrameworkElement.MaxWidthProperty, MenuDesktopMaxWidth * factor) },
-        };
-        Grow(menu.Items, factor);
-        return menu;
+    private static MenuFlyout ForThisView(MenuFlyout menu) => menu;
 
-        static void Grow(IList<MenuFlyoutItemBase> items, double by)
-        {
-            foreach (var item in items)
-            {
-                switch (item)
-                {
-                    case MenuFlyoutSubItem sub:
-                        sub.Icon = null;
-                        Size(sub, by);
-                        Grow(sub.Items, by);
-                        break;
-                    case MenuFlyoutItem one:
-                        one.Icon = null;
-                        Size(one, by);
-                        break;
-                }
-            }
-        }
+    /// <summary>The icons of the entries this view builds itself, from the app's icon font (Font Awesome
+    /// Pro), the glyphs the TV's menus use for the same entries (Desk.kt, Fa): play, the step forward of
+    /// Play next, the list of music for a queue, the crossed arrows of Shuffle, the grip of Move, the minus
+    /// of Remove, the plus of New playlist, the heart of a favourite and the star of a rating.</summary>
+    private const string PlayGlyph = "\uf04b", PlayNextGlyph = "\uf051", QueueGlyph = "\uf8c9", ShuffleGlyph = "\uf074",
+                          MoveGlyph = "\uf58e", RemoveGlyph = "\uf068", PlusGlyph = "\uf067", HeartGlyph = "\uf004",
+                          StarGlyph = "\uf005";
 
-        static void Size(Control item, double by)
-        {
-            item.FontSize *= by;
-            item.MinHeight *= by;
-            var p = item.Padding;
-            item.Padding = new Thickness(p.Left * by, p.Top * by, p.Right * by, p.Bottom * by);
-        }
-    }
-
-    /// <summary>One entry of a menu that this view builds itself, at the desktop menus' own size, so
-    /// that <see cref="ForThisView"/> scales it with the rest.</summary>
-    private static MenuFlyoutItem MenuEntry(string text, Action chosen)
+    /// <summary>One entry of a menu that this view builds itself, at the desktop menus' own size, with
+    /// <paramref name="glyph"/> as its icon where it has one, in the solid face (the desktop's FaMenuIcon),
+    /// or in <paramref name="face"/>.</summary>
+    private static MenuFlyoutItem MenuEntry(string text, Action chosen, string? glyph = null, FontFamily? face = null)
     {
         var item = new MenuFlyoutItem
         {
@@ -896,10 +868,26 @@ public sealed partial class PegasusChrome
             FontSize = 12,
             MinHeight = 26,
             Padding = new Thickness(11, 3, 11, 4),
+            Icon = glyph is null ? null : MenuIcon(glyph, face),
         };
         item.Click += (_, _) => chosen();
         return item;
     }
+
+    /// <summary>A menu line's icon, as the desktop's menus draw theirs (the FaMenuIcon style), in the solid
+    /// face or in <paramref name="face"/>.</summary>
+    private static FontIcon MenuIcon(string glyph, FontFamily? face = null)
+    {
+        var icon = new FontIcon { Glyph = glyph, Style = (Style)Application.Current.Resources["FaMenuIcon"] };
+        if (face is not null)
+            icon.FontFamily = face;
+        return icon;
+    }
+
+    /// <summary>The heart of a favourite's entry: filled while it is one, an outline while it is not, as
+    /// the desktop's menus draw it (TrackMenuFactory).</summary>
+    private FontIcon FavoriteIcon(bool favored) =>
+        MenuIcon(HeartGlyph, favored ? null : (FontFamily)Resources["PegasusFaRegular"]);
 
     // ── tooltips ──
 
