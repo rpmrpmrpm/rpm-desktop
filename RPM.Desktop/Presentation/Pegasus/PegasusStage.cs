@@ -44,6 +44,10 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// mirror ball, the spectrum, the vignette and the grain, is the same text in all four. Each animation's program
 /// is compiled the first time it is drawn.</para>
 ///
+/// <para><b>The brightness.</b> Behind the player the room is drawn a fifth darker than behind the collection
+/// (<see cref="SetBrightness"/>). The collection lays its own shade over the room, and the player lays none, so
+/// the lines over the player need the room held back to read well.</para>
+///
 /// <para>Nothing here draws the cover, the record or the words. Those are XAML over this surface. The record
 /// on this screen is the same control that turns in the header, with the same pressing and the same disc art.</para>
 /// </summary>
@@ -106,6 +110,11 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     private Vector4 _wordBox, _wordBoxTo;
     private float _words, _wordsTo;
 
+    // How bright the room is drawn, before the mirror ball and the spectrum are laid on it: 1 behind the
+    // collection, which lays its own shade over the room, and less behind the player (see SetBrightness). It
+    // eases at the composition's rate, because it changes when the screen over the room changes.
+    private float _bright = 1f, _brightTo = 1f;
+
     // Which animation the room draws (see SetStyle). A change shows on the next frame, as a cut. A fade
     // between two animations would draw both, which is twice the room's cost for as long as it lasts.
     private RoomStyle _style = RoomStyle.Original;
@@ -130,7 +139,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     {
         public uint Program;
         public int Res, Time, Bass, Mid, Air, Ground, Tint, Glow, Shade, Bands, Bare, Ball;
-        public int BallSpin, WordBox, Words;
+        public int BallSpin, WordBox, Words, Bright;
 
         /// <summary>The animation's three arrays of figures (see RoomStyleSource.Arrays), and how many vec4
         /// each holds. Empty for the original.</summary>
@@ -233,6 +242,17 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     /// place and the reason is reported as the stage's <see cref="LastError"/>.</para>
     /// </summary>
     public void SetStyle(RoomStyle style) => _style = style;
+
+    /// <summary>
+    /// How bright the room is drawn, before the mirror ball and the spectrum are laid on it: 1 for the room
+    /// as it is tuned. The room eases to it at the composition's rate. When <paramref name="immediate"/> is
+    /// true, it is set at once, for a stage that is switched on already in this state.
+    /// </summary>
+    public void SetBrightness(float level, bool immediate = false)
+    {
+        _brightTo = level;
+        if (immediate) _bright = level;
+    }
 
     private void Start()
     {
@@ -391,6 +411,9 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
         _wordBox += (_wordBoxTo - _wordBox) * c;
         _words += (_wordsTo - _words) * c;
 
+        // The brightness changes with the screen over the room, so it eases at the same rate as the composition.
+        _bright += (_brightTo - _bright) * c;
+
         // The other animations' clocks run on whichever animation is shown (see _figures).
         _figures.Advance(dt, _room.Bass, _room.Mid);
 
@@ -425,6 +448,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
             if (pass.BallSpin >= 0) gl.Uniform1(pass.BallSpin, (float)_ballSpin);
             if (pass.WordBox >= 0) gl.Uniform4(pass.WordBox, _wordBox.X, _wordBox.Y, _wordBox.Z, _wordBox.W);
             if (pass.Words >= 0) gl.Uniform1(pass.Words, _words);
+            if (pass.Bright >= 0) gl.Uniform1(pass.Bright, _bright);
             if (pass.Bands >= 0)
             {
                 gl.ActiveTexture(TextureUnit.Texture0);
@@ -593,6 +617,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
                 BallSpin = gl.GetUniformLocation(program, "uBallSpin"),
                 WordBox = gl.GetUniformLocation(program, "uWordBox"),
                 Words = gl.GetUniformLocation(program, "uWords"),
+                Bright = gl.GetUniformLocation(program, "uBright"),
             };
             if (RoomStyleSource.Arrays(style) is { } arrays)
                 pass.Arrays = [.. arrays.Select(a => (gl.GetUniformLocation(program, a.Name), a.Count))];
@@ -651,6 +676,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
             uniform vec4  uWordBox;        // where the chrome writes: left, top, right, bottom, in
                                            // fractions of the window from its TOP-left corner
             uniform float uWords;          // ...and whether it is writing anything there at all
+            uniform float uBright;         // how bright the room is drawn, for the screen laid over it
 
             // The room's own figures, and the lobe they are built from. Shared with the phone rather
             // than written twice — see RoomSource in Core.
@@ -744,6 +770,10 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
                 // the top would kill the colour, where this simply moves that side of the room away from
                 // the light. Applied before the spectrum, which keeps its own brightness.
                 col *= 0.62;
+                // The room's brightness for the screen over it (see SetBrightness): a fifth down behind the
+                // player, which lays no shade of its own over the room. On the room alone, so the mirror
+                // ball and the spectrum below keep their own light.
+                col *= uBright;
                 // …and the dim itself lifts away as the composition draws in to the middle. It is there
                 // to hold one side of the room back under the words; bare, the words are under the cover
                 // and this side of the screen is just room, which should be lit like the rest of it.

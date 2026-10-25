@@ -69,4 +69,12 @@ internal interface IPegasusRoom : IVizStage
     /// <summary>Which animation the room draws: the original or one of the TV's three others. The listener
     /// picks it in the settings panel. A change shows on the next frame, as a cut.</summary>
     void SetStyle(RoomStyle style);
+
+    /// <summary>
+    /// How bright the room is drawn under the screen over it: 1 under the collection, which lays its own
+    /// shade over the room, and less under the player, which lays none (see PegasusPlayer.RoomBrightness).
+    /// The room eases to it. <paramref name="immediate"/> for a room being SHOWN in this state rather than
+    /// changed into it.
+    /// </summary>
+    void SetBrightness(float level, bool immediate = false);
 }

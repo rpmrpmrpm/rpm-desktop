@@ -473,8 +473,9 @@ public sealed partial class PegasusPlayer : UserControl
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        // The animation the listener chose, from its first frame.
+        // The animation the listener chose and the brightness of the screen it opens under, from its first frame.
         stage.SetStyle(RoomStyle);
+        stage.SetBrightness(RoomBrightness, immediate: true);
         _stage = stage;
         _stageElement = stage;
         StageHost.Children.Add(stage);
@@ -1303,7 +1304,19 @@ public sealed partial class PegasusPlayer : UserControl
 
         _chrome?.SetView(EffectiveView, immediate);
         _stage?.SetView(EffectiveView, immediate);
+        _stage?.SetBrightness(RoomBrightness, immediate);
     }
+
+    /// <summary>
+    /// How bright the room is drawn behind the player: a fifth darker than behind the collection, so the lines
+    /// over it read well. The collection lays its own shade over the room (the wall's 45% black, the screens'
+    /// shades), and the player lays none.
+    /// </summary>
+    private const float PlayerRoomBrightness = 0.8f;
+
+    /// <summary>How bright the room is drawn for the screen that is over it now (see
+    /// <see cref="PlayerRoomBrightness"/>).</summary>
+    private float RoomBrightness => _library ? 1f : PlayerRoomBrightness;
 
     /// <summary>
     /// What the chrome and the room are actually drawn as. This is the listener's chosen composition every time
