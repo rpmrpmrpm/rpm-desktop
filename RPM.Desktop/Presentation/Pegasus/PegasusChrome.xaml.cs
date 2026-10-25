@@ -2905,7 +2905,7 @@ public sealed partial class PegasusChrome : UserControl
         if (LibraryPlayerArt.Stretch != stretch)
             LibraryPlayerArt.Stretch = stretch;
 
-        var inset = art.TrackCoverFills ? 0 : PlayerArtEdge * QueueScale * 0.12;
+        var inset = art.TrackCoverFills ? 0 : PlayerArtEdge * _playerScale * 0.12;   // the card's own scale
         if (Math.Abs(LibraryPlayerArt.Margin.Left - inset) > 0.5)
             LibraryPlayerArt.Margin = new Thickness(inset);
 

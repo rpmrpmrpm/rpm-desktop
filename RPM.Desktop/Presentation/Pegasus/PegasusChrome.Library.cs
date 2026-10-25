@@ -1714,6 +1714,13 @@ public sealed partial class PegasusChrome
     /// <summary>The air between the card's edge and the cover, all round.</summary>
     private const double PlayerPad = 13;
 
+    /// <summary>
+    /// The mini player is drawn 10 % larger than the scale the rest of the screen is drawn at: its card,
+    /// its cover, its words and its keys together, as the Android TV app's is (MiniPlayer.kt, MINI;
+    /// FOBO 974baa2b5), so its lines read from a couch. The figures above are before both.
+    /// </summary>
+    private const double MiniPlayerCouch = 1.1;
+
     /// <summary>The air between the cover and the words.</summary>
     private const double PlayerGap = 17;
 
@@ -1970,7 +1977,7 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void SizeLibrary(double scale)
     {
-        SizeLibraryPlayer(scale);
+        SizeLibraryPlayer(scale * MiniPlayerCouch);
         SizeSideMenu(scale);
         SizeRadio(scale);   // radio, its wheel, its search and the tuner (see PegasusChrome.Radio)
         SizeArtistsGenres(scale);   // the artists and genres screens (see PegasusChrome.ArtistsGenres)
