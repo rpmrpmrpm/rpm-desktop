@@ -866,6 +866,7 @@ public sealed partial class PegasusChrome
                 1 => Loc.Get("Tv_SettingsAfterMinute"),
                 var minutes => Loc.Format("Tv_SettingsAfterMinutes", minutes),
             }, s => s.NextScreensaver()),
+            new("Tv_SettingsKeyLegend", s => OnOff(s.KeyLegend), s => s.ToggleKeyLegend()),
         ]),
         new("Settings_Profile", "", []),
         new("Settings_Display", "", []),

@@ -52,6 +52,7 @@ public sealed partial class PegasusChrome
         set
         {
             _keyboardDriven = value;
+            LegendInput();   // a key, or the pointer taking over, sends the key legend away
             if (!value)
                 EndQueueMove(place: false);
         }

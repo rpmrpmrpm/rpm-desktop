@@ -2233,6 +2233,25 @@
       </Grid>
     </Grid>
 
+    <!-- ═══ the key legend ═══ a small card that says what the remote's keys do on the screen just
+         opened, two to four of them, as on the TV: over the collection's screens and a record's page, in
+         a corner the mini player is not in. It takes no pointer and no focus, so the keys act on the
+         screen under it all along. Its keys, its sizes, its place and its fades are written in code (see
+         PegasusChrome.Legend). -->
+    <Grid x:Name="KeyLegend" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False"
+          HorizontalAlignment="Right" VerticalAlignment="Bottom">
+      <!-- The side menu's glass: the live blur, and over it the dimmed light smoke and its rim. -->
+      <Border x:Name="KeyLegendFrost">
+        <Border.Background>
+          <ui:GlassBrush BlurAmount="34"/>
+        </Border.Background>
+      </Border>
+      <Border x:Name="KeyLegendGlass" BorderThickness="1"
+              Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
+              LightSmokeRimBrush}"/>
+      <StackPanel x:Name="KeyLegendKeys" Orientation="Horizontal"/>
+    </Grid>
+
     <!-- ═══ what is playing next ═══ a drawer down the left edge, full height.
 
          It slides IN and does not just appear, and the picture moves right by exactly its width and does

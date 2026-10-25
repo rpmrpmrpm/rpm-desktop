@@ -159,6 +159,8 @@ public sealed partial class SettingsService
         int PegasusScreensaverMinutes = RPM.Core.Viz.Screensaver.DefaultMinutes,
         // ...and where its mini player stands over the collection.
         string? PegasusMiniPlayer = null,
+        // ...and whether a screen it opens says what the remote's keys do there.
+        bool PegasusKeyLegend = true,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -760,6 +762,15 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusMiniPlayer;
         set => Update(_model with { PegasusMiniPlayer = value }, notify: false);
+    }
+
+    /// <summary>Whether a screen Pegasus opens shows for five seconds what the remote's keys do on it, as the
+    /// Android TV app's Remote key hints setting chooses (on until changed). Saved quietly: only Pegasus reads
+    /// it, as a screen opens.</summary>
+    public bool PegasusKeyLegend
+    {
+        get => _model.PegasusKeyLegend;
+        set => Update(_model with { PegasusKeyLegend = value }, notify: false);
     }
 
     /// <summary>

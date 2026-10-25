@@ -131,6 +131,10 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void TickPlayerAway(double dt)
     {
+        // The key legend keeps clear of the card, so it is ticked with it (see PegasusChrome.Legend), and
+        // before the check below: it goes when the collection does.
+        TickLegend(dt);
+
         // The settings' Mini player row changed: the card takes its new place now, behind the open
         // panel, rather than on the next visit.
         if (MiniPlaceWanted != _miniPlace)

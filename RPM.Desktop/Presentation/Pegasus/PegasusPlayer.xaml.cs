@@ -1552,6 +1552,7 @@ public sealed partial class PegasusPlayer : UserControl
     {
         if (repeat)
             return;
+        _chrome?.LegendBack();   // a screen Back brings to the front gets no key legend
 
         if (CloseLineMenu())
         {

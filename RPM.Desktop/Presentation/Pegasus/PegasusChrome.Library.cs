@@ -395,6 +395,7 @@ public sealed partial class PegasusChrome
 
         LibraryUp = true;
         _collection = screen;
+        _legendOpening |= immediate;   // the screen Pegasus opens on gets its key legend (see PegasusChrome.Legend)
 
         // Placed, not crossed: the layer itself is arriving. The crosses between the three are the wall's
         // back key, Back and the side menu (see CrossToHome). Set rather than faded also drops a fade still

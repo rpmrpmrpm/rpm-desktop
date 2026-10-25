@@ -81,6 +81,13 @@ public interface IPegasusSettings
     /// <summary>Moves to the next choice, wrapping from the longest to off.</summary>
     void NextScreensaver();
 
+    /// <summary>Whether a screen, as it opens, shows for five seconds what the remote's keys do on it (the
+    /// key legend, see PegasusChrome.Legend). Stored in SettingsService; on until changed.</summary>
+    bool KeyLegend { get; }
+
+    /// <summary>Turns the key legend on or off.</summary>
+    void ToggleKeyLegend();
+
     // ── the mini player: the Player section (the Android TV app's Mini player row) ──
 
     /// <summary>Where the mini player stands over the collection, or Off for none (stored in

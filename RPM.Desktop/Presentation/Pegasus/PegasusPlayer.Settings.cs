@@ -150,6 +150,18 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         ArmScreensaver();
     }
 
+    // ── the key legend: the General section ──
+
+    /// <inheritdoc/>
+    public bool KeyLegend => App.Services.GetRequiredService<SettingsService>().PegasusKeyLegend;
+
+    /// <inheritdoc/>
+    public void ToggleKeyLegend()
+    {
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        settings.PegasusKeyLegend = !settings.PegasusKeyLegend;
+    }
+
     // ── the mini player: the Player section ──
     //
     // Written straight to the stored settings, by name. The chrome reads it on every frame and moves the card
