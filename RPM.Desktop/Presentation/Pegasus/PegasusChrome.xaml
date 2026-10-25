@@ -1559,9 +1559,14 @@
            It does not take the keyboard focus when pressed. It is one key with two meanings, and when it
            kept the focus the space bar became a second press: space after going to home went to the
            turning record instead of pausing. The space bar belongs to the view's own play/pause
-           (PegasusPlayer.Root_PreviewKeyDown), and so do the mini player's keys below. -->
+           (PegasusPlayer.Root_PreviewKeyDown), and so do the mini player's keys below.
+
+           It is for the mouse only (see MouseKeys), as the TV has no key in this corner (FOBO 85efb10a5,
+           ANDR cca3ed7): the remote's Back, the Menu key and Left at the edge do all it does. While the
+           remote is in use it is collapsed, so the focus cannot stop on it. Nothing moves when it goes:
+           home and the wall keep the room under its line (HomeTopPad, WallTop). -->
       <Button x:Name="LibraryBackButton" Click="LibraryBack_Click" AllowFocusOnInteraction="False"
-              HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
+              local:MouseKeys.Only="True" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
               Style="{StaticResource PegasusTransportButton}" Content="&#xf053;" FontSize="14"
               ToolTipService.ToolTip="{loc:Str Key=Viz_LibraryBackHome}"
               AutomationProperties.Name="{loc:Str Key=Viz_LibraryBackHome}"/>
@@ -2026,8 +2031,9 @@
       </Grid>
 
       <!-- Back to the screen where the album was opened from, the wall or home, in the same corner as the
-           collection's own back key. -->
-      <Button x:Name="RecordBackButton" Click="RecordBack_Click"
+           collection's own back key. For the mouse only, like that key (see MouseKeys): the remote's Back
+           closes the page, and the TV's record page has no back key (ANDR cca3ed7). -->
+      <Button x:Name="RecordBackButton" Click="RecordBack_Click" local:MouseKeys.Only="True"
               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18,14,0,0"
               Style="{StaticResource PegasusTransportButton}" Content="&#xf053;" FontSize="14"
               ToolTipService.ToolTip="{loc:Str Key=Viz_LibraryBack}"

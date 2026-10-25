@@ -94,9 +94,10 @@ public sealed partial class PegasusChrome
                 LibraryMenu.Visibility = Visibility.Collapsed;
         });
 
-        // With the remote: focus goes back to where it was on home, else to the corner key. This request
-        // comes after the panel's own request above, and replaces it.
-        FocusScreenLater(_menuOpener ?? LibraryBackButton);
+        // With the remote: focus goes back to where it was on home, else to the screen's own place. Not to
+        // the corner key: it is the mouse's, and collapsed while the remote is in use (see MouseKeys). This
+        // request comes after the panel's own request above, and replaces it.
+        FocusScreenLater(_menuOpener);
         _menuOpener = null;
     }
 
