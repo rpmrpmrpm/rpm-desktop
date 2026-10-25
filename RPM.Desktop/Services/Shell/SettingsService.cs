@@ -161,6 +161,8 @@ public sealed partial class SettingsService
         string? PegasusMiniPlayer = null,
         // ...and whether a screen it opens says what the remote's keys do there.
         bool PegasusKeyLegend = true,
+        // ...and how bright and saturated it is drawn.
+        string? PegasusPicture = null,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -771,6 +773,18 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusKeyLegend;
         set => Update(_model with { PegasusKeyLegend = value }, notify: false);
+    }
+
+    /// <summary>
+    /// How bright and saturated Pegasus is drawn: "Standard", "Softer" or "Muted", by the name of the
+    /// <see cref="RPM.Desktop.Presentation.Pegasus.PictureLook"/>. Null until the settings panel's Picture row has
+    /// been used. A name this build does not know draws Standard. Stored by name for the same reason as
+    /// <see cref="PegasusLayout"/>, and saved quietly too.
+    /// </summary>
+    public string? PegasusPicture
+    {
+        get => _model.PegasusPicture;
+        set => Update(_model with { PegasusPicture = value }, notify: false);
     }
 
     /// <summary>

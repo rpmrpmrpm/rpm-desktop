@@ -97,4 +97,13 @@ public interface IPegasusSettings
     /// <summary>Moves to the next place, wrapping: Top, Bottom, Bottom left, Bottom right, Off. The card
     /// moves on the chrome's next frame, so the change shows behind the open panel.</summary>
     void NextMiniPlayerPlace();
+
+    // ── how the view is drawn: the Display section (the Android TV app's rows) ──
+
+    /// <summary>How bright and saturated the view is drawn (stored in SettingsService).</summary>
+    PictureLook Picture { get; }
+
+    /// <summary>Moves to the next look, wrapping: Standard, Softer, Muted. It shows at once, behind the open
+    /// panel.</summary>
+    void NextPicture();
 }

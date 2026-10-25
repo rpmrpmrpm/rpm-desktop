@@ -181,4 +181,19 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         var next = places[(Array.IndexOf(places, MiniPlayerPlace) + 1) % places.Length];
         App.Services.GetRequiredService<SettingsService>().PegasusMiniPlayer = next.ToString();
     }
+
+    // ── how the view is drawn: the Display section ──
+    //
+    // Written to the stored settings and shown at once, over everything the view draws (see PegasusPlayer.Picture).
+
+    /// <inheritdoc/>
+    public PictureLook Picture => PictureLooks.NamedPicture(App.Services.GetRequiredService<SettingsService>().PegasusPicture);
+
+    /// <inheritdoc/>
+    public void NextPicture()
+    {
+        var next = PictureLooks.Next(Picture);
+        App.Services.GetRequiredService<SettingsService>().PegasusPicture = next.ToString();
+        ApplyPicture(next);
+    }
 }

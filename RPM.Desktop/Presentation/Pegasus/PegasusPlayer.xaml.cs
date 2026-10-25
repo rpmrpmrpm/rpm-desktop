@@ -228,6 +228,7 @@ public sealed partial class PegasusPlayer : UserControl
         // behind that black (see the loading note below). The gallery's still capture (the only caller that names a
         // composition) opens without the opening sound.
         _openingSoundWanted = openOn is null;
+        ApplyPicture(Picture);   // the picture setting, over everything from the first frame
         BeginLoading();
 
         // The room waits when the collection is the opening screen and no room is standing yet.

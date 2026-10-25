@@ -869,7 +869,15 @@ public sealed partial class PegasusChrome
             new("Tv_SettingsKeyLegend", s => OnOff(s.KeyLegend), s => s.ToggleKeyLegend()),
         ]),
         new("Settings_Profile", "", []),
-        new("Settings_Display", "", []),
+        new("Settings_Display", "",
+        [
+            new("Tv_SettingsPicture", s => Loc.Get(s.Picture switch
+            {
+                PictureLook.Softer => "Tv_PictureSofter",
+                PictureLook.Muted => "Tv_PictureMuted",
+                _ => "Tv_PictureStandard",
+            }), s => s.NextPicture()),
+        ]),
         new("Settings_Sound", "",
         [
             new("Settings_Normalize", s => Loc.Get(s.Levelling switch
