@@ -2,6 +2,7 @@ using System.Diagnostics;
 using RPM.Core.Diagnostics;
 using RPM.Core.Library;
 using RPM.Core.Models;
+using RPM.Core.Playback;
 using RPM.Desktop.Services.Library;
 
 namespace RPM.Desktop.Presentation.RPaMp.Models;
@@ -29,13 +30,23 @@ public sealed class SongRadioRun
     private readonly List<string> _history = [];
     private readonly HashSet<string> _queued = new(StringComparer.OrdinalIgnoreCase);
 
-    private SongRadioRun(LibraryService library, TrackHome.Home home, string origin)
+    /// <summary>Whether this run leaves out the songs heard lately (<see cref="Mixtape.Spares"/>). Only a mixtape
+    /// after a list does (<see cref="CarryOn"/>). "Start radio" is left as it is.</summary>
+    private readonly bool _sparesHeard;
+
+    /// <param name="history">Songs to count as queued by this run from its start, after the origin: a mixtape's
+    /// list. Null for none.</param>
+    private SongRadioRun(LibraryService library, TrackHome.Home home, string origin,
+                         IEnumerable<string>? history = null, bool sparesHeard = false)
     {
         _library = library;
         _shelf = home.Shelf;
         _root = home.Root;
         _origin = origin;
+        _sparesHeard = sparesHeard;
         Note(origin);
+        foreach (var song in history ?? [])
+            Note(song);
 
         // Started now so the read overlaps the first seconds of the song rather than following them.
         _crate = Task.Run(ReadCrate);
@@ -52,6 +63,26 @@ public sealed class SongRadioRun
             return null;
 
         return new SongRadioRun(library, home, origin);
+    }
+
+    /// <summary>
+    /// A mixtape after a list that has reached its last song (see <see cref="Mixtape"/>): a radio from the list's
+    /// first song, with the whole list in its history, so it plays nothing of the list again, and it leaves out
+    /// the songs heard lately. It picks from the collection that holds the last song. Null when that collection
+    /// holds none of the list, or no collection holds the last song (a file played from outside the library).
+    /// Starts reading the crate.
+    /// </summary>
+    /// <param name="list">The files of the queue, in play order.</param>
+    public static SongRadioRun? CarryOn(IReadOnlyList<string> list, LibraryService library)
+    {
+        ArgumentNullException.ThrowIfNull(list);
+        ArgumentNullException.ThrowIfNull(library);
+
+        if (list.Count == 0 || TrackHome.For(list[^1]) is not { } home
+            || Mixtape.Seed(list.Select(path => RelativeTo(home.Root, path))) is not { } seed)
+            return null;
+
+        return new SongRadioRun(library, home, seed.Origin, seed.History, sparesHeard: true);
     }
 
     /// <summary>What this run has queued, oldest first. A copy, for handing to <see cref="NextAsync"/>.</summary>
@@ -85,8 +116,15 @@ public sealed class SongRadioRun
         var crate = await _crate.ConfigureAwait(false);
 
         var seed = RelativeTo(_root, playingPath) ?? _origin;
-        var queued = inQueue.Select(path => RelativeTo(_root, path)).OfType<string>()
+        IReadOnlySet<string> queued = inQueue.Select(path => RelativeTo(_root, path)).OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // A mixtape after a list also leaves out what was heard lately. Read on every call, so a song heard
+        // while the mixtape plays is left out of its next songs too.
+        if (_sparesHeard)
+            queued = Mixtape.Spared(queued, _library.Read(_shelf, "a mixtape's songs heard lately",
+                    db => db.RecentlyHeard(Mixtape.Spares))
+                .Match<IReadOnlyList<string>>(heard => heard, _ => []));
 
         var picks = SongRadio.Pick(crate, seed, _origin, queued, history, count, Random.Shared);
         if (picks.Count == 0)

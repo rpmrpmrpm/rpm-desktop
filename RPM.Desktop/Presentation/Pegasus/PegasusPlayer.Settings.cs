@@ -78,6 +78,30 @@ public sealed partial class PegasusPlayer : IPegasusSettings
         ApplyAlign();
     }
 
+    // ── a list that ends goes on as a mixtape: the Player section ──
+    //
+    // Stored in the settings and read by the transport when a list's last song goes on the deck, only while
+    // Pegasus is shown: the hook is put on the transport as the view comes up and taken off as it goes (see
+    // ListenForMixtape). The main window's queue stops at its end as it always has.
+
+    /// <inheritdoc/>
+    public bool MixtapeAfter => App.Services.GetRequiredService<SettingsService>().PegasusMixtapeAfter;
+
+    /// <inheritdoc/>
+    public void ToggleMixtapeAfter()
+    {
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        settings.PegasusMixtapeAfter = !settings.PegasusMixtapeAfter;
+    }
+
+    /// <summary>Puts the mixtape setting on the transport while the view is up, and takes it off as the view goes.
+    /// Read when a list's last song starts, so a change in the panel counts from the next one.</summary>
+    private void ListenForMixtape(bool on)
+    {
+        if (_amp is { } amp)
+            amp.MixtapeAfter = on ? () => MixtapeAfter : null;
+    }
+
     // ── volume levelling: the Sound section ──
     //
     // Written straight to the stored settings, as the main window's Sound page writes them. The levelling of the

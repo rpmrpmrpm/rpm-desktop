@@ -117,6 +117,7 @@ public sealed partial class SettingsService
         bool LockedListsHidden = false,
         AlbumOrdering AlbumOrdering = AlbumOrdering.Artist,
         AlbumOrdering PegasusAlbumOrdering = AlbumOrdering.Artist,
+        bool PegasusMixtapeAfter = true,
         bool PegasusAlbumCarousel = false,
         AlbumGrouping AlbumGrouping = AlbumGrouping.None,
         ArtistTrackGrouping ArtistTrackGrouping = ArtistTrackGrouping.Letter,
@@ -555,6 +556,15 @@ public sealed partial class SettingsService
     {
         get => _model.PegasusAlbumOrdering;
         set => Update(_model with { PegasusAlbumOrdering = value }, notify: false);
+    }
+
+    /// <summary>Whether an album, a playlist or a single that ends in Pegasus goes on as a mixtape of songs like it,
+    /// as the Android TV app's Player setting chooses (on until changed). Only Pegasus reads it, while it is shown
+    /// (see RPaMpModel.MixtapeAfter), so the main window's queue still stops at its end. Saved quietly.</summary>
+    public bool PegasusMixtapeAfter
+    {
+        get => _model.PegasusMixtapeAfter;
+        set => Update(_model with { PegasusMixtapeAfter = value }, notify: false);
     }
 
     /// <summary>Whether Pegasus's album wall is shown as a carousel rather than a grid, as the Android TV

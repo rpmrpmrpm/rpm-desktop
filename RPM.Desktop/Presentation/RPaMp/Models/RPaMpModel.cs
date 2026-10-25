@@ -479,6 +479,8 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
         // gapless changeover (OnTrackChained). See RPaMpModel.Radio.
         if (track?.Radio is { } radio)
             TopUpRadio(track, radio);
+        else if (track is not null)
+            CarryOnAsMixtape(track);
     }
 
     /// <param name="why">What moved the queue here, for the <c>queue</c> ring channel. It is required,

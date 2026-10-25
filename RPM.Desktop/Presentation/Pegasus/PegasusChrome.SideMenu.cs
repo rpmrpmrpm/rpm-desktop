@@ -908,6 +908,7 @@ public sealed partial class PegasusChrome
             }), s => s.NextMiniPlayerPlace()),
             new("Viz_SettingsCensor", s => OnOff(s.MaskProfanity), s => s.ToggleMaskProfanity()),
             new("Viz_SettingsAlign", s => OnOff(s.AlignWords), s => s.ToggleAlignWords()),
+            new("Tv_SettingsMixtapeAfter", s => OnOff(s.MixtapeAfter), s => s.ToggleMixtapeAfter()),
         ]),
         new("Tv_SettingsVisualisation", "",
         [

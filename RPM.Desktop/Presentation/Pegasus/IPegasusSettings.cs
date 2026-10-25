@@ -44,6 +44,13 @@ public interface IPegasusSettings
     /// stores nothing, as the lyric view's key does.</summary>
     void ToggleAlignWords();
 
+    /// <summary>Whether an album, a playlist or a single that ends goes on as a mixtape of songs like it.</summary>
+    bool MixtapeAfter { get; }
+
+    /// <summary>Turns the mixtape after a list on or off. A list already on its last song keeps what it was
+    /// given.</summary>
+    void ToggleMixtapeAfter();
+
     // ── volume levelling: the Sound section (the main window's Sound page sets the same two) ──
 
     /// <summary>How records are levelled: matched as albums, as tracks, or not at all.</summary>

@@ -1,5 +1,7 @@
+using RPM.Core.Diagnostics;
 using RPM.Core.Library;
 using RPM.Core.Models;
+using RPM.Core.Playback;
 using RPM.Desktop.Services.Shell;
 
 namespace RPM.Desktop.Presentation.RPaMp.Models;
@@ -78,7 +80,13 @@ public sealed partial class RPaMpModel
         if (at < 0)
             return;
 
-        var wanted = SongRadio.Ahead - (Playlist.Count - 1 - at);
+        AppendRadioRows(radio, picks, SongRadio.Ahead - (Playlist.Count - 1 - at));
+    }
+
+    /// <summary>Appends up to <paramref name="wanted"/> of the picks at the end of the queue as rows of the radio,
+    /// leaving out what is queued already and what this radio queued once and the listener took out.</summary>
+    private void AppendRadioRows(SongRadioRun radio, IReadOnlyList<TrackInfo> picks, int wanted)
+    {
         if (wanted <= 0)
             return;
 
@@ -107,5 +115,56 @@ public sealed partial class RPaMpModel
 
         // Cloud songs among the new rows get their addresses signed before they are reached.
         _ = WarmAheadAsync();
+    }
+
+    // ── a list that ends goes on as a mixtape ──
+
+    /// <summary>
+    /// Asked when the last song of a list goes on the deck: whether the list goes on as a mixtape of songs like it
+    /// (see <see cref="Mixtape"/>). Null, the default, means no: the main window's queue stops at its end. Pegasus
+    /// sets it while it is shown, from its own setting (PegasusPlayer.Settings), as the Android TV app does.
+    /// </summary>
+    public Func<bool>? MixtapeAfter { get; set; }
+
+    /// <summary>
+    /// A row that is not a radio's went on the deck. When it is the last of its list and <see cref="MixtapeAfter"/>
+    /// says so, a mixtape is tuned from the list (<see cref="SongRadioRun.CarryOn"/>) and its first songs are
+    /// queued after this one when they arrive. From its first row on, the mixtape tops itself up as every song
+    /// radio does (<see cref="TopUpRadio"/>).
+    /// </summary>
+    private void CarryOnAsMixtape(PlaylistTrack playing)
+    {
+        if (MixtapeAfter?.Invoke() != true)
+            return;
+
+        var at = Playlist.IndexOf(playing);
+        if (!Mixtape.CarriesOn(at, Playlist.Count, playing.Radio is not null, _repeat, _shuffle, IsDjMixing))
+            return;
+
+        var inQueue = Playlist.Select(t => t.FilePath).ToList();
+        if (SongRadioRun.CarryOn(inQueue, _library) is not { } radio)
+            return;
+
+        var history = radio.History;
+        var playingPath = playing.FilePath;
+        Said.Line("songradio", $"a list of {inQueue.Count} reached its last song: a mixtape carries on after it");
+
+        Background.Run(async () =>
+        {
+            var picks = await radio.NextAsync(playingPath, inQueue, history, SongRadio.Ahead).ConfigureAwait(false);
+            if (picks.Count > 0)
+                _dispatcher.TryEnqueue(() => TakeMixtapePicks(playing, radio, picks));
+        });
+    }
+
+    /// <summary>The mixtape's first songs arrived: queued after the list's last song, only while that song is still
+    /// on the deck and still the last in the queue. A queue changed in the meantime is the listener's, and is left
+    /// alone.</summary>
+    private void TakeMixtapePicks(PlaylistTrack after, SongRadioRun radio, IReadOnlyList<TrackInfo> picks)
+    {
+        if (!ReferenceEquals(Deck, after) || Playlist.IndexOf(after) != Playlist.Count - 1)
+            return;
+
+        AppendRadioRows(radio, picks, SongRadio.Ahead);
     }
 }
