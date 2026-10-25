@@ -890,7 +890,6 @@ public sealed partial class PegasusChrome
             new("Viz_SettingsLayout", s => Loc.Get(s.Layout switch
             {
                 PegasusView.Centred => "Viz_LayoutCompact",
-                PegasusView.Room => "Viz_LayoutVisuals",
                 _ => "Viz_LayoutFull",
             }), s => s.NextLayout()),
             new("Tv_SettingsRoomStyle", s => Loc.Get(s.RoomStyle switch

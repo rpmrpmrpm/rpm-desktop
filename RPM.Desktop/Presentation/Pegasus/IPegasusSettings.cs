@@ -15,8 +15,8 @@ namespace RPM.Desktop.Presentation.Pegasus;
 /// </summary>
 public interface IPegasusSettings
 {
-    /// <summary>The layout the record turning comes back to: Spread, Centred or Room. While the lyric is
-    /// on, the one it goes back to when the lyric is turned off.</summary>
+    /// <summary>The layout the record turning comes back to: Spread or Centred. While the lyric is on, the
+    /// one it goes back to when the lyric is turned off.</summary>
     PegasusView Layout { get; }
 
     /// <summary>Moves to the next layout, wrapping, in the order the layout key cycles them.</summary>

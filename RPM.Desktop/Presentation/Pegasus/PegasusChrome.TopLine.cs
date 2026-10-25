@@ -40,7 +40,6 @@ public sealed partial class PegasusChrome
         _layoutName = Strings.Loc.Get(layout switch
         {
             PegasusView.Centred => "Viz_LayoutCompact",
-            PegasusView.Room => "Viz_LayoutVisuals",
             _ => "Viz_LayoutFull",
         });
         _layoutNameUntil = Environment.TickCount64 + LayoutNameMs;

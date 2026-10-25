@@ -18,15 +18,10 @@ public sealed partial class PegasusPlayer : IPegasusSettings
     /// <inheritdoc/>
     public void NextLayout()
     {
-        var next = Layout switch
-        {
-            PegasusView.Spread => PegasusView.Centred,
-            PegasusView.Centred => PegasusView.Room,
-            _ => PegasusView.Spread,
-        };
+        var next = Layout == PegasusView.Spread ? PegasusView.Centred : PegasusView.Spread;
 
         // With the lyric on, the layout is where the lyric goes back to. The lyric itself stays, in the form the new
-        // layout gives it: beside the record in the compact layout, alone in the others (PegasusViews.LyricViewFor).
+        // layout gives it: beside the record in the compact layout, alone in the full one (PegasusViews.LyricViewFor).
         if (_view.IsLyric())
         {
             _beforeLyrics = next;

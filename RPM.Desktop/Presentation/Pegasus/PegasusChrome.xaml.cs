@@ -1163,19 +1163,16 @@ public sealed partial class PegasusChrome : UserControl
     private static double LyricColumn(double w) => Math.Min(w * 0.78, 1400);
 
     /// <summary>
-    /// Lays out the foot: the seek bar and the keys along the bottom of the lyric view and of the bare room.
+    /// Lays out the foot: the seek bar and the keys along the bottom of the lyric view.
     ///
     /// <para>The bar runs the width of the lyric's column. The foot is only drawn where the lyric stands
-    /// alone or nothing stands at all, and in both the column is the middle one. It can only be scrubbed
-    /// while one of those views is on screen (see ApplyLyricFootHits). An invisible bar must not catch a
-    /// drag meant for the picture. The whole foot (the bar and the keys together) is lifted off the bottom
-    /// edge, so the margin belongs to the container, not the bar. Otherwise the keys would hang off the end
-    /// of the screen. On a tall screen the whole foot is drawn larger as one block (LyricFootScale), at the
-    /// figure that the column's own bar and keys use. The bar is laid out at the column over that figure,
+    /// alone, and there the column is the middle one. It can only be scrubbed while that view is on screen
+    /// (see ApplyLyricFootHits). An invisible bar must not catch a drag meant for the picture. The whole
+    /// foot (the bar and the keys together) is lifted off the bottom edge, so the margin belongs to the
+    /// container, not the bar. Otherwise the keys would hang off the end of the screen. On a tall screen
+    /// the whole foot is drawn larger as one block (LyricFootScale), at the figure that the column's own
+    /// bar and keys use. The bar is laid out at the column over that figure,
     /// so once it is drawn larger, it is the column's width again.</para>
-    ///
-    /// <para>It is called from <see cref="Relayout"/> as well as from <see cref="LayoutLyrics"/>. The bare
-    /// room has a foot with no sheet behind it, and LayoutLyrics does nothing without a sheet.</para>
     /// </summary>
     private void LayoutFoot(double w, double h)
     {
@@ -2470,15 +2467,15 @@ public sealed partial class PegasusChrome : UserControl
     private double CentreOpacity => _view is PegasusView.Room or PegasusView.Lyrics ? 0 : 1;
     private double LyricOpacity => _view.IsLyric() ? 1 : 0;
 
-    /// <summary>The lyric's own foot, its seek bar and keys. These show for the lyric alone and for the bare
-    /// room, the two views that draw no column of words (see <see cref="FootDrawn"/>). Beside the record,
-    /// the column's own bar and keys are on screen, and they stay where they are.</summary>
+    /// <summary>The lyric's own foot, its seek bar and keys. These show for the lyric alone, the one view
+    /// that draws no column of words (see <see cref="FootDrawn"/>). Beside the record, the column's own bar
+    /// and keys are on screen, and they stay where they are.</summary>
     private double LyricFootOpacity => FootDrawn(_view) ? 1 : 0;
 
     /// <summary>Whether a view draws the foot (the seek bar and keys along the bottom) in place of the
-    /// column's own. The lyric alone has no column. Neither has the bare room, and without the foot it would
-    /// have no keys at all, not even the layout key that leads out of it.</summary>
-    private static bool FootDrawn(PegasusView view) => view is PegasusView.Lyrics or PegasusView.Room;
+    /// column's own. The lyric alone has no column. The bare room draws neither: it is only drawn under the
+    /// collection and the greeting, which have keys of their own.</summary>
+    private static bool FootDrawn(PegasusView view) => view == PegasusView.Lyrics;
 
     private void BeginSwap()
     {
@@ -3538,7 +3535,7 @@ public sealed partial class PegasusChrome : UserControl
 
     /// <summary>
     /// After the layout key: keeps the focus on a layout key, where it was on one. A change of layout can
-    /// fade the row the pressed key is in (the bare room draws the foot, the other layouts the column).
+    /// fade the row the pressed key is in (the lyric alone draws the foot, the other views the column).
     /// The focus goes to the layout key of the transport the new layout draws, so the next press of OK
     /// moves on again. Only while the remote is in use, as every placement of the focus here.
     /// </summary>
@@ -3565,8 +3562,8 @@ public sealed partial class PegasusChrome : UserControl
         LyricViewFilled.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         IconName.Set(LyricViewButton, tip);
 
-        // …and its twin in the foot. On the lyric view it is filled, as the way back. On the bare room,
-        // which shows the foot too, it is the way to the words, as in the row.
+        // …and its twin in the foot, dressed the same. The foot is on screen with the lyric alone, where
+        // it is filled, as the way back.
         LyricViewFootButton.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         LyricFootHollow.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
         LyricFootFilled.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
@@ -4789,7 +4786,7 @@ public sealed partial class PegasusChrome : UserControl
     /// bar along the foot of the words stays dead until the next resize.</para>
     /// </summary>
     private void ApplyLyricFootHits()
-        => LyricFoot.IsHitTestVisible = (_view == PegasusView.Lyrics && _sheet.IsSynced) || _view == PegasusView.Room;
+        => LyricFoot.IsHitTestVisible = _view == PegasusView.Lyrics && _sheet.IsSynced;
 
     // ── layout ──
 
@@ -4970,10 +4967,6 @@ public sealed partial class PegasusChrome : UserControl
         var controls = Math.Max(1, Math.Min(QueueScale, column / (volume ? ControlsWithVolume : ControlsLeast)));
         ControlsScale.Factor = controls;
         VolumeGroup.Visibility = volume ? Visibility.Visible : Visibility.Collapsed;
-
-        // The foot along the bottom of the lyric view and of the bare room. The bare room has no sheet, so
-        // LayoutLyrics, which also lays it out, may not run.
-        LayoutFoot(w, h);
 
         var title = Math.Clamp(side * 0.075, 16, 44);
         // The artist and the album at the Android TV app's couch proportions, 0.75 and 0.62 of the title

@@ -1,11 +1,11 @@
 namespace RPM.Desktop.Presentation.Pegasus;
 
 /// <summary>
-/// Which of Pegasus's views is on screen. One button cycles through them, in this order.
+/// Which of Pegasus's views is on screen. The layout key steps between the first two, the lyric key opens
+/// the last two, and <see cref="Room"/> is drawn only under something else.
 ///
-/// <para>They are variations of the same picture, not different pictures. Each step takes something away
-/// and gives the space back to the room. Going down the list, nothing is ever added, so the button only
-/// removes parts of the picture.</para>
+/// <para>They are variations of the same picture, not different pictures. Each step down the list takes
+/// something away and gives the space back to the room.</para>
 /// </summary>
 public enum PegasusView
 {
@@ -18,8 +18,9 @@ public enum PegasusView
     Centred,
 
     /// <summary>The room alone: the figures drifting in the record's colours, and nothing else. There is no
-    /// spectrum, cover, record or words. This is not a visualizer that shows the track. It shows the light
-    /// the track is making, which is the purpose of this view.</summary>
+    /// spectrum, cover, record or words. It is not a layout the listener chooses. It is what the player draws
+    /// under the collection and under the New Year greeting (see PegasusPlayer.EffectiveView), and so what the
+    /// screensaver leaves when it puts the collection away (see PegasusPlayer.Screensaver).</summary>
     Room,
 
     /// <summary>

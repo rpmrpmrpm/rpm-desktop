@@ -780,13 +780,13 @@ public sealed partial class PegasusPlayer : UserControl
         s.Height = h;
     }
 
-    // ── the three compositions ──
+    // ── the compositions ──
 
     /// <summary>
-    /// The layout key, in the row under the record or in the foot: one key that cycles through the layouts. Three
-    /// layouts is one too many for a toggle and far too few for a menu. They are ordered so that each press takes
-    /// something away: first everything, then the reading of it, then the record itself. After the record it wraps
-    /// back to the beginning (see <see cref="NextLayout"/>, which also keeps the choice).
+    /// The layout key, in the row under the record or in the foot: one key that steps between the two layouts,
+    /// everything, then the record and its lines without the spectrum, and back (see <see cref="NextLayout"/>,
+    /// which also keeps the choice). The room on its own is the screensaver's, over the collection (see
+    /// PegasusPlayer.Screensaver), not a layout.
     ///
     /// <para>The new layout's name shows at the top of the screen for two seconds. A key that cycles cannot show on
     /// itself where the next press goes, and a picture that changed with no word about it reads as a fault.</para>
@@ -813,9 +813,9 @@ public sealed partial class PegasusPlayer : UserControl
     }
 
     /// <summary>
-    /// Reads the layout and the lyric key's choice from the settings, once. A layout this build does not know, or
-    /// none stored, opens on the full layout. The lyric itself is not put up here. It needs a sheet, and the first
-    /// sheet that arrives puts it up (see <see cref="OnLyricsChanged"/>).
+    /// Reads the layout and the lyric key's choice from the settings, once. A layout the key does not offer
+    /// ("Room", the bare room, among them), or none stored, opens on the full layout. The lyric itself is not put
+    /// up here. It needs a sheet, and the first sheet that arrives puts it up (see <see cref="OnLyricsChanged"/>).
     /// </summary>
     private void ReadStoredLayout()
     {
@@ -825,7 +825,7 @@ public sealed partial class PegasusPlayer : UserControl
 
         var settings = App.Services.GetRequiredService<SettingsService>();
         _view = _beforeLyrics = Enum.TryParse<PegasusView>(settings.PegasusLayout, out var stored)
-                                && stored is PegasusView.Spread or PegasusView.Centred or PegasusView.Room
+                                && stored is PegasusView.Spread or PegasusView.Centred
             ? stored
             : PegasusView.Spread;
         _lyricSticky = settings.PegasusLyrics;
@@ -850,7 +850,7 @@ public sealed partial class PegasusPlayer : UserControl
     /// the key is lit in the lyric view's foot, as the way back (see PegasusChrome.LyricViewButton). It has its own
     /// mark, next to the heart.
     ///
-    /// <para>This key is not part of the cycle above. The other three views always exist, but the lyric only
+    /// <para>This key is not part of the cycle above. The layouts always exist, but the lyric only
     /// sometimes does. A cycle that contains something usually absent is a button whose behaviour changes from
     /// record to record. Leaving the lyric puts back whichever composition was on before, so a glance at the words
     /// leaves the screen where it found it.</para>
@@ -1310,7 +1310,7 @@ public sealed partial class PegasusPlayer : UserControl
         // transient and cannot be clicked through. A sentence sitting on a playhead would look like two unrelated
         // things drawn on top of each other. Beside the record, the foot holds the column's own bar and keys, as the drawn-in view
         // does. So the message stands in the same place there.
-        Flash.Margin = new Thickness(24, 0, 24, EffectiveView is PegasusView.Lyrics or PegasusView.Room ? 170 : 44);
+        Flash.Margin = new Thickness(24, 0, 24, EffectiveView == PegasusView.Lyrics ? 170 : 44);
 
         _chrome?.SetView(EffectiveView, immediate);
         _stage?.SetView(EffectiveView, immediate);

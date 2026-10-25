@@ -418,10 +418,7 @@
          It is a second SeekBar, because the one in the column is faded away for this view, and one control
          cannot be in two places. It is the same control on the same transport, as the header also carries
          two of its own (the open drawer's and the parked drawer's), so whichever is on screen shows the
-         same playhead and scrubs the same track.
-
-         The bare room (Visuals only) shows this foot too. That layout has no column of words, and without
-         the foot it would have no keys at all, not even the layout key that leads out of it. -->
+         same playhead and scrubs the same track. -->
     <StackPanel x:Name="LyricFoot" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                 Opacity="0" IsHitTestVisible="False">
       <!-- Scaled as a block, as the column's bar and keys are (see ControlsScale). The width of its bar
@@ -447,8 +444,7 @@
             </Grid.Resources>
 
             <!-- The right end of the foot, as in the row under the record: the cast key, the lyric key and
-                 the layout key. This foot is also the transport of the bare room (Visuals only), which has
-                 no column of words to carry one, so it is the way out of that layout too. -->
+                 the layout key. -->
             <StackPanel x:Name="LyricFootKeys" Orientation="Horizontal" Spacing="2"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
               <!-- The same drawings as CastButton. Change both. -->
@@ -464,8 +460,8 @@
                 </Grid>
               </Button>
 
-              <!-- The lyric key: filled on the lyric view, where it is the way back to the record, and
-                   hollow on the bare room. ShowLyricKey dresses it with the key in the row under the record.
+              <!-- The lyric key: filled on the lyric view, where it is the way back to the record.
+                   ShowLyricKey dresses it with the key in the row under the record.
                    The same drawings as LyricViewHollow and LyricViewFilled. Change both. -->
               <Button x:Name="LyricViewFootButton" Click="LyricView_Click"
                       Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
@@ -734,7 +730,7 @@
                 </Grid>
               </Button>
 
-              <!-- The layout key: Full, Compact, Visuals only, and round again (see
+              <!-- The layout key: Full, Compact, and back again (see
                    PegasusPlayer.StepLayout). The new layout's name shows at the top of the screen for two
                    seconds. The glyph is four squares, the TV's layout key. -->
               <Button x:Name="LayoutButton" Click="Layout_Click"

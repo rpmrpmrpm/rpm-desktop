@@ -695,9 +695,9 @@ public sealed partial class SettingsService
     // ── Pegasus's player ──
 
     /// <summary>
-    /// The layout Pegasus's player shows: "Spread" (Full), "Centred" (Compact) or "Room" (Visuals only), by
-    /// the name of the layout. Null until the layout key or the settings panel has been used. A name this
-    /// build does not know opens on the full layout (see PegasusPlayer.ReadStoredLayout).
+    /// The layout Pegasus's player shows: "Spread" (Full) or "Centred" (Compact), by the name of the layout.
+    /// Null until the layout key or the settings panel has been used. Any other name, "Room" among them,
+    /// opens on the full layout (see PegasusPlayer.ReadStoredLayout).
     ///
     /// <para>It is kept so that the player opens as it was left, after a restart as well as after a visit
     /// to the library. A layout is a way of watching that the listener chose once. It is stored by name, so
