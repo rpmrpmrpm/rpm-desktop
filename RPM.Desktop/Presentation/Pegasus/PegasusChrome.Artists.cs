@@ -2,6 +2,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Library;
 using RPM.Core.Metadata.Providers;
@@ -18,10 +19,18 @@ namespace RPM.Desktop.Presentation.Pegasus;
 ///
 /// <para><b>Like the desktop artists wall, for a remote.</b> It uses the same acts in the same name order
 /// (<see cref="ArtistWall.Build"/>), the same photographs (<see cref="ArtistPortraits"/>) and a search
-/// field over the same names (<see cref="ArtistWall.Matches"/>). The desktop's index rail is left out. A
-/// rail is a pointer's way along a long list. The remote gets the search field and the phone's four sort
-/// orders (<see cref="ArtistSort"/>) instead, in the tools at the top right, where the album wall keeps its
-/// own. A photograph is round, so an act never looks like a record on a wall of sleeves.</para>
+/// field over the same names (<see cref="ArtistWall.Matches"/>). The search field and the phone's four sort
+/// orders (<see cref="ArtistSort"/>) are in the tools at the top right, where the album wall keeps its own.
+/// A photograph is round, so an act never looks like a record on a wall of sleeves.</para>
+///
+/// <para><b>The alphabet down the right edge, in name order.</b> The desktop's index rail is a pointer's
+/// way along a long list; the remote's is the TV's ladder (<see cref="ArtistLadder"/>; FOBO c86660c2e, ANDR
+/// 1128831). Only in name order: in the other orders a letter's acts are not together. It holds the
+/// letters the list has (<see cref="ArtistLetters"/>), A to Z and "#" last, so no letter leads nowhere.
+/// Right from the last card of a row enters it, on the letter of the card the remote came from, and it
+/// grows. Up and Down step through the letters and scroll the list so the row of the letter's first act
+/// stands where the first row does. Left, OK and Back go to that act. Right goes nowhere, and Up on A or
+/// Down on "#" bounces. A click on a letter scrolls the list there too.</para>
 ///
 /// <para><b>Photographs are fetched three at a time.</b> A card asks for its photograph only while its row
 /// is on screen. The frame tick starts the next request whenever fewer than three are in progress (see
@@ -77,6 +86,26 @@ public sealed partial class PegasusChrome
     /// catalogues have no photograph of. Kept across builds so a visit after an import does not fetch every
     /// face again.</summary>
     private readonly Dictionary<string, byte[]?> _artistFaces = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The alphabet down the right edge, and the one stop the remote has on it. Built once, in
+    /// <see cref="BuildArtistLadder"/>.</summary>
+    private ArtistLadder _ladder = null!;
+    private RemoteLine _ladderKey = null!;
+
+    /// <summary>The ladder's letters, each with the place of its first act in <see cref="_artistsShown"/>.
+    /// Empty while the ladder is not shown.</summary>
+    private IReadOnlyList<ArtistLetter> _ladderLetters = [];
+
+    /// <summary>The place in the list of the card that last had the focus, so the ladder opens on its
+    /// letter.</summary>
+    private int _ladderFrom;
+
+    /// <summary>A row the repeater laid out, for the height every row has (see PegasusArtistTemplate).</summary>
+    private FrameworkElement? _artistRowSample;
+
+    /// <summary>The ladder's room at the screen's right edge and under its last letter, in fixed pixels (the
+    /// TV's 12 and 28).</summary>
+    private const double LadderEdge = 12, LadderFoot = 28;
 
     /// <summary>Whether the artists list is the screen in front, with nothing over it.</summary>
     private bool ArtistsInFront => LibraryUp && !RecordUp && _collection == CollectionScreen.Artists;
@@ -181,8 +210,10 @@ public sealed partial class PegasusChrome
         for (var i = 0; i < shown.Count; i++)
             shown[i].Index = i;
 
+        FillArtistLadder(shown);
         CutArtists(shown, ArtistColumnsAt(QueueScale));
         ArtistsScroll.ChangeView(null, 0, null, disableAnimation: true);
+        SizeArtists(QueueScale);   // the cards make room for the ladder, or take it back
 
         ShowArtistsEmpty(shown.Count > 0
             ? null
@@ -224,6 +255,7 @@ public sealed partial class PegasusChrome
         if (args.Index < 0 || args.Index >= _artistRows.Count)
             return;
 
+        _artistRowSample = args.Element as FrameworkElement;
         foreach (var card in _artistRows[args.Index].Cards)
         {
             _artistsOnScreen.Add(card);
@@ -461,8 +493,173 @@ public sealed partial class PegasusChrome
             CutArtists(_artistsShown, columns);
         _artistColumnsCut = columns;
 
-        var room = width - (LibraryEdgeInset * 2) - LibraryScrollbarRoom - (ArtistGap * (columns - 1));
+        // The ladder stands at the right edge, under the tools and level with the first row, and the cards
+        // keep its width at rest clear of it, as the TV's grid does. Grown, it reaches over them.
+        _ladder.Sizing = scale;
+        ArtistsLadderHost.Margin = new Thickness(0, WallTop, LadderEdge, LadderFoot);
+        var ladder = _ladderLetters.Count > 0 ? _ladder.RestWidth : 0;
+
+        var room = width - (LibraryEdgeInset * 2) - LibraryScrollbarRoom - ladder - (ArtistGap * (columns - 1));
         _artistMetrics.Edge = Math.Max(72, room / columns);
+    }
+
+    // The ladder.
+
+    /// <summary>Builds the ladder and its stop for the remote. From BuildArtistsGenres.</summary>
+    private void BuildArtistLadder()
+    {
+        _ladder = new ArtistLadder();
+        _ladder.RungClicked += place =>
+        {
+            _ladder.Current = place;
+            ScrollArtistsToLetter();
+        };
+
+        // One stop for the whole ladder, as on the TV: OK on it goes to the first act of the letter in
+        // hand. Marked as a zoomed card whose photograph is empty (see ArtistLadder.Photo), so the host
+        // draws no glow round it: the letter in hand shows the focus.
+        _ladderKey = new RemoteLine(_ladder, press: ToLetterHead, menu: null, turn: null)
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        FocusLift.SetPart(_ladderKey, LiftPart.Card);
+        _ladderKey.GotFocus += (_, _) =>
+        {
+            // Entering, the ladder opens on the letter of the card the remote came from.
+            if (_ladder.Active)
+                return;
+            _ladder.Current = LetterOfCard(_ladderFrom);
+            _ladder.Active = true;
+        };
+        _ladderKey.LostFocus += (_, _) => _ladder.Active = false;
+        ArtistsLadderHost.Children.Add(_ladderKey);
+
+        ArtistsWall.GotFocus += (_, e) =>
+        {
+            if (e.OriginalSource is FrameworkElement { DataContext: PegasusArtistCard card })
+                _ladderFrom = card.Index;
+        };
+    }
+
+    /// <summary>The ladder for the list as now searched and ordered: its letters in name order, none in
+    /// the other orders, where a letter's acts are not together.</summary>
+    private void FillArtistLadder(List<PegasusArtistCard> shown)
+    {
+        _ladderLetters = _artistOrdering == ArtistOrdering.Name
+            ? ArtistLetters.Of(shown, card => card.Act.Initial)
+            : [];
+        _ladder.SetLetters(_ladderLetters);
+        _ladderFrom = 0;
+        ArtistsLadderHost.Visibility = _ladderLetters.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>The ladder's place of the letter the card at <paramref name="index"/> files under.</summary>
+    private int LetterOfCard(int index)
+    {
+        if (index < 0 || index >= _artistsShown.Count)
+            return 0;
+        var letter = _artistsShown[index].Act.Initial;
+        for (var i = 0; i < _ladderLetters.Count; i++)
+            if (_ladderLetters[i].Letter == letter)
+                return i;
+        return 0;
+    }
+
+    /// <summary>Scrolls the list so the row of the first act of the letter in hand stands where the first
+    /// row stands at rest, as the TV's ladder does (scrollToItem). At once, not eased: a held key steps the
+    /// letters at the keyboard's rate.</summary>
+    private void ScrollArtistsToLetter()
+    {
+        if (_ladderLetters.Count == 0 || _artistRowSample is not { ActualHeight: > 0 } sample)
+            return;
+        var spacing = (ArtistsWall.Layout as StackLayout)?.Spacing ?? 0;
+        var row = _ladderLetters[_ladder.Current].First / Math.Max(1, _artistColumnsCut);
+        ArtistsScroll.ChangeView(null, row * (sample.ActualHeight + spacing), null, disableAnimation: true);
+    }
+
+    /// <summary>The card of the first act of the letter in hand, or null where it cannot take the focus.
+    /// The list was scrolled to its row when the letter was stepped to, so the row is realized; it is laid
+    /// out once more here if it is not yet.</summary>
+    private Control? LetterHeadCard()
+    {
+        if (_ladderLetters.Count == 0)
+            return null;
+        var first = _ladderLetters[_ladder.Current].First;
+        var columns = Math.Max(1, _artistColumnsCut);
+        for (var tries = 0; tries < 2; tries++)
+        {
+            if (ArtistsWall.TryGetElement(first / columns) is ItemsRepeater row
+                && row.TryGetElement(first % columns) is Control card
+                && CanTakeFocus(card))
+                return card;
+            ArtistsScroll.UpdateLayout();
+        }
+        return null;
+    }
+
+    /// <summary>OK or Back on the ladder: the first act of the letter in hand takes the focus.</summary>
+    private void ToLetterHead()
+    {
+        if (LetterHeadCard() is { } card)
+            RemoteSearch.Give(card);
+    }
+
+    /// <summary>Back with the remote on the ladder: the focus goes to the first act of the letter in hand,
+    /// as the TV's Back does, and the list stays. False where the ladder does not have the focus.</summary>
+    private bool LadderTakesBack()
+    {
+        if (_collection != CollectionScreen.Artists || _ladderLetters.Count == 0 || !FocusWithin(_ladderKey))
+            return false;
+        ToLetterHead();
+        return true;
+    }
+
+    /// <summary>
+    /// The arrows on and into the ladder, after the wall's own rule for its sort key
+    /// (<see cref="ToSortKey"/>). On the ladder Up and Down step the letter in hand and scroll the list to
+    /// it, and the focus stays (a bounce at A and at "#"); Left goes to the letter's first act; Right goes
+    /// nowhere. Right from a card with no card beyond it in its row (the last of a row, or the last card)
+    /// enters the ladder.
+    /// </summary>
+    private Control? AcrossArtistLadder(FrameworkElement from, FocusNavigationDirection direction, Control? next)
+    {
+        next = ToSortKey(from, direction, next);
+        if (_ladderLetters.Count == 0)
+            return next;
+
+        if (Inside(from, _ladderKey))
+        {
+            switch (direction)
+            {
+                case FocusNavigationDirection.Up or FocusNavigationDirection.Down:
+                    var to = _ladder.Current + (direction == FocusNavigationDirection.Up ? -1 : 1);
+                    if (to < 0 || to >= _ladder.Count)
+                        return null;
+                    _ladder.Current = to;
+                    ScrollArtistsToLetter();
+                    return _ladderKey;
+                case FocusNavigationDirection.Left:
+                    return LetterHeadCard();
+                default:
+                    return null;
+            }
+        }
+
+        if (direction == FocusNavigationDirection.Right
+            && Inside(from, ArtistsWall)
+            && (next is null || !Inside(next, ArtistsWall))
+            && CanTakeFocus(_ladderKey))
+            return _ladderKey;
+
+        return next;
+    }
+
+    /// <summary>One frame of the ladder's grow, while the artists list is up. From TickArtistsGenres.</summary>
+    private void TickArtistLadder()
+    {
+        if (_ladderLetters.Count > 0)
+            _ladder.Tick();
     }
 
     /// <summary>Whether the artists list's search field has the keys. See IsLibrarySearchFocused.</summary>

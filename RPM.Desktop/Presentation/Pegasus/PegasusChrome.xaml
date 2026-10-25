@@ -1105,8 +1105,8 @@
       <!-- ═══ artists ═══ every artist that the collection files an album under, as round photographs,
            six to a row (see PegasusChrome.Artists). Opened by the side menu's Artists. The rows are a
            virtualizing repeater, like the wall's, and the tools are in the top right corner, like the
-           wall's. Its padding and the tools' margin are set in LayOutLibraryTop, and its sizes in
-           SizeArtists. -->
+           wall's. In name order an alphabet stands down the right edge. Its padding and the tools'
+           margin are set in LayOutLibraryTop, and its sizes in SizeArtists. -->
       <Grid x:Name="ArtistsScreen" Visibility="Collapsed" Opacity="0">
         <ScrollViewer x:Name="ArtistsScroll" BringIntoViewOnFocusChange="False"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
@@ -1135,6 +1135,12 @@
           </ItemsRepeater>
           </Grid>
         </ScrollViewer>
+
+        <!-- The alphabet down the right edge, in name order only (see ArtistLadder and
+             PegasusChrome.Artists). The ladder is built in code and stands in this host, which
+             SizeArtists places under the tools, level with the first row. -->
+        <Grid x:Name="ArtistsLadderHost" Visibility="Collapsed"
+              HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
 
         <TextBlock x:Name="ArtistsEmpty" Visibility="Collapsed"
                    Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center"

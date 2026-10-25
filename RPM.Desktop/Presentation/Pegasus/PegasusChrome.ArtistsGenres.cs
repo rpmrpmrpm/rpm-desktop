@@ -95,6 +95,7 @@ public sealed partial class PegasusChrome
         _genresFade = new Fader(GenresScreen);
         _artistPageFade = new Fader(ArtistPageScreen);
         _genrePageFade = new Fader(GenrePageScreen);
+        BuildArtistLadder();
         BuildPlaylistsScreen();
         BuildSearchScreen();
     }
@@ -203,6 +204,10 @@ public sealed partial class PegasusChrome
     {
         // The search screen takes Back itself first: from its results to its field, then the field emptied.
         if (_collection == CollectionScreen.Search && SearchTakesBack())
+            return;
+
+        // The artists list's ladder takes Back first too: to the first act of the letter in hand.
+        if (LadderTakesBack())
             return;
 
         if (_trail.Count <= 1)
@@ -503,7 +508,10 @@ public sealed partial class PegasusChrome
     private void TickArtistsGenres()
     {
         if (LibraryUp && _collection == CollectionScreen.Artists)
+        {
             PumpArtistFaces();
+            TickArtistLadder();
+        }
         TickArrivals();
     }
 }

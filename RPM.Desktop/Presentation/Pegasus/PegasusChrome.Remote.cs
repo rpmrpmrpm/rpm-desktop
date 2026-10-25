@@ -184,6 +184,10 @@ public sealed partial class PegasusChrome
         if (ReferenceEquals(screen.Area, LibraryLayer) && _collection == CollectionScreen.Wall && _carouselOn)
             return AcrossCarousel(from, direction, next);
 
+        // The artists list: the sort key's rule below, then its ladder of letters (see PegasusChrome.Artists).
+        if (ReferenceEquals(screen.Area, LibraryLayer) && _collection == CollectionScreen.Artists)
+            return AcrossArtistLadder(from, direction, next);
+
         // The album wall and the artists list: Up from the first row reaches the sort key, and Down from
         // the tools comes back (see PegasusChrome.LibraryTools).
         if (ReferenceEquals(screen.Area, LibraryLayer) && _collection is CollectionScreen.Wall or CollectionScreen.Artists)
