@@ -840,7 +840,7 @@ public sealed partial class PegasusChrome
     /// <summary>
     /// The settings, as the TV's settings panel lists them (SettingsPage): its six sections in its order,
     /// each with the rows Pegasus has for it. A section with no row shown is left out of the left card,
-    /// so General, Profile and Display stay hidden until they have a row.
+    /// so Profile and Display stay hidden until they have a row.
     ///
     /// <para><b>A further row is one line</b> in its section: its name, its value from
     /// <see cref="IPegasusSettings"/>, and the call OK makes. The panel builds, lights, moves through and
@@ -849,7 +849,12 @@ public sealed partial class PegasusChrome
     /// </summary>
     private static readonly SettingsSection[] SettingsSections =
     [
-        new("Tv_SettingsGeneral", "", []),
+        new("Tv_SettingsGeneral", "",
+        [
+            new("Tv_SettingsAlbumView", s => Loc.Get(s.AlbumCarousel ? "Tv_AlbumViewCarousel" : "Tv_AlbumViewGrid"),
+                s => s.ToggleAlbumCarousel()),
+            new("Tv_SettingsAlbumSort", s => Loc.Get(OrderingName(s.AlbumOrdering)), s => s.NextAlbumOrdering()),
+        ]),
         new("Settings_Profile", "", []),
         new("Settings_Display", "", []),
         new("Settings_Sound", "",
@@ -992,6 +997,11 @@ public sealed partial class PegasusChrome
             return;
 
         line.Change(settings);
+
+        // The album wall's two rows: a wall up behind the menu takes the new view and order now, not on its
+        // next visit.
+        if (WallUp)
+            ApplyAlbumView();
 
         var shown = _shownSections[_settingsSection].Lines.Where(l => l.Shown?.Invoke(settings) ?? true).ToList();
         if (shown.SequenceEqual(_settingRows.Select(row => row.Line)))

@@ -1,4 +1,5 @@
 using RPM.Core.Analysis;
+using RPM.Core.Cloud;
 
 namespace RPM.Desktop.Presentation.Pegasus;
 
@@ -99,5 +100,31 @@ public sealed partial class PegasusPlayer : IPegasusSettings
     {
         var settings = App.Services.GetRequiredService<SettingsService>();
         settings.NormalizeClassical = !settings.NormalizeClassical;
+    }
+
+    // ── the album wall: the General section ──
+    //
+    // Written straight to the stored settings. The chrome reads both whenever its wall comes up, and again
+    // after a change made in the panel while the wall is behind it (see PegasusChrome.ApplyAlbumView).
+
+    /// <inheritdoc/>
+    public bool AlbumCarousel => App.Services.GetRequiredService<SettingsService>().PegasusAlbumCarousel;
+
+    /// <inheritdoc/>
+    public void ToggleAlbumCarousel()
+    {
+        var settings = App.Services.GetRequiredService<SettingsService>();
+        settings.PegasusAlbumCarousel = !settings.PegasusAlbumCarousel;
+    }
+
+    /// <inheritdoc/>
+    public AlbumOrdering AlbumOrdering => PegasusChrome.SavedLibraryOrdering();
+
+    /// <inheritdoc/>
+    public void NextAlbumOrdering()
+    {
+        var orders = PegasusChrome.LibraryOrderings;
+        var at = Array.IndexOf(orders, AlbumOrdering);
+        App.Services.GetRequiredService<SettingsService>().PegasusAlbumOrdering = orders[(at + 1) % orders.Length];
     }
 }

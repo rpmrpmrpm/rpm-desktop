@@ -38,13 +38,14 @@ public sealed partial class PegasusChrome
 
     /// <summary>The orders the sort key offers, in the menu's order. The window's Year order is not one of
     /// them: the TV screens sort by date the other way round, oldest first.</summary>
-    private static readonly AlbumOrdering[] LibraryOrderings =
+    internal static readonly AlbumOrdering[] LibraryOrderings =
         [AlbumOrdering.Album, AlbumOrdering.Artist, AlbumOrdering.Added, AlbumOrdering.Date, AlbumOrdering.Plays];
 
     /// <summary>The order saved by the last choice on the sort key, in settings.json under its own name
     /// (<see cref="SettingsService.PegasusAlbumOrdering"/>), not the window's. An order this wall does not
-    /// offer is read as Artist.</summary>
-    private static AlbumOrdering SavedLibraryOrdering()
+    /// offer is read as Artist. The settings panel's Default album sorting row reads and cycles the same
+    /// setting (see PegasusPlayer.Settings).</summary>
+    internal static AlbumOrdering SavedLibraryOrdering()
     {
         var saved = App.Services.GetRequiredService<SettingsService>().PegasusAlbumOrdering;
         return Array.IndexOf(LibraryOrderings, saved) >= 0 ? saved : AlbumOrdering.Artist;
@@ -135,16 +136,17 @@ public sealed partial class PegasusChrome
 
         // A glyph each, and the one in force wears a tick. The icons are what makes the list readable at
         // a glance: four words in a column look alike. The same glyphs the window's own menu uses.
-        Add(AlbumOrdering.Album, "AlbumSort_Album", "");     // the record itself
-        Add(AlbumOrdering.Artist, "AlbumSort_Artist", "");   // a person
-        Add(AlbumOrdering.Added, "AlbumSort_Added", "");     // a date, with something new on it
-        Add(AlbumOrdering.Date, "AlbumSort_Date", "\uf073");   // a calendar
-        Add(AlbumOrdering.Plays, "AlbumSort_Plays", "");     // headphones
+        Add(AlbumOrdering.Album, "");     // the record itself
+        Add(AlbumOrdering.Artist, "");   // a person
+        Add(AlbumOrdering.Added, "");     // a date, with something new on it
+        Add(AlbumOrdering.Date, "\uf073");   // a calendar
+        Add(AlbumOrdering.Plays, "");     // headphones
 
         menu.ShowAt(LibrarySortButton);
 
-        void Add(AlbumOrdering ordering, string key, string glyph)
+        void Add(AlbumOrdering ordering, string glyph)
         {
+            var key = OrderingName(ordering);
             var chosen = ordering == _libraryOrdering;
             var item = new MenuFlyoutItem
             {
@@ -172,6 +174,17 @@ public sealed partial class PegasusChrome
             menu.Items.Add(item);
         }
     }
+
+    /// <summary>The key of an order's name, as the sort key's menu and the settings panel's Default album
+    /// sorting row write it.</summary>
+    internal static string OrderingName(AlbumOrdering ordering) => ordering switch
+    {
+        AlbumOrdering.Album => "AlbumSort_Album",
+        AlbumOrdering.Added => "AlbumSort_Added",
+        AlbumOrdering.Date => "AlbumSort_Date",
+        AlbumOrdering.Plays => "AlbumSort_Plays",
+        _ => "AlbumSort_Artist",
+    };
 
     // ── the heart ──
 

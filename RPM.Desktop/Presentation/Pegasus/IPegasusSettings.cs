@@ -48,4 +48,18 @@ public interface IPegasusSettings
 
     /// <summary>Turns levelling the albums marked classical on or off.</summary>
     void ToggleLevelsClassical();
+
+    // ── the album wall: the General section (the Android TV app's own two rows) ──
+
+    /// <summary>Whether the album wall is shown as a carousel rather than a grid.</summary>
+    bool AlbumCarousel { get; }
+
+    /// <summary>Switches the album wall between the grid and the carousel.</summary>
+    void ToggleAlbumCarousel();
+
+    /// <summary>The order the album wall opens in: the one last chosen there or here.</summary>
+    RPM.Core.Cloud.AlbumOrdering AlbumOrdering { get; }
+
+    /// <summary>Moves to the next order, wrapping, in the order the wall's sort key lists them.</summary>
+    void NextAlbumOrdering();
 }
