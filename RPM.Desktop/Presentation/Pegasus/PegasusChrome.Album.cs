@@ -255,7 +255,9 @@ public sealed partial class PegasusChrome
     /// The line that opens a disc: the same caption the library's tracklist prints, off the same string, so
     /// one box is not numbered two ways by two screens.
     /// </summary>
-    private static Border BuildDiscHeader(string caption, double scale) => new()
+    /// <param name="size">The caption's size before the scale: 11 in the drawer, the TV's couch 16 on the
+    /// record page.</param>
+    private static Border BuildDiscHeader(string caption, double scale, double size = 11) => new()
     {
         Margin = new Thickness(6 * scale, 12 * scale, 10 * scale, 2 * scale),
         BorderThickness = new Thickness(0, 0, 0, 1),
@@ -264,7 +266,7 @@ public sealed partial class PegasusChrome
         Child = new TextBlock
         {
             Text = caption,
-            FontSize = 11 * scale,
+            FontSize = size * scale,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             Opacity = 0.6,
             TextWrapping = TextWrapping.NoWrap,

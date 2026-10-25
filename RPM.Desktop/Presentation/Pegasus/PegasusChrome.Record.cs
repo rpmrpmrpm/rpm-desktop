@@ -685,7 +685,7 @@ public sealed partial class PegasusChrome
             info.Children.Add(new TextBlock
             {
                 Text = card.Under,
-                FontSize = 15 * scale,
+                FontSize = RecordPageText * scale,
                 Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.NoWrap,
@@ -704,7 +704,7 @@ public sealed partial class PegasusChrome
         info.Children.Add(new TextBlock
         {
             Text = RecordYear(rows) is { } year ? $"{year}  ·  {amount}" : amount,
-            FontSize = 12.5 * scale,
+            FontSize = RecordPageText * scale,
             Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 12 * scale, 0, 0),
@@ -723,7 +723,7 @@ public sealed partial class PegasusChrome
             info.Children.Add(new TextBlock
             {
                 Text = string.Join("  ·  ", format),
-                FontSize = 11.5 * scale,
+                FontSize = RecordPageText * scale,
                 FontStyle = Windows.UI.Text.FontStyle.Italic,
                 Foreground = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
                 TextAlignment = TextAlignment.Center,
@@ -756,7 +756,7 @@ public sealed partial class PegasusChrome
         var about = AboutSlot(scale);
         info.Children.Add(about);
         ShowAboutAsync(about, card.Under, card.Name, rows.Count, () => read == _recordRead, scale,
-                       grew => SlideRecordInfo(grew / 2));
+                       grew => SlideRecordInfo(grew / 2), couch: true);
 
         // ── and everything on it ──
         //
@@ -789,7 +789,7 @@ public sealed partial class PegasusChrome
             if (discs > 1 && disc != open)
             {
                 open = disc;
-                list.Children.Add(BuildDiscHeader(DiscCaption(rows, disc), scale));
+                list.Children.Add(BuildDiscHeader(DiscCaption(rows, disc), scale, 16));   // the TV's 16
             }
 
             // A work's heading over its first movement, under the disc's caption where both open here.
@@ -904,7 +904,7 @@ public sealed partial class PegasusChrome
         words.Children.Add(new TextBlock
         {
             Text = work.Title,
-            FontSize = 15 * scale,
+            FontSize = RecordPageText * scale,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             TextWrapping = TextWrapping.Wrap,
             MaxLines = 2,
@@ -914,7 +914,7 @@ public sealed partial class PegasusChrome
             words.Children.Add(new TextBlock
             {
                 Text = composer,
-                FontSize = 12.5 * scale,
+                FontSize = 16 * scale,
                 Opacity = 0.5,
                 TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -926,7 +926,7 @@ public sealed partial class PegasusChrome
             var length = new TextBlock
             {
                 Text = Duration(work.Seconds),
-                FontSize = 13 * scale,
+                FontSize = RecordPageText * scale,
                 Opacity = 0.5,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -939,7 +939,7 @@ public sealed partial class PegasusChrome
         return new Border
         {
             Child = grid,
-            Padding = new Thickness((12 + 28 + 12) * scale, 14 * scale, 12 * scale, 2 * scale),
+            Padding = new Thickness((12 + 38 + 12) * scale, 14 * scale, 12 * scale, 2 * scale),
         };
     }
 
@@ -981,10 +981,10 @@ public sealed partial class PegasusChrome
             HorizontalAlignment = HorizontalAlignment.Center,
             Visibility = Visibility.Collapsed,
         };
-        _recordAverageStars = new StarRating { GlyphSize = 14 * scale };
+        _recordAverageStars = new StarRating { GlyphSize = 17 * scale };
         _recordAverageText = new TextBlock
         {
-            FontSize = 12 * scale,
+            FontSize = 16 * scale,
             Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -1004,7 +1004,7 @@ public sealed partial class PegasusChrome
         mine.Children.Add(new TextBlock
         {
             Text = Strings.Loc.Get("Album_YourRating"),
-            FontSize = 12 * scale,
+            FontSize = RecordPageText * scale,
             Foreground = new SolidColorBrush(Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF)),
             VerticalAlignment = VerticalAlignment.Center,
         });
@@ -1016,7 +1016,7 @@ public sealed partial class PegasusChrome
         // order.
         var stars = new StarRating
         {
-            GlyphSize = 17 * scale,
+            GlyphSize = 22 * scale,   // the TV's 22
             Value = meta.Rating,
             IsInteractive = true,
             IsTabStop = true,
@@ -1240,7 +1240,7 @@ public sealed partial class PegasusChrome
         {
             Text = glyph,
             FontFamily = (FontFamily)Resources["PegasusFa"],
-            FontSize = 14 * scale,
+            FontSize = 17 * scale,   // the TV's page key: the glyph 17, the words 19 (PAGE_TEXT)
             VerticalAlignment = VerticalAlignment.Center,
         };
         face.Children.Add(glyphBlock);
@@ -1248,7 +1248,7 @@ public sealed partial class PegasusChrome
             face.Children.Add(new TextBlock
             {
                 Text = words,
-                FontSize = 15 * scale,
+                FontSize = RecordPageText * scale,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
             });

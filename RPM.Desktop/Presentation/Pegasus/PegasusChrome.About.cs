@@ -47,9 +47,11 @@ public sealed partial class PegasusChrome
     /// </summary>
     /// <param name="grew">Told how much taller the panel just became, once, when the block lands after a
     /// wait. Each screen answers for its own layout, see ArriveAbout.</param>
+    /// <param name="couch">At the TV's couch sizes, as the record page is (PAGE_TEXT: the article and the
+    /// genres 19, the article's lines 27.4 apart), rather than the drawer's 12.5, 18 and 11.</param>
     private async void ShowAboutAsync(
         StackPanel slot, string? artist, string? album, int tracks, Func<bool> stillOpen, double scale,
-        Action<double>? grew = null)
+        Action<double>? grew = null, bool couch = false)
     {
         if (string.IsNullOrWhiteSpace(artist))
             return;
@@ -133,18 +135,18 @@ public sealed partial class PegasusChrome
                 Margin = new Thickness(6 * scale, Lead(), 10 * scale, 0),
             };
             foreach (var genre in genres)
-                chips.Children.Add(Chip(genre, scale));
+                chips.Children.Add(Chip(genre, scale, couch ? RecordPageText : 11));
             slot.Children.Add(chips);
         }
 
         if (!string.IsNullOrWhiteSpace(prose))
             slot.Children.Add(new TextBlock
             {
-                Text = Shorten(prose!, slot.ActualWidth, 12.5 * scale),
-                FontSize = 12.5 * scale,
+                Text = Shorten(prose!, slot.ActualWidth, (couch ? RecordPageText : 12.5) * scale),
+                FontSize = (couch ? RecordPageText : 12.5) * scale,
                 Opacity = 0.75,
                 TextWrapping = TextWrapping.Wrap,
-                LineHeight = 18 * scale,
+                LineHeight = (couch ? 27.4 : 18) * scale,
 
                 // The ceiling, whatever the sentence arithmetic in Shorten made of the width. Ten lines is
                 // what the panel can hold without pushing the record above it off the screen. The limit has
@@ -298,7 +300,7 @@ public sealed partial class PegasusChrome
 
     /// <summary>One genre, shown in the drawer's style: a white, semi-transparent pill. It is the same
     /// plate that the count under the record's name is written on.</summary>
-    private static Border Chip(string text, double scale) => new()
+    private static Border Chip(string text, double scale, double size) => new()
     {
         Padding = new Thickness(9 * scale, 3 * scale, 9 * scale, 3 * scale),
         CornerRadius = new CornerRadius(10 * scale),
@@ -306,7 +308,7 @@ public sealed partial class PegasusChrome
         Child = new TextBlock
         {
             Text = text,
-            FontSize = 11 * scale,
+            FontSize = size * scale,
             Opacity = 0.85,
         },
     };

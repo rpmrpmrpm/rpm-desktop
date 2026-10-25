@@ -180,7 +180,7 @@ public sealed partial class PegasusChrome
             info.Children.Add(new TextBlock
             {
                 Text = entry.Under,
-                FontSize = 15 * scale,
+                FontSize = RecordPageText * scale,
                 Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.NoWrap,
@@ -193,7 +193,7 @@ public sealed partial class PegasusChrome
         {
             Text = string.Format(Strings.Loc.Get("Rpm_Album_Tracks"), rows.Count)
                  + "  ·  " + Duration(rows.Sum(t => t.DurationSeconds)),
-            FontSize = 12.5 * scale,
+            FontSize = RecordPageText * scale,
             Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 12 * scale, 0, 0),

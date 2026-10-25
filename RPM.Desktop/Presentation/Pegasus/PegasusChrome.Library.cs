@@ -1290,8 +1290,16 @@ public sealed partial class PegasusChrome
 
     /// <summary>What a track line spends on everything that is not the name: the number and the two gaps
     /// beside it, the line's own padding, the length at the end, and the E after the title. Taken off the
-    /// column's width to leave what the name may have. Before the drawer's scale.</summary>
-    private const double RecordTitleFurniture = 138;
+    /// column's width to leave what the name may have. Before the drawer's scale. At the TV's couch
+    /// sizes (see RecordTrack): 24 of padding, the number's 38, two gaps of 12, a length of about 63 at 19
+    /// and the E's 17 and its 6.</summary>
+    private const double RecordTitleFurniture = 172;
+
+    /// <summary>The size of a record or list page's smaller text before the scale: the artist, the count
+    /// and length, the format, "Your rating", the play key, the genres, the article, and the number, title
+    /// and length of every line. The Android TV app's PAGE_TEXT, its couch size, where the desktop had 11.5
+    /// to 15 (FOBO 974baa2b5).</summary>
+    private const double RecordPageText = 19;
 
     /// <summary>How far a movement of a classical record stands in under its work's heading, before the
     /// drawer's scale. The whole line moves, its number with it, so the level of the list shows.</summary>
@@ -1322,15 +1330,18 @@ public sealed partial class PegasusChrome
     private FrameworkElement RecordTrack(LibraryTrack track, List<TrackInfo> songs, int index, double scale,
                                          List<TextBlock> titles, bool inList, RecordLine? classical = null)
     {
+        // At the TV's couch sizes (TrackRow, PAGE_TEXT): the number, the title and the length 19, the
+        // line under the title 16, the number's column 38 and the E 17, where the desktop's were 13, 15,
+        // 13, 12.5, 28 and 13.
         var grid = new Grid { ColumnSpacing = 12 * scale };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28 * scale) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38 * scale) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var number = new TextBlock
         {
             Text = (!inList && track.TrackNumber > 0 ? track.TrackNumber : (uint)(index + 1)).ToString(),
-            FontSize = 13 * scale,
+            FontSize = RecordPageText * scale,
             Opacity = 0.45,
             TextAlignment = TextAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
@@ -1340,7 +1351,7 @@ public sealed partial class PegasusChrome
         var title = new TextBlock
         {
             Text = classical?.Title ?? track.Title ?? track.FileName,
-            FontSize = 15 * scale,
+            FontSize = RecordPageText * scale,
             FontWeight = classical is { Piece: true }
                 ? Microsoft.UI.Text.FontWeights.SemiBold
                 : Microsoft.UI.Text.FontWeights.Normal,
@@ -1381,8 +1392,8 @@ public sealed partial class PegasusChrome
                 // The badge starts COLLAPSED and un-hides itself off this; a hand-built line has no
                 // binding to do it. See ExplicitBadge.
                 IsExplicit = true,
-                Width = 13 * scale,
-                Height = 13 * scale,
+                Width = 17 * scale,
+                Height = 17 * scale,
                 VerticalAlignment = VerticalAlignment.Center,
                 // The letter is knocked out of the fill, so it has to match the surface BEHIND the badge
                 // the record screen's own near-black here, not the library dark it defaults to.
@@ -1407,7 +1418,7 @@ public sealed partial class PegasusChrome
             stack.Children.Add(new TextBlock
             {
                 Text = under,
-                FontSize = 12.5 * scale,
+                FontSize = 16 * scale,
                 Opacity = 0.5,
                 TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -1419,7 +1430,7 @@ public sealed partial class PegasusChrome
         var time = new TextBlock
         {
             Text = Duration(track.DurationSeconds),
-            FontSize = 13 * scale,
+            FontSize = RecordPageText * scale,
             Opacity = 0.5,
             VerticalAlignment = VerticalAlignment.Center,
         };
