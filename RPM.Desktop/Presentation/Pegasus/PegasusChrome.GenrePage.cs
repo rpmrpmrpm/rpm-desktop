@@ -221,7 +221,7 @@ public sealed partial class PegasusChrome
                     press: () => OpenArtistPage(act, card!.Root));
                 row.Cards.Children.Add(card.Root);
                 _genrePageCards.Add(card);
-                QueueFace(GenrePlace(row.Root, column++), card, act, shelf, read);
+                QueueActFace(_genrePagePictures, GenrePlace(row.Root, column++), card, act, shelf, () => read == _genrePageRead);
             }
         }
 
@@ -334,30 +334,6 @@ public sealed partial class PegasusChrome
                 .Take(GenreShelfLength)
                 .Select(r => r.Folder)
                 .ToList()));
-    }
-
-    /// <summary>An act's round photograph for a card, at the card's size.</summary>
-    private void QueueFace(CardPlace place, ShelfCard card, ArtistWallItem act, LibraryAlbumIndex.ArtistShelf shelf, int read)
-    {
-        if (RPM.Core.Metadata.Providers.ArtistCredit.IsVariousArtists(act.Name))
-            return;
-        var first = act.Own.Select(f => shelf.AlbumFacts.TryGetValue(f, out var facts) ? facts.Album : null)
-                           .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
-
-        _genrePagePictures.Add(place, async () =>
-        {
-            if (read != _genrePageRead)
-                return;
-            var chosen = await ArtistPortraits.SquareAsync(act.Name, first);
-            if (read != _genrePageRead || !chosen.Answers(out var url, out _) || url is null)
-                return;
-            var picture = await ArtistPortraits.PictureAsync(url);
-            if (read != _genrePageRead || !picture.Answers(out var portrait, out _) || portrait is null)
-                return;
-            var bitmap = await RemoteImage.DecodeArtAsync(portrait.Thumb, CardDecodeEdgeFor(card.Edge));
-            if (read == _genrePageRead)
-                card.Show(bitmap);
-        });
     }
 
     // ── what is read after the build ──
