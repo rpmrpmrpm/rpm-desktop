@@ -1444,7 +1444,12 @@
                 </Grid>
               </Button>
 
-              <StackPanel x:Name="LibraryWords" Grid.Column="1" VerticalAlignment="Top" Spacing="2">
+              <!-- The words stand centred on the cover, as on the TV (FOBO 473a63523): a record's three
+                   lines and playhead, and a station's one or two lines with none. Centred with the pill up
+                   as well, so they do not move when the mouse brings it back. A record's lines and
+                   playhead fill nearly the cover's height, so for a record this is within a few points of
+                   standing at the top. -->
+              <StackPanel x:Name="LibraryWords" Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                 <!-- The three lines, on a ground of their own so that a press between two words still
                      lands. Each is in a Canvas clipped to the card's column, the same arrangement as the
                      record view (see Marquee): a Canvas lays a line out at its whole width, the clip
@@ -1507,8 +1512,15 @@
                set in SizeLibrary: about 133 by 37 on a screen 1440 high. DataContext is null until
                AttachAmp; see TransportRow above. Previous and next are named because a tuned station
                hides them (see ApplyLibraryPlayer): they step the album queue, and pressing one would
-               switch the station off. The pill then holds only the one key. -->
-          <Border x:Name="LibraryTransportPill" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+               switch the station off. The pill then holds only the one key.
+
+               The pill is for the mouse only (see MouseKeys): the remote stands on the whole card, which
+               opens the player, and its media keys do what these keys do. The TV's mini player has no pill
+               (FOBO 44eeee297), and that is how this card looks while the remote is in use: the pill
+               collapsed, the card whole with no notch (see ShapeLibraryPlayerGlass). The card stands where
+               it stood, at the top of this grid, so nothing moves when the pill goes or comes. -->
+          <Border x:Name="LibraryTransportPill" local:MouseKeys.Only="True"
+                  HorizontalAlignment="Center" VerticalAlignment="Bottom"
                   Background="{StaticResource LightSmokeDimmedBrush}" BorderBrush="{StaticResource
                   LightSmokeRimBrush}" BorderThickness="1" Opacity="0" IsHitTestVisible="False">
             <Grid>

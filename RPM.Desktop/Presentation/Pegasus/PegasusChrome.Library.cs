@@ -1529,6 +1529,11 @@ public sealed partial class PegasusChrome
     /// rather than asked for on every frame of the tick that reads the deck.</summary>
     private LibraryPlayerFor _libraryPlayerFor;
 
+    /// <summary>Whether the card's glass was last drawn for the remote, with no pill and so no notch. Held
+    /// for the same reason, so the outline is drawn again only when the remote or the pointer takes
+    /// over.</summary>
+    private bool _notchForRemote;
+
     /// <summary>Whether the mini player is up, for anything.</summary>
     private bool LibraryPlayerOn => _libraryPlayerFor != LibraryPlayerFor.Nothing;
 
@@ -1547,6 +1552,15 @@ public sealed partial class PegasusChrome
     /// </summary>
     private void ApplyLibraryPlayer(LibraryPlayerFor shows)
     {
+        // The pill is the mouse's (see MouseKeys): collapsed while the remote is in use, back when the
+        // pointer moves. The notch follows it on the frame it changes, so the card is whole without the
+        // pill, as the TV's is, and cut again for it.
+        if (_notchForRemote != MouseKeys.RemoteDriving)
+        {
+            _notchForRemote = MouseKeys.RemoteDriving;
+            ShapeLibraryPlayerGlass();
+        }
+
         if (_libraryPlayerFor == shows)
             return;
 
@@ -1795,8 +1809,10 @@ public sealed partial class PegasusChrome
     ///
     /// <para>Asked when the card is sized, when a record gives way to a station or back (the pill holds
     /// three keys or one, and the notch follows its width), and when the pill comes or goes: at the start
-    /// of its fade in, and at the end of its fade out, so the notch is never cut where there is no pill or
-    /// missing where there is one. Every figure comes off the scale and what the player is showing, worked
+    /// of its fade in, and at the end of its fade out, and when the remote or the pointer takes over (the
+    /// pill is collapsed for the remote; see ApplyLibraryPlayer), so the notch is never cut where there is
+    /// no pill or missing where there is one. Every figure comes off the scale and what the player is
+    /// showing, worked
     /// out here rather than read back from the pill's layout, so the outline is right on the frame it is
     /// asked for.</para>
     ///
@@ -1842,8 +1858,9 @@ public sealed partial class PegasusChrome
         Arc(w - o - r, h - o, r, SweepDirection.Clockwise);
 
         // The pill as the player shows it now: three keys for a record, one for a station, none with
-        // nothing on the deck (the card holds the app's mark, and the pill is down).
-        var keys = _libraryPlayerFor switch
+        // nothing on the deck (the card holds the app's mark, and the pill is down), and none while the
+        // remote is in use (the pill is the mouse's; see MouseKeys).
+        var keys = MouseKeys.RemoteDriving ? 0 : _libraryPlayerFor switch
         {
             LibraryPlayerFor.Record => 3,
             LibraryPlayerFor.Station => 1,
