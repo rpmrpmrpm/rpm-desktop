@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using RPM.Core.Cloud;
 using RPM.Core.Library;
 using RPM.Core.Metadata.Providers;
 using RPM.Core.Models;
@@ -280,6 +281,9 @@ public sealed partial class PegasusChrome
         SizeArtistPage(scale);
         ArtistPageScroll.ChangeView(null, 0, null, disableAnimation: true);
 
+        // The admin's edits for the act, which the article and the related acts wait on. None for the
+        // compilations act.
+        _artistEdits = compilations ? Task.FromResult(ArtistEdit.None) : ArtistEditsFor(act.Name);
         ReadArtistPopularAsync(act, shelves, shelf, read);
         ReadArtistListsAsync(act, shelves, shelf, read);
 
@@ -505,6 +509,10 @@ public sealed partial class PegasusChrome
     ///
     /// <para>Shown at once where the answer is already in the cache. An answer that has to be asked for
     /// arrives late, and eases in (see <see cref="ShowArtistAbout"/>).</para>
+    ///
+    /// <para><b>The admin's description comes first.</b> Where the admin wrote one (see
+    /// <see cref="ArtistEdit"/>), it is shown in place of the article, in every language, as on the TV.
+    /// Nothing is shown until the edits have answered; an ask that fails is no edits.</para>
     /// </summary>
     private async void LoadArtistAboutAsync(
         ArtistWallItem act, ArtistShelves shelves, LibraryAlbumIndex.ArtistShelf shelf, int read)
@@ -520,8 +528,18 @@ public sealed partial class PegasusChrome
             .Take(ArtistAboutRecordsTried)
             .ToList();
 
+        // The admin's text, where there is one, stands in place of the article. Until the edits have
+        // answered nothing is shown, so the article never shows first and is then replaced.
+        var editing = _artistEdits;
+        var asking = !editing.IsCompleted;
+        if (editing.IsCompleted && editing.Result.Text is { } written)
+        {
+            ShowArtistAbout(written, late: false);
+            return;
+        }
+
         var service = App.Services.GetRequiredService<TrackInfoService>();
-        var asking = false;
+        string? article = null;
         foreach (var (credit, title, tracks) in records)
         {
             var dossier = service.Cached(credit, title);
@@ -538,10 +556,14 @@ public sealed partial class PegasusChrome
             if (!AboutTheAct(dossier, act))
                 continue;
 
-            if (dossier.ArtistArticle?.Extract is { Length: > 0 } prose)
-                ShowArtistAbout(prose, late: asking && _clock.Elapsed.TotalSeconds - _artistPageBuiltAt > LateAfter);
-            return;
+            article = dossier.ArtistArticle?.Extract is { Length: > 0 } prose ? prose : null;
+            break;
         }
+
+        var edit = await editing;
+        if (read != _artistPageRead || (edit.Text ?? article) is not { } shown)
+            return;
+        ShowArtistAbout(shown, late: asking && _clock.Elapsed.TotalSeconds - _artistPageBuiltAt > LateAfter);
 
         // A dossier is about the act when the record was matched (so the act came from the record, not from
         // the name alone) and the catalogue credits the record to the act.
@@ -907,6 +929,32 @@ public sealed partial class PegasusChrome
         return menu;
     }
 
+    // ── the admin's edits ──
+
+    /// <summary>The admin's edits for the act on the page, asked when it is built. No edits for the
+    /// compilations act.</summary>
+    private Task<ArtistEdit> _artistEdits = Task.FromResult(ArtistEdit.None);
+
+    /// <summary>The API's artist/edits, asked once per act and kept for the life of the app. Made on the
+    /// first page that asks.</summary>
+    private static ArtistEditsClient? s_artistEditsClient;
+
+    /// <summary>
+    /// What the admin changed about an act (<see cref="ArtistEdit"/>): a description in place of the
+    /// article, and acts to show first or never among the related artists. Read only: Pegasus shows the
+    /// edits and has no way to make them. Never fails: an ask that does not answer is no edits.
+    /// </summary>
+    private static Task<ArtistEdit> ArtistEditsFor(string act)
+    {
+        if (s_artistEditsClient is null)
+        {
+            var config = App.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RPM.Desktop.Models.AppConfig>>();
+            var api = RPM.Core.Net.RpmApi.At(config.Value.IdentificationApiUrl) ?? RPM.Core.Net.RpmApi.Deployed;
+            s_artistEditsClient = new ArtistEditsClient(RPM.Core.Net.TransientHttp.Client(api, TimeSpan.FromSeconds(10)));
+        }
+        return s_artistEditsClient.Peek(act) is { } kept ? Task.FromResult(kept) : s_artistEditsClient.OfAsync(act);
+    }
+
     // ── the lists that hold their songs ──
 
     /// <summary>Where the lists that hold their songs stand, under the shelves of records.</summary>
@@ -940,8 +988,9 @@ public sealed partial class PegasusChrome
     /// <para><b>And the acts related to them</b>, on the row after the lists (Artists_Related): the
     /// Android TV app's rule (<see cref="RelatedArtists"/>), over the artists and genres walls the page was
     /// opened from and the lists read here. A list holding none of their songs says nothing about who is
-    /// close to them, so only these lists are counted. OK on an act opens their page, and Back comes back
-    /// here.</para>
+    /// close to them, so only these lists are counted. The admin's related acts come first and the acts
+    /// the admin called unrelated are left out (<see cref="ArtistEdit.Relate"/>). OK on an act opens their
+    /// page, and Back comes back here.</para>
     /// </summary>
     private async void ReadArtistListsAsync(
         ArtistWallItem act, ArtistShelves shelves, LibraryAlbumIndex.ArtistShelf shelf, int read)
@@ -1023,7 +1072,13 @@ public sealed partial class PegasusChrome
         var plain = (Style)Resources["PegasusPlainButton"];
         AddArtistLists(slot, "Artists_InPlaylists", lists.Playlists, plain, read);
         AddArtistLists(slot, "Genres_MoodPlaylists", lists.Moods, plain, read);
-        AddRelatedArtists(slot, lists.Related, shelf, plain, read);
+
+        // The admin's related acts first and the unrelated ones out, once the edits have answered: the row is
+        // the last on the page, and waits rather than changing its order under the remote.
+        var edit = await _artistEdits;
+        if (read != _artistPageRead)
+            return;
+        AddRelatedArtists(slot, edit.Relate(lists.Related, act, shelf.Acts), shelf, plain, read);
 
         static string SongsLine(int songs) =>
             songs == 1 ? Loc.Get("Stats_SongsOne") : Loc.Format("Stats_Songs", songs);
@@ -1312,6 +1367,7 @@ public sealed partial class PegasusChrome
         _artistAboutCutAt = default;
         _artistPopularSlot = null;
         _artistListsSlot = null;
+        _artistEdits = Task.FromResult(ArtistEdit.None);
         _artistPopular = [];
         _artistPopularSize = null;
         LandArrivals();
