@@ -729,16 +729,16 @@ public sealed partial class PegasusChrome
 
         // ── the stars ──
         //
-        // Not on somebody else's collection. Stars are something the listener gives, and nothing is given
-        // to a borrowed record from this page (see RecordBorrowed). What the last record built for them is
-        // let go, so the wall's average cannot land on a control from another page.
+        // The wall's average on every record, and the listener's own stars only on their own collection.
+        // Stars are something the listener gives, and nothing is given to a borrowed record from this page
+        // (see RecordBorrowed); what everybody thinks of it is still worth reading. What the last record
+        // built for them is let go, so the wall's average cannot land on a control from another page.
         var borrowed = RecordBorrowed;
         _recordAverageRow = null;
         _recordAverageStars = null;
         _recordAverageText = null;
         _recordStars = null;
-        if (!borrowed)
-            info.Children.Add(BuildRecordStars(card, meta, scale));
+        info.Children.Add(BuildRecordStars(card, meta, borrowed, scale));
 
         // ── the things you can do to it ──
         info.Children.Add(BuildRecordKeys(card, meta, borrowed, scale));
@@ -957,8 +957,11 @@ public sealed partial class PegasusChrome
     /// on the screen until it answers; a record nobody has rated, or a machine with no network, simply
     /// does not show that half. The listener's own rating comes from the mirror beside it, is there at
     /// once, and is the one that can be pressed.</para>
+    ///
+    /// <para>On a <paramref name="borrowed"/> record only the average is built: the listener gives nothing
+    /// to somebody else's record from this page (see <see cref="RecordBorrowed"/>).</para>
     /// </summary>
-    private StackPanel BuildRecordStars(PegasusAlbumCard card, AlbumMeta meta, double scale)
+    private StackPanel BuildRecordStars(PegasusAlbumCard card, AlbumMeta meta, bool borrowed, double scale)
     {
         var block = new StackPanel
         {
@@ -984,6 +987,9 @@ public sealed partial class PegasusChrome
         _recordAverageRow.Children.Add(_recordAverageStars);
         _recordAverageRow.Children.Add(_recordAverageText);
         block.Children.Add(_recordAverageRow);
+
+        if (borrowed)
+            return block;
 
         var mine = new StackPanel
         {
@@ -1031,9 +1037,10 @@ public sealed partial class PegasusChrome
     /// <summary>
     /// Whether the record page shows somebody else's collection.
     ///
-    /// <para>Pegasus follows the TV here: on a borrowed collection the page has no heart and no stars,
-    /// the record's menu has no Favourite album and no Rate album, and a song's menu has no favourite and
-    /// no Add to playlist (see <see cref="TrackMenu"/>). Hidden, not dimmed. The main window keeps the
+    /// <para>Pegasus follows the TV here: on a borrowed collection the page has no heart and none of the
+    /// listener's own stars (the wall's average stays), the record's menu has no Favourite album and no
+    /// Rate album, and a song's menu has no favourite and no Add to playlist (see <see cref="TrackMenu"/>).
+    /// Hidden, not dimmed. The main window keeps the
     /// favourite on a borrowed song, as the listener's own opinion; Pegasus does not.</para>
     ///
     /// <para>The same question the main window's track menu asks (MainPage.BuildTrackMenuState): whether
