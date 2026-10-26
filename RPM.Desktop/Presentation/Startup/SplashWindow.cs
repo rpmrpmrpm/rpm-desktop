@@ -15,8 +15,15 @@ using Microsoft.UI.Xaml;
 namespace RPM.Desktop.Presentation.Startup;
 
 /// <summary>
-/// The startup, in a window of its own: a small glass card in the middle of the screen with the rpm
-/// mark on it, and no app window behind it until the app is ready to be looked at.
+/// The startup, in a window of its own: the rpm mark alone in the middle of the screen, standing on the
+/// desktop with nothing behind it, and no app window behind it until the app is ready to be looked at.
+///
+/// <para><b>The window is clear</b> (see <see cref="Clear"/>): a fully transparent brush from the system
+/// compositor in the slot desktop acrylic uses, with the frame extended over the whole window. Two things
+/// break it, both found on screen as an opaque black card: the layered style (so a clear window fades its
+/// mark on the compositor, not its alpha) and non-client rendering turned off (so it is not cut or given
+/// <c>WindowEdges.Round</c>). Where the clear backdrop is refused, the window is the glass card described
+/// below, with its edge; everything about the glass applies to that fallback.</para>
 ///
 /// <para><b>Why a separate window.</b> If the splash were a black rectangle inside the main window, the
 /// first thing on screen would be a full-size black window at whatever size and place Windows opened
@@ -25,9 +32,9 @@ namespace RPM.Desktop.Presentation.Startup;
 /// saved size.</para>
 ///
 /// <para><b>The glass is the system's.</b> Desktop acrylic blurs and tints whatever is behind the
-/// window, which is the desktop. It is the only way a WinUI window can be see-through: a transparent
-/// root, <c>DwmExtendFrameIntoClientArea</c> and the accent policy all leave a WinUI window opaque. See
-/// <see cref="Services.Platform.WindowBackground"/>.</para>
+/// window, which is the desktop. A transparent root, <c>DwmExtendFrameIntoClientArea</c> alone and the
+/// accent policy all leave a WinUI window opaque (see <see cref="Services.Platform.WindowBackground"/>);
+/// the clear backdrop above is the one other way through.</para>
 ///
 /// <para><b>Driven by a controller, not by <c>Window.SystemBackdrop</c>.</b> The XAML backdrop follows
 /// the window's activation and drops to a flat fallback colour when the window is not the active one.
@@ -70,8 +77,8 @@ namespace RPM.Desktop.Presentation.Startup;
 internal static class SplashWindow
 {
 #if RPM_WINUI
-    /// <summary>The card, in logical pixels. The mark on it is 93 wide (the size that the parked header
-    /// zooms it to) and the card is about three times that.</summary>
+    /// <summary>The card, in logical pixels. The mark fills it, 24 in from either side (see
+    /// SplashCard.xaml).</summary>
     private const int CardWidth = 300;
 
     private const int CardHeight = 180;
@@ -123,6 +130,20 @@ internal static class SplashWindow
     /// returned before, and removing a different object removes nothing.</summary>
     private static ICompositionSupportsSystemBackdrop? _glassTarget;
 
+    /// <summary>Whether the window is clear (see <see cref="Clear"/>) rather than glass.</summary>
+    private static bool _clear;
+
+    /// <summary>The window as the clear backdrop was given to it, so the same target is emptied on
+    /// close.</summary>
+    private static ICompositionSupportsSystemBackdrop? _clearTarget;
+
+    /// <summary>The system compositor that made the clear brush, and the thread's system dispatcher queue
+    /// that compositor needs. Both are kept for the life of the process: a queue controller that is
+    /// released ends the queue, and a brush's compositor must outlive it.</summary>
+    private static Windows.UI.Composition.Compositor? _clearCompositor;
+
+    private static IntPtr _systemQueue;
+
     /// <summary>Whether the card has been told to go. A second dismiss would start a second fade from
     /// full strength, so the card would come back for about a third of a second. There IS a second
     /// caller: the backstop in App, which cannot know whether the reveal got there first.</summary>
@@ -154,8 +175,17 @@ internal static class SplashWindow
         try
         {
             var window = new Window { Title = "rpm" };
-            window.Content = new SplashCard();
-            Glass(window);
+            var card = new SplashCard();
+            window.Content = card;
+
+            // Nothing behind the mark: the desktop shows through. Where the window cannot be made clear,
+            // it is the glass card it used to be, with its edge.
+            _clear = Clear(window);
+            if (!_clear)
+            {
+                Glass(window);
+                card.DrawEdge();
+            }
 
             _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
 
@@ -183,15 +213,40 @@ internal static class SplashWindow
 
             // Make it invisible BEFORE it is shown. Otherwise the first frame is a card at full
             // strength and the fade starts from where it should end.
-            _layered = Alpha.Prepare(_hwnd);
+            //
+            // A clear window is never layered: the layered style composes the window without its
+            // per-pixel alpha, and the clear backdrop comes out black. Its mark fades on the compositor
+            // instead, from nothing.
+            if (_clear)
+            {
+                _layered = false;
+                ElementCompositionPreview.GetElementVisual(card).Opacity = 0;
+            }
+            else
+            {
+                _layered = Alpha.Prepare(_hwnd);
+            }
 
             Place(window);
             window.Activate();
 
             // The shape, and removing the compositor's own line from the window. Both happen after the
             // window is on screen, because before that nothing is composed to shape or to draw on.
-            Cut();
-            Services.Platform.WindowEdges.Round(_hwnd, "splash");
+            //
+            // A clear window has no shape to cut and no line to hide behind an edge of its own: DWM is
+            // told to draw no line and no rounding (it listens on a window that is not layered), and the
+            // frame is extended over the whole window, which is what lets the clear backdrop show the
+            // desktop. Non-client rendering must stay on for that, so WindowEdges.Round is not used.
+            if (_clear)
+            {
+                Services.Platform.WindowEdges.Square(_hwnd, true, "splash");
+                ExtendFrame();
+            }
+            else
+            {
+                Cut();
+                Services.Platform.WindowEdges.Round(_hwnd, "splash");
+            }
 
             _window = window;
 
@@ -213,7 +268,7 @@ internal static class SplashWindow
                     + $"{(drawn ? "drawn" : "backstop")})");
             });
 
-            RPM.Core.Diagnostics.Scope.Said("boot", "splash up");
+            RPM.Core.Diagnostics.Scope.Said("boot", $"splash up ({(_clear ? "clear" : "glass")})");
             return true;
         }
         catch (Exception e)
@@ -322,6 +377,12 @@ internal static class SplashWindow
     /// </remarks>
     private static void Unglass()
     {
+        // The clear backdrop is emptied the same way and on the same turn, before the window closes.
+        var clear = _clearTarget;
+        _clearTarget = null;
+        _clear = false;
+        try { if (clear is not null) clear.SystemBackdrop = null; } catch { }
+
         var glass = _glass;
         var target = _glassTarget;
 
@@ -340,6 +401,62 @@ internal static class SplashWindow
         catch { }
 
         try { glass.Dispose(); } catch { }
+    }
+
+    /// <summary>
+    /// Makes the window clear, so the mark stands on the desktop itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>None of the usual routes does this for a WinUI window (see
+    /// <see cref="Services.Platform.WindowBackground"/>). What does is the slot desktop acrylic is put in:
+    /// the window's system backdrop, given a fully transparent colour brush instead of a controller. The
+    /// brush must come from the SYSTEM compositor (Windows.UI.Composition), not WinUI's, and that
+    /// compositor needs a system dispatcher queue on this thread, which a WinUI thread does not have of
+    /// its own.</para>
+    ///
+    /// <para>False when any part of it is refused; the caller then puts the glass up instead.</para>
+    /// </remarks>
+    private static bool Clear(Window window)
+    {
+        try
+        {
+            if (Windows.System.DispatcherQueue.GetForCurrentThread() is null && _systemQueue == IntPtr.Zero)
+            {
+                var options = new DispatcherQueueOptions
+                {
+                    Size = Marshal.SizeOf<DispatcherQueueOptions>(),
+                    ThreadType = DQTYPE_THREAD_CURRENT,
+                    ApartmentType = DQTAT_COM_STA,
+                };
+                if (CreateDispatcherQueueController(options, out _systemQueue) != 0)
+                    return false;
+            }
+
+            _clearCompositor ??= new Windows.UI.Composition.Compositor();
+            var target = window.As<ICompositionSupportsSystemBackdrop>();
+            target.SystemBackdrop = _clearCompositor.CreateColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+            _clearTarget = target;
+            return true;
+        }
+        catch
+        {
+            _clearTarget = null;
+            return false;
+        }
+    }
+
+    /// <summary>Extends the frame over the whole client area (-1 on every side), for a clear window.</summary>
+    private static void ExtendFrame()
+    {
+        if (_hwnd == IntPtr.Zero || !OperatingSystem.IsWindows())
+            return;
+
+        try
+        {
+            var margins = new FrameMargins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+            DwmExtendFrameIntoClientArea(_hwnd, ref margins);
+        }
+        catch { }
     }
 
     /// <summary>
@@ -623,6 +740,28 @@ internal static class SplashWindow
     private const uint SWP_NOACTIVATE = 0x0010;
     private const uint SWP_FRAMECHANGED = 0x0020;
     private const long WS_EX_LAYERED = 0x00080000;
+    private const int DQTYPE_THREAD_CURRENT = 2;
+    private const int DQTAT_COM_STA = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DispatcherQueueOptions
+    {
+        public int Size;
+        public int ThreadType;
+        public int ApartmentType;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FrameMargins
+    {
+        public int Left, Right, Top, Bottom;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref FrameMargins margins);
+
+    [DllImport("CoreMessaging.dll")]
+    private static extern int CreateDispatcherQueueController(DispatcherQueueOptions options, out IntPtr controller);
     private const int LWA_ALPHA = 0x2;
 
     [StructLayout(LayoutKind.Sequential)]

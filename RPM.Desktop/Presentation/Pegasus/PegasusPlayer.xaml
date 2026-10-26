@@ -206,7 +206,7 @@
       <Grid x:Name="OpeningMark" HorizontalAlignment="Center" VerticalAlignment="Center" Width="260" Height="100"
             IsHitTestVisible="False">
         <!-- The wordmark at the TV's dim level, 0.32 white. The same geometry as the splash card's mark
-             (SplashCard.Mark) and Assets/Svg/rpm.svg. -->
+             (Controls/SweptMark) and Assets/Svg/rpm.svg. -->
         <Path x:Name="OpeningDim" Stretch="Uniform" Fill="#52FFFFFF"
               Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
 
