@@ -295,14 +295,14 @@ public sealed partial class PegasusPlayer
     }
 
     /// <summary>
-    /// The opening sound, as the cover fades away: the app's own <c>rpm-open</c> (<see cref="AppSound.PlayOpen"/>),
-    /// which is what the TV plays as its opening fades, at the same level (0.7 of the player's volume), through the
-    /// same player the window's opening sound uses.
+    /// The opening sound, as the cover fades away: Pegasus's own opener, <c>rpm-open-pegasus</c>
+    /// (<see cref="AppSound.PlayPegasusOpen"/>), at the level the window's opening sound plays at (0.7 of the
+    /// player's volume), through the same player.
     ///
-    /// <para>As on the TV it is not played over music that is already playing, and it stops as soon as music
-    /// starts: whoever puts a record on has said what the speakers are for. It is not played over the window's own
-    /// opening sound still sounding, either, so the two never overlap. Once per opening; leaving the view silences
-    /// it (see <see cref="StopOpening"/>).</para>
+    /// <para>It plays only when nothing is playing: not over music that is already playing, and not over the
+    /// window's own opening sound still sounding, so the two never overlap. It stops as soon as music starts:
+    /// whoever puts a record on has said what the speakers are for. Once per opening; leaving the view silences it
+    /// (see <see cref="StopOpening"/>).</para>
     /// </summary>
     private void PlayOpeningSound()
     {
@@ -318,7 +318,7 @@ public sealed partial class PegasusPlayer
                 return;
 
             _openingSounded = true;
-            AppSound.PlayOpen(playback.Volume, stop: Playing);
+            AppSound.PlayPegasusOpen(playback.Volume, stop: Playing);
         }
         catch { /* a flourish: it must never hold up the view */ }
     }

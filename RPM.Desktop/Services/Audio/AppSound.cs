@@ -27,6 +27,11 @@ public static class AppSound
     private static string OpenPath =>
         Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "rpm-open.wav");
 
+    /// <summary>Where Pegasus's opening sound is, beside the binary. Pegasus has a sound of its own, played
+    /// as its loading cover fades away (see PegasusPlayer.PlayOpeningSound).</summary>
+    private static string PegasusOpenPath =>
+        Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "rpm-open-pegasus.wav");
+
     /// <summary>The sound's level relative to the player's volume. It is quieter than the music,
     /// because the sound plays while the window opens, not while music is playing.</summary>
     private const double Softer = 0.7;
@@ -43,6 +48,11 @@ public static class AppSound
     /// track started by the user takes priority over the sound.</param>
     public static void PlayOpen(int volume = 100, Func<bool>? stop = null) =>
         Play(OpenPath, volume, stop);
+
+    /// <summary>Plays Pegasus's opening sound, the same way and at the same level as
+    /// <see cref="PlayOpen"/>.</summary>
+    public static void PlayPegasusOpen(int volume = 100, Func<bool>? stop = null) =>
+        Play(PegasusOpenPath, volume, stop);
 
     /// <summary>Ends the opening sound now. This covers the ways the app can exit while the sound is
     /// still playing. A child process does not stop when its parent stops. On macOS, closing the window
@@ -208,7 +218,9 @@ public static class Wave
     {
         try
         {
-            var path = Path.Combine(Path.GetTempPath(), $"rpm-open-{Environment.ProcessId}.wav");
+            // A name of its own each time: the window's opening sound and Pegasus's can be written in
+            // the same second, and one must not overwrite or delete the other's file.
+            var path = Path.Combine(Path.GetTempPath(), $"rpm-open-{Environment.ProcessId}-{Guid.NewGuid():N}.wav");
 
             using var file = File.Create(path);
             using var writer = new BinaryWriter(file);

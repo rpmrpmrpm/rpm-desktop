@@ -429,6 +429,8 @@
     <!-- The sound the app makes when it opens. Read by path off the sound device, so it is copied
          rather than embedded: see Services/Audio/AppSound.cs. -->
     <Content Include="Assets\Sounds\rpm-open.wav" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Pegasus's own opener, played as its loading cover fades away (PegasusPlayer.PlayOpeningSound). -->
+    <Content Include="Assets\Sounds\rpm-open-pegasus.wav" CopyToOutputDirectory="PreserveNewest" />
 
     <!-- One photograph for the head of every genre's page (Pexels License: free use, commercial use
          included, redistribution as part of a work permitted). Chosen once and cut to the head's own
