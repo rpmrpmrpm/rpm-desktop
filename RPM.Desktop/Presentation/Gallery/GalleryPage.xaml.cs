@@ -323,8 +323,8 @@ public sealed partial class GalleryPage : Page
                     await SupporterDialog.ShowAsync(xamlRoot,
                         SupporterDialog.Occasion.StorageFull(
                             new RPM.Core.Cloud.CloudSpace(
-                                UsedBytes: 100L * 1024 * 1024 * 1024,
-                                QuotaBytes: 100L * 1024 * 1024 * 1024),
+                                UsedBytes: 25L * 1024 * 1024 * 1024,
+                                QuotaBytes: 25L * 1024 * 1024 * 1024),
                             syncAllPaused: true,
                             offerNeverAgain: tag == "CloudFullAgain"));
                     break;

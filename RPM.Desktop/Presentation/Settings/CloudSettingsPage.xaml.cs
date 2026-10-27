@@ -125,7 +125,7 @@ public sealed partial class CloudSettingsPage : Page
     /// <summary>
     /// What this account's storage is, and whether there is anything to buy.
     ///
-    /// <para>There are three states, not two: a supporter, someone on the free 100 GB, and an account
+    /// <para>There are three states, not two: a supporter, someone on the free 25 GB, and an account
     /// the server would not answer about. The third is never shown as the second. Telling someone who
     /// pays that they do not, because a request timed out, is the one mistake here that matters. So an
     /// unknown state says so and offers nothing.</para>
@@ -209,7 +209,7 @@ public sealed partial class CloudSettingsPage : Page
     {
         var space = status.Space;
 
-        // The number, and what it means. "84 GB of 100 GB" is a fact that nobody reads as a warning
+        // The number, and what it means. "21 GB of 25 GB" is a fact that nobody reads as a warning
         // until it is one, so the state is shown on the same line as the size. A quota of zero is a
         // read that did not come back. It is not an account with no room. Showing "0 B of 0 B" would
         // state a fact about the account that nobody has confirmed.

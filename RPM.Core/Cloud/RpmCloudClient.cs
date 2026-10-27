@@ -54,7 +54,7 @@ public sealed record CloudQuota(
     [property: JsonPropertyName("quotaBytes")] long QuotaBytes,
     [property: JsonPropertyName("fileCount")] int FileCount,
     /// <summary>No ceiling. This is what supporting rpm buys. False comes from a server that predates the
-    /// field. Such a server reports the free account's 100 GB limit.</summary>
+    /// field. Such a server reports the free account's limit.</summary>
     [property: JsonPropertyName("unlimited")] bool Unlimited = false)
 {
     /// <summary>The same answer as the room it describes. This decides whether anything more may be sent.

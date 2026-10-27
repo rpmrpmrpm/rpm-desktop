@@ -4,7 +4,7 @@ namespace RPM.Core.Cloud;
 /// How much space the account has left in the cloud, and what that means for the uploader.
 ///
 /// <para>
-/// The store is the one part of rpm that can run out. Free accounts get 100 GB and supporters have
+/// The store is the one part of rpm that can run out. Free accounts get 25 GB and supporters have
 /// no limit, so every question about whether something may go up is asked here and is not worked
 /// out again at each call site: what is left, whether the next file fits, and whether the user is
 /// close enough to the limit to be told.
