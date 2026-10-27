@@ -3431,6 +3431,18 @@
     <value>感谢你支持 rpm。你帮助 rpm 持续运行，并资助新的开发。你的慷慨让我们深受感动。</value>
     <comment>Settings, Profile page: second paragraph under 'Supporter', thanking the account for supporting rpm.</comment>
   </data>
+  <data name="Rpm_Profile_PlanTester" xml:space="preserve">
+    <value>封闭测试用户</value>
+    <comment>Settings, Profile page: the standing of an account marked as a closed beta tester.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterDetail" xml:space="preserve">
+    <value>支持者功能和 100 GB 云存储。</value>
+    <comment>Settings, Profile page: what a closed beta tester gets.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterThanks" xml:space="preserve">
+    <value>感谢你测试 rpm。你的反馈帮助我们在公开测试前修复问题。</value>
+    <comment>Settings, Profile page: second paragraph under 'Closed beta tester', thanking the account for testing.</comment>
+  </data>
   <data name="Rpm_Profile_Playback" xml:space="preserve">
     <value>播放</value>
   </data>
@@ -5256,6 +5268,10 @@
   <data name="Cloud_SupporterYesUntil" xml:space="preserve">
     <value>你的支持者身份有效期至 {0}。你的云存储无限。</value>
     <comment>Cloud settings: a supporter whose support has an end date.</comment>
+  </data>
+  <data name="Cloud_SupporterTester" xml:space="preserve">
+    <value>你是封闭测试用户。你可使用支持者功能，并拥有 100 GB 云存储。</value>
+    <comment>Cloud settings: the standing of an account marked as a closed beta tester.</comment>
   </data>
   <data name="Cloud_SupporterUnknown" xml:space="preserve">
     <value>无法获取你的支持者状态。</value>

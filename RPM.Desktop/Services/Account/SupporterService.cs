@@ -43,6 +43,7 @@ public sealed partial class SupporterService
     {
         Current = null;
         _settings.SupporterUntilUnix = 0;
+        _settings.SupporterTester = false;
         Changed?.Invoke();
 
         // Ask about whoever has just arrived. Do it here, not on whichever screen opens first. The standing
@@ -52,16 +53,25 @@ public sealed partial class SupporterService
             Shell.Background.Run(() => GetAsync());
     }
 
+    /// <param name="Supporter">The supporter features. The server sends true for paying supporters and
+    /// for closed beta testers.</param>
+    /// <param name="Tester">A closed beta tester who does not pay. False from a server that does not send
+    /// the field.</param>
     private sealed record MeBody(
         [property: JsonPropertyName("grSupporter")] bool Supporter,
-        [property: JsonPropertyName("grSupporterUntil")] long SupporterUntil);
+        [property: JsonPropertyName("grSupporterUntil")] long SupporterUntil,
+        [property: JsonPropertyName("grTester")] bool Tester = false);
 
     /// <summary>
     /// What is known about the account's support. Null means it could not be read at all (signed out, or
     /// offline). The UI shows that as unknown, not as "no". Saying "no" without the user having been given
     /// a real refusal would be a false claim.
     /// </summary>
-    public sealed record Status(bool IsSupporter, DateTimeOffset? Until);
+    /// <param name="IsSupporter">Whether the account has the supporter features. Paying supporters and
+    /// closed beta testers have them.</param>
+    /// <param name="IsTester">A closed beta tester: the supporter features, 100 GB of cloud storage, no end
+    /// date and no supporter's mark. <see cref="SupporterReach"/> and the settings pages read it.</param>
+    public sealed record Status(bool IsSupporter, DateTimeOffset? Until, bool IsTester);
 
     /// <summary>The last answer, or null when there has not been one this session. Anything that wants to
     /// draw the standing without waiting for a network call reads this. The cloud settings page draws from
@@ -90,7 +100,7 @@ public sealed partial class SupporterService
     /// </summary>
     public Status? Standing =>
         Pretended ?? StandingFrom(
-            _auth.IsLoggedIn, Current, _settings.SupporterUntilUnix, DateTimeOffset.UtcNow);
+            _auth.IsLoggedIn, Current, _settings.SupporterUntilUnix, _settings.SupporterTester, DateTimeOffset.UtcNow);
 
 #if DEBUG
     /// <summary>
@@ -130,7 +140,7 @@ public sealed partial class SupporterService
     private Status? Pretended =>
 #if DEBUG
         _auth.IsLoggedIn && Pretend is { } pretend
-            ? new Status(pretend, pretend ? DateTimeOffset.UtcNow.AddYears(1) : null)
+            ? new Status(pretend, pretend ? DateTimeOffset.UtcNow.AddYears(1) : null, IsTester: false)
             : null;
 #else
         null;
@@ -147,8 +157,11 @@ public sealed partial class SupporterService
     /// <param name="asked">This session's answer from the server, or null if it has not heard back.</param>
     /// <param name="rememberedUntilUnix">The end date the server last gave on this machine. 0 means both
     /// "not a supporter" and "never told". For this rule, the two are the same.</param>
+    /// <param name="rememberedTester">Whether the server last said this account is a closed beta tester.
+    /// A tester has no end date, so the mark is remembered on its own and kept until the server says
+    /// otherwise or the account changes.</param>
     public static Status? StandingFrom(
-        bool signedIn, Status? asked, long rememberedUntilUnix, DateTimeOffset now)
+        bool signedIn, Status? asked, long rememberedUntilUnix, bool rememberedTester, DateTimeOffset now)
     {
         // Nobody is signed in, so there is nobody to be a supporter. This is not the same as "could not ask".
         // The remembered date below covers that case: a session that has an account but cannot reach the server.
@@ -158,6 +171,9 @@ public sealed partial class SupporterService
         if (asked is { } fresh)
             return fresh;
 
+        if (rememberedTester)
+            return new Status(true, null, IsTester: true);
+
         if (rememberedUntilUnix <= 0)
             return null;
 
@@ -165,7 +181,7 @@ public sealed partial class SupporterService
         // from one nobody has heard of. So a lapsed supporter is refused straight away, and is not let through
         // until the next successful read.
         var ends = DateTimeOffset.FromUnixTimeSeconds(rememberedUntilUnix);
-        return new Status(ends > now, ends);
+        return new Status(ends > now, ends, IsTester: false);
     }
 
     /// <summary>Raised when <see cref="Current"/> changes, so a page that shows it can follow.</summary>
@@ -199,7 +215,8 @@ public sealed partial class SupporterService
 
             return Remember(new Status(
                 body.Supporter,
-                body.SupporterUntil > 0 ? DateTimeOffset.FromUnixTimeSeconds(body.SupporterUntil) : null));
+                body.SupporterUntil > 0 ? DateTimeOffset.FromUnixTimeSeconds(body.SupporterUntil) : null,
+                body.Supporter && body.Tester));
         }
         catch
         {
@@ -221,9 +238,10 @@ public sealed partial class SupporterService
         // Kept for the next run. It is written only from something the server said. A supporter with no end
         // date is not a shape that this account model produces, because 0 is how "not a supporter" is written.
         // So an answer with no end date is remembered as nothing, not as support that never expires.
-        _settings.SupporterUntilUnix = status is { IsSupporter: true, Until: { } ends }
+        _settings.SupporterUntilUnix = status is { IsSupporter: true, IsTester: false, Until: { } ends }
             ? ends.ToUnixTimeSeconds()
             : 0;
+        _settings.SupporterTester = status.IsTester;
 
         if (news) Changed?.Invoke();
         return status;

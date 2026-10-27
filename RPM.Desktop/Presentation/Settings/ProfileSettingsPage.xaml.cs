@@ -321,9 +321,12 @@ public sealed partial class ProfileSettingsPage : Page
             return;
         }
 
+        // Three standings: free, closed beta tester (the supporter features, no badge) and supporter.
+        var paying = status is { IsSupporter: true, IsTester: false };
         FreeStanding.Visibility = !status.IsSupporter ? Visibility.Visible : Visibility.Collapsed;
-        SupporterStanding.Visibility = status.IsSupporter ? Visibility.Visible : Visibility.Collapsed;
-        PlanBadge.IsSupporter = status.IsSupporter;
+        TesterStanding.Visibility = status.IsTester ? Visibility.Visible : Visibility.Collapsed;
+        SupporterStanding.Visibility = paying ? Visibility.Visible : Visibility.Collapsed;
+        PlanBadge.IsSupporter = paying;
     }
 
     // Local data and cache

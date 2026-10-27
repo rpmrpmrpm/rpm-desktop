@@ -263,8 +263,8 @@ public sealed partial class GalleryPage : Page
                     await recognizeModel.SeedAndCheckAllAsync(GalleryDemo.QueueTracks(), "/Demo/Inbox");
                     await RecognizeDialog.ShowAsync(xamlRoot, recognizeModel,
                         SupportStanding.Fixed(tag == "RecognizeBasic"
-                            ? new SupporterService.Status(false, null)
-                            : new SupporterService.Status(true, DateTimeOffset.UtcNow.AddMonths(8))),
+                            ? new SupporterService.Status(false, null, IsTester: false)
+                            : new SupporterService.Status(true, DateTimeOffset.UtcNow.AddMonths(8), IsTester: false)),
                         recognizeModel.SelectedQueueRowsSnapshot());
                     break;
 

@@ -20,13 +20,20 @@ namespace RPM.Desktop.Services.Account;
 /// </summary>
 public readonly record struct SupporterReach
 {
-    private SupporterReach(bool supports) => _supports = supports;
+    private SupporterReach(bool supports, bool tester)
+    {
+        _supports = supports;
+        _tester = tester;
+    }
 
     private readonly bool _supports;
 
+    /// <summary>A closed beta tester: the supporter features without paying, so no supporter's mark.</summary>
+    private readonly bool _tester;
+
     /// <summary>Everything an account gets without supporting rpm. It is named rather than defaulted,
     /// so a caller that never asked about the account cannot end up asserting the opposite by accident.</summary>
-    public static SupporterReach Free => new(false);
+    public static SupporterReach Free => new(false, false);
 
     /// <summary>
     /// Whether the DJ may be given a set: the transition planner, the beat and key reading behind it,
@@ -58,8 +65,11 @@ public readonly record struct SupporterReach
     /// is paid for by it. It is here anyway, because the badge must disappear at the same time as the rest
     /// when support lapses. A heart beside a name whose DJ access has just been removed would show the app
     /// disagreeing with itself.</para>
+    ///
+    /// <para>A closed beta tester has the supporter features but does not wear the mark. The mark says
+    /// "Supporter", and a tester does not pay.</para>
     /// </summary>
-    public bool MayWearTheBadge => _supports;
+    public bool MayWearTheBadge => _supports && !_tester;
 
     /// <summary>
     /// What the account's standing allows.
@@ -72,5 +82,5 @@ public readonly record struct SupporterReach
     /// told otherwise, or whose support has run out.</para>
     /// </summary>
     public static SupporterReach For(SupporterService.Status? support)
-        => new(support is { IsSupporter: true });
+        => new(support is { IsSupporter: true }, support is { IsSupporter: true, IsTester: true });
 }

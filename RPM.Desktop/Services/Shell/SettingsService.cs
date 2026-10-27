@@ -175,6 +175,7 @@ public sealed partial class SettingsService
         string? ShareName = null,
         string? ProfileName = null,
         long SupporterUntilUnix = 0,
+        bool SupporterTester = false,
         int SupporterPretend = 0,
         string? UpdateDeferred = null,
         IReadOnlyList<string>? CoachmarksSeen = null,
@@ -829,6 +830,19 @@ public sealed partial class SettingsService
     {
         get => _model.SupporterUntilUnix;
         set => Update(_model with { SupporterUntilUnix = value }, notify: false);
+    }
+
+    /// <summary>
+    /// Whether the server last said this account is a closed beta tester. A tester has no end date, so
+    /// <see cref="SupporterUntilUnix"/> cannot carry it. Read by SupporterService.StandingFrom when the
+    /// server cannot be asked, and cleared on sign-in and sign-out with the end date.
+    ///
+    /// <para>This is saved quietly, for the same reason as <see cref="SupporterUntilUnix"/>.</para>
+    /// </summary>
+    public bool SupporterTester
+    {
+        get => _model.SupporterTester;
+        set => Update(_model with { SupporterTester = value }, notify: false);
     }
 
     /// <summary>

@@ -125,8 +125,8 @@ public sealed partial class CloudSettingsPage : Page
     /// <summary>
     /// What this account's storage is, and whether there is anything to buy.
     ///
-    /// <para>There are three states, not two: a supporter, someone on the free 25 GB, and an account
-    /// the server would not answer about. The third is never shown as the second. Telling someone who
+    /// <para>There are four states, not two: a supporter, a closed beta tester (100 GB), someone on the
+    /// free 25 GB, and an account the server would not answer about. The third is never shown as the second. Telling someone who
     /// pays that they do not, because a request timed out, is the one mistake here that matters. So an
     /// unknown state says so and offers nothing.</para>
     /// </summary>
@@ -144,6 +144,7 @@ public sealed partial class CloudSettingsPage : Page
 
         SupporterText.Text = status switch
         {
+            { IsTester: true } => Loc.Get("Cloud_SupporterTester"),
             { IsSupporter: true, Until: { } until } =>
                 Loc.Format("Cloud_SupporterYesUntil", until.LocalDateTime.ToString("d")),
             { IsSupporter: true } => Loc.Get("Cloud_SupporterYes"),

@@ -11,8 +11,8 @@ namespace RPM.Desktop.Tests;
 /// </summary>
 public class RecognitionReachTests
 {
-    private static SupporterService.Status Supporter => new(true, DateTimeOffset.UtcNow.AddMonths(6));
-    private static SupporterService.Status NotSupporter => new(false, null);
+    private static SupporterService.Status Supporter => new(true, DateTimeOffset.UtcNow.AddMonths(6), IsTester: false);
+    private static SupporterService.Status NotSupporter => new(false, null, IsTester: false);
 
     [Fact]
     public void A_supporter_reaches_the_advanced_layer()

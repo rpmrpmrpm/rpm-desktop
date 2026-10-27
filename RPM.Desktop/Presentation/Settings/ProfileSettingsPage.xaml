@@ -187,6 +187,16 @@
             <TextBlock Text="{loc:Str Key=Rpm_Profile_PlanSupporterThanks}" FontSize="12" Margin="0,6,0,0"
                        Foreground="#B3FFFFFF" TextWrapping="Wrap" />
           </StackPanel>
+
+          <!-- A closed beta tester has the supporter features but does not pay, so no gold badge. -->
+          <StackPanel x:Name="TesterStanding" Spacing="4" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=Rpm_Profile_PlanTester}" FontSize="17"
+                       Foreground="{StaticResource RpmCyanBrush}" />
+            <TextBlock Text="{loc:Str Key=Rpm_Profile_PlanTesterDetail}" FontSize="12"
+                       Foreground="#88FFFFFF" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:Str Key=Rpm_Profile_PlanTesterThanks}" FontSize="12" Margin="0,6,0,0"
+                       Foreground="#B3FFFFFF" TextWrapping="Wrap" />
+          </StackPanel>
         </StackPanel>
       </Border>
 

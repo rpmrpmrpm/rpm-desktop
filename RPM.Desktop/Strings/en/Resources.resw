@@ -3431,6 +3431,18 @@
     <value>Thank you for supporting rpm. You help keep rpm going and fund new development. We are humbled by your generosity.</value>
     <comment>Settings, Profile page: second paragraph under 'Supporter', thanking the account for supporting rpm.</comment>
   </data>
+  <data name="Rpm_Profile_PlanTester" xml:space="preserve">
+    <value>Closed beta tester</value>
+    <comment>Settings, Profile page: the standing of an account marked as a closed beta tester.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterDetail" xml:space="preserve">
+    <value>Supporter features and 100 GB of cloud storage.</value>
+    <comment>Settings, Profile page: what a closed beta tester gets.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterThanks" xml:space="preserve">
+    <value>Thank you for testing rpm. Your reports help us fix problems before the public beta.</value>
+    <comment>Settings, Profile page: second paragraph under 'Closed beta tester', thanking the account for testing.</comment>
+  </data>
   <data name="Rpm_Profile_Playback" xml:space="preserve">
     <value>Playback</value>
   </data>
@@ -5256,6 +5268,10 @@
   <data name="Cloud_SupporterYesUntil" xml:space="preserve">
     <value>You are a supporter until {0}. Your cloud storage is unlimited.</value>
     <comment>Cloud settings: a supporter whose support has an end date.</comment>
+  </data>
+  <data name="Cloud_SupporterTester" xml:space="preserve">
+    <value>You are a closed beta tester. You get the supporter features and 100 GB of cloud storage.</value>
+    <comment>Cloud settings: the standing of an account marked as a closed beta tester.</comment>
   </data>
   <data name="Cloud_SupporterUnknown" xml:space="preserve">
     <value>Your supporter status could not be retrieved.</value>

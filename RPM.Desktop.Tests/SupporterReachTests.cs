@@ -15,8 +15,9 @@ public class SupporterReachTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 24, 21, 0, 0, TimeSpan.Zero);
 
-    private static SupporterService.Status Supporter => new(true, Now.AddMonths(6));
-    private static SupporterService.Status NotSupporter => new(false, null);
+    private static SupporterService.Status Supporter => new(true, Now.AddMonths(6), IsTester: false);
+    private static SupporterService.Status Tester => new(true, null, IsTester: true);
+    private static SupporterService.Status NotSupporter => new(false, null, IsTester: false);
 
     // ── what the reach allows ──
 
@@ -65,7 +66,7 @@ public class SupporterReachTests
     [Fact]
     public void This_sessions_answer_wins()
     {
-        var standing = SupporterService.StandingFrom(signedIn: true, NotSupporter, Now.AddYears(1).ToUnixTimeSeconds(), Now);
+        var standing = SupporterService.StandingFrom(signedIn: true, NotSupporter, Now.AddYears(1).ToUnixTimeSeconds(), rememberedTester: false, Now);
         Assert.False(standing!.IsSupporter);
     }
 
@@ -74,7 +75,7 @@ public class SupporterReachTests
     [Fact]
     public void An_offline_supporter_is_still_a_supporter()
     {
-        var standing = SupporterService.StandingFrom(signedIn: true, null, Now.AddMonths(2).ToUnixTimeSeconds(), Now);
+        var standing = SupporterService.StandingFrom(signedIn: true, null, Now.AddMonths(2).ToUnixTimeSeconds(), rememberedTester: false, Now);
         Assert.True(standing!.IsSupporter);
         Assert.True(SupporterReach.For(standing).MayDj);
     }
@@ -84,7 +85,7 @@ public class SupporterReachTests
     [Fact]
     public void A_remembered_supporter_runs_out_on_the_date_it_carries()
     {
-        var standing = SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), Now);
+        var standing = SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), rememberedTester: false, Now);
         Assert.False(standing!.IsSupporter);
         Assert.False(SupporterReach.For(standing).MayDj);
     }
@@ -94,7 +95,7 @@ public class SupporterReachTests
     [Fact]
     public void Never_having_been_told_is_null_rather_than_a_no()
     {
-        Assert.Null(SupporterService.StandingFrom(signedIn: true, null, 0, Now));
+        Assert.Null(SupporterService.StandingFrom(signedIn: true, null, 0, rememberedTester: false, Now));
     }
 
     /// <summary>
@@ -107,11 +108,11 @@ public class SupporterReachTests
     {
         var remembered = Now.AddYears(1).ToUnixTimeSeconds();
 
-        Assert.True(SupporterService.StandingFrom(signedIn: true, null, remembered, Now)!.IsSupporter);
-        Assert.Null(SupporterService.StandingFrom(signedIn: false, null, remembered, Now));
+        Assert.True(SupporterService.StandingFrom(signedIn: true, null, remembered, rememberedTester: false, Now)!.IsSupporter);
+        Assert.Null(SupporterService.StandingFrom(signedIn: false, null, remembered, rememberedTester: false, Now));
 
         // Nor does an answer the server gave the last account survive the account leaving.
-        Assert.Null(SupporterService.StandingFrom(signedIn: false, Supporter, remembered, Now));
+        Assert.Null(SupporterService.StandingFrom(signedIn: false, Supporter, remembered, rememberedTester: false, Now));
     }
 
     /// <summary>And the whole of what that costs the window: the gold comes down and the default goes
@@ -120,7 +121,7 @@ public class SupporterReachTests
     public void A_signed_out_window_is_not_gold()
     {
         var out_ = SupporterReach.For(
-            SupporterService.StandingFrom(signedIn: false, Supporter, Now.AddYears(1).ToUnixTimeSeconds(), Now));
+            SupporterService.StandingFrom(signedIn: false, Supporter, Now.AddYears(1).ToUnixTimeSeconds(), rememberedTester: false, Now));
 
         Assert.Equal(Backdrop.BuiltIn, Backdrop.Resolve(Backdrop.GoldId, out_));
         Assert.Equal("", Backdrop.EffectiveId(Backdrop.GoldId, out_));
@@ -157,7 +158,7 @@ public class SupporterReachTests
     [Fact]
     public void A_stored_gold_outlives_the_support_and_falls_back()
     {
-        var lapsed = SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), Now);
+        var lapsed = SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), rememberedTester: false, Now);
         Assert.Equal(Backdrop.BuiltIn, Backdrop.Resolve(Backdrop.GoldId, SupporterReach.For(lapsed)));
     }
 
@@ -215,7 +216,7 @@ public class SupporterReachTests
     public void A_lapsed_supporter_sees_the_default_tile_lit_not_the_gold_one()
     {
         var lapsed = SupporterReach.For(
-            SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), Now));
+            SupporterService.StandingFrom(signedIn: true, null, Now.AddDays(-1).ToUnixTimeSeconds(), rememberedTester: false, Now));
 
         Assert.Equal("", Backdrop.EffectiveId(Backdrop.GoldId, lapsed));
         Assert.Equal(Backdrop.GoldId, Backdrop.EffectiveId(Backdrop.GoldId, SupporterReach.For(Supporter)));
@@ -237,4 +238,36 @@ public class SupporterReachTests
             Assert.Equal(Backdrop.Resolve(stored, reach), lit.Uri);
         }
     }
+
+    /// <summary>A closed beta tester has every supporter feature but not the supporter's mark, because
+    /// the mark says "Supporter" and a tester does not pay.</summary>
+    [Fact]
+    public void A_tester_has_the_features_but_not_the_mark()
+    {
+        var reach = SupporterReach.For(Tester);
+
+        Assert.True(reach.MayDj);
+        Assert.True(reach.MayAlignWords);
+        Assert.True(reach.MaySupporterBackdrop);
+        Assert.False(reach.MayWearTheBadge);
+    }
+
+    /// <summary>A tester has no end date, so offline the remembered tester mark keeps the features,
+    /// and a signed-out window still gets nothing.</summary>
+    [Fact]
+    public void A_remembered_tester_keeps_the_features_offline_and_only_while_signed_in()
+    {
+        var offline = SupporterService.StandingFrom(signedIn: true, null, 0, rememberedTester: true, Now);
+
+        Assert.True(offline!.IsSupporter);
+        Assert.True(offline.IsTester);
+        Assert.True(SupporterReach.For(offline).MayDj);
+        Assert.Null(SupporterService.StandingFrom(signedIn: false, null, 0, rememberedTester: true, Now));
+    }
+
+    /// <summary>What the server says this session wins over what was remembered, so a tester whose mark
+    /// was removed loses the features as soon as the server answers.</summary>
+    [Fact]
+    public void A_fresh_answer_wins_over_a_remembered_tester() =>
+        Assert.False(SupporterService.StandingFrom(signedIn: true, NotSupporter, 0, rememberedTester: true, Now)!.IsSupporter);
 }

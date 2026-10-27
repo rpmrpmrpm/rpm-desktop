@@ -3431,6 +3431,18 @@
     <value>Gracias por apoyar rpm. Ayudas a que rpm siga adelante y financias su desarrollo. Tu generosidad nos conmueve.</value>
     <comment>Settings, Profile page: second paragraph under 'Supporter', thanking the account for supporting rpm.</comment>
   </data>
+  <data name="Rpm_Profile_PlanTester" xml:space="preserve">
+    <value>Probador de la beta cerrada</value>
+    <comment>Settings, Profile page: the standing of an account marked as a closed beta tester.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterDetail" xml:space="preserve">
+    <value>Funciones de colaborador y 100 GB de almacenamiento en la nube.</value>
+    <comment>Settings, Profile page: what a closed beta tester gets.</comment>
+  </data>
+  <data name="Rpm_Profile_PlanTesterThanks" xml:space="preserve">
+    <value>Gracias por probar rpm. Tus informes nos ayudan a corregir problemas antes de la beta pública.</value>
+    <comment>Settings, Profile page: second paragraph under 'Closed beta tester', thanking the account for testing.</comment>
+  </data>
   <data name="Rpm_Profile_Playback" xml:space="preserve">
     <value>Reproducción</value>
   </data>
@@ -5256,6 +5268,10 @@
   <data name="Cloud_SupporterYesUntil" xml:space="preserve">
     <value>Eres colaborador hasta el {0}. Tu almacenamiento en la nube es ilimitado.</value>
     <comment>Cloud settings: a supporter whose support has an end date.</comment>
+  </data>
+  <data name="Cloud_SupporterTester" xml:space="preserve">
+    <value>Eres probador de la beta cerrada. Tienes las funciones de colaborador y 100 GB de almacenamiento en la nube.</value>
+    <comment>Cloud settings: the standing of an account marked as a closed beta tester.</comment>
   </data>
   <data name="Cloud_SupporterUnknown" xml:space="preserve">
     <value>No se ha podido obtener tu estado de colaborador.</value>
