@@ -1,19 +1,15 @@
-using System;
 using System.Linq;
-using RPM.Desktop.Presentation.Main.Genres;
 using RPM.Desktop.Presentation.Pegasus;
 using SkiaSharp;
-using Windows.UI;
 using Xunit;
 
 namespace RPM.Desktop.Tests;
 
 /// <summary>
-/// The picture across the head of a Pegasus genre or artist page (PageHeaderArt): its size, and the
-/// foot that fades into the page. The fade is drawn into the pixels, not masked live, so a mistake in
-/// it shows as a line across the page that no layout check would catch.
+/// The photograph in the band across the top of a Pegasus artist or genre page (PageHeaderArt): its size,
+/// and the dissolves at its left and its foot. The dissolves are drawn into the pixels, not masked live, so
+/// a mistake in them shows as a line across the page that no layout check would catch.
 /// </summary>
-[Collection(PaletteStandInCollection.Name)]
 public class PageHeaderArtTests
 {
     [Fact]
@@ -28,55 +24,43 @@ public class PageHeaderArtTests
     }
 
     [Fact]
-    public void The_foot_fades_to_nothing_and_the_top_is_whole()
+    public void The_left_and_the_foot_dissolve_and_the_rest_is_whole()
     {
-        var drawn = PageHeaderArt.Draw(Photo(64, 64), 60, 40, down: 0.5, foot: 0.5, across: null);
+        var drawn = PageHeaderArt.Draw(Photo(64, 64), 60, 40, down: 0.5);
 
         Assert.NotNull(drawn);
         Assert.Equal(60 * 40 * 4, drawn!.Pixels.Length);
-        Assert.Equal(255, AlphaAt(drawn, 30, 0));
-        Assert.Equal(255, AlphaAt(drawn, 30, 18));   // above where the fade starts (row 20)
-        Assert.True(AlphaAt(drawn, 30, 39) < 8, $"the last row is at {AlphaAt(drawn, 30, 39)}");
 
-        // Down the fade, never back up: a step would read as a line.
-        var column = Enumerable.Range(0, 40).Select(y => AlphaAt(drawn, 30, y)).ToList();
-        for (var y = 1; y < column.Count; y++)
-            Assert.True(column[y] <= column[y - 1], $"row {y} is at {column[y]}, the row above at {column[y - 1]}");
+        // Right of the left dissolve (45% across) and above the foot's (the last 30%): whole.
+        Assert.Equal(255, AlphaAt(drawn, 50, 0));
+        Assert.Equal(255, AlphaAt(drawn, 50, 26));
+
+        // The left edge and the last row are next to nothing.
+        Assert.True(AlphaAt(drawn, 0, 10) < 8, $"the left edge is at {AlphaAt(drawn, 0, 10)}");
+        Assert.True(AlphaAt(drawn, 50, 39) < 8, $"the last row is at {AlphaAt(drawn, 50, 39)}");
     }
 
     [Fact]
-    public void A_header_with_no_photograph_draws_its_colour_alone()
+    public void The_dissolves_never_step_back()
     {
-        var deep = Color.FromArgb(0xFF, 0x20, 0x40, 0x80);
-        var drawn = PageHeaderArt.Draw(null, 100, 20, down: 0.5, foot: 0.4,
-                                       [(0, deep), (0.5, deep), (1, Color.FromArgb(0, deep.R, deep.G, deep.B))]);
+        var drawn = PageHeaderArt.Draw(Photo(64, 64), 60, 40, down: 0.5)!;
 
-        Assert.NotNull(drawn);
-        Assert.Equal(255, AlphaAt(drawn!, 2, 2));
-        Assert.True(AlphaAt(drawn, 98, 2) < 16, $"the right edge is at {AlphaAt(drawn, 98, 2)}");
+        // Down the foot, never back up, and across from the left, never back down: a step would read as a line.
+        var column = Enumerable.Range(0, 40).Select(y => AlphaAt(drawn, 50, y)).ToList();
+        for (var y = 1; y < column.Count; y++)
+            Assert.True(column[y] <= column[y - 1], $"row {y} is at {column[y]}, the row above at {column[y - 1]}");
+
+        var row = Enumerable.Range(0, 60).Select(x => AlphaAt(drawn, x, 10)).ToList();
+        for (var x = 1; x < row.Count; x++)
+            Assert.True(row[x] >= row[x - 1], $"column {x} is at {row[x]}, the column before at {row[x - 1]}");
     }
 
     [Fact]
     public void Nothing_to_draw_draws_nothing()
     {
-        Assert.Null(PageHeaderArt.Draw(null, 100, 20, down: 0.5, foot: 0.4, across: null));
-        Assert.Null(PageHeaderArt.Draw([1, 2, 3], 100, 20, down: 0.5, foot: 0.4, across: null));
-    }
-
-    [Fact]
-    public void The_genre_colour_is_solid_to_the_name_and_then_lets_go()
-    {
-        var mark = GenreWordmarks.For("Rock")!;
-        var stops = GenreWordmarks.OverTheBandStops(GenreAccent.Of(mark), 0.4);
-
-        Assert.Equal(0, stops[0].Offset);
-        Assert.Equal(255, stops[0].Colour.A);
-        Assert.Equal(0.4, stops[1].Offset, 6);
-        Assert.Equal(255, stops[1].Colour.A);
-        Assert.Equal(1, stops[^1].Offset, 6);
-        Assert.Equal(0, stops[^1].Colour.A);
-        for (var i = 1; i < stops.Count; i++)
-            Assert.True(stops[i].Offset >= stops[i - 1].Offset);
+        Assert.Null(PageHeaderArt.Draw(null, 100, 20, down: 0.5));
+        Assert.Null(PageHeaderArt.Draw([1, 2, 3], 100, 20, down: 0.5));
+        Assert.Null(PageHeaderArt.Draw(Photo(8, 8), 0, 20, down: 0.5));
     }
 
     private static byte AlphaAt(PageHeaderArt.Drawn drawn, int x, int y) =>

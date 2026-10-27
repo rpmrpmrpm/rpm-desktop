@@ -4,30 +4,40 @@ using Xunit;
 namespace RPM.Desktop.Tests;
 
 /// <summary>
-/// The zoom an artist's card gets under the remote's focus in Pegasus (FocusLift). It matches the tvOS
-/// app: 1.12 on a card small enough for it. The growth is capped at 18 points a side, which is less
-/// than the 22 points between two cards. On a 2560 by 1440 screen a card is about 480 across, and a
-/// 1.12 zoom on a card that size would grow it 29 points a side, over its neighbour.
+/// The look of the remote's focus in Pegasus (FocusLift): a focused card grows by CardGrow about its
+/// middle, and every other card and key is dimmed, keys more than cards. On the Skia head a scaled
+/// element is cut at its parent's bounds, so an act's round photograph stands in a holder with room
+/// round it; the growth has to stay inside that room.
 /// </summary>
 public class FocusLiftTests
 {
     [Theory]
     [InlineData(150)]
-    [InlineData(213)]
-    [InlineData(300)]
-    public void A_card_small_enough_zooms_as_the_tvOS_app_does(double edge)
+    [InlineData(480)]
+    [InlineData(900)]
+    public void A_focused_photograph_grows_inside_its_holder(double edge)
     {
-        Assert.Equal(FocusLift.Scale, FocusLift.ScaleFor(edge), 3);
+        var grows = edge * (FocusLift.CardGrow - 1) / 2;
+        Assert.True(grows < edge * FocusLift.RoomShare, $"a photograph {edge} across grows {grows:F1} a side");
     }
 
     [Theory]
-    [InlineData(320)]
+    [InlineData(150)]
     [InlineData(480)]
-    [InlineData(900)]
-    public void A_large_card_grows_no_more_than_the_gap_allows(double edge)
+    public void The_holder_and_the_photograph_margins_cancel(double edge)
     {
-        var grows = edge * (FocusLift.ScaleFor(edge) - 1) / 2;
-        Assert.True(grows <= FocusLift.MostGrowth + 0.01, $"a card {edge} across grows {grows:F1} a side");
-        Assert.True(grows < 22, "the zoomed photograph must stay inside the 22 between two cards");
+        // The holder is pulled back by its room and the photograph pushed in by the same room, so the
+        // photograph stands where it would without a holder.
+        Assert.Equal(-FocusLift.HolderMargin(edge).Left, FocusLift.PhotoMargin(edge).Left, 6);
+        Assert.Equal(-FocusLift.HolderMargin(edge).Top, FocusLift.PhotoMargin(edge).Top, 6);
+        Assert.Equal(edge * FocusLift.RoomShare, FocusLift.PhotoMargin(edge).Right, 6);
+    }
+
+    [Fact]
+    public void Keys_without_the_focus_are_darker_than_cards()
+    {
+        Assert.InRange(FocusLift.CardLight, 0.01, 0.99);
+        Assert.InRange(FocusLift.KeyLight, 0.01, 0.99);
+        Assert.True(FocusLift.KeyLight < FocusLift.CardLight);
     }
 }
