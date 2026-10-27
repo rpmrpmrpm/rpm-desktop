@@ -1,5 +1,5 @@
 # Every version of the command-line tools rpm ships or runs, and of what is built into them.
-# This is the only place they are written. Read by:
+# This is the only place they are written, apart from the rpm-android copy below. Read by:
 #   scripts/build-ffmpeg.sh                       builds ffmpeg from these sources
 #   scripts/fetch-tools.sh, scripts/fetch-tools.ps1   download the published ffmpeg and fpcalc
 #   scripts/fetch-angle.sh                        downloads the ANGLE pair for the Mac app
@@ -7,6 +7,8 @@
 #   .github/workflows/build-ffmpeg.yml            builds every RID and publishes the release
 #   the release scripts and the transcoder deploy, which are not in this repo
 #   scripts/gen_credits.py                        writes these versions into the About screen
+# The rpm-android repo keeps a copy of FFMPEG_VERSION and FFMPEG_SHA256 in its own
+# scripts/tool-versions.txt, for its FFmpeg decoders. Change both.
 # Plain KEY=VALUE lines so bash can source it and PowerShell can split it.
 
 # ffmpeg, built by scripts/build-ffmpeg.sh. One version on every platform and in the transcoder.
