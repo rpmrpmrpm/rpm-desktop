@@ -3413,7 +3413,7 @@
     <comment>Settings, Profile page: the standing of an account that does not support rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanFreeDetail" xml:space="preserve">
-    <value>100 GB de almacenamiento en la nube, todas las funciones, sin límite de tiempo.</value>
+    <value>25 GB de almacenamiento en la nube, todas las funciones, sin límite de tiempo.</value>
     <comment>Settings, Profile page: what an account gets without supporting rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanFreeAppeal" xml:space="preserve">
@@ -5246,7 +5246,7 @@
     <comment>Cloud settings: title of the card showing whether the account supports rpm.</comment>
   </data>
   <data name="Cloud_SupporterFree" xml:space="preserve">
-    <value>Cuenta gratuita con 100 GB de almacenamiento en la nube.</value>
+    <value>Cuenta gratuita con 25 GB de almacenamiento en la nube.</value>
     <comment>Cloud settings: the standing of an account that is not a supporter.</comment>
   </data>
   <data name="Cloud_SupporterYes" xml:space="preserve">
