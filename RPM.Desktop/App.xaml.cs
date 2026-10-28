@@ -535,6 +535,7 @@ public partial class App : Application
                         .AddSingleton<PopularityService>()
                         .AddSingleton<Services.Catalog.PopularitySweepService>()
                         .AddSingleton<Services.Catalog.DiscogsStyleSweepService>()
+                        .AddSingleton<Services.Catalog.DiscogsLinkDryRunService>()
                         .AddSingleton<Services.Cloud.MoodListPushService>()
                         .AddSingleton<PlayReportService>()
                         .AddSingleton<RPM.Core.Metadata.Providers.IRpmMetadataApi, RpmMetadataApi>()
@@ -961,6 +962,9 @@ public partial class App : Application
         // The pass that reads the styles from albums already linked to a Discogs release works the same
         // way. The styles are the words that MoodFlavour narrows a list with.
         Host.Services.GetRequiredService<Services.Catalog.DiscogsStyleSweepService>();
+        // The dry run of linking the rest of the albums to Discogs. It does nothing unless its development switch
+        // names a folder for the report (see DiscogsLinkDryRunService).
+        Host.Services.GetRequiredService<Services.Catalog.DiscogsLinkDryRunService>();
         // It is constructed for its subscriptions. It waits for a library and a sign-in. Then it sends this
         // computer's generated lists, so that the phone shows the same lists.
         Host.Services.GetRequiredService<Services.Cloud.MoodListPushService>();
