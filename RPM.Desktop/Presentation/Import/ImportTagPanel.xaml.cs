@@ -99,6 +99,10 @@ public sealed partial class ImportTagPanel : UserControl
     /// wanted; null when this panel is not showing a genre at all.</summary>
     private ComboBox? _genreBox;
 
+    /// <summary>The "(Live)" or "(Mixed)" tick under the release type, or null while there is no form.
+    /// Like a box, it is an edit that waits for Apply.</summary>
+    private TitleNoteOffer? _titleNote;
+
     private IReadOnlyList<TrackRow> _rows = [];
 
     public ImportTagPanel()
@@ -149,6 +153,7 @@ public sealed partial class ImportTagPanel : UserControl
     {
         _entries.Clear();
         _genreBox = null;
+        _titleNote = null;
         FieldHost.Children.Clear();
 
         if (_rows.Count == 0)
@@ -184,7 +189,10 @@ public sealed partial class ImportTagPanel : UserControl
                 // pushes the words away from the edge where they should start. Here the labels start at the same
                 // left edge as every other line of the pane.
                 label.HorizontalAlignment = HorizontalAlignment.Left;
-                group.Add(tick: null, label, input, topAlign: field.Multiline);
+                // The release type can carry the "(Live)" tick under its box. The label stays level with
+                // the box, as it does beside a comment.
+                group.Add(tick: null, label, input,
+                    topAlign: field.Multiline || field.Kind == TagFieldKind.ReleaseType);
             }
 
             // No heading. The panel's own header already says "Tags", and a group heading would repeat that word.
@@ -232,12 +240,13 @@ public sealed partial class ImportTagPanel : UserControl
         return button;
     }
 
-    private (TextBlock Label, Control Input) BuildField(TagField field)
+    private (TextBlock Label, FrameworkElement Input) BuildField(TagField field)
     {
         var label = DenseForm.Label(field.LabelKey);
         var values = TagPanelValues.Of(_rows, field);
 
         Control control;
+        FrameworkElement? placed = null;   // What goes in the row, where that is more than the control
         Func<string> read;
         Func<string> shown;
         Action<string> write;
@@ -253,6 +262,15 @@ public sealed partial class ImportTagPanel : UserControl
             // write nothing, but choosing either of them is an edit.
             shown = () => choice.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
             write = v => MassEditDialog.WriteChoice(choice, options, v);
+
+            // A record being imported as live can have "(Live)" added to its titles here, and a mixtape
+            // "(Mixed)", before its files are filed. The album editor offers the same tick for a record
+            // already in the library.
+            if (field.Kind == TagFieldKind.ReleaseType)
+            {
+                _titleNote = new TitleNoteOffer(choice, options, _rows.Select(r => r.Title), RefreshButtons);
+                placed = _titleNote.Host;
+            }
         }
         else if (field.SuggestionsFor is { } stylesFor)
         {
@@ -330,7 +348,7 @@ public sealed partial class ImportTagPanel : UserControl
         // What the box says when it is filled in is the baseline for every later check. An edit is a difference
         // from this baseline, not an event that happened later.
         _entries.Add(new Entry(field, read, shown, write) { Loaded = shown() });
-        return (label, control);
+        return (label, placed ?? control);
     }
 
     // ── the pictures ────────────────────────────────────────────────────────────────────────────
@@ -702,7 +720,10 @@ public sealed partial class ImportTagPanel : UserControl
     /// <see cref="ImportWorkbenchView"/>'s Import button.</para>
     /// </summary>
     public bool HasPendingEdits
-        => _rows.Count > 0 && (_entries.Any(entry => entry.Touched) || PictureChosen);
+        => _rows.Count > 0 && (_entries.Any(entry => entry.Touched) || PictureChosen || TitleNoteWanted);
+
+    /// <summary>Whether Apply should add "(Live)" or "(Mixed)" to the titles.</summary>
+    private bool TitleNoteWanted => _titleNote?.Wanted is not null;
 
     /// <summary>Presses Apply from somewhere other than the button. Does nothing when there is nothing
     /// to write, so the caller does not have to ask twice.</summary>
@@ -720,7 +741,7 @@ public sealed partial class ImportTagPanel : UserControl
     private void ApplyEdits()
     {
         var touched = _entries.Where(entry => entry.Touched).ToList();
-        if ((touched.Count == 0 && !PictureChosen) || _rows.Count == 0)
+        if ((touched.Count == 0 && !PictureChosen && !TitleNoteWanted) || _rows.Count == 0)
             return;
 
         foreach (var entry in touched)
@@ -728,6 +749,15 @@ public sealed partial class ImportTagPanel : UserControl
             var value = entry.Read();
             foreach (var row in _rows)
                 entry.Field.Set(row, value);
+        }
+
+        // After the boxes, so a title typed into the panel gets the note too. Each row keeps its own title;
+        // the note is added to each, never one title written across them all.
+        if (_titleNote is { Wanted: { } note } offer)
+        {
+            foreach (var row in _rows)
+                row.Title = note.Marked(row.Title);
+            offer.Reset(_rows.Select(r => r.Title));
         }
 
         // The sleeve is a field like any other. It is written only when one was chosen. It is stored on the rows,

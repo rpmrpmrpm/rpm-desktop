@@ -4990,6 +4990,14 @@
     <value>Andere Titel haben unterschiedliche Werte</value>
     <comment>Amber album-marker tooltip when the record carries more than one other value for the field.</comment>
   </data>
+  <data name="Edit_MarkTitles" xml:space="preserve">
+    <value>{0} an die Titelnamen anhängen</value>
+    <comment>Checkbox under the release type in the album editor and the import tag panel, shown when the type is Live or Mixtape. {0} is the note added to the tags, "(Live)" or "(Mixed)", which is not translated.</comment>
+  </data>
+  <data name="Edit_MarkTitlesTip" xml:space="preserve">
+    <value>Hängt {0} an jeden Titel an, der es noch nicht hat.</value>
+    <comment>Tooltip on the Add (Live) / Add (Mixed) checkbox. {0} is "(Live)" or "(Mixed)".</comment>
+  </data>
   <data name="AlbumEdit_Title" xml:space="preserve">
     <value>Album bearbeiten</value>
     <comment>Title of the album editor window.</comment>

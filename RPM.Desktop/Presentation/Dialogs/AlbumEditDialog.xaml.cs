@@ -20,6 +20,9 @@ namespace RPM.Desktop.Presentation.Dialogs;
 /// <paramref name="NormalizeChanged"/> is set. Null is a real answer here, not a missing one.</param>
 /// <param name="Classical">Whether this is a classical record. It is shown as works and movements only
 /// where somebody has said so. Read it only when <paramref name="ClassicalChanged"/> is set.</param>
+/// <param name="TitleNote">The note to add to every track title that does not already carry it, such as
+/// "(Live)" or "(Mixed)", or null for none. Each track keeps its own title, so this is a rule applied per
+/// track, not a field with one value. See <see cref="RPM.Core.Library.TitleNote"/>.</param>
 public sealed record AlbumEditResult(
     IReadOnlyDictionary<TagFieldKind, string> Fields,
     IReadOnlyDictionary<uint, IReadOnlyDictionary<TagFieldKind, string>> Discs,
@@ -33,12 +36,13 @@ public sealed record AlbumEditResult(
     bool NormalizeChanged = false,
     bool Classical = false,
     bool ClassicalChanged = false,
-    RPM.Core.Metadata.Providers.ReleaseRef? Release = null)
+    RPM.Core.Metadata.Providers.ReleaseRef? Release = null,
+    RPM.Core.Library.TitleNote? TitleNote = null)
 {
     public bool IsEmpty =>
         Fields.Count == 0 && Discs.Count == 0
         && ArtBytes is null && DiscArtBytes is null && !RemoveDiscArt && !RemoveArt
-        && !NormalizeChanged && !ClassicalChanged && Release is null;
+        && !NormalizeChanged && !ClassicalChanged && Release is null && TitleNote is null;
 }
 
 /// <summary>Editing a record as a record.
@@ -130,6 +134,10 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
     private ComboBox? _normalize;
     private ComboBox? _classical;
+
+    /// <summary>The "(Live)" or "(Mixed)" tick under the release type, or null where the form has no
+    /// release type box.</summary>
+    private TitleNoteOffer? _titleNote;
 
     /// <summary>The pressing that a lookup in this window settled on. The caller can keep it. Naming
     /// the tracks is the next step, and it needs this release, not another pick.</summary>
@@ -295,6 +303,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
         var seed = Dominant(values);
 
         Control input;
+        FrameworkElement? placed = null;   // What goes in the row, where that is more than the input
         Func<string> read;
         Action<string> write;
         if (tag.Options is { Count: > 0 } options)
@@ -304,6 +313,15 @@ public sealed partial class AlbumEditDialog : ContentDialog
             input = choice;
             read = () => MassEditDialog.ReadChoice(choice, options);
             write = v => MassEditDialog.WriteChoice(choice, options, v);
+
+            // A live record can have "(Live)" added to its track titles, and a mixtape "(Mixed)". The
+            // tick sits under the type that offers it, and works on a record already in the library as
+            // well as on a queued one.
+            if (tag.Kind == TagFieldKind.ReleaseType && disc is null)
+            {
+                _titleNote = new TitleNoteOffer(choice, options, over.Select(r => r.Title));
+                placed = _titleNote.Host;
+            }
         }
         else if (tag.SuggestionsFor is { } stylesFor)
         {
@@ -340,7 +358,9 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
         var disagreement = Disagreement(values);
         _fields.Add(new Field(tag, input, read, write, seed, disc, disagreement is not null));
-        group.Add(null, label, input, trailing: new AlbumMarker(disagreement, canArm: false));
+        // A row with a tick under its box keeps its label level with the box, not with the pair.
+        group.Add(null, label, placed ?? input, topAlign: placed is not null,
+            trailing: new AlbumMarker(disagreement, canArm: false));
     }
 
     /// <summary>The fields that are true of a disc rather than of the record: which disc this is, how
@@ -866,7 +886,8 @@ public sealed partial class AlbumEditDialog : ContentDialog
             normalize != _normalizeSeed,
             classical,
             classical != (_classicalSeed == true),
-            _picked);
+            _picked,
+            TitleNote: _titleNote?.Wanted);
         Hide();
     }
 

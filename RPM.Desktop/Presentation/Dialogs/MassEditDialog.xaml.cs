@@ -103,7 +103,7 @@ public sealed partial class MassEditDialog : ContentDialog
         return b;
     }
 
-    private static void StyleCheck(CheckBox cb)
+    internal static void StyleCheck(CheckBox cb)
     {
         cb.Resources["CheckBoxCheckBackgroundFillChecked"] = CheckFill;
         cb.Resources["CheckBoxCheckBackgroundFillCheckedPointerOver"] = CheckFill;

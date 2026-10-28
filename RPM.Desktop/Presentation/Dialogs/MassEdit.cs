@@ -190,8 +190,12 @@ internal static class MassEdit
     /// fields are laid on top. The single-track editor passes its own method, because that window edits
     /// every field of one row, not a few fields of many. In that case, what the editor holds is the
     /// answer.</param>
+    /// <param name="perTrack">A change that differs per track, laid over each file's tags after the edits.
+    /// The album editor's "(Live)" and "(Mixed)" tick uses it, because each track keeps its own title. Not applied where
+    /// <paramref name="infoFor"/> is given, since that already says what each row is.</param>
     public static async Task<IReadOnlyList<string>> WriteToLibraryAsync(
-        IReadOnlyList<TrackRow> rows, MassEditResult result, Func<TrackRow, TrackInfo>? infoFor = null)
+        IReadOnlyList<TrackRow> rows, MassEditResult result, Func<TrackRow, TrackInfo>? infoFor = null,
+        Func<TrackInfo, TrackInfo>? perTrack = null)
     {
         var log = Log;
         var library = App.Services.GetRequiredService<LibraryService>();
@@ -234,12 +238,16 @@ internal static class MassEdit
             else if (cloud is not null)
             {
                 info = OverlayEdits(cloud.ToTrackInfo(root), result);
+                if (perTrack is not null)
+                    info = perTrack(info);
             }
             else
             {
                 try { info = TagReader.Read(row.FilePath); }
                 catch (Exception ex) { unreadable.Add($"{row.FilePath}: {ex.Message}"); continue; }
                 info = OverlayEdits(info, result);
+                if (perTrack is not null)
+                    info = perTrack(info);
             }
             plan.Add((relative, info, cloud, row));
         }

@@ -56,13 +56,16 @@ internal static class AlbumEdit
 
         var touched = new List<string>();
 
-        // The record's own fields and its pictures, written in one pass over every track.
+        // The record's own fields and its pictures, written in one pass over every track. A title note,
+        // "(Live)" or "(Mixed)", rides the same pass: it is laid over each file's own title as that file is
+        // read, so a track keeps its name and gains the note.
         if (result.Fields.Count > 0 || result.ArtBytes is not null || result.RemoveArt
-            || result.DiscArtBytes is not null || result.RemoveDiscArt)
+            || result.DiscArtBytes is not null || result.RemoveDiscArt || result.TitleNote is not null)
         {
             touched.AddRange(await MassEdit.WriteToLibraryAsync(rows, new MassEditResult(
                 result.Fields, result.ArtBytes, result.ArtMime,
-                result.FolderArtBytes, result.DiscArtBytes, result.RemoveDiscArt, result.RemoveArt)));
+                result.FolderArtBytes, result.DiscArtBytes, result.RemoveDiscArt, result.RemoveArt),
+                perTrack: result.TitleNote is { } note ? info => info with { Title = note.Marked(info.Title) } : null));
         }
 
         // A disc's own values, such as its name and how many tracks it has, go only to that disc's
@@ -115,6 +118,8 @@ internal static class AlbumEdit
         {
             foreach (var (kind, value) in result.Fields)
                 TagFields.Get(kind).Set(row, value);
+            if (result.TitleNote is { } note)
+                row.Title = note.Marked(row.Title);
             if (result.ArtBytes is { Length: > 0 })
                 row.SetPendingArt(result.ArtBytes, result.ArtMime);
             else if (result.RemoveArt)
