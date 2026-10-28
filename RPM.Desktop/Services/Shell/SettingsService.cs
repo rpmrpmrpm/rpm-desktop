@@ -559,10 +559,12 @@ public sealed partial class SettingsService
         set => Update(_model with { PegasusAlbumOrdering = value }, notify: false);
     }
 
-    /// <summary>Whether an album, a playlist or a single that ends in Pegasus goes on as a mixtape of songs like it,
-    /// as the Android TV app's Player setting chooses (on until changed). Only Pegasus reads it, while it is shown
-    /// (see RPaMpModel.MixtapeAfter), so the main window's queue still stops at its end. Saved quietly.</summary>
-    public bool PegasusMixtapeAfter
+    /// <summary>Whether an album, a playlist or a single that ends goes on as a mixtape of songs like it, in the
+    /// main window and in Pegasus alike (on until changed), as the Android TV app's Player setting chooses. Set on
+    /// the Sound settings page and in Pegasus's Player section; the transport reads it when a list's last song
+    /// starts (RPaMpModel.CarryOnAsMixtape). It is stored under its old name, PegasusMixtapeAfter, from when only
+    /// Pegasus carried on, so a choice made there still stands. Saved quietly.</summary>
+    public bool MixtapeAfter
     {
         get => _model.PegasusMixtapeAfter;
         set => Update(_model with { PegasusMixtapeAfter = value }, notify: false);

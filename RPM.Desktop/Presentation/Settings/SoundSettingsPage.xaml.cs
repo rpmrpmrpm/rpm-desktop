@@ -163,8 +163,18 @@ public sealed partial class SoundSettingsPage : Page
 
         RenderEq();
         RenderNormalize();
+        MixtapeSwitch.IsOn = _settings.MixtapeAfter;
 
         _loading = false;
+    }
+
+    /// <summary>Counts from the next list that ends: the transport reads the setting when a list's last song
+    /// starts.</summary>
+    private void OnMixtapeToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        _settings.MixtapeAfter = MixtapeSwitch.IsOn;
     }
 
     /// <summary>

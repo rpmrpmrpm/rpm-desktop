@@ -219,7 +219,6 @@ public sealed partial class PegasusPlayer : UserControl
         }
 
         _amp = App.Services.GetRequiredService<RPaMpService>().Transport;
-        ListenForMixtape(true);   // a list that ends here goes on as a mixtape, if the setting says so
 
         // Whether the collection is the screen this visit opens on. This is asked before anything is stood up,
         // because the answer decides what is stood up FIRST.
@@ -458,7 +457,6 @@ public sealed partial class PegasusPlayer : UserControl
         Root.Opacity = 1;                          // stopped and settled, so the next Show starts from nothing
         Root.Visibility = Visibility.Collapsed;
         UnhookArt();
-        ListenForMixtape(false);   // the main window's queue stops at its end
         FullScreenWindow.Set(false);
     }
 

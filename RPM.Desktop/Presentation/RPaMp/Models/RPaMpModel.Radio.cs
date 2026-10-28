@@ -120,21 +120,15 @@ public sealed partial class RPaMpModel
     // ── a list that ends goes on as a mixtape ──
 
     /// <summary>
-    /// Asked when the last song of a list goes on the deck: whether the list goes on as a mixtape of songs like it
-    /// (see <see cref="Mixtape"/>). Null, the default, means no: the main window's queue stops at its end. Pegasus
-    /// sets it while it is shown, from its own setting (PegasusPlayer.Settings), as the Android TV app does.
-    /// </summary>
-    public Func<bool>? MixtapeAfter { get; set; }
-
-    /// <summary>
-    /// A row that is not a radio's went on the deck. When it is the last of its list and <see cref="MixtapeAfter"/>
-    /// says so, a mixtape is tuned from the list (<see cref="SongRadioRun.CarryOn"/>) and its first songs are
+    /// A row that is not a radio's went on the deck. When it is the last of its list and the setting says so
+    /// (<see cref="SettingsService.MixtapeAfter"/>, read here each time, so a change counts from the next list),
+    /// a mixtape is tuned from the list (<see cref="SongRadioRun.CarryOn"/>) and its first songs are
     /// queued after this one when they arrive. From its first row on, the mixtape tops itself up as every song
     /// radio does (<see cref="TopUpRadio"/>).
     /// </summary>
     private void CarryOnAsMixtape(PlaylistTrack playing)
     {
-        if (MixtapeAfter?.Invoke() != true)
+        if (_settings?.MixtapeAfter != true)
             return;
 
         var at = Playlist.IndexOf(playing);

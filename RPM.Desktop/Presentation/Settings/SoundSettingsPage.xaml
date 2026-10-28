@@ -129,6 +129,25 @@
           <Grid x:Name="BandGrid" ColumnSpacing="4"/>
         </StackPanel>
       </Border>
+
+      <!-- What happens when a record ends: whether it goes on as a mixtape of songs like it. The same setting
+           as Pegasus's Player section (SettingsService.MixtapeAfter). -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf8c9;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Tv_SettingsMixtapeAfter}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_MixtapeAfterHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+
+          <ToggleSwitch x:Name="MixtapeSwitch"
+                        Toggled="OnMixtapeToggled"
+                        AutomationProperties.Name="{loc:Str Key=Tv_SettingsMixtapeAfter}"/>
+        </StackPanel>
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </Page>
