@@ -3781,6 +3781,98 @@
     <value>Esta copia de rpm no se actualiza sola.</value>
     <comment>Settings, Profile page: status in a build that was not installed by the installer.</comment>
   </data>
+  <data name="Shell_Feedback" xml:space="preserve">
+    <value>Enviar comentarios</value>
+    <comment>Item in the hamburger menu, under Help. Opens the feedback window, which takes both problems and suggestions.</comment>
+  </data>
+  <data name="Feedback_Title" xml:space="preserve">
+    <value>Enviar comentarios</value>
+    <comment>Title of the feedback window opened from the hamburger menu.</comment>
+  </data>
+  <data name="Feedback_Body" xml:space="preserve">
+    <value>Informa de un problema o sugiere una mejora.</value>
+    <comment>First line in the feedback window, above the kind and area lists and the text box.</comment>
+  </data>
+  <data name="Feedback_KindLabel" xml:space="preserve">
+    <value>De qué se trata</value>
+    <comment>Feedback window: label over the list that picks a problem or a suggestion.</comment>
+  </data>
+  <data name="Feedback_KindProblem" xml:space="preserve">
+    <value>Algo no funciona</value>
+    <comment>Feedback window, kind list: a bug. It is the first choice.</comment>
+  </data>
+  <data name="Feedback_KindIdea" xml:space="preserve">
+    <value>Algo se puede mejorar</value>
+    <comment>Feedback window, kind list: a suggestion.</comment>
+  </data>
+  <data name="Feedback_Sends" xml:space="preserve">
+    <value>Se envía con tus comentarios: la captura de abajo, tu versión de rpm, tu sistema operativo y la actividad reciente de la app, que puede incluir nombres de pistas y de archivos.</value>
+    <comment>Feedback window: says what travels with the feedback, under the text box.</comment>
+  </data>
+  <data name="Feedback_AreaLabel" xml:space="preserve">
+    <value>Qué parte de rpm</value>
+    <comment>Feedback window: label over the list of parts of the app. It covers suggestions as well as problems, so it does not say "where it happened".</comment>
+  </data>
+  <data name="Feedback_AreaOther" xml:space="preserve">
+    <value>Otra cosa</value>
+    <comment>Feedback window, area list: the choice for anything not on the list. It is the first choice.</comment>
+  </data>
+  <data name="Feedback_AreaPlayback" xml:space="preserve">
+    <value>Reproducción</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaLibrary" xml:space="preserve">
+    <value>Biblioteca e importación</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaArtwork" xml:space="preserve">
+    <value>Portadas y datos</value>
+    <comment>Feedback window, area list. Covers cover art, track details and the catalogues.</comment>
+  </data>
+  <data name="Feedback_AreaCloud" xml:space="preserve">
+    <value>Nube</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaRadio" xml:space="preserve">
+    <value>Radio</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaSharing" xml:space="preserve">
+    <value>Compartir y teléfono</value>
+    <comment>Feedback window, area list. Covers the library server and the phone and TV apps.</comment>
+  </data>
+  <data name="Feedback_AreaInterface" xml:space="preserve">
+    <value>Interfaz</value>
+    <comment>Feedback window, area list. Covers how the app looks and reacts.</comment>
+  </data>
+  <data name="Feedback_PlaceholderProblem" xml:space="preserve">
+    <value>¿Qué ha fallado?</value>
+    <comment>Feedback window: placeholder in the empty text box while the kind is a problem.</comment>
+  </data>
+  <data name="Feedback_PlaceholderIdea" xml:space="preserve">
+    <value>¿Qué cambiarías?</value>
+    <comment>Feedback window: placeholder in the empty text box while the kind is a suggestion.</comment>
+  </data>
+  <data name="Feedback_Screenshot" xml:space="preserve">
+    <value>Incluir esta captura</value>
+    <comment>Feedback window: switch over the picture of the app as it was when the window was opened.</comment>
+  </data>
+  <data name="Feedback_NeedWords" xml:space="preserve">
+    <value>Escribe algo antes de enviar.</value>
+    <comment>Shown when Send feedback is pressed with an empty text box.</comment>
+  </data>
+  <data name="Feedback_Send" xml:space="preserve">
+    <value>Enviar</value>
+    <comment>Feedback window: the button that sends it.</comment>
+  </data>
+  <data name="Feedback_Sent" xml:space="preserve">
+    <value>Gracias. Tus comentarios se han enviado.</value>
+    <comment>Shown after the feedback has landed on the server.</comment>
+  </data>
+  <data name="Feedback_Failed" xml:space="preserve">
+    <value>No se han podido enviar los comentarios. Inténtalo de nuevo más tarde.</value>
+    <comment>Shown when the server would not take the feedback.</comment>
+  </data>
   <data name="Crash_PromptTitle" xml:space="preserve">
     <value>rpm se cerró inesperadamente</value>
     <comment>Title of the window shown at launch after rpm crashed, asking once whether to send crash reports.</comment>

@@ -448,6 +448,7 @@ public partial class App : Application
                         .AddSingleton<RPM.Desktop.Services.Updates.AppUpdates>()
                         // Crashed runs since the last launch, and sending them when the user agreed.
                         .AddSingleton<RPM.Desktop.Services.Diagnostics.CrashReportService>()
+                        .AddSingleton<RPM.Desktop.Services.Diagnostics.FeedbackService>()
                         .AddSingleton<IdentificationProvider>()
                         .AddSingleton(sp => CreateCloudClient(sp))
                         .AddSingleton(sp => CreateCommunityClient(sp))

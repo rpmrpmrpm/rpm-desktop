@@ -2033,6 +2033,10 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         SignInItem.Visibility = signedIn ? Visibility.Collapsed : Visibility.Visible;
         SignOutItem.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
         SignOutSeparator.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
+
+        // Send feedback takes a picture of the app once the menu has gone. The wait is set up here so
+        // it exists before any item in this menu can be clicked (ShellPage.Feedback.cs).
+        _menuGone = new TaskCompletionSource();
     }
 
     private void SignOut_Click(object sender, RoutedEventArgs e) => Auth?.Logout();

@@ -17,6 +17,48 @@ public sealed record RingTail(long StartUnixNanos, long LastUnixNanos, bool Clos
 
     private const int Chunk = 4096;
 
+    /// <summary>How many characters of activity a live report carries. The API's
+    /// <c>FeedbackLimits.MaxRecent</c>, and the same cap a crash report's recent lines get.</summary>
+    public const int MaxActivityChars = 64_000;
+
+    /// <summary>
+    /// What the running app has been doing, as one text ready to send with a report the user wrote
+    /// while the app is still up. Home folder paths are removed, the same as in a crash report. A
+    /// text over <see cref="MaxActivityChars"/> keeps its last characters, because the lines nearest
+    /// the problem are the ones at the end.
+    /// </summary>
+    /// <returns>Null when there is no readable ring or it has nothing a person can read. A report
+    /// with no activity log is still a report, so this is never a failure.</returns>
+    public static string? ActivityForThisRun(string scopeDirectory, int pid)
+    {
+        if (ForThisRun(scopeDirectory, pid) is not { Recent.Count: > 0 } tail)
+            return null;
+
+        var text = SystemReportPrivacy.WithoutHomeFolders(string.Join('\n', tail.Recent));
+        return text.Length > MaxActivityChars ? text[^MaxActivityChars..] : text;
+    }
+
+    /// <summary>
+    /// The running process's own ring.
+    ///
+    /// <para>The ring is being written while this reads it. That is safe: the reader stops at the
+    /// cursor, so every record it returns was finished before the read began. Records written after
+    /// that are not in the tail, which is what "the last things rpm did" means here.</para>
+    /// </summary>
+    private static RingTail? ForThisRun(string scopeDirectory, int pid)
+    {
+        var ring = Path.Combine(scopeDirectory, $"scope.{pid}.ring");
+        try
+        {
+            return Read(ring, Path.ChangeExtension(ring, ".names"));
+        }
+        catch (Exception e) when (
+            e is IOException or InvalidDataException or ArgumentException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Reads the whole ring. It throws <see cref="IOException"/> or <see
     /// cref="InvalidDataException"/> when the file is not a readable ring. The harvest leaves such a run
     /// alone.

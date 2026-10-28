@@ -466,6 +466,49 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         }
     }
 
+    /// <summary>The largest screenshot the server accepts, in bytes before base64. This is the API's
+    /// <c>FeedbackLimits.MaxScreenshotBytes</c>. A shot over it is sent without the picture rather
+    /// than refused, so the caller scales the window down before it encodes.</summary>
+    public const int MaxScreenshotBytes = 1_500_000;
+
+    /// <summary>
+    /// Sends one report a tester wrote by hand. The app key goes with every request from this client
+    /// and the user's token goes too when there is one, so a tester who cannot sign in can still
+    /// report that.
+    /// </summary>
+    /// <returns>The server's id for the report, or null when it did not arrive. The caller tells the
+    /// user it could not be sent and leaves the window's text alone.</returns>
+    public async Task<string?> SendFeedbackAsync(FeedbackReport report, CancellationToken ct = default)
+    {
+        string? token;
+        try { token = await accessTokenProvider(ct); }
+        catch (Exception e) when (e is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            token = null;   // a token that will not refresh is the same as none here
+        }
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "errors/feedback")
+            {
+                Content = JsonContent.Create(report, RpmCloudJson.Default.FeedbackReport),
+            };
+            if (token is not null)
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var resp = await http.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode)
+                return null;
+
+            var answer = await resp.Content.ReadFromJsonAsync(RpmCloudJson.Default.ErrorReportResponse, ct);
+            return answer?.ErrorId;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The largest crash report body that the server accepts, in bytes. This is the API's
     /// <c>CrashReportLimits.MaxRequestBytes</c>.</summary>
     public const int MaxCrashRequestBytes = 1_500_000;
@@ -1963,6 +2006,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(LyricSheetAnswerBody))]
     [JsonSerializable(typeof(AlbumClassicalRequest))]
     [JsonSerializable(typeof(ErrorReport))]
+    [JsonSerializable(typeof(FeedbackReport))]
     [JsonSerializable(typeof(MoodListsPayload))]
     [JsonSerializable(typeof(CloudQuota))]
     [JsonSerializable(typeof(RecordingKeysResponse))]

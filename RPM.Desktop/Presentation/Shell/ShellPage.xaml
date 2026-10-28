@@ -149,7 +149,7 @@
               AutomationProperties.Name="{loc:Str Key=Shell_Menu}">
         <TextBlock Text="&#xf0c9;" FontFamily="{StaticResource ShellFa}" FontSize="13"/>
         <Button.Flyout>
-          <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="Menu_Opening">
+          <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="Menu_Opening" Closed="Menu_Closed">
             <!-- The views are not listed here. Choosing between the app's three views is done by the
                  deck's own view menu, next to the hamburger. A second choice in this menu would give a
                  second answer about which view is up. The list and wall switch is in the library
@@ -168,6 +168,11 @@
             <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Help}" Click="Help_Click">
               <MenuFlyoutItem.Icon>
                 <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf059;"/>
+              </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Feedback}" Click="Feedback_Click">
+              <MenuFlyoutItem.Icon>
+                <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf188;"/>
               </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
             <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Privacy}" Click="Privacy_Click">

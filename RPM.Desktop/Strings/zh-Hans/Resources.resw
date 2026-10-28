@@ -3781,6 +3781,98 @@
     <value>此版本的 rpm 不会自动更新。</value>
     <comment>Settings, Profile page: status in a build that was not installed by the installer.</comment>
   </data>
+  <data name="Shell_Feedback" xml:space="preserve">
+    <value>发送反馈</value>
+    <comment>Item in the hamburger menu, under Help. Opens the feedback window, which takes both problems and suggestions.</comment>
+  </data>
+  <data name="Feedback_Title" xml:space="preserve">
+    <value>发送反馈</value>
+    <comment>Title of the feedback window opened from the hamburger menu.</comment>
+  </data>
+  <data name="Feedback_Body" xml:space="preserve">
+    <value>报告问题，或提出改进建议。</value>
+    <comment>First line in the feedback window, above the kind and area lists and the text box.</comment>
+  </data>
+  <data name="Feedback_KindLabel" xml:space="preserve">
+    <value>反馈类型</value>
+    <comment>Feedback window: label over the list that picks a problem or a suggestion.</comment>
+  </data>
+  <data name="Feedback_KindProblem" xml:space="preserve">
+    <value>有问题</value>
+    <comment>Feedback window, kind list: a bug. It is the first choice.</comment>
+  </data>
+  <data name="Feedback_KindIdea" xml:space="preserve">
+    <value>有改进建议</value>
+    <comment>Feedback window, kind list: a suggestion.</comment>
+  </data>
+  <data name="Feedback_Sends" xml:space="preserve">
+    <value>随反馈一起发送：下方的截图、您的 rpm 版本、操作系统，以及应用的近期操作记录，其中可能包含曲目名和文件名。</value>
+    <comment>Feedback window: says what travels with the feedback, under the text box.</comment>
+  </data>
+  <data name="Feedback_AreaLabel" xml:space="preserve">
+    <value>rpm 的哪个部分</value>
+    <comment>Feedback window: label over the list of parts of the app. It covers suggestions as well as problems, so it does not say "where it happened".</comment>
+  </data>
+  <data name="Feedback_AreaOther" xml:space="preserve">
+    <value>其他</value>
+    <comment>Feedback window, area list: the choice for anything not on the list. It is the first choice.</comment>
+  </data>
+  <data name="Feedback_AreaPlayback" xml:space="preserve">
+    <value>播放</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaLibrary" xml:space="preserve">
+    <value>音乐库与导入</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaArtwork" xml:space="preserve">
+    <value>封面与信息</value>
+    <comment>Feedback window, area list. Covers cover art, track details and the catalogues.</comment>
+  </data>
+  <data name="Feedback_AreaCloud" xml:space="preserve">
+    <value>云端</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaRadio" xml:space="preserve">
+    <value>电台</value>
+    <comment>Feedback window, area list.</comment>
+  </data>
+  <data name="Feedback_AreaSharing" xml:space="preserve">
+    <value>共享与手机</value>
+    <comment>Feedback window, area list. Covers the library server and the phone and TV apps.</comment>
+  </data>
+  <data name="Feedback_AreaInterface" xml:space="preserve">
+    <value>界面</value>
+    <comment>Feedback window, area list. Covers how the app looks and reacts.</comment>
+  </data>
+  <data name="Feedback_PlaceholderProblem" xml:space="preserve">
+    <value>出了什么问题？</value>
+    <comment>Feedback window: placeholder in the empty text box while the kind is a problem.</comment>
+  </data>
+  <data name="Feedback_PlaceholderIdea" xml:space="preserve">
+    <value>您希望改进什么？</value>
+    <comment>Feedback window: placeholder in the empty text box while the kind is a suggestion.</comment>
+  </data>
+  <data name="Feedback_Screenshot" xml:space="preserve">
+    <value>包含此截图</value>
+    <comment>Feedback window: switch over the picture of the app as it was when the window was opened.</comment>
+  </data>
+  <data name="Feedback_NeedWords" xml:space="preserve">
+    <value>发送前请先填写内容。</value>
+    <comment>Shown when Send feedback is pressed with an empty text box.</comment>
+  </data>
+  <data name="Feedback_Send" xml:space="preserve">
+    <value>发送</value>
+    <comment>Feedback window: the button that sends it.</comment>
+  </data>
+  <data name="Feedback_Sent" xml:space="preserve">
+    <value>谢谢。您的反馈已发送。</value>
+    <comment>Shown after the feedback has landed on the server.</comment>
+  </data>
+  <data name="Feedback_Failed" xml:space="preserve">
+    <value>反馈发送失败。请稍后再试。</value>
+    <comment>Shown when the server would not take the feedback.</comment>
+  </data>
   <data name="Crash_PromptTitle" xml:space="preserve">
     <value>rpm 意外关闭</value>
     <comment>Title of the window shown at launch after rpm crashed, asking once whether to send crash reports.</comment>
