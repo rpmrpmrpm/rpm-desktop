@@ -56,6 +56,7 @@ public sealed partial class SessionService : IDisposable
         int QueueIndex = -1,
         string? QueueTrack = null,
         double QueueSeconds = 0,
+        IReadOnlyList<string>? QueueRadio = null,
         bool Shuffle = false,
         bool Repeat = false);
 
@@ -258,15 +259,24 @@ public sealed partial class SessionService : IDisposable
         set => Update(_model with { QueueSeconds = value });
     }
 
+    /// <summary>The paths of the queued rows a radio put there: the mixtape after a list, or a song radio. The
+    /// radio itself does not come back, but its rows stay apart from the list they followed (the shuffle holds
+    /// them where they are). By path and not by position, because the queue that comes back may be shorter
+    /// than the one that was saved; a radio never picks a song that is already in the queue, so a path names
+    /// one row.</summary>
+    public IReadOnlyList<string> QueueRadio => _model.QueueRadio ?? [];
+
     /// <summary>Saves the queue and the needle together. They are one fact. Writing them one property at a
     /// time would leave a file on disk with a cursor into a queue that it does not hold.</summary>
-    public void SetQueue(IReadOnlyList<string> queue, int index, string? track, double seconds)
+    public void SetQueue(IReadOnlyList<string> queue, int index, string? track, double seconds,
+                         IReadOnlyList<string>? radio = null)
         => Update(_model with
         {
             Queue = queue,
             QueueIndex = index,
             QueueTrack = track,
             QueueSeconds = seconds,
+            QueueRadio = radio is { Count: > 0 } ? radio : null,
         });
 
     public bool Shuffle

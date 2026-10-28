@@ -173,7 +173,10 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
         // Every change to the running order is stored, so the app opens on the queue it was closed
         // with, see RememberQueue. This is a separate subscription and not a line in the handler
         // above, which only handles drag-reorders.
-        Playlist.CollectionChanged += (_, _) => RememberQueue();
+        Playlist.CollectionChanged += (_, _) =>
+        {
+            if (!_arranging) RememberQueue();
+        };
     }
 
     // ── playlist ──
@@ -379,8 +382,19 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
     // current-track pointer from the IsCurrent flag afterwards and renumber the gutter.
     private void OnPlaylistCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Move) return;
+        // A queue cleared to make way for another one: the order a shuffle put aside was this queue's.
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            ForgetUnshuffled();
 
+        // A shuffle moves many rows and settles up once, when they are all in place (see Arrange).
+        if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Move || _arranging) return;
+        AfterReorder();
+    }
+
+    /// <summary>What a row moving under the playing track sets off, whether one row was dragged or a shuffle
+    /// moved them all.</summary>
+    private void AfterReorder()
+    {
         // Dragged by hand during a set: the queue now belongs to the listener, and the DJ's own
         // running order is no longer written over it. This is ignored when the move is this class
         // applying that order.
@@ -559,7 +573,10 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
     /// could not be resolved is not in the list. See
     /// <see cref="SessionRestore.Queue{T}"/>.</para>
     /// </summary>
-    public void RestoreQueue(IReadOnlyList<TrackInfo> tracks, int index, double seconds)
+    /// <param name="radio">The paths of the rows a radio queued in the run the queue was saved in (see
+    /// <see cref="SessionService.QueueRadio"/>).</param>
+    public void RestoreQueue(IReadOnlyList<TrackInfo> tracks, int index, double seconds,
+                             IReadOnlyCollection<string>? radio = null)
     {
         ArgumentNullException.ThrowIfNull(tracks);
         if (tracks.Count == 0 || IsLoaded || Playlist.Count > 0)
@@ -572,8 +589,13 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
         try
         {
             // A restored queue is a plain queue: a radio does not outlive the run of the app it was started in.
+            // Its rows are still marked as a radio's, so they stay apart from the list they followed.
+            var radioPaths = radio is { Count: > 0 } ? new HashSet<string>(radio, StringComparer.Ordinal) : null;
             foreach (var track in tracks)
-                Playlist.Add(new PlaylistTrack(track, radio: null));
+                Playlist.Add(new PlaylistTrack(track, radio: null)
+                {
+                    RadioQueued = radioPaths?.Contains(track.FilePath) == true,
+                });
 
             _currentIndex = index >= 0 && index < Playlist.Count ? index : -1;
             _resumeIndex = _currentIndex;
@@ -610,8 +632,13 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
             return;
 
         var paths = new List<string>(Math.Min(Playlist.Count, SessionRestore.MaxQueue));
+        var radio = new List<string>();
         foreach (var track in Playlist.Take(SessionRestore.MaxQueue))
+        {
             paths.Add(track.FilePath);
+            if (track.RadioQueued)
+                radio.Add(track.FilePath);
+        }
 
         var current = _currentIndex >= 0 && _currentIndex < Playlist.Count
             ? Playlist[_currentIndex].FilePath
@@ -623,7 +650,7 @@ public sealed partial class RPaMpModel : INotifyPropertyChanged, IDisposable
         _rememberedSeconds = IsLoaded ? _playback.PositionSeconds
                            : _resumeIndex >= 0 ? _resumeSeconds
                            : 0;
-        session.SetQueue(paths, _currentIndex, current, _rememberedSeconds);
+        session.SetQueue(paths, _currentIndex, current, _rememberedSeconds, radio);
     }
 
     /// <summary>The position of the needle, written down every few seconds while a record plays. This

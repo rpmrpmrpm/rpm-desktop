@@ -60,6 +60,10 @@ public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
         Raise(nameof(IsCurrent));
         Raise(nameof(IsSelected));
         Raise(nameof(RowBackground));
+        Raise(nameof(Title));
+        Raise(nameof(Artist));
+        Raise(nameof(ShowsIndex));
+        Raise(nameof(ShowsMark));
     }
 
     /// <summary>Stops listening to the track it is showing. Call this when the panel discards its rows.
@@ -72,11 +76,43 @@ public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
     public bool IsCurrent => _track.IsCurrent;
     public bool IsSelected => _track.IsSelected;
     public Brush RowBackground => _track.RowBackground;
+    public string Title => _track.Title;
+    public string? Artist => _track.Artist;
+
+    private bool _grip;
+
+    /// <summary>Whether the row shows a grip in place of its number, which the Now playing card does while its
+    /// rearrange key is on. A number says where a song is, which the row's place already shows; the grip says
+    /// it can be moved.</summary>
+    public bool Grip
+    {
+        get => _grip;
+        set
+        {
+            if (_grip == value)
+                return;
+            _grip = value;
+            Raise(nameof(Grip));
+            Raise(nameof(ShowsIndex));
+            Raise(nameof(ShowsMark));
+        }
+    }
+
+    /// <summary>The row's number shows on every row but the playing one, which has the play mark instead, and
+    /// neither shows while the row has its grip.</summary>
+    public bool ShowsIndex => !_grip && !IsCurrent;
+    public bool ShowsMark => !_grip && IsCurrent;
 
     private void OnTrackChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is { } name)
-            Raise(name);
+        if (e.PropertyName is not { } name)
+            return;
+        Raise(name);
+        if (name == nameof(IsCurrent))
+        {
+            Raise(nameof(ShowsIndex));
+            Raise(nameof(ShowsMark));
+        }
     }
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -159,7 +159,7 @@
                 ToolTipService.ToolTip="{loc:Str Key=Deck_QueueTip}"
                 AutomationProperties.Name="{loc:Str Key=Deck_QueueTip}">
           <Button.Flyout>
-            <Flyout x:Name="QueueFlyout" Placement="Top" Opening="QueueFlyout_Opening">
+            <Flyout x:Name="QueueFlyout" Placement="Top" Opening="QueueFlyout_Opening" Closed="QueueFlyout_Closed">
               <Flyout.FlyoutPresenterStyle>
                 <Style TargetType="FlyoutPresenter">
                   <Setter Property="Padding" Value="0"/>

@@ -6735,11 +6735,11 @@
   </data>
   <data name="Rpm_Queue_Shuffle" xml:space="preserve">
     <value>Shuffle</value>
-    <comment>Key on the iPhone queue panel that puts the tracks still to come in another order.</comment>
+    <comment>Key on the iPhone queue panel, and in the band of the desktop Now playing card, that puts the tracks still to come in another order.</comment>
   </data>
   <data name="Rpm_Queue_Rearrange" xml:space="preserve">
     <value>Rearrange</value>
-    <comment>Key on the iPhone queue panel and Now playing page that turns row dragging on.</comment>
+    <comment>Key on the iPhone queue panel and Now playing page, and in the band of the desktop Now playing card, that turns row dragging on.</comment>
   </data>
   <data name="Rpm_Library_SearchCeiling" xml:space="preserve">
     <value>Showing the first {0} matches. Type more to narrow the search.</value>
@@ -9117,9 +9117,13 @@
     <value>Karaoke lyrics</value>
     <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
   </data>
+  <data name="Settings_MixtapeAfterHint" xml:space="preserve">
+    <value>When an album, a playlist or a single ends, the music carries on with songs like it from your collection.</value>
+    <comment>Line under the "Mixtape when a record ends" heading (Tv_SettingsMixtapeAfter) on the desktop Sound settings page, above its on/off switch.</comment>
+  </data>
   <data name="Tv_SettingsMixtapeAfter" xml:space="preserve">
     <value>Mixtape when a record ends</value>
-    <comment>Row in the Android TV app's settings: whether a mixtape like the album or playlist that just finished starts by itself when it ends.</comment>
+    <comment>Row in the Android TV app's settings, and in Pegasus's, and the heading of its card on the desktop Sound settings page: whether a mixtape like the album or playlist that just finished starts by itself when it ends.</comment>
   </data>
   <data name="MoodMaker_New" xml:space="preserve">
     <value>New mood playlist…</value>
@@ -9280,6 +9284,10 @@
   <data name="Deck_QueueTip" xml:space="preserve">
     <value>Now playing queue</value>
     <comment>Player deck at the foot of the window: tooltip and accessible name of the key left of stop that opens the queue (the songs playing now and next) as a card above the deck.</comment>
+  </data>
+  <data name="Deck_QueueUnshuffle" xml:space="preserve">
+    <value>Back to the original order</value>
+    <comment>Tooltip and accessible name of the shuffle key in the band of the desktop Now playing card, while the queue is shuffled. Pressing it puts the songs still to come back in the order they had before the shuffle. Before the press the same key says Rpm_Queue_Shuffle.</comment>
   </data>
   <data name="Deck_QueueEmpty" xml:space="preserve">
     <value>Nothing is queued. Play a record or a song and what comes next shows here.</value>

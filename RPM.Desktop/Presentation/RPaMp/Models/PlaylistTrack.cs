@@ -26,6 +26,7 @@ public sealed partial class PlaylistTrack : INotifyPropertyChanged
     public PlaylistTrack(TrackInfo track, SongRadioRun? radio)
     {
         Radio = radio;
+        RadioQueued = radio is not null;
         FilePath = track.FilePath;
         DurationSeconds = track.DurationSeconds;
         RpmId = track.RpmId;
@@ -51,6 +52,12 @@ public sealed partial class PlaylistTrack : INotifyPropertyChanged
     /// <summary>The song radio that queued this row, or null. A row of a radio going on the deck is what asks that
     /// radio for more songs (RPaMpModel.Radio).</summary>
     public SongRadioRun? Radio { get; }
+
+    /// <summary>Whether a radio queued this row, the mixtape after a list or a song radio, in this run of the
+    /// app (<see cref="Radio"/> is that radio) or in the one the queue was saved in. A radio does not outlive
+    /// its run, but its rows stay apart from the list they followed: the Now playing card's shuffle holds them
+    /// where they are.</summary>
+    public bool RadioQueued { get; init; }
 
     /// <summary>Whether the listener added this row themselves, with Play next or Add to now playing, to a queue
     /// that held songs already. Pegasus's queue drawer lists these under an "Up next" heading, apart from the list

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:RPM.Desktop.Converters"
              xmlns:loc="using:RPM.Desktop.Strings"
+             xmlns:model="using:RPM.Desktop.Presentation.RPaMp.Models"
              RequestedTheme="Dark">
 
   <!-- The queue, opened upwards from the deck. It is the same list the Now playing playlist shows, as a card
@@ -19,63 +20,111 @@
     <conv:BoolToBrushConverter x:Key="MarkBrush" TrueBrush="#04C8FF" FalseBrush="#66FFFFFF"/>
     <conv:BoolToBrushConverter x:Key="TitleBrush" TrueBrush="#FFFFFFFF" FalseBrush="#DDFFFFFF"/>
     <conv:BoolToBrushConverter x:Key="RowBrush" TrueBrush="#1404C8FF" FalseBrush="Transparent"/>
+
+    <!-- The two keys in the band, beside the count: bare glyphs on the band. A key that is on is lit in code
+         (see QueueCard.Paint), as Pegasus lights its rearrange key. -->
+    <Style x:Key="BandKey" TargetType="Button">
+      <Setter Property="Width" Value="24"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="FontFamily" Value="{StaticResource Fa}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
   </UserControl.Resources>
 
   <StackPanel Width="360">
 
     <Border Background="{StaticResource CardTitleBarBrush}" CornerRadius="8,8,0,0"
-            Height="32" Padding="16,0"
+            Height="32" Padding="16,0,12,0"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-      <Grid>
+      <Grid ColumnSpacing="2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
         <TextBlock Text="{loc:Str Key=Playlists_NowPlaying}" VerticalAlignment="Center"
                    FontSize="12" FontWeight="SemiBold" Foreground="#CCFFFFFF"/>
-        <TextBlock x:Name="CountText" HorizontalAlignment="Right" VerticalAlignment="Center"
+
+        <!-- Shuffle: one press puts what is still to come in another order, the next puts it back
+             (RPaMpModel.ToggleQueueShuffle). It stays lit while the queue is shuffled. -->
+        <Button x:Name="ShuffleKey" Grid.Column="1" Style="{StaticResource BandKey}" Content="&#xf074;"
+                Click="ShuffleKey_Click"/>
+
+        <!-- Rearrange: the rows show their grips and can be dragged into another order while the song plays.
+             A press on a row then picks it up rather than playing it. It stays lit while it is on. -->
+        <Button x:Name="RearrangeKey" Grid.Column="2" Style="{StaticResource BandKey}" Content="&#xf338;"
+                Click="RearrangeKey_Click"
+                ToolTipService.ToolTip="{loc:Str Key=Rpm_Queue_Rearrange}"
+                AutomationProperties.Name="{loc:Str Key=Rpm_Queue_Rearrange}"/>
+
+        <TextBlock x:Name="CountText" Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Center"
                    FontSize="11" Foreground="#88FFFFFF"/>
       </Grid>
     </Border>
 
     <!-- A queue can be thousands of rows long, so the list virtualises. Its height is capped in code
-         (CapHeight) to the window, the way the cast picker's is. -->
+         (CapHeight) to the window, the way the cast picker's is.
+
+         The list shows the card's own rows (DeckRow), one for each place in the queue, and not the queue
+         itself: a drag hands the faces along those rows and tells the queue once, when the row lands (see
+         CarriedReorder). For that every row is one height, gap included, so the gap between rows is inside
+         the template and not a margin on the container. -->
     <ListView x:Name="Rows" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Rows_ItemClick"
               Padding="6,6,6,8" MaxHeight="420">
       <ListView.ItemContainerStyle>
         <Style TargetType="ListViewItem">
           <Setter Property="Padding" Value="0"/>
-          <Setter Property="Margin" Value="0,1"/>
+          <Setter Property="Margin" Value="0"/>
           <Setter Property="MinHeight" Value="0"/>
           <Setter Property="CornerRadius" Value="4"/>
           <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
       </ListView.ItemContainerStyle>
       <ListView.ItemTemplate>
-        <DataTemplate>
-          <Grid Padding="8,6" ColumnSpacing="10" CornerRadius="4"
-                Background="{Binding IsCurrent, Converter={StaticResource RowBrush}}">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="26"/>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <DataTemplate x:DataType="model:DeckRow">
+          <!-- The offset of a carried row, and of the rows stepping aside for it, is on the row (Drop) and
+               bound here, so a container the list reuses does not keep another row's offset. -->
+          <Border Padding="0,1" Background="Transparent" RenderTransform="{Binding Drop}">
+            <Grid Padding="8,6" ColumnSpacing="10" CornerRadius="4"
+                  Background="{Binding IsCurrent, Converter={StaticResource RowBrush}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="26"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
 
-            <!-- The row's place, or the play mark on the one that is on the deck. -->
-            <TextBlock Grid.Column="0" Text="{Binding Index}" FontSize="11" HorizontalAlignment="Right"
-                       VerticalAlignment="Center" Foreground="#66FFFFFF"
-                       Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
-            <TextBlock Grid.Column="0" Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="10"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"
-                       Foreground="{Binding IsCurrent, Converter={StaticResource MarkBrush}}"
-                       Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisible}}"/>
+              <!-- The row's place, or the play mark on the one that is on the deck; the grip on every row
+                   while rearranging is on. -->
+              <TextBlock Grid.Column="0" Text="{Binding Index}" FontSize="11" HorizontalAlignment="Right"
+                         VerticalAlignment="Center" Foreground="#66FFFFFF"
+                         Visibility="{Binding ShowsIndex, Converter={StaticResource BoolToVisible}}"/>
+              <TextBlock Grid.Column="0" Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="10"
+                         HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Foreground="{Binding IsCurrent, Converter={StaticResource MarkBrush}}"
+                         Visibility="{Binding ShowsMark, Converter={StaticResource BoolToVisible}}"/>
+              <TextBlock Grid.Column="0" Text="&#xf58e;" FontFamily="{StaticResource Fa}" FontSize="12"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#88FFFFFF"
+                         Visibility="{Binding Grip, Converter={StaticResource BoolToVisible}}"/>
 
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis" MaxLines="1"
-                         Foreground="{Binding IsCurrent, Converter={StaticResource TitleBrush}}"/>
-              <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#99FFFFFF"
-                         TextTrimming="CharacterEllipsis" MaxLines="1"/>
-            </StackPanel>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis" MaxLines="1"
+                           Foreground="{Binding IsCurrent, Converter={StaticResource TitleBrush}}"/>
+                <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#99FFFFFF"
+                           TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              </StackPanel>
 
-            <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="11" Foreground="#77FFFFFF"
-                       VerticalAlignment="Center"/>
-          </Grid>
+              <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="11" Foreground="#77FFFFFF"
+                         VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
         </DataTemplate>
       </ListView.ItemTemplate>
     </ListView>

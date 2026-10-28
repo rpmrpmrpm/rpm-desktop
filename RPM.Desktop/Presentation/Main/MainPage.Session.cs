@@ -380,7 +380,7 @@ public sealed partial class MainPage
         var player = App.Services.GetRequiredService<RPaMpService>().Transport;
         player.Shuffle = session.Shuffle;
         player.Repeat = session.Repeat;
-        player.RestoreQueue(tracks, cursor.Index, cursor.Seconds);
+        player.RestoreQueue(tracks, cursor.Index, cursor.Seconds, session.QueueRadio);
 
         TrackInfo? Resolve(string absolute)
         {

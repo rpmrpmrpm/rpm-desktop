@@ -6735,11 +6735,11 @@
   </data>
   <data name="Rpm_Queue_Shuffle" xml:space="preserve">
     <value>随机播放</value>
-    <comment>Key on the iPhone queue panel that puts the tracks still to come in another order.</comment>
+    <comment>Key on the iPhone queue panel, and in the band of the desktop Now playing card, that puts the tracks still to come in another order.</comment>
   </data>
   <data name="Rpm_Queue_Rearrange" xml:space="preserve">
     <value>重新排序</value>
-    <comment>Key on the iPhone queue panel and Now playing page that turns row dragging on.</comment>
+    <comment>Key on the iPhone queue panel and Now playing page, and in the band of the desktop Now playing card, that turns row dragging on.</comment>
   </data>
   <data name="Rpm_Library_SearchCeiling" xml:space="preserve">
     <value>显示前 {0} 个结果。输入更多内容以缩小搜索范围。</value>
@@ -9117,9 +9117,13 @@
     <value>卡拉 OK 歌词</value>
     <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
   </data>
+  <data name="Settings_MixtapeAfterHint" xml:space="preserve">
+    <value>专辑、播放列表或单曲播完后，继续播放你收藏中与之相似的歌曲。</value>
+    <comment>Line under the "Mixtape when a record ends" heading (Tv_SettingsMixtapeAfter) on the desktop Sound settings page, above its on/off switch.</comment>
+  </data>
   <data name="Tv_SettingsMixtapeAfter" xml:space="preserve">
     <value>唱片播完后播放混音带</value>
-    <comment>Row in the Android TV app's settings: whether a mixtape like the album or playlist that just finished starts by itself when it ends.</comment>
+    <comment>Row in the Android TV app's settings, and in Pegasus's, and the heading of its card on the desktop Sound settings page: whether a mixtape like the album or playlist that just finished starts by itself when it ends.</comment>
   </data>
   <data name="MoodMaker_New" xml:space="preserve">
     <value>新建心情播放列表…</value>
@@ -9280,6 +9284,10 @@
   <data name="Deck_QueueTip" xml:space="preserve">
     <value>播放队列</value>
     <comment>Player deck at the foot of the window: tooltip and accessible name of the key left of stop that opens the queue (the songs playing now and next) as a card above the deck.</comment>
+  </data>
+  <data name="Deck_QueueUnshuffle" xml:space="preserve">
+    <value>恢复原来的顺序</value>
+    <comment>Tooltip and accessible name of the shuffle key in the band of the desktop Now playing card, while the queue is shuffled. Pressing it puts the songs still to come back in the order they had before the shuffle. Before the press the same key says Rpm_Queue_Shuffle.</comment>
   </data>
   <data name="Deck_QueueEmpty" xml:space="preserve">
     <value>队列中没有内容。播放一张专辑或一首歌，接下来要播放的内容会显示在这里。</value>

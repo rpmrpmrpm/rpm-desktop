@@ -102,6 +102,8 @@ internal sealed partial class TransportDeck : UserControl
     // The queue card reads the count and finds the playing row each time it opens.
     private void QueueFlyout_Opening(object? sender, object e) => QueueCardContent.Refresh();
 
+    private void QueueFlyout_Closed(object? sender, object e) => QueueCardContent.Closed();
+
     // ── the pane pill ─────────────────────────────────────────────────────────
     // The glyph is a little window. Its drawer slides out of the left edge, the same move the pane makes. When
     // closed, the drawer is a sliver at the frame's edge, and the clip hides the rest. Hovering nudges it out.
