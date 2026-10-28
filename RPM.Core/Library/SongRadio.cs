@@ -16,10 +16,14 @@ namespace RPM.Core.Library;
 /// <param name="GenreTag">The file's own genre field, as written. Read for styles only: the shelf comes from
 /// <see cref="MoodBands.GenreByFolder"/>, which decides it per record.</param>
 /// <param name="Subgenre">The file's style field, as written, or null.</param>
+/// <param name="Album">The album's name, as tagged, or null. Read to tell a live recording (see
+/// <see cref="SongRadio.IsLive"/>).</param>
+/// <param name="ReleaseType">The record's release type as stored (<see cref="ReleaseTypes.ToStored"/>), or null.</param>
 public sealed record RadioRow(
     string RelativePath, string Folder, string Artist, string Title, int Year,
     double? Brightness, double? Onsets, double? Dynamics, bool Offered, double? Bpm,
-    int Plays = 0, string? GenreTag = null, string? Subgenre = null);
+    int Plays = 0, string? GenreTag = null, string? Subgenre = null,
+    string? Album = null, string? ReleaseType = null);
 
 /// <summary>A song's three mood readings as percentiles of the collection, each from 0 to 1. Percentiles because the
 /// readings are in different units (a share of energy, events a second, decibels), and unscaled the decibels would
@@ -38,10 +42,11 @@ public readonly record struct RadioSound(double Brightness, double Onsets, doubl
 /// Hop, Electro, Baroque. From the file's own fields and from what the catalogues say about its record. Empty where
 /// nothing names one, which is most songs.</param>
 /// <param name="Plays">How many times the listener has played it. See <see cref="RadioCrate.IsFavourite"/>.</param>
+/// <param name="Live">Whether it is a live recording (<see cref="SongRadio.IsLive"/>).</param>
 public sealed record RadioSong(
     string Path, string Folder, string Artist, string Song, int Year, string? Genre,
     RadioSound? Sound, IReadOnlySet<SmartPlaylistKind> Moods, bool Offered, double? Bpm,
-    IReadOnlySet<string> Styles, int Plays);
+    IReadOnlySet<string> Styles, int Plays, bool Live = false);
 
 /// <summary>
 /// Every song in one collection that a song radio can pick from or start from. Read once when a radio starts and
@@ -158,7 +163,8 @@ public sealed class RadioCrate
                 row.Offered,
                 row.Bpm is > 0 ? row.Bpm : null,
                 styles,
-                Math.Max(row.Plays, 0));
+                Math.Max(row.Plays, 0),
+                SongRadio.IsLive(row.Title, row.Album, row.ReleaseType));
         }
 
         return new RadioCrate(songs);
@@ -321,10 +327,21 @@ public static class SongRadio
     /// Dance holds music further apart than Rock and Metal are.</summary>
     internal const double OtherStyle = 0.6;
 
-    /// <summary>The genre term for two songs on one shelf when only one of them has a style. A little apart, so
-    /// that from a trip hop song, another trip hop song comes before one nobody has filed, and an unfiled one before
-    /// electro.</summary>
-    internal const double OneStyle = 0.15;
+    /// <summary>The genre term for two songs on one shelf when only one of them has a style. As far as kin: from a
+    /// trip hop song, another trip hop song comes clearly before one nobody has filed, which may be anything the
+    /// shelf holds, and an unfiled one still comes before electro.</summary>
+    internal const double OneStyle = KinStyle;
+
+    /// <summary>How many songs must be left, beyond the ones a pick asks for, before songs whose style clashes with
+    /// the song playing are left out (see <see cref="WithoutClashes"/>). A full shortlist, so a pick still has a
+    /// choice.</summary>
+    internal const int ClashSpare = Shortlist;
+
+    /// <summary>What a live recording adds to its score when the song the radio started from is not live (see
+    /// <see cref="IsLive"/>). About as much as a song a decade away in era: a live song still comes when nothing
+    /// in the studio is near, but a studio recording that fits comes first. Nothing is added when the radio
+    /// started from a live song, so a live album goes on as a live mixtape.</summary>
+    internal const double LiveApart = 0.3;
 
     /// <summary>
     /// Styles that sit next to one another, across the shelves they hang off. Two songs whose styles are in one family
@@ -333,6 +350,10 @@ public static class SongRadio
     /// <para>The families follow how the music is played, not how it is filed. The Electronic / Dance shelf holds
     /// music for sitting down and music for a club, and no shelf name says which. The classical periods are
     /// families with their neighbours, so Bach leads to Handel before Mahler.</para>
+    ///
+    /// <para>Every shelf has its families, because two styles that share none clash, and a song whose style clashes
+    /// with the one playing is left out (<see cref="WithoutClashes"/>). Hard rock without a family would clash with
+    /// arena rock. A style with no family, Nederpop or Schlager, is kin only to itself.</para>
     /// </summary>
     internal static readonly string[][] StyleFamilies =
     [
@@ -351,6 +372,144 @@ public static class SongRadio
         // The dark end.
         ["Synthwave", "Dark Wave", "Ethereal Wave", "Minimal Wave", "Witch House", "Industrial", "Post-Industrial",
          "Dark Ambient"],
+        // Pop for dancing, and the dance music it shares a floor with.
+        ["Dance-Pop", "Electropop", "Europop", "Synth-Pop", "Teen Pop", "Bubblegum Pop", "Hyperpop", "K-Pop", "J-Pop",
+         "Eurodance", "Italo Dance", "Hi-NRG", "Italo-Disco"],
+        // Pop to sit back to.
+        ["Ballad", "Easy Listening", "Adult Contemporary", "Traditional Pop", "Sophisti-Pop", "Soft Rock",
+         "Chanson Française"],
+        // Pop for listening closely.
+        ["Art Pop", "Progressive Pop", "Psychedelic Pop", "Baroque Pop", "Alternative Pop", "Sophisti-Pop"],
+        // ── Rock ──
+        // Classic and hard rock: big riffs, big choruses.
+        ["Classic Rock", "Hard Rock", "Arena Rock", "AOR", "Blues Rock", "Southern Rock", "Glam Rock", "Heartland Rock",
+         "Pub Rock", "Roots Rock", "Glam Metal", "Heavy Metal",
+         // Folk sits beside it: the same records, the same years, often the same players.
+         "Folk Rock", "Contemporary Folk", "Folk Pop", "Folk Revival", "Traditional Folk", "Alternative Folk",
+         "Indie Folk", "Singer-Songwriter"],
+        // Soft, acoustic and rootsy.
+        ["Soft Rock", "Acoustic Rock", "Folk Rock", "Country Rock", "Piano Rock", "Singer-Songwriter", "Heartland Rock",
+         "Roots Rock", "AOR", "Americana", "Folk Pop", "Contemporary Folk", "Folk Revival", "Traditional Folk",
+         "Celtic Folk", "Alternative Folk", "Indie Folk"],
+        // Rock with a pop song in it.
+        ["Pop Rock", "Power Pop", "Soft Rock", "Piano Rock", "AOR", "Britpop", "Jangle Pop", "Indie Pop", "Pop Punk"],
+        // Alternative and grunge.
+        ["Alternative Rock", "Grunge", "Post-Grunge", "Indie Rock", "Britpop", "Garage Rock Revival", "Noise Rock",
+         "Alternative Metal", "Shoegaze", "Post-Punk Revival", "Emo", "Alternative Punk"],
+        // Progressive, psychedelic and art rock.
+        ["Progressive Rock", "Psychedelic Rock", "Art Rock", "Space Rock", "Krautrock", "Experimental Rock", "Post-Rock",
+         "Symphonic Rock", "Acid Rock", "Neo-Psychedelia", "Progressive Metal", "Avant-Prog", "Art Pop",
+         "Progressive Pop"],
+        // The eighties' new wave, with its synthesisers.
+        ["New Wave", "New Romantic", "Synth-Pop", "Post-Punk", "Gothic Rock", "Dance-Rock", "Dark Wave", "Minimal Wave",
+         "Sophisti-Pop"],
+        // Rock and roll and the garage it grew up in.
+        ["Rock and Roll", "Rockabilly", "Surf Rock", "Merseybeat", "Garage Rock", "Doo-Wop", "Proto-Punk"],
+        // Heavy, with machines or a rapper in it.
+        ["Industrial Rock", "Industrial Metal", "Nu Metal", "Rap Rock", "Alternative Metal", "Industrial", "Electropunk",
+         "Funk Rock"],
+
+        // ── Metal ──
+        ["Heavy Metal", "Glam Metal", "Power Metal", "Speed Metal", "Thrash Metal", "Pop Metal", "Symphonic Metal",
+         "Gothic Metal", "Folk Metal"],
+        ["Death Metal", "Black Metal", "Deathcore", "Metalcore", "Thrash Metal", "Speed Metal", "Djent"],
+        ["Doom Metal", "Sludge Metal", "Post-Metal", "Drone", "Post-Rock"],
+        ["Nu Metal", "Alternative Metal", "Industrial Metal", "Rap Rock", "Metalcore", "Post-Grunge", "Djent"],
+
+        // ── Punk ──
+        ["Punk Rock", "Pop Punk", "Skate Punk", "Ska Punk", "Street Punk", "Hardcore Punk", "Garage Punk", "Proto-Punk",
+         "Riot Grrrl", "Crust Punk", "Powerviolence"],
+        ["Post-Punk", "Post-Hardcore", "Emo", "Screamo", "Alternative Punk"],
+        ["Folk Punk", "Anti-Folk"],
+
+        // ── Indie ──
+        ["Indie Pop", "Bedroom Pop", "Dream Pop", "Jangle Pop", "Chamber Pop", "Lo-fi", "Indie Folk", "Indietronica",
+         "Alternative Pop"],
+        ["Indie Rock", "Shoegaze", "Slowcore", "Neo-Psychedelia", "Post-Punk Revival", "Garage Rock Revival", "Lo-fi",
+         "Dream Pop"],
+
+        // ── Hip-hop and rap ──
+        // Thoughtful, sampled, jazzy.
+        ["Conscious Hip Hop", "Alternative Hip Hop", "Jazz Rap", "Political Hip Hop", "Boom Bap", "Golden Age Hip Hop",
+         "East Coast Hip Hop", "Turntablism", "Experimental Hip Hop", "Contemporary R&B"],
+        // Hard, from the streets of one coast or another.
+        ["Hardcore Hip Hop", "Gangsta Rap", "East Coast Hip Hop", "West Coast Hip Hop", "G-Funk", "Southern Hip Hop",
+         "Crunk", "Drill", "Grime"],
+        // Melodic, sung half the time, on trap drums.
+        ["Pop Rap", "Cloud Rap", "Emo Rap", "Trap Soul", "Plugg", "Rage", "Phonk", "Southern Hip Hop", "Trap Latino"],
+        ["Experimental Hip Hop", "Industrial Hip Hop", "Alternative Hip Hop", "Cloud Rap"],
+        ["Miami Bass", "Crunk", "Jersey Club"],
+
+        // ── R&B, soul and funk ──
+        // R&B now.
+        ["Contemporary R&B", "Alternative R&B", "Trap Soul", "Neo-Soul", "New Jack Swing", "Quiet Storm", "Pop Soul"],
+        // Smooth, late at night.
+        ["Neo-Soul", "Smooth Soul", "Quiet Storm", "Philly Soul", "Pop Soul", "Blue-Eyed Soul", "Soul Jazz", "Acid Jazz",
+         "Alternative R&B", "Singer-Songwriter", "Contemporary R&B"],
+        // The soul of the sixties and seventies.
+        ["Motown", "Northern Soul", "Southern Soul", "Deep Soul", "Philly Soul", "Rhythm and Blues", "Doo-Wop",
+         "Blue-Eyed Soul", "Psychedelic Soul", "Gospel Soul", "Pop Soul", "Contemporary R&B"],
+        // Funk, and what it became in the eighties.
+        ["P-Funk", "Boogie", "Synth Funk", "Minneapolis Sound", "Go-Go", "Jazz-Funk", "Psychedelic Soul", "Funk Rock",
+         "Electro-Disco", "Post-Disco", "New Jack Swing", "Contemporary R&B"],
+
+        // ── Disco and the club ──
+        ["Euro-Disco", "Italo-Disco", "Hi-NRG", "Electro-Disco", "Nu Disco", "Post-Disco", "Boogie", "French House",
+         "Eurodance"],
+        ["Big Room", "Future Rave", "Electro House", "Progressive House", "Trance"],
+        ["Electroclash", "Electro", "Electropunk", "Synth-Pop", "Electropop"],
+        ["Deconstructed Club", "Jersey Club", "Hyperpop", "Bubblegum Bass", "Glitch"],
+
+        // ── Jazz and blues ──
+        // Sung, swung and easy.
+        ["Vocal Jazz", "Swing", "Big Band", "Jazz Pop", "Smooth Jazz", "Traditional Pop", "Easy Listening", "Cool Jazz",
+         "Bossa Nova"],
+        ["Bebop", "Hard Bop", "Cool Jazz", "Modal Jazz", "Soul Jazz", "Latin Jazz"],
+        ["Free Jazz", "Avant-Garde Jazz", "Free Improvisation", "Modal Jazz"],
+        ["Jazz Fusion", "Jazz-Funk", "Acid Jazz", "Soul Jazz", "Smooth Jazz", "Ethio-Jazz"],
+        ["Swing", "Big Band", "Gypsy Jazz", "Ragtime", "Jump Blues"],
+        ["Chicago Blues", "Electric Blues", "Texas Blues", "British Blues", "Blues Rock", "Jump Blues"],
+        ["Delta Blues", "Country Blues", "Piedmont Blues", "Gospel Blues", "Desert Blues"],
+        ["Punk Blues", "Garage Rock", "Garage Rock Revival", "Blues Rock"],
+
+        // ── Country and folk ──
+        ["Country Pop", "Bro-Country", "Country Rock", "Americana", "Folk Pop"],
+        ["Honky Tonk", "Bakersfield Sound", "Outlaw Country", "Western Swing", "Bluegrass", "Americana",
+         "Alternative Country", "Gothic Country", "Southern Rock"],
+        ["Singer-Songwriter", "Contemporary Folk", "Folk Pop", "Indie Folk", "Alternative Folk", "Folk Rock", "Americana",
+         "Acoustic Rock", "Anti-Folk", "Freak Folk", "Chamber Pop"],
+        ["Traditional Folk", "Celtic Folk", "Celtic", "Folk Revival", "Neo Folk", "Bluegrass"],
+
+        // ── Reggae, Latin and the world ──
+        ["Roots Reggae", "Rocksteady", "Lovers Rock", "Dub", "Nyabinghi", "Ska", "Two-Tone", "Ska Punk"],
+        ["Dancehall", "Ragga", "Reggae Fusion", "Reggaeton", "Afrobeats"],
+        ["Salsa", "Merengue", "Bachata", "Cumbia", "Son Cubano"],
+        ["Bossa Nova", "Samba", "MPB", "Tango", "Latin Jazz"],
+        ["Reggaeton", "Trap Latino", "Latin Pop", "Dancehall"],
+        ["Mariachi", "Banda", "Norteño", "Vallenato", "Cumbia"],
+        ["Latin Rock", "Latin Pop"],
+        ["Afrobeat", "Highlife", "Soukous", "Afrobeats", "Ethio-Jazz", "Desert Blues"],
+        ["Flamenco", "Fado", "Tango"],
+        ["Klezmer", "Balkan Brass"],
+        ["Bhangra", "Filmi"],
+
+        // ── Sacred ──
+        ["Gospel", "Traditional Gospel", "Contemporary Gospel", "Southern Gospel", "Gospel Soul", "Gospel Blues",
+         "Spirituals", "Hymns", "Worship", "Contemporary Christian"],
+        ["Gregorian Chant", "Sacred Choral", "Hymns", "Medieval", "Early Music"],
+        ["Christian Rock", "Christian Hip-Hop", "Contemporary Christian", "Worship"],
+
+        // ── The screen and the stage ──
+        ["Film Score", "Orchestral Score", "Television Score", "Trailer Music", "Video Game Score", "Anime Soundtrack",
+         "Synth Score"],
+        ["Broadway", "Film Musical", "Show Tunes", "West End", "Original Cast Recording"],
+        ["Synth Score", "Synthwave", "Chiptune"],
+
+        // ── Out at the edges ──
+        ["Electroacoustic", "Musique Concrete", "Sound Collage", "Spectral Music", "Fluxus", "Field Recording", "Drone"],
+        ["Harsh Noise", "Japanoise", "Noisecore", "Power Electronics", "Noise Rock"],
+        ["Audiobook", "Podcast", "Interview", "Storytelling", "Poetry", "Comedy"],
+
         // The classical periods, each with its neighbours.
         ["Medieval", "Renaissance", "Early Music", "Baroque"],
         ["Baroque", "Classical Period"],
@@ -406,6 +565,8 @@ public static class SongRadio
             // the newer half and the queue stay out.
             ranked = Ranked(crate, scorer, Blocked(crate, inQueue, history.Skip(history.Count / 2).ToList(), seed, origin));
         }
+
+        ranked = WithoutClashes(ranked, playing, count);
 
         var recent = history.TakeLast(RecordGap).Select(crate.Find).OfType<RadioSong>().ToList();
         recent.Add(playing);
@@ -598,6 +759,54 @@ public static class SongRadio
     private static IReadOnlySet<string> RelatedTo(string? genre) =>
         new HashSet<string>(Genres.Related(genre), StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Whether a song is a live recording: its record is filed as a live one, or its title or its album says so.
+    ///
+    /// <para>A title says so the way the album editor's (Live) note reads it (<see cref="TitleNote.Live"/>):
+    /// "(Live)", "[Live at Wembley]", " - Unplugged". An album says so in those ways too, or by starting with the
+    /// word: "Live", "Live at the BBC", "Live in Tokyo", and by "Unplugged" anywhere in it. "Live Forever" and "Long
+    /// Live" are not live records, so the word alone is not enough. A "(Live Mix)" is a mix and not a concert.</para>
+    /// </summary>
+    public static bool IsLive(string? title, string? album, string? releaseType)
+    {
+        if (ReleaseTypes.FromStored(releaseType) == ReleaseType.Live)
+            return true;
+        if (SaysLive(title))
+            return true;
+        return album is { Length: > 0 } && (SaysLive(album) || LiveAlbum.IsMatch(album));
+
+        static bool SaysLive(string? text) => TitleNote.Live.Says(text) && !LiveMix.IsMatch(text!);
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex LiveMix = new(
+        @"\blive\s+(?:mix|edit|dub)\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static readonly System.Text.RegularExpressions.Regex LiveAlbum = new(
+        @"^\s*live\s*(?:$|[:\-–—(\[]|(?:at|in|from|on|aus|à|en|in)\b)|\bunplugged\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// <paramref name="ranked"/> without the songs whose style clashes with the song playing, while enough are left.
+    ///
+    /// <para>A style says what kind of music a song is more plainly than its mood or its year, so a clash is not
+    /// weighed against the rest: a ballad does not follow dance-pop because it is from the same year. Songs that
+    /// share a style with the song playing stay, so do kin styles (<see cref="StyleFamilies"/>), and so do songs
+    /// with no style, which nobody has filed and which are not known to clash. A song playing with no style leaves
+    /// the ranking as it is.</para>
+    ///
+    /// <para>Not a wall: when fewer than the pick plus <see cref="ClashSpare"/> are left, the ranking stays whole, so
+    /// a small collection or a rare style still gets a radio.</para>
+    /// </summary>
+    internal static List<RadioSong> WithoutClashes(List<RadioSong> ranked, RadioSong playing, int count)
+    {
+        if (playing.Styles.Count == 0)
+            return ranked;
+
+        var kept = ranked.FindAll(song => StyleApart(song.Styles, playing.Styles) is not OtherStyle);
+        return kept.Count >= count + ClashSpare ? kept : ranked;
+    }
+
     private static double Squared(double value) => value * value;
 
     /// <summary>Whether the act and the record have been away long enough. An empty credit names nobody, so a shelf
@@ -660,13 +869,15 @@ public static class SongRadio
     }
 
     /// <summary>The distance to the song playing plus <see cref="OriginWeight"/> of the distance to the song the radio
-    /// started from. The related genres are worked out once per pick rather than once per song.</summary>
+    /// started from, and <see cref="LiveApart"/> on a live recording when the radio did not start from one. The
+    /// related genres are worked out once per pick rather than once per song.</summary>
     private sealed class Scorer(RadioSong playing, RadioSong origin)
     {
         private readonly IReadOnlySet<string> _playingRelated = RelatedTo(playing.Genre);
         private readonly IReadOnlySet<string> _originRelated = RelatedTo(origin.Genre);
 
         public double Score(RadioSong song) =>
-            Apart(song, playing, _playingRelated) + (OriginWeight * Apart(song, origin, _originRelated));
+            Apart(song, playing, _playingRelated) + (OriginWeight * Apart(song, origin, _originRelated))
+            + (song.Live && !origin.Live ? LiveApart : 0);
     }
 }

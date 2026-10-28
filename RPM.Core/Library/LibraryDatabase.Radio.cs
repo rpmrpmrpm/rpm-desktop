@@ -68,7 +68,8 @@ public sealed partial class LibraryDatabase
                        CASE WHEN a.bpm > 0 AND a.bpm_confidence >= $minBpmConfidence THEN a.bpm
                             WHEN tracks.tag_bpm > 0 THEN tracks.tag_bpm
                        END,
-                       COALESCE(tracks.plays, 0), tracks.genre, tracks.subgenre
+                       COALESCE(tracks.plays, 0), tracks.genre, tracks.subgenre,
+                       tracks.album, tracks.release_type
                 FROM tracks
                 LEFT JOIN track_analysis a ON a.relative_path = tracks.relative_path
                 """;
@@ -89,7 +90,9 @@ public sealed partial class LibraryDatabase
                     reader.IsDBNull(10) ? null : reader.GetDouble(10),
                     (int)Math.Min(reader.GetInt64(11), int.MaxValue),
                     reader.IsDBNull(12) ? null : reader.GetString(12),
-                    reader.IsDBNull(13) ? null : reader.GetString(13)));
+                    reader.IsDBNull(13) ? null : reader.GetString(13),
+                    reader.IsDBNull(14) ? null : reader.GetString(14),
+                    reader.IsDBNull(15) ? null : reader.GetString(15)));
             return rows;
         }
     }

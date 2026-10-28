@@ -247,6 +247,117 @@ public class SongRadioTests
         Assert.Equal("Electronic / Dance", crate.Find("a")!.Genre);
     }
 
+    /// <summary>The mixtape after a dance-pop record: a ballad from the same year is closer in era than dance-pop
+    /// from another decade, and it is still not played, because its style says it is another kind of song.</summary>
+    [Fact]
+    public void A_song_whose_style_clashes_with_the_one_playing_is_not_picked()
+    {
+        var dancing = Enumerable.Range(0, SongRadio.ClashSpare + 10)
+            .Select(i => Row($"dance{i}", 1990, subgenre: i % 2 == 0 ? "Dance-Pop" : "Europop")).ToList();
+        var crate = Crate(
+            [Row("seed", 2003, subgenre: "Dance-Pop"), Row("ballad", 2003, subgenre: "Ballad"), .. dancing],
+            AllOn("Pop", ["seed", "ballad", .. dancing.Select(r => r.Folder)]));
+
+        Assert.True(SongRadio.Apart(crate.Find("ballad")!, crate.Find("seed")!)
+                    < SongRadio.Apart(crate.Find("dance0")!, crate.Find("seed")!));
+
+        for (var seed = 0; seed < 20; seed++)
+            Assert.DoesNotContain("ballad", Pick(crate, "seed", 5, random: seed));
+    }
+
+    [Fact]
+    public void A_song_with_no_style_is_not_left_out_as_a_clash()
+    {
+        var crate = Crate(
+            [Row("seed", subgenre: "Dance-Pop"), Row("unfiled")],
+            AllOn("Pop", "seed", "unfiled"));
+
+        Assert.Single(SongRadio.WithoutClashes([crate.Find("unfiled")!], crate.Find("seed")!, 0));
+    }
+
+    /// <summary>A rare style or a small collection: leaving the clashes out would leave too few to choose from, so
+    /// the radio plays on with them rather than going quiet.</summary>
+    [Fact]
+    public void Clashes_stay_when_too_few_songs_would_be_left()
+    {
+        var crate = Crate(
+            [Row("seed", subgenre: "Dance-Pop"), Row("ballad", subgenre: "Ballad"), Row("dance", subgenre: "Dance-Pop")],
+            AllOn("Pop", "seed", "ballad", "dance"));
+
+        Assert.Equal(2, Pick(crate, "seed", 2).Count);
+    }
+
+    [Fact]
+    public void Dance_pop_is_kin_to_europop_and_not_to_a_ballad()
+    {
+        Assert.Equal(SongRadio.KinStyle, SongRadio.StyleApart(Styles("Dance-Pop"), Styles("Europop")));
+        Assert.Equal(SongRadio.OtherStyle, SongRadio.StyleApart(Styles("Dance-Pop"), Styles("Ballad")));
+
+        static IReadOnlySet<string> Styles(string style) => new HashSet<string>([style], StringComparer.OrdinalIgnoreCase);
+    }
+
+    // ── live recordings ──
+
+    [Theory]
+    [InlineData("Sail Away (Live)", null, null, true)]
+    [InlineData("Babylon [Live at the Point]", null, null, true)]
+    [InlineData("Layla - Unplugged", null, null, true)]
+    [InlineData("Babylon", "Live", null, true)]
+    [InlineData("Babylon", "Live at the BBC", null, true)]
+    [InlineData("Babylon", "MTV Unplugged", null, true)]
+    [InlineData("Babylon", "White Ladder", "Live", true)]
+    [InlineData("Groovejet (If This Ain't Love) (Live Mix)", "Read My Lips", "Album", false)]
+    [InlineData("Live Forever", "Definitely Maybe", null, false)]
+    [InlineData("Babylon", "Long Live the King", null, false)]
+    [InlineData("Babylon", "White Ladder", null, false)]
+    public void A_live_recording_is_told_by_its_record_its_title_or_its_album(
+        string title, string? album, string? releaseType, bool live) =>
+        Assert.Equal(live, SongRadio.IsLive(title, album, releaseType));
+
+    /// <summary>A mixtape from a studio record: the live take of a song that fits is passed over for a studio one
+    /// that fits a little less.</summary>
+    [Fact]
+    public void A_radio_from_a_studio_song_puts_live_recordings_behind_studio_ones()
+    {
+        var crate = Crate(
+            [Row("seed", 2000), Row("live", 2000, title: "Song (Live)"), Row("studio", 2004)],
+            AllOn("Pop", "seed", "live", "studio"));
+        var seed = crate.Find("seed")!;
+
+        Assert.True(crate.Find("live")!.Live);
+        Assert.True(SongRadio.Score(crate.Find("live")!, seed, seed) > SongRadio.Score(crate.Find("studio")!, seed, seed));
+    }
+
+    [Fact]
+    public void A_radio_from_a_live_song_does_not_hold_live_recordings_back()
+    {
+        var crate = Crate(
+            [Row("seed", 2000, title: "Opener (Live)"), Row("live", 2000, title: "Song (Live)"), Row("studio", 2004)],
+            AllOn("Pop", "seed", "live", "studio"));
+        var seed = crate.Find("seed")!;
+
+        Assert.True(SongRadio.Score(crate.Find("live")!, seed, seed) < SongRadio.Score(crate.Find("studio")!, seed, seed));
+    }
+
+    /// <summary>Folk sits beside classic and acoustic rock, and R&B with soul, funk and conscious hip hop, not with
+    /// pop rap.</summary>
+    [Theory]
+    [InlineData("Folk Rock", "Hard Rock", true)]
+    [InlineData("Traditional Folk", "Classic Rock", true)]
+    [InlineData("Indie Folk", "Acoustic Rock", true)]
+    [InlineData("Celtic Folk", "Acoustic Rock", true)]
+    [InlineData("Celtic Folk", "Soft Rock", true)]
+    [InlineData("Celtic Folk", "Hard Rock", false)]
+    [InlineData("Celtic Folk", "Classic Rock", false)]
+    [InlineData("Contemporary R&B", "Neo-Soul", true)]
+    [InlineData("Contemporary R&B", "Motown", true)]
+    [InlineData("Contemporary R&B", "P-Funk", true)]
+    [InlineData("Contemporary R&B", "Pop Rap", false)]
+    [InlineData("Contemporary R&B", "Conscious Hip Hop", true)]
+    public void Styles_are_kin_where_they_are_played_together(string a, string b, bool kin) =>
+        Assert.Equal(kin ? SongRadio.KinStyle : SongRadio.OtherStyle,
+                     SongRadio.StyleApart(new HashSet<string>([a]), new HashSet<string>([b])));
+
     [Fact]
     public void Every_style_in_a_family_is_a_style_rpm_knows()
     {
