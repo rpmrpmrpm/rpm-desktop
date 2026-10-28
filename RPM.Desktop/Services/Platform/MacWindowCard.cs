@@ -25,6 +25,11 @@ namespace RPM.Desktop.Services.Platform;
 /// not transparent. It shows whatever the buffer held. So <c>SplashCard.DrawOwnGlass</c> paints a plate
 /// instead, and nothing here asks AppKit for glass.</para>
 ///
+/// <para><b>The splash is cut, and the plate is its fallback.</b> The Windows splash is the mark alone on a
+/// clear window. Here the window is cut to the wordmark's shape instead (<see cref="CutToShape"/>), so the
+/// desktop shows round the letters and the card paints the inside of them opaque. The plate below is
+/// shown only where that cut is refused.</para>
+///
 /// <para><b>The plate imitates the Windows card, not the desktop behind it.</b> It cannot copy the desktop,
 /// for the reason above. It does copy the Windows card. Thin acrylic in dark theme is a light neutral pane,
 /// and the plate is painted to sit beside one. The colours, and the one number to adjust, are in
@@ -103,6 +108,43 @@ internal static unsafe class MacWindowCard
 
     [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
     private static extern nint SendIndex(nint receiver, nint selector, nuint index);
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    private static extern void SendRect(nint receiver, nint selector, CGRect rect);
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend", CharSet = CharSet.Ansi)]
+    private static extern nint SendString(nint receiver, nint selector, string arg);
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool SendRetBool(nint receiver, nint selector);
+
+    private const string CoreGraphics = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
+
+    [DllImport(CoreGraphics)]
+    private static extern nint CGPathCreateMutable();
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGPathMoveToPoint(nint path, nint transform, double x, double y);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGPathAddLineToPoint(nint path, nint transform, double x, double y);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGPathAddCurveToPoint(
+        nint path, nint transform, double cp1x, double cp1y, double cp2x, double cp2y, double x, double y);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGPathCloseSubpath(nint path);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGPathRelease(nint path);
+
+    [DllImport(CoreGraphics)]
+    private static extern nint CGColorCreateGenericRGB(double r, double g, double b, double a);
+
+    [DllImport(CoreGraphics)]
+    private static extern void CGColorRelease(nint color);
 
     // NSWindowStyleMaskBorderless. This is not a bit to clear. Its value is 0. Setting the mask to 0
     // removes the title bar, the buttons, the resize edges and the window frame in one call.
@@ -359,6 +401,131 @@ internal static unsafe class MacWindowCard
 
         SendDouble(layer, sel_registerName("setCornerRadius:"), radius);
         SendBool(layer, sel_registerName("setMasksToBounds:"), true);
+    }
+
+    /// <summary>
+    /// Cuts a dressed window down to a shape, so the desktop shows everywhere else, and takes its shadow
+    /// away.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why a cut.</b> The Windows card is a clear window with the mark drawn on it. That cannot be
+    /// done here, because the Skia surface cannot be seen through (see the note on this class). What can be
+    /// done is what <see cref="Round"/> already does for the corners: a mask on the content view's layer.
+    /// Outside the mask the window's clear background shows the desktop. So the window is cut to the shape,
+    /// and the card paints everything inside the shape opaque.</para>
+    ///
+    /// <para><b>The shape.</b> SVG path data (see <see cref="PathData"/> for what is read), filled
+    /// even-odd as XAML fills a Path. It is stretched uniformly into <paramref name="into"/> and centred
+    /// there, as a Path with <c>Stretch="Uniform"</c> is, so the cut lies over the drawing.</para>
+    ///
+    /// <para>The shadow goes because the shape is the whole window now: macOS would draw it round the
+    /// letters. The Windows card has none.</para>
+    ///
+    /// <para>Implicit animation is turned off for the change, as in
+    /// <see cref="MacWindowChrome.MaskToPanels"/>, so the cut does not ease into place.</para>
+    /// </remarks>
+    /// <param name="into">Where the shape stands, in the window's logical units, top-left origin.</param>
+    /// <param name="width">The window's width in logical units.</param>
+    /// <param name="height">Its height. Needed because a plain NSView's layer counts from the BOTTOM
+    /// left, and <paramref name="into"/> is stated from the top.</param>
+    /// <returns>False when the window was not cut. Nothing has changed then, and the caller shows the card
+    /// with a background of its own.</returns>
+    public static bool CutToShape(
+        nint window, string pathData, Windows.Foundation.Rect into, double width, double height)
+    {
+        if (window == 0
+            || PathData.Read(pathData) is not { Count: > 0 } read
+            || PathData.Fit(read, into) is not { } steps)
+            return false;
+
+        nint path = 0;
+        nint shape = 0;
+        var transaction = objc_getClass("CATransaction");
+        try
+        {
+            var content = Send(window, sel_registerName("contentView"));
+            if (content == 0)
+                return false;
+
+            SendBool(content, sel_registerName("setWantsLayer:"), true);
+            var layer = Send(content, sel_registerName("layer"));
+            if (layer == 0)
+                return false;
+
+            // The host's own view is flipped and a plain NSView is not, so this is asked, not assumed
+            // (see MaskToPanels).
+            var flipped = SendRetBool(content, sel_registerName("isFlipped"));
+            (double X, double Y) Map((double X, double Y) p) => (p.X, flipped ? p.Y : height - p.Y);
+
+            path = CGPathCreateMutable();
+            if (path == 0)
+                return false;
+
+            foreach (var (step, points) in steps)
+            {
+                switch (step)
+                {
+                    case PathData.Step.Move:
+                        var to = Map(points[0]);
+                        CGPathMoveToPoint(path, 0, to.X, to.Y);
+                        break;
+                    case PathData.Step.Line:
+                        var end = Map(points[0]);
+                        CGPathAddLineToPoint(path, 0, end.X, end.Y);
+                        break;
+                    case PathData.Step.Curve:
+                        var (c1, c2, at) = (Map(points[0]), Map(points[1]), Map(points[2]));
+                        CGPathAddCurveToPoint(path, 0, c1.X, c1.Y, c2.X, c2.Y, at.X, at.Y);
+                        break;
+                    case PathData.Step.Close:
+                        CGPathCloseSubpath(path);
+                        break;
+                }
+            }
+
+            shape = Send(Send(objc_getClass("CAShapeLayer"), sel_registerName("alloc")), sel_registerName("init"));
+            var evenOdd = SendString(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "even-odd");
+            var opaque = CGColorCreateGenericRGB(0, 0, 0, 1);
+            if (shape == 0 || evenOdd == 0 || opaque == 0)
+            {
+                if (opaque != 0)
+                    CGColorRelease(opaque);
+                return false;
+            }
+
+            SendRect(shape, sel_registerName("setFrame:"), new CGRect(0, 0, width, height));
+            SendPtr(shape, sel_registerName("setPath:"), path);
+            SendPtr(shape, sel_registerName("setFillRule:"), evenOdd);   // kCAFillRuleEvenOdd
+            SendPtr(shape, sel_registerName("setFillColor:"), opaque);
+            CGColorRelease(opaque);
+
+            Send(transaction, sel_registerName("begin"));
+            SendBool(transaction, sel_registerName("setDisableActions:"), true);
+            try
+            {
+                SendPtr(layer, sel_registerName("setMask:"), shape);
+            }
+            finally
+            {
+                Send(transaction, sel_registerName("commit"));
+            }
+
+            SendBool(window, sel_registerName("setHasShadow:"), false);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            // The layer retains the mask and the mask retains the path; these balance the alloc and
+            // the create above.
+            if (shape != 0)
+                Send(shape, sel_registerName("release"));
+            if (path != 0)
+                CGPathRelease(path);
+        }
     }
 
     /// <summary>Takes the window's alpha to <paramref name="to"/> over <paramref name="ms"/>, on AppKit's

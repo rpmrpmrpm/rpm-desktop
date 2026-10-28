@@ -5,7 +5,9 @@
              RequestedTheme="Dark">
 
   <!-- Transparent all the way down. On Windows the window itself is clear (see SplashWindow.Clear),
-       so the mark stands on the desktop, and a background painted here would cover it.
+       so the mark stands on the desktop, and a background painted here would cover it. On macOS the
+       window is cut to the wordmark's shape instead, and the card paints the Ground under it
+       (FillForCut).
 
        No edge either, unless the card falls back to glass (DrawEdge): a window that cannot be made
        clear gets desktop acrylic and the edge the app's own cards have, one pixel of #2EFFFFFF. The
@@ -18,10 +20,17 @@
   <Border x:Name="Edge" Background="Transparent" CornerRadius="8" BorderBrush="Transparent" BorderThickness="1">
     <Grid Background="Transparent">
 
+    <!-- The ground for a window cut to the wordmark's shape (the macOS splash, see FillForCut). Only
+         the inside of the letters is on screen, so this is seen as the dimmed letters, and the band
+         lights them from above. The colour is the TV's dim level, 0.32 white, on black, and it is
+         opaque: the Skia surface on macOS cannot be seen through (see MacWindowCard). -->
+    <Border x:Name="Ground" Background="#FF525252" Visibility="Collapsed"/>
+
     <!-- The card's own glass, for a head that cannot use the system's.
          It is collapsed by default: on Windows the glass is desktop acrylic behind the window, and
-         anything painted here would cover it. macOS shows it. See SplashWindow.Show on that head and
-         MacWindowCard, which explains why a see-through Skia surface is not possible.
+         anything painted here would cover it. macOS shows it when its window cannot be cut to the
+         wordmark. See SplashWindow.Show on that head and MacWindowCard, which explains why a
+         see-through Skia surface is not possible.
 
          What it imitates: the Windows card is DesktopAcrylicKind.Thin in dark theme. That is a light,
          neutral, translucent pane with the desktop's own colour showing through. So the plate uses

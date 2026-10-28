@@ -68,9 +68,10 @@ namespace RPM.Desktop.Presentation.Startup;
 /// entrance waits on <see cref="Services.Shell.NextFrames"/>.</para>
 ///
 /// <para><b>Two desktop heads, two routes.</b> Everything above is the WinUI half. macOS does the same
-/// with AppKit: a borderless floating NSWindow, <c>NSWindow.alphaValue</c> animated by Core Animation,
-/// and a corner radius on the content view's layer. It paints its own glass, because a Skia surface
-/// cannot be seen through on that head. The second half of this file is that code, and
+/// with AppKit: a borderless floating NSWindow and <c>NSWindow.alphaValue</c> animated by Core
+/// Animation. A Skia surface cannot be seen through on that head, so the window is not clear but cut to
+/// the wordmark's shape, and the card paints the inside of the letters. Where the cut is refused, it is
+/// a glass card the card paints itself. The second half of this file is that code, and
 /// <see cref="Services.Platform.MacWindowCard"/> is what it calls. On every other head this class
 /// returns false and the shell keeps the in-window overlay.</para>
 /// </summary>
@@ -808,10 +809,12 @@ internal static class SplashWindow
     // heads show the same startup: 300 x 180 at a radius of 8, 420 ms in, 320 ms out, and the entrance
     // waits for the window to have drawn and not for a length of time.
     //
-    // The difference is which API does the work. Desktop acrylic becomes an NSVisualEffectView behind
-    // the content. The layered window's alpha becomes NSWindow.alphaValue, animated by Core Animation
-    // and not stepped by this code. The region cut becomes a corner radius on two layers. The style
-    // changes become one borderless mask. See MacWindowCard, which contains all of it.
+    // The difference is which API does the work. The clear window becomes a window cut to the
+    // wordmark's shape by a layer mask, with the card painting the inside of the letters. The glass
+    // card it falls back to becomes a plate the card paints itself, inside a corner radius on two
+    // layers. The layered window's alpha becomes NSWindow.alphaValue, animated by Core Animation and
+    // not stepped by this code. The style changes become one borderless mask. See MacWindowCard,
+    // which contains all of it.
     //
     // On every other head this does nothing and the shell keeps the black overlay inside its own
     // window.
@@ -884,14 +887,7 @@ internal static class SplashWindow
 
         try
         {
-            // The card paints its own glass here, because the system's glass cannot be used. The
-            // window is see-through and its layers are see-through, but the Skia surface drawn into
-            // them is not: it reads (0,0,0) at every sample of the card, and an NSVisualEffectView
-            // behind it has no effect. This is the same limit that MacWindowChrome.MaskToPanels
-            // describes: what the tree does not paint is not transparent, it is whatever the buffer
-            // held.
             var card = new SplashCard();
-            card.DrawOwnGlass();
 
             var window = new Window { Title = CardTitle };
             window.Content = card;
@@ -911,6 +907,21 @@ internal static class SplashWindow
                 return false;
             }
 
+            // The mark alone on the desktop, as on Windows. The window cannot be clear: it is
+            // see-through and so are its layers, but the Skia surface drawn into them is not. It reads
+            // (0,0,0) at every sample, the same limit that MacWindowChrome.MaskToPanels describes. So
+            // the window is cut to the wordmark's shape, and the card paints the inside of the letters.
+            // This happens while the window is still at alpha 0, before the fade-in.
+            //
+            // Where the cut is refused, the card paints its own glass instead, with its edge, inside
+            // the rounded corners that Dress gave the window.
+            var cut = Services.Platform.MacWindowCard.CutToShape(
+                _card, Controls.SweptMark.Wordmark, card.MarkPlace(CardWidth, CardHeight), CardWidth, CardHeight);
+            if (cut)
+                card.FillForCut();
+            else
+                card.DrawOwnGlass();
+
             _window = window;
 
             // The entrance starts when there is something to fade IN. A window that has just been
@@ -929,7 +940,7 @@ internal static class SplashWindow
                     "boot", $"splash fades in (window, {(drawn ? "drawn" : "backstop")})");
             });
 
-            RPM.Core.Diagnostics.Scope.Said("boot", "splash up");
+            RPM.Core.Diagnostics.Scope.Said("boot", $"splash up ({(cut ? "cut" : "glass")})");
             return true;
         }
         catch (Exception e)

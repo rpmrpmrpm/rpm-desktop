@@ -37,6 +37,15 @@ public sealed partial class SweptMark : UserControl
     /// <summary>The band's width, as a share of the wordmark's (the TV's BAND_OF_WIDTH).</summary>
     private const float BandOfWidth = 0.6f;
 
+    /// <summary>The wordmark's outline as SVG path data, for code that needs the shape itself: the macOS
+    /// splash cuts its window to it. The same geometry as the two Paths in SweptMark.xaml and
+    /// Assets/Svg/rpm.svg; change all of them together.</summary>
+    internal const string Wordmark =
+        "M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93Z"
+        + "M207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34Z"
+        + "M218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3Z"
+        + "M525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z";
+
     private CompositionVisualSurface? _copy;
     private CompositionLinearGradientBrush? _band;
     private SpriteVisual? _sprite;
@@ -58,6 +67,21 @@ public sealed partial class SweptMark : UserControl
 
         // A frame tick left subscribed would keep the window redrawing after the mark has gone.
         Unloaded += (_, _) => Stop();
+    }
+
+    /// <summary>
+    /// Whether the dimmed wordmark is drawn. On by default.
+    /// </summary>
+    /// <remarks>
+    /// Turned off where the window is cut to the wordmark's shape and the ground is painted in the dim
+    /// colour (the macOS splash, see <see cref="Startup.SplashCard.FillForCut"/>). There the ground is
+    /// what is seen as the dimmed letters. The dimmed wordmark drawn over it would make the letters
+    /// brighter, and its anti-aliased edge would show as a line inside the cut.
+    /// </remarks>
+    public bool DrawsDim
+    {
+        get => Dim.Visibility == Visibility.Visible;
+        set => Dim.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>How long is left of the pass the band is on. Nothing when it is not sweeping.</summary>

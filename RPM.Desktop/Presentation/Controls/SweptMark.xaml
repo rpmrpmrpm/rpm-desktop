@@ -7,8 +7,9 @@
        light sweeping across it once a second, lighting the letters it passes. A caller sets Width and Height
        (the wordmark's own proportion is 2.6 to 1) and calls Start. See SweptMark.xaml.cs. -->
   <Grid>
-    <!-- The wordmark at the TV's dim level. The same geometry as Assets/Svg/rpm.svg. -->
-    <Path Stretch="Uniform" Fill="#52FFFFFF"
+    <!-- The wordmark at the TV's dim level. The same geometry as Assets/Svg/rpm.svg and
+         SweptMark.Wordmark. -->
+    <Path x:Name="Dim" Stretch="Uniform" Fill="#52FFFFFF"
           Data="M109 -143H102C85 -143 73 -136 66 -121V-140H18V0H67V-55C67 -81 76 -94 93 -94C98 -94 103 -94 109 -93ZM207 -34C189 -34 180 -46 180 -71C180 -94 189 -106 207 -106C226 -106 236 -94 236 -71C236 -46 226 -34 207 -34ZM218 3C259 3 284 -29 284 -69C284 -110 260 -143 216 -143C199 -143 187 -137 180 -126V-140H132V52H178V-14C186 -3 199 3 218 3ZM525 -96C525 -127 510 -143 480 -143C462 -143 448 -136 437 -123C427 -136 414 -143 399 -143C383 -143 369 -136 358 -122V-140H312V0H361V-79C361 -96 367 -104 378 -104C389 -104 395 -97 395 -83V0H442V-79C442 -96 448 -104 459 -104C470 -104 476 -97 476 -83V0H525Z"/>
 
     <!-- The same wordmark in full white, never seen as it is: its wrapper is cut away entirely, and a live
