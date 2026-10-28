@@ -12,8 +12,15 @@ namespace RPM.Core.Tests;
 public class TransientRetryHandlerTests
 {
     /// <summary>
+    /// An answer the endpoint gives only once the request's own token is cancelled. A test that gives up
+    /// (its own token, or the client's timeout) then knows the handler has the cancelled token in hand
+    /// before it could ask again, whichever timer fires first.
+    /// </summary>
+    private sealed record AfterGivingUp(HttpStatusCode Status);
+
+    /// <summary>
     /// The far end, written down. Each entry in <paramref name="answers"/> is what the next attempt
-    /// gets: a status to answer with, or an exception to fail with.
+    /// gets: a status to answer with, an exception to fail with, or <see cref="AfterGivingUp"/>.
     /// </summary>
     private sealed class Endpoint : HttpMessageHandler
     {
@@ -40,6 +47,13 @@ public class TransientRetryHandlerTests
             var answer = _answers.Count > 0 ? _answers.Dequeue() : HttpStatusCode.OK;
             if (answer is Exception failure)
                 throw failure;
+
+            if (answer is AfterGivingUp held)
+            {
+                try { await Task.Delay(Timeout.Infinite, ct); }
+                catch (OperationCanceledException) { }
+                answer = held.Status;
+            }
 
             var response = new HttpResponseMessage((HttpStatusCode)answer)
             {
@@ -283,11 +297,12 @@ public class TransientRetryHandlerTests
     [Fact]
     public async Task ACallerWhoWalksAwayIsNotAskedAgainOnTheirBehalf()
     {
-        var endpoint = new Endpoint(HttpStatusCode.ServiceUnavailable, HttpStatusCode.OK);
+        // The first answer, a 503, comes back after the caller has given up. A handler that does not
+        // read the token in its wait before the second attempt would send that attempt.
+        var endpoint = new Endpoint(new AfterGivingUp(HttpStatusCode.ServiceUnavailable), HttpStatusCode.OK);
         using var http = Client(endpoint);
         using var giveUp = new CancellationTokenSource();
 
-        // Cancelled during the wait between the first and second attempts.
         var asking = http.GetAsync("https://example.test/thing", giveUp.Token);
         giveUp.CancelAfter(TimeSpan.FromMilliseconds(20));
 
@@ -298,12 +313,13 @@ public class TransientRetryHandlerTests
     [Fact]
     public async Task TheClientsOwnClockEndsIt()
     {
+        // The first answer, a 503, comes back after the client's timeout has fired. A handler that does
+        // not read the token in its wait before the second attempt would send that attempt. Nothing here
+        // depends on the timeout firing before the backoff ends.
         var endpoint = new Endpoint(
-            HttpStatusCode.ServiceUnavailable, HttpStatusCode.ServiceUnavailable, HttpStatusCode.OK);
+            new AfterGivingUp(HttpStatusCode.ServiceUnavailable), HttpStatusCode.ServiceUnavailable, HttpStatusCode.OK);
         using var http = new HttpClient(new TransientRetryHandler(endpoint))
         {
-            // Shorter than the shortest first backoff (200 ms), so the timeout lands in the wait rather than
-            // in a second send. Long enough that the first send is made, even on a busy machine.
             Timeout = TimeSpan.FromMilliseconds(150),
         };
 
