@@ -1,6 +1,7 @@
 using RPM.Core.Cloud;
 using RPM.Desktop.Presentation.RPaMp;
 using RPM.Desktop.Services;
+using RPM.Desktop.Services.Diagnostics;
 using RPM.Desktop.Services.Platform;
 using RPM.Desktop.Strings;
 using Microsoft.UI.Xaml;
@@ -2033,6 +2034,12 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         SignInItem.Visibility = signedIn ? Visibility.Collapsed : Visibility.Visible;
         SignOutItem.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
         SignOutSeparator.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
+
+        // Send feedback is for closed beta testers only: their reports carry the log and the
+        // screenshot, and nobody else's may (ReportScope).
+        FeedbackItem.Visibility = App.Services.GetRequiredService<FeedbackService>().CurrentScope.IsFull
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         // Send feedback takes a picture of the app once the menu has gone. The wait is set up here so
         // it exists before any item in this menu can be clicked (ShellPage.Feedback.cs).

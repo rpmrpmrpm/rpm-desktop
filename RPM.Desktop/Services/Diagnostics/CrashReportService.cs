@@ -1,6 +1,7 @@
 using RPM.Core.Cloud;
 using RPM.Core.Crashes;
 using RPM.Core.Diagnostics;
+using RPM.Desktop.Services.Account;
 using RPM.Desktop.Services.Shell;
 
 namespace RPM.Desktop.Services.Diagnostics;
@@ -13,7 +14,7 @@ namespace RPM.Desktop.Services.Diagnostics;
 /// <para>The pending folder is read whenever a decision is made, not counted once by the harvest, so
 /// nothing here acts on a stale number.</para>
 /// </summary>
-public sealed class CrashReportService(SettingsService settings, RpmCloudClient cloud)
+public sealed class CrashReportService(SettingsService settings, RpmCloudClient cloud, SupporterService supporter)
 {
     private readonly PendingCrashes _pending = new(CrashHarvest.PendingDirectoryIn(App.CrashDirectory));
 
@@ -65,12 +66,16 @@ public sealed class CrashReportService(SettingsService settings, RpmCloudClient 
     /// here.</para></summary>
     public async Task SendAsync(CancellationToken ct)
     {
+        // A closed beta tester's crash carries the run's recent log; anyone else's does not
+        // (ReportScope). Decided at the time of sending, from the account signed in now.
+        var scope = ReportScope.ForTester(supporter.Standing?.IsTester == true);
+
         foreach (var pending in await Task.Run(() => _pending.Read(), ct))
         {
             if (settings.CrashConsent != CrashConsent.Send)
                 return;
 
-            var id = await cloud.ReportCrashAsync(pending.ToReport(settings.EnsureCrashInstallId()), ct);
+            var id = await cloud.ReportCrashAsync(pending.ToReport(settings.EnsureCrashInstallId(), scope), ct);
             if (id is not null)
                 _pending.Remove(pending.CrashId);
         }

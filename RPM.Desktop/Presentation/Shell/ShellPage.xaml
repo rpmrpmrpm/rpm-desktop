@@ -170,7 +170,7 @@
                 <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf059;"/>
               </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
-            <MenuFlyoutItem FontSize="12" Text="{loc:Str Key=Shell_Feedback}" Click="Feedback_Click">
+            <MenuFlyoutItem x:Name="FeedbackItem" FontSize="12" Text="{loc:Str Key=Shell_Feedback}" Click="Feedback_Click">
               <MenuFlyoutItem.Icon>
                 <FontIcon Style="{StaticResource FaMenuIcon}" Glyph="&#xf188;"/>
               </MenuFlyoutItem.Icon>

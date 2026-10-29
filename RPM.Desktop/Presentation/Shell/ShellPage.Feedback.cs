@@ -118,6 +118,10 @@ public sealed partial class ShellPage
 
         body.Children.Add(BodyCopy(Loc.Get("Feedback_Sends"), dim: true));
 
+        // Only a tester's account opens this window, so there is always an address to reply to.
+        if (Auth?.Email is { Length: > 0 } email)
+            body.Children.Add(BodyCopy(Loc.Format("Feedback_RepliesTo", email), dim: true));
+
         var answer = await PromptDialog.ShowAsync(
             root,
             Loc.Get("Feedback_Title"),

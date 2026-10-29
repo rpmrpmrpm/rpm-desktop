@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using RPM.Core.Cloud;
 using RPM.Core.Crashes;
 using RPM.Core.Diagnostics;
+using RPM.Desktop.Services.Account;
 using RPM.Desktop.Services.Shell;
 
 namespace RPM.Desktop.Services.Diagnostics;
@@ -18,8 +19,17 @@ namespace RPM.Desktop.Services.Diagnostics;
 /// <para>The activity log is read here rather than in the window, because reading the ring is file
 /// work and the window is on the UI thread.</para>
 /// </summary>
-public sealed class FeedbackService(SettingsService settings, RpmCloudClient cloud)
+public sealed class FeedbackService(SettingsService settings, RpmCloudClient cloud, SupporterService supporter)
 {
+    /// <summary>
+    /// Whether a report sent now would carry the log, the screenshot and the reply address: only for
+    /// a closed beta tester's account (<see cref="ReportScope"/>). The menu offers Send feedback only
+    /// when this is full, and it is read again at the moment of sending, so a sign-out while the
+    /// window is open sends nothing about the person. A tester is always signed in, so a reply goes
+    /// to the account's address and the window asks for none.
+    /// </summary>
+    public ReportScope CurrentScope => ReportScope.ForTester(supporter.Standing?.IsTester == true);
+
     /// <summary>
     /// Sends one report and says whether the server took it.
     /// </summary>
@@ -38,7 +48,8 @@ public sealed class FeedbackService(SettingsService settings, RpmCloudClient clo
         string kind, string area, string message, byte[]? screenshotPng, bool activity,
         CancellationToken ct)
     {
-        var recent = activity
+        var scope = CurrentScope;
+        var recent = activity && scope.IsFull
             ? await Task.Run(() => RingTail.ActivityForThisRun(Scope.Dir, Environment.ProcessId), ct)
             : null;
 
@@ -46,7 +57,7 @@ public sealed class FeedbackService(SettingsService settings, RpmCloudClient clo
             ? Convert.ToBase64String(png)
             : null;
 
-        var report = new FeedbackReport(
+        var report = scope.Feedback(
             kind,
             area,
             message,
@@ -57,7 +68,8 @@ public sealed class FeedbackService(SettingsService settings, RpmCloudClient clo
             settings.EnsureCrashInstallId(),
             recent,
             picture,
-            DateTime.UtcNow.Ticks);
+            DateTime.UtcNow.Ticks,
+            replyTo: null);
 
         var id = await cloud.SendFeedbackAsync(report, ct);
         if (id is null)

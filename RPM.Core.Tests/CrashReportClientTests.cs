@@ -21,7 +21,7 @@ public class CrashReportClientTests
         }
     }
 
-    private static readonly CrashReport Report = new(
+    private static readonly CrashReport Report = ReportScope.Full.Crash(
         "crash_0123456789abcdef01234567", "mac", "0.3.1", "macOS 26.5", "arm64", 638_000_000_000_000_000,
         "install-1", "System.NullReferenceException: boom", null, null, "said boot: app ctor");
 

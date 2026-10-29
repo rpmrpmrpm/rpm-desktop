@@ -27,7 +27,9 @@ public sealed record PendingCrash(
     string? SystemReportKind,
     string? Recent)
 {
-    public CrashReport ToReport(string installId) => new(
+    /// <summary>The report to send. <paramref name="scope"/> decides whether the run's recent log goes
+    /// with it.</summary>
+    public CrashReport ToReport(string installId, ReportScope scope) => scope.Crash(
         CrashId, Head, AppVersion, Platform, Architecture, CrashedAtUtcTicks, installId,
         Exception, SystemReport, SystemReportKind, Recent);
 }
