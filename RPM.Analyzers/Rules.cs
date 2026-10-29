@@ -266,4 +266,18 @@ internal static class Rules
                    + "would send the sign-in token to whatever host it names. Operating-system "
                    + "variables the app needs to find files (PATH, HOME, TMPDIR, the XDG folders) are "
                    + "not switches and are allowed.");
+
+    /// <summary>An ONNX Runtime session built outside OnnxSession.</summary>
+    public static readonly DiagnosticDescriptor HandBuiltOnnxSession = new(
+        id: "RPM018",
+        title: "Open ONNX sessions with OnnxSession",
+        messageFormat: "'new InferenceSession' can crash the process while the model loads, because "
+                     + "nothing keeps the SessionOptions alive during the native call. Use "
+                     + "RPM.Onnx.OnnxSession.Open, which keeps them alive and then disposes them.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "InferenceSession passes the options to CreateSession as a plain pointer. If the "
+                   + "garbage collector finalises the SessionOptions during that call, the runtime "
+                   + "reads freed memory. OnnxSession.Open is the one place that builds a session.");
 }

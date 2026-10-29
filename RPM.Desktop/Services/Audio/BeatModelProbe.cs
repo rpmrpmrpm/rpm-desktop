@@ -103,7 +103,7 @@ public static class BeatModelProbe
         {
             try
             {
-                return (new InferenceSession(path, OnnxBeatModel.Options(ModelRuntime.DirectMl)),
+                return (OnnxSession.Open(path, OnnxBeatModel.Options(ModelRuntime.DirectMl)),
                         ModelRuntime.DirectMl);
             }
             catch (Exception ex)
@@ -113,7 +113,7 @@ public static class BeatModelProbe
             }
         }
 
-        return (new InferenceSession(path, OnnxBeatModel.Options(ModelRuntime.Cpu)), ModelRuntime.Cpu);
+        return (OnnxSession.Open(path, OnnxBeatModel.Options(ModelRuntime.Cpu)), ModelRuntime.Cpu);
     }
 
     /// <summary>One window, timed, with the process watched while it runs.</summary>

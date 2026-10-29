@@ -80,7 +80,7 @@ public sealed partial class SaliencyService : IDisposable
             LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR,
         };
 
-        return _session = new InferenceSession(path, options);
+        return _session = OnnxSession.Open(path, options);
     }
 
     private static double[] Run(InferenceSession session, byte[] rgba)

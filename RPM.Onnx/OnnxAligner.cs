@@ -222,7 +222,7 @@ public sealed class OnnxAligner : IDisposable
         // both models use the same settings.
         try
         {
-            var session = new InferenceSession(path, OnnxBeatModel.Options(ModelRuntime.Cpu));
+            var session = OnnxSession.Open(path, OnnxBeatModel.Options(ModelRuntime.Cpu));
             Said.Line("align", $"aligner on the processor, from {Path.GetFileName(path)}.");
             return _session = session;
         }

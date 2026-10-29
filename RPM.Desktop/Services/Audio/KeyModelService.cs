@@ -86,7 +86,7 @@ public sealed partial class KeyModelService : IKeyModel, IDisposable
 
         OnnxLogging.Quieten();
 
-        return _session = new InferenceSession(path, new SessionOptions
+        return _session = OnnxSession.Open(path, new SessionOptions
         {
             IntraOpNumThreads = 2,
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,

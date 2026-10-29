@@ -174,7 +174,7 @@ public sealed class OnnxBeatModel : IBeatModel, IDisposable
         {
             try
             {
-                var session = new InferenceSession(path, Options(ModelRuntime.DirectMl));
+                var session = OnnxSession.Open(path, Options(ModelRuntime.DirectMl));
                 Said.Line("analysis", $"beat model on DirectML, from {Path.GetFileName(path)}.");
                 return _session = session;
             }
@@ -190,7 +190,7 @@ public sealed class OnnxBeatModel : IBeatModel, IDisposable
         }
 
         Said.Line("analysis", $"beat model on the processor, from {Path.GetFileName(path)}.");
-        return _session = new InferenceSession(path, Options(ModelRuntime.Cpu));
+        return _session = OnnxSession.Open(path, Options(ModelRuntime.Cpu));
     }
 
     /// <summary>How the session is set up. This decides most of what a window costs.</summary>
