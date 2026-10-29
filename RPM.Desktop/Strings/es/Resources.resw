@@ -3873,6 +3873,22 @@
     <value>No se han podido enviar los comentarios. Inténtalo de nuevo más tarde.</value>
     <comment>Shown when the server would not take the feedback.</comment>
   </data>
+  <data name="Feedback_RepliesTo" xml:space="preserve">
+    <value>Las respuestas se enviarán a {0}.</value>
+    <comment>Feedback window, under the text box when signed in. {0} is the account's email address, where a reply to the report is sent.</comment>
+  </data>
+  <data name="Feedback_ReplyEmail" xml:space="preserve">
+    <value>Correo para las respuestas (opcional)</value>
+    <comment>Feedback window, when signed out: placeholder of the box for the address a reply to the report is sent to.</comment>
+  </data>
+  <data name="Feedback_AreaDownloads" xml:space="preserve">
+    <value>Descargas</value>
+    <comment>Feedback window, area list, phone apps only: albums downloaded to play without a connection.</comment>
+  </data>
+  <data name="Feedback_AreaCasting" xml:space="preserve">
+    <value>Altavoces y transmisión</value>
+    <comment>Feedback window, area list, phone apps only: playing on speakers, Chromecast and AirPlay (Play on).</comment>
+  </data>
   <data name="Crash_PromptTitle" xml:space="preserve">
     <value>rpm se cerró inesperadamente</value>
     <comment>Title of the window shown at launch after rpm crashed, asking once whether to send crash reports.</comment>
