@@ -182,6 +182,7 @@ public sealed partial class SettingsService
         int SupporterPretend = 0,
         string? UpdateDeferred = null,
         IReadOnlyList<string>? CoachmarksSeen = null,
+        IReadOnlyList<string>? BetaWelcomed = null,
         RPM.Core.Crashes.CrashConsent CrashConsent = RPM.Core.Crashes.CrashConsent.NotAsked,
         string? CrashInstallId = null);
 
@@ -646,6 +647,24 @@ public sealed partial class SettingsService
     /// <summary>Puts every hint back. This is used by the Settings screen's own button. It is also how
     /// anybody working on the hints sees them again, without a fresh install.</summary>
     public void ResetCoachmarks() => Update(_model with { CoachmarksSeen = null }, notify: false);
+
+    /// <summary>
+    /// The accounts that have been shown the beta welcome on this machine, by account id. Per account,
+    /// because the welcome is for an account the server marks as a closed beta tester, and a second
+    /// account signed in on the same machine is a different tester. Putting the hints back does not
+    /// clear it. Saved quietly, like <see cref="CoachmarksSeen"/>.
+    /// </summary>
+    public IReadOnlyList<string> BetaWelcomed => _model.BetaWelcomed ?? [];
+
+    /// <summary>Records that this account has been shown the beta welcome. Does nothing when it already
+    /// has.</summary>
+    public void MarkBetaWelcomed(string accountId)
+    {
+        if (string.IsNullOrWhiteSpace(accountId) || BetaWelcomed.Contains(accountId, StringComparer.Ordinal))
+            return;
+
+        Update(_model with { BetaWelcomed = [.. BetaWelcomed, accountId] }, notify: false);
+    }
 
     /// <summary>The listener parked the art drawer themselves (a double-click on the grip), and has not
     /// asked for it back. The mini player is their standing choice, so it survives a restart. The drawer

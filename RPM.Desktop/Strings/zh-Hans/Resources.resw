@@ -9427,7 +9427,7 @@
   </data>
   <data name="Beta_WelcomeTitle" xml:space="preserve">
     <value>感谢你加入封闭测试！</value>
-    <comment>The note shown once after setup: its heading.</comment>
+    <comment>The note shown once to an account marked as a closed beta tester: its heading.</comment>
   </data>
   <data name="Beta_WelcomeIntro" xml:space="preserve">
     <value>很高兴你的加入！你是最早使用 rpm 的人之一，也因此成为打造它的一员。</value>
@@ -9448,14 +9448,6 @@
   <data name="Beta_WelcomeGet" xml:space="preserve">
     <value>作为感谢，你将获得带 100 GB 云空间的 iPhone 版 rpm，以及所有支持者福利。Android TV 版 rpm 即将完成，你会第一个拿到！</value>
     <comment>The beta welcome, third point: what testers get.</comment>
-  </data>
-  <data name="Beta_WelcomeTourLine" xml:space="preserve">
-    <value>接下来，快速游览一下！rpm 会一步步带你认识应用，让你清楚每样东西在哪里。我们开始吧！</value>
-    <comment>The beta welcome: the last paragraph, saying the tour of hints follows.</comment>
-  </data>
-  <data name="Beta_WelcomeTour" xml:space="preserve">
-    <value>带我看看</value>
-    <comment>The beta welcome's button: closes it and starts the tour of hints.</comment>
   </data>
   <data name="Coach_ImportSources" xml:space="preserve">
     <value>你可以选择从文件夹、CD、黑胶唱片或 DVD 导入。然后通过目录编号、条形码或标题和艺人找到这张发行。很简单吧？现在，先把这个区域关上吧。</value>

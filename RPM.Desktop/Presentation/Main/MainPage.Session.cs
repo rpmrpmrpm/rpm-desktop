@@ -168,8 +168,7 @@ public sealed partial class MainPage
     /// <summary>
     /// The first landing after setup. A collection too small for home (under
     /// <see cref="RPM.Core.Library.HomeGate.LeastAlbums"/>) opens on the library itself, where the music
-    /// just imported is, rather than on home's locked panel. Then the beta welcome is shown, and the tour
-    /// of hints waits for it to close.
+    /// just imported is, rather than on home's locked panel. The tour of hints starts from there.
     /// </summary>
     private void LandAfterSetup()
     {
@@ -184,24 +183,6 @@ public sealed partial class MainPage
         var home = albums >= RPM.Core.Library.HomeGate.LeastAlbums;
         RPM.Core.Diagnostics.Scope.Said("boot", $"after setup: {albums} albums, landing on {(home ? "home" : "the library")}");
         ShowHome(home);
-
-        ShellPage.CoachmarksHeld = true;
-        DispatcherQueue?.TryEnqueue(DispatcherQueuePriority.Low, async () =>
-        {
-            try
-            {
-                await Dialogs.BetaWelcomeDialog.ShowAsync(XamlRoot);
-            }
-            catch (Exception e)
-            {
-                RPM.Core.Diagnostics.Said.Line("setup", $"the beta welcome could not be shown: {e.Message}");
-            }
-            finally
-            {
-                ShellPage.CoachmarksHeld = false;
-                ShellPage.Current?.RefreshCoachmarks();
-            }
-        });
     }
 
     // ── how far down each view was ──

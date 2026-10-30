@@ -50,10 +50,6 @@ public sealed partial class ShellPage
         });
     }
 
-    /// <summary>True while something on screen has said the tour comes after it: the beta welcome that
-    /// follows setup. The hints are drawn once it is put back to false and refreshed.</summary>
-    public static bool CoachmarksHeld { get; set; }
-
     /// <summary>The library page, or null when something else is up.</summary>
     private MainPage? LibraryPage => RootFrame.Content as MainPage;
 
@@ -66,9 +62,17 @@ public sealed partial class ShellPage
         _coach.Clear();
 
         // Only over the library, and not while the splash is up. The wizard has the whole window and
-        // its own steps to explain it. The splash is a black sheet with nothing to point at. Nor while
-        // the beta welcome is up, which says the tour comes next (CoachmarksHeld).
-        if (!OnLibrary || SplashOverlay.Visibility == Visibility.Visible || CoachmarksHeld)
+        // its own steps to explain it. The splash is a black sheet with nothing to point at.
+        if (!OnLibrary || SplashOverlay.Visibility == Visibility.Visible)
+        {
+            HoldArtGrip(false);
+            _coach.Hide();
+            return;
+        }
+
+        // The beta welcome opens over the library when it is due, and the hints wait until it closes.
+        // Drawn now, they would sit under it.
+        if (OfferBetaWelcome())
         {
             HoldArtGrip(false);
             _coach.Hide();

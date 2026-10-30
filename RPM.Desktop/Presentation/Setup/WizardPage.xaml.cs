@@ -427,8 +427,8 @@ public sealed partial class WizardPage : Microsoft.UI.Xaml.Controls.Page
         Room.Drift = false;
         SetupLoop.Stop();
 
-        // The library's first landing after setup: the library itself for a small collection, and the
-        // beta welcome over it. See MainPage.LandAfterSetup.
+        // The library's first landing after setup: the library itself for a small collection. See
+        // MainPage.LandAfterSetup.
         MainPage.AfterSetup = true;
 
         App.Services.GetRequiredService<NavigationService>().NavigateRoot(typeof(MainPage));

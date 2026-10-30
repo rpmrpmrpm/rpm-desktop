@@ -9427,7 +9427,7 @@
   </data>
   <data name="Beta_WelcomeTitle" xml:space="preserve">
     <value>Danke, dass du bei der geschlossenen Beta dabei bist!</value>
-    <comment>The note shown once after setup: its heading.</comment>
+    <comment>The note shown once to an account marked as a closed beta tester: its heading.</comment>
   </data>
   <data name="Beta_WelcomeIntro" xml:space="preserve">
     <value>Wir freuen uns riesig, dass du dabei bist! Du gehörst zu den allerersten, die rpm benutzen, und damit baust du es mit uns.</value>
@@ -9448,14 +9448,6 @@
   <data name="Beta_WelcomeGet" xml:space="preserve">
     <value>Als Dankeschön bekommst du rpm für das iPhone mit 100 GB in der Cloud und alle Supporter-Vorteile. rpm für Android TV ist fast fertig, und du bekommst es zuerst!</value>
     <comment>The beta welcome, third point: what testers get.</comment>
-  </data>
-  <data name="Beta_WelcomeTourLine" xml:space="preserve">
-    <value>Als Nächstes eine kurze Tour! rpm zeigt dir Schritt für Schritt alles, damit du sofort weißt, wo was ist. Los geht's!</value>
-    <comment>The beta welcome: the last paragraph, saying the tour of hints follows.</comment>
-  </data>
-  <data name="Beta_WelcomeTour" xml:space="preserve">
-    <value>Zeig mir alles</value>
-    <comment>The beta welcome's button: closes it and starts the tour of hints.</comment>
   </data>
   <data name="Coach_ImportSources" xml:space="preserve">
     <value>Du kannst auswählen, ob du aus einem Ordner, von deiner CD, einer Schallplatte oder einer DVD importierst. Danach findest du die Veröffentlichung über die Katalognummer, den Barcode oder Titel und Künstler. Einfach, oder? Für jetzt schließen wir diesen Bereich.</value>

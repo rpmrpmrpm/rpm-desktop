@@ -260,6 +260,12 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         // One of the hints is about signing in, so a change of account changes which hint is due.
         if (App.Services.GetService<AuthService>() is { } account)
             account.Changed += () => DispatcherQueue.TryEnqueue(RefreshCoachmarksForAccount);
+
+        // The beta welcome is decided on the same draw, from the account's standing, so a new answer
+        // from the server asks for a draw (ShellPage.BetaWelcome.cs).
+        if (App.Services.GetService<SupporterService>() is { } supporter)
+            supporter.Changed += () => DispatcherQueue.TryEnqueue(RefreshCoachmarks);
+
         ShellArt.GeometryChanged += () => frost.Invalidate(FrostReason.Motion);
         ShellArt.BackdropChanged += () => frost.Invalidate(FrostReason.Artwork);
         ShellArt.IdleChanged += _ => frost.Invalidate(FrostReason.Artwork);
@@ -1564,6 +1570,12 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         RefreshCoachmarks();
 
         var library = OnLibrary;
+
+        // An account marked as a tester since it was last read gets the beta welcome on this landing
+        // (ShellPage.BetaWelcome.cs).
+        if (library)
+            AskStanding();
+
         // Use the right height from the start: parked (stopped) while the art is idle (a new library is
         // stopped, so it opens closed with the album wall under the rpm mark), and the saved open
         // height once a track is up. This avoids a flash of open and then collapsed.
