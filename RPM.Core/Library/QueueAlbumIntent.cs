@@ -25,6 +25,8 @@ namespace RPM.Core.Library;
 /// <paramref name="ReleaseId"/> the release in it. These are kept so that naming the tracks later does
 /// not ask the same question again. Choosing a pressing is the slow part of tagging an album, so asking
 /// twice would waste the user's time.</param>
+/// <param name="Series">The series the record is one volume of, or null for "stands alone". Read it
+/// only when <paramref name="SeriesSet"/> is: taking a record out of a series is an answer too.</param>
 public sealed record QueueAlbumIntent(
     long Id = 0,
     bool ClassicalSet = false,
@@ -34,12 +36,14 @@ public sealed record QueueAlbumIntent(
     byte[]? DiscArt = null,
     bool RemoveDiscArt = false,
     string? ReleaseProvider = null,
-    string? ReleaseId = null)
+    string? ReleaseId = null,
+    bool SeriesSet = false,
+    AlbumSeries? Series = null)
 {
     /// <summary>No answers were given. The store deletes the row instead of keeping an empty one.</summary>
     public bool IsEmpty
         => !ClassicalSet && !NormalizeSet && DiscArt is not { Length: > 0 } && !RemoveDiscArt
-           && ReleaseId is not { Length: > 0 };
+           && ReleaseId is not { Length: > 0 } && !SeriesSet;
 
     /// <summary>This intent with the answers in <paramref name="update"/> applied on top. Only the values
     /// that the update SET replace the current ones. The album editor reports untouched fields as
@@ -58,5 +62,7 @@ public sealed record QueueAlbumIntent(
             : update.RemoveDiscArt || RemoveDiscArt,
         ReleaseProvider = update.ReleaseId is { Length: > 0 } ? update.ReleaseProvider : ReleaseProvider,
         ReleaseId = update.ReleaseId is { Length: > 0 } ? update.ReleaseId : ReleaseId,
+        SeriesSet = update.SeriesSet || SeriesSet,
+        Series = update.SeriesSet ? update.Series : Series,
     };
 }

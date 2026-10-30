@@ -45,10 +45,16 @@ public sealed record AlbumMeta(
     string? Edition = null,
     string? PopularTrack = null,
     long PopularAskedUtcTicks = 0,
-    string? Styles = null)
+    string? Styles = null,
+    string? Series = null,
+    string? SeriesVolume = null)
 {
     /// <summary>What an untouched album reads back as: no row in <c>album_meta</c>.</summary>
     public static AlbumMeta Default(string folder) => new(folder, false, 0, null, 0, null);
+
+    /// <summary>The series this record is one volume of, or null where it stands alone. See
+    /// <see cref="AlbumSeries"/>.</summary>
+    public AlbumSeries? InSeries => AlbumSeries.Of(Series, SeriesVolume);
 
     /// <summary>True once the user has rated or written something. An empty review with no stars
     /// is nothing to show.</summary>
@@ -261,8 +267,8 @@ public sealed partial class LibraryDatabase
             cmd.CommandText =
                 "SELECT is_favorite, rating, review_md, review_updated_utc_ticks, release_id, " +
                 "catno, released, classical, normalize, release_provider, barcode, rpm_album_id, " +
-                "disc_id, release_group_id, edition, popular_track, popular_asked_utc_ticks, styles " +
-                "FROM album_meta WHERE folder = $folder";
+                "disc_id, release_group_id, edition, popular_track, popular_asked_utc_ticks, styles, " +
+                "series, series_volume FROM album_meta WHERE folder = $folder";
             cmd.Parameters.AddWithValue("$folder", folder);
             using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadAlbumMeta(folder, reader) : AlbumMeta.Default(folder);
@@ -286,7 +292,7 @@ public sealed partial class LibraryDatabase
                 "SELECT folder, is_favorite, rating, review_md, review_updated_utc_ticks, " +
                 "release_id, catno, released, classical, normalize, release_provider, barcode, " +
                 "rpm_album_id, disc_id, release_group_id, edition, popular_track, " +
-                "popular_asked_utc_ticks, styles FROM album_meta";
+                "popular_asked_utc_ticks, styles, series, series_volume FROM album_meta";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -557,6 +563,60 @@ public sealed partial class LibraryDatabase
         ("$now", DateTime.UtcNow.Ticks),
         insertColumns: "classical, classical_edited_utc_ticks",
         insertValues: "$v, $now");
+
+    /// <summary>
+    /// Says which series this record is one volume of, or that it stands alone (null). See
+    /// <see cref="AlbumSeries"/>: the listener's own answer, kept here and never in the files.
+    /// </summary>
+    public void SetAlbumSeries(string folder, AlbumSeries? series) => UpsertAlbumMeta(
+        AlbumWrite.Said,
+        folder,
+        "series = $name, series_volume = $volume",
+        ("$name", (object?)series?.Name ?? DBNull.Value),
+        ("$volume", (object?)series?.Volume ?? DBNull.Value),
+        insertColumns: "series, series_volume",
+        insertValues: "$name, $volume");
+
+    /// <summary>Every series name the library holds, in alphabetical order: what the album editor
+    /// offers, so the forty-third volume is filed under the same name as the first.</summary>
+    public IReadOnlyList<string> AlbumSeriesNames()
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT series FROM album_meta
+                WHERE series IS NOT NULL AND TRIM(series) <> ''
+                GROUP BY series COLLATE NOCASE
+                ORDER BY series COLLATE NOCASE
+                """;
+            using var reader = cmd.ExecuteReader();
+            var names = new List<string>();
+            while (reader.Read())
+                names.Add(reader.GetString(0));
+            return names;
+        }
+    }
+
+    /// <summary>Every record filed under one series, by folder, in volume order. A folder emptied by
+    /// a move holds no series, so only records still on the shelf answer.</summary>
+    public IReadOnlyList<(string Folder, AlbumSeries Series)> AlbumsInSeries(string name)
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                "SELECT folder, series, series_volume FROM album_meta WHERE series = $name COLLATE NOCASE";
+            cmd.Parameters.AddWithValue("$name", name.Trim());
+            using var reader = cmd.ExecuteReader();
+            var found = new List<(string, AlbumSeries)>();
+            while (reader.Read())
+                if (AlbumSeries.Of(reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2)) is { } series)
+                    found.Add((reader.GetString(0), series));
+            return [.. found.OrderBy(f => f.Item2.Order.Number).ThenBy(f => f.Item2.Order.Text, StringComparer.OrdinalIgnoreCase)];
+        }
+    }
 
     // ── the classical mark's own half of the sync ──
 
@@ -862,6 +922,8 @@ public sealed partial class LibraryDatabase
                         release_group_id = NULL,
                         edition = NULL,
                         styles = NULL,
+                        series = NULL,
+                        series_volume = NULL,
                         popular_track = NULL,
                         popular_asked_utc_ticks = 0,
                         edited_utc_ticks = $now
@@ -896,7 +958,9 @@ public sealed partial class LibraryDatabase
             Edition: r.IsDBNull(folderOrdinalOffset + 14) ? null : r.GetString(folderOrdinalOffset + 14),
             PopularTrack: r.IsDBNull(folderOrdinalOffset + 15) ? null : r.GetString(folderOrdinalOffset + 15),
             PopularAskedUtcTicks: r.GetInt64(folderOrdinalOffset + 16),
-            Styles: r.IsDBNull(folderOrdinalOffset + 17) ? null : r.GetString(folderOrdinalOffset + 17));
+            Styles: r.IsDBNull(folderOrdinalOffset + 17) ? null : r.GetString(folderOrdinalOffset + 17),
+            Series: r.IsDBNull(folderOrdinalOffset + 18) ? null : r.GetString(folderOrdinalOffset + 18),
+            SeriesVolume: r.IsDBNull(folderOrdinalOffset + 19) ? null : r.GetString(folderOrdinalOffset + 19));
 
     /// <summary>One album that the styles sweep still has to ask about: where it is, and the Discogs
     /// release it is already linked to.</summary>

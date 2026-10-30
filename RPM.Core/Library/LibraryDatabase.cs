@@ -1859,6 +1859,12 @@ public sealed partial class LibraryDatabase : IDisposable
         // file is read again. Nothing is filled, because the files are the source.
         AddColumnIfMissing("tracks", "release_type", "TEXT");
 
+        // The series a record is one volume of, and which volume (see AlbumSeries). Added on every open
+        // and not behind a version step, for the same reason as release_type above. An older build that
+        // re-files a record leaves these on the emptied row, which nothing draws.
+        AddColumnIfMissing("album_meta", "series", "TEXT");
+        AddColumnIfMissing("album_meta", "series_volume", "TEXT");
+
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into
         // a walk of the index.

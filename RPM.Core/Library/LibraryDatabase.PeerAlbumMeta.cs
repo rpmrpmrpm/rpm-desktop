@@ -64,14 +64,19 @@ public sealed partial class LibraryDatabase
                 "SELECT folder, is_favorite, rating, review_md, review_updated_utc_ticks, " +
                 "release_id, catno, released, classical, normalize, release_provider, barcode, " +
                 "rpm_album_id, disc_id, release_group_id, edition, popular_track, " +
-                "popular_asked_utc_ticks, styles, edited_utc_ticks FROM album_meta";
+                "popular_asked_utc_ticks, styles, series, series_volume, edited_utc_ticks FROM album_meta";
 
             using var reader = cmd.ExecuteReader();
             var rows = new List<AlbumMetaEdit>();
             while (reader.Read())
             {
                 var meta = ReadAlbumMeta(reader.GetString(0), reader, folderOrdinalOffset: 1);
-                rows.Add(new AlbumMetaEdit(meta, reader.GetInt64(19)));
+
+                // The series is stated, "" for none, because null means something else on the way in:
+                // a build that has never heard of series, whose silence must not erase one here. See
+                // ApplyAlbumMetaEdits.
+                meta = meta with { Series = meta.Series ?? "", SeriesVolume = meta.SeriesVolume ?? "" };
+                rows.Add(new AlbumMetaEdit(meta, reader.GetInt64(21)));
             }
 
             return rows;
@@ -131,11 +136,12 @@ public sealed partial class LibraryDatabase
                         folder,{(heart ? " is_favorite," : "")} rating, review_md, review_updated_utc_ticks,
                         release_id, catno, released, classical, normalize, release_provider,
                         barcode, rpm_album_id, disc_id, release_group_id, edition, popular_track,
-                        popular_asked_utc_ticks, edited_utc_ticks)
+                        popular_asked_utc_ticks, series, series_volume, edited_utc_ticks)
                     VALUES (
                         $folder,{(heart ? " $favorite," : "")} $rating, $review, $reviewAt,
                         $releaseId, $catno, $released, $classical, $normalize, $provider,
-                        $barcode, $rpmAlbumId, $discId, $groupId, $edition, $popular, $asked, $edited)
+                        $barcode, $rpmAlbumId, $discId, $groupId, $edition, $popular, $asked,
+                        NULLIF($series, ''), NULLIF($seriesVolume, ''), $edited)
                     ON CONFLICT(folder) DO UPDATE SET
                         {(heart ? "is_favorite = $favorite," : "")}
                         rating = $rating,
@@ -154,6 +160,12 @@ public sealed partial class LibraryDatabase
                         edition = $edition,
                         popular_track = $popular,
                         popular_asked_utc_ticks = $asked,
+                        -- A build that knows the series always sends it, "" for none. One that does not
+                        -- sends nothing, which arrives as NULL and must not erase the series a newer
+                        -- build filed. See PeerCatalogBuilder.From.
+                        series = CASE WHEN $series IS NULL THEN album_meta.series ELSE NULLIF($series, '') END,
+                        series_volume = CASE WHEN $series IS NULL THEN album_meta.series_volume
+                                             ELSE NULLIF($seriesVolume, '') END,
                         -- Stamped here when the merge changes the classical mark, so this machine
                         -- sends it on to the store. The clock rather than the arriving stamp: the
                         -- arriving stamp is the other machine's, and a mark synced here after it
@@ -191,6 +203,8 @@ public sealed partial class LibraryDatabase
                 cmd.Parameters.AddWithValue("$edition", (object?)meta.Edition ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$popular", (object?)meta.PopularTrack ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$asked", meta.PopularAskedUtcTicks);
+                cmd.Parameters.AddWithValue("$series", (object?)meta.Series ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$seriesVolume", (object?)meta.SeriesVolume ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$edited", edit.EditedUtcTicks);
                 if (heart)
                     cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.Ticks);

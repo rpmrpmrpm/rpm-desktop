@@ -14,8 +14,8 @@ namespace RPM.Desktop.Presentation.Dialogs;
 /// subtitle is written per disc rather than once across the set.</para>
 /// </summary>
 /// <summary>
-/// The two answers the album editor collects that are not written into the files: what kind of record
-/// this is, and whether it is levelled with the rest of the collection.
+/// The answers the album editor collects that are not written into the files: what kind of record
+/// this is, whether it is levelled with the rest of the collection, and which series it is a volume of.
 ///
 /// <para>Each one carries whether it changed, as well as its value. Null is a real answer for the
 /// levelling, and it means "let the settings decide". So null cannot stand for "not changed". False is
@@ -23,7 +23,30 @@ namespace RPM.Desktop.Presentation.Dialogs;
 /// </summary>
 internal readonly record struct AlbumLibraryFacts(
     bool NormalizeChanged, bool? Normalize,
-    bool ClassicalChanged, bool Classical);
+    bool ClassicalChanged, bool Classical,
+    bool SeriesChanged = false, AlbumSeries? Series = null)
+{
+    /// <summary>Whether any of them changed, which is when the caller has something to write.</summary>
+    public bool Any => NormalizeChanged || ClassicalChanged || SeriesChanged;
+
+    /// <summary>
+    /// Writes the changed answers to the library under <paramref name="folder"/>, the library-relative
+    /// folder the mirror knows the record by. One place for it, so every door into the album editor
+    /// keeps what was said in it.
+    /// </summary>
+    public void WriteTo(LibraryDatabase db, string folder)
+    {
+        if (NormalizeChanged)
+            db.SetAlbumNormalize(folder, Normalize);
+
+        // The listener's own answer, and the only thing that makes a record classical.
+        if (ClassicalChanged)
+            db.SetAlbumClassical(folder, Classical);
+
+        if (SeriesChanged)
+            db.SetAlbumSeries(folder, Series);
+    }
+}
 
 internal static class AlbumEdit
 {
@@ -42,17 +65,22 @@ internal static class AlbumEdit
         XamlRoot root, string folder, IReadOnlyList<TrackRow> rows,
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
         bool? normalize = null, bool? classical = null,
-        Action<AlbumLibraryFacts>? onLibraryFacts = null)
+        Action<AlbumLibraryFacts>? onLibraryFacts = null,
+        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
     {
         if (rows.Count == 0)
             return [];
-        if (await AlbumEditDialog.ShowAsync(root, folder, rows, lookup, normalize, classical) is not { } result)
+        if (await AlbumEditDialog.ShowAsync(
+                root, folder, rows, lookup, normalize, classical, series: series, knownSeries: knownSeries)
+            is not { } result)
             return [];
 
-        if (result.NormalizeChanged || result.ClassicalChanged)
-            onLibraryFacts?.Invoke(new AlbumLibraryFacts(
-                result.NormalizeChanged, result.Normalize,
-                result.ClassicalChanged, result.Classical));
+        var facts = new AlbumLibraryFacts(
+            result.NormalizeChanged, result.Normalize,
+            result.ClassicalChanged, result.Classical,
+            result.SeriesChanged, result.Series);
+        if (facts.Any)
+            onLibraryFacts?.Invoke(facts);
 
         var touched = new List<string>();
 
@@ -104,11 +132,13 @@ internal static class AlbumEdit
     public static async Task<QueueAlbumIntent?> EditQueueAlbumAsync(
         XamlRoot root, string folder, IReadOnlyList<TrackRow> rows,
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
-        bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null)
+        bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null,
+        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
     {
         if (rows.Count == 0)
             return null;
-        if (await AlbumEditDialog.ShowAsync(root, folder, rows, lookup, normalize, classical, discArtHeld)
+        if (await AlbumEditDialog.ShowAsync(
+                root, folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries)
             is not { } result)
             return null;
 
@@ -142,6 +172,8 @@ internal static class AlbumEdit
             DiscArt: result.DiscArtBytes,
             RemoveDiscArt: result.RemoveDiscArt,
             ReleaseProvider: result.Release?.Provider,
-            ReleaseId: result.Release?.Id);
+            ReleaseId: result.Release?.Id,
+            SeriesSet: result.SeriesChanged,
+            Series: result.Series);
     }
 }

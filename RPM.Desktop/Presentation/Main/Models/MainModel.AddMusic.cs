@@ -234,6 +234,11 @@ public sealed partial class MainModel
             ? _library.Db.QueueAlbumIntentForRows([.. rows.Select(r => r.QueueId)])
             : null;
 
+    /// <summary>The series names the library already files records under, for the album editor to
+    /// offer. Empty while no library is open.</summary>
+    public IReadOnlyList<string> AlbumSeriesNames()
+        => _library.IsOpen ? _library.Db.AlbumSeriesNames() : [];
+
     /// <summary>The record that a selection is the WHOLE of. It is null when the selection is not one
     /// record's worth: some of a record's tracks, or tracks from several records. A window asks this before
     /// it offers an answer that belongs to the record rather than to any one file. See <see

@@ -269,7 +269,9 @@ public sealed partial class LibraryDatabase
                 disc_hash TEXT,
                 -- The pressing this record was settled against, so the tracklist can be taken from it
                 -- later without asking again.
-                release_provider TEXT, release_id TEXT
+                release_provider TEXT, release_id TEXT,
+                -- The series the record is one volume of. Set or not, like the two answers above.
+                series_set INTEGER NOT NULL DEFAULT 0, series TEXT, series_volume TEXT
             )
             """);
 

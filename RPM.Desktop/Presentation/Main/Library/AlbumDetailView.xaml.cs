@@ -1603,6 +1603,13 @@ public sealed partial class AlbumDetailView : UserControl
         // and doubled on the way up.
         MyStars.Value = meta.Rating;
 
+        // Which series it belongs to, under the name. A numbered volume says which one; a series that is
+        // not numbered says only that the record is part of it.
+        SeriesText.Text = meta.InSeries is not { } series ? ""
+            : series.Volume is { } volume ? Loc.Format("Album_SeriesVolume", volume, series.Name)
+            : Loc.Format("Album_SeriesPart", series.Name);
+        SeriesText.Visibility = SeriesText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
         // A record with no linked pressing has no Discogs page to show. So the item is hidden, not left there to do
         // nothing.
         DiscogsMenuItem.Visibility = string.IsNullOrEmpty(meta.DiscogsReleaseId)

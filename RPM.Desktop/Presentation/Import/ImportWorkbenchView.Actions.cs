@@ -356,6 +356,8 @@ public sealed partial class ImportWorkbenchView
                 rows, wantArt, QueueTrackStep(rows, ticked: false), wantDiscArt: true),
             normalize: opening?.NormalizeSet == true ? opening.Normalize : null,
             classical: opening?.ClassicalSet == true ? opening.Classical : null,
+            series: opening?.SeriesSet == true ? opening.Series : null,
+            knownSeries: m.AlbumSeriesNames(),
             // The label chosen earlier. Nothing on disk holds it for a record that is not filed yet. An editor
             // that is not given it shows an empty well, even when the record has a label.
             discArtHeld: opening?.DiscArt);

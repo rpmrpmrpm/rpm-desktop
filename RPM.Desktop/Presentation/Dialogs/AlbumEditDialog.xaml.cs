@@ -23,6 +23,8 @@ namespace RPM.Desktop.Presentation.Dialogs;
 /// <param name="TitleNote">The note to add to every track title that does not already carry it, such as
 /// "(Live)" or "(Mixed)", or null for none. Each track keeps its own title, so this is a rule applied per
 /// track, not a field with one value. See <see cref="RPM.Core.Library.TitleNote"/>.</param>
+/// <param name="Series">The series the record is one volume of, or null where it stands alone. Read it
+/// only when <paramref name="SeriesChanged"/> is set.</param>
 public sealed record AlbumEditResult(
     IReadOnlyDictionary<TagFieldKind, string> Fields,
     IReadOnlyDictionary<uint, IReadOnlyDictionary<TagFieldKind, string>> Discs,
@@ -37,12 +39,15 @@ public sealed record AlbumEditResult(
     bool Classical = false,
     bool ClassicalChanged = false,
     RPM.Core.Metadata.Providers.ReleaseRef? Release = null,
-    RPM.Core.Library.TitleNote? TitleNote = null)
+    RPM.Core.Library.TitleNote? TitleNote = null,
+    RPM.Core.Library.AlbumSeries? Series = null,
+    bool SeriesChanged = false)
 {
     public bool IsEmpty =>
         Fields.Count == 0 && Discs.Count == 0
         && ArtBytes is null && DiscArtBytes is null && !RemoveDiscArt && !RemoveArt
-        && !NormalizeChanged && !ClassicalChanged && Release is null && TitleNote is null;
+        && !NormalizeChanged && !ClassicalChanged && Release is null && TitleNote is null
+        && !SeriesChanged;
 }
 
 /// <summary>Editing a record as a record.
@@ -135,6 +140,16 @@ public sealed partial class AlbumEditDialog : ContentDialog
     private ComboBox? _normalize;
     private ComboBox? _classical;
 
+    /// <summary>The series this record opened in, or null where it stood alone, and the names the
+    /// library already files records under, offered so a new volume joins its series rather than
+    /// starting a second one spelled differently.</summary>
+    private readonly RPM.Core.Library.AlbumSeries? _seriesSeed;
+    private readonly IReadOnlyList<string> _knownSeries;
+
+    private ComboBox? _inSeries;
+    private ComboBox? _seriesName;
+    private TextBox? _seriesVolume;
+
     /// <summary>The "(Live)" or "(Mixed)" tick under the release type, or null where the form has no
     /// release type box.</summary>
     private TitleNoteOffer? _titleNote;
@@ -158,9 +173,12 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
     public AlbumEditDialog(
         string folder, IReadOnlyList<TrackRow> rows, Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
-        bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null)
+        bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null,
+        RPM.Core.Library.AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
     {
         InitializeComponent();
+        _seriesSeed = series;
+        _knownSeries = knownSeries ?? [];
         _rows = rows;
         _folder = folder;
         _lookup = lookup;
@@ -194,6 +212,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
         AddGroup(WorkRight, TagFields.Groups.Identifiers, TagScope.Album);
 
         AddRecordFacts(SettingsLeft);
+        AddSeries(SettingsLeft);
 
         AddPictures(ArtworkHost);
         BuildTabs();
@@ -262,6 +281,53 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
         group.AddTo(column, "AlbumEdit_GroupSettings");
     }
+
+    /// <summary>
+    /// Whether this record is one volume of a series, which series, and which volume. Kept in the
+    /// library like the two answers above it, and never written into the files: see
+    /// <see cref="RPM.Core.Library.AlbumSeries"/>.
+    ///
+    /// <para>The name and the volume wait behind the yes. Most records stand alone, and two empty boxes
+    /// on every one of them would read as two things left undone.</para>
+    /// </summary>
+    private void AddSeries(Panel column)
+    {
+        var group = new DenseFormGroup();
+
+        _inSeries = YesNo("AlbumEdit_SeriesYes", "AlbumEdit_SeriesNo", _seriesSeed is not null);
+        group.Add(null, DenseForm.Label("AlbumEdit_InSeries"), _inSeries);
+
+        _seriesName = MassEditDialog.SuggestBox(_knownSeries, _seriesSeed?.Name);
+        _seriesName.PlaceholderText = Loc.Get("AlbumEdit_SeriesNameHint");
+        group.Add(null, DenseForm.Label("AlbumEdit_SeriesName"), _seriesName);
+
+        _seriesVolume = new TextBox
+        {
+            Text = _seriesSeed?.Volume ?? "",
+            PlaceholderText = Loc.Get("AlbumEdit_SeriesVolumeHint"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        group.Add(null, DenseForm.Label("AlbumEdit_SeriesVolume"), _seriesVolume);
+
+        void Follow()
+        {
+            var on = _inSeries.SelectedIndex == 1;
+            _seriesName.IsEnabled = on;
+            _seriesVolume.IsEnabled = on;
+        }
+        _inSeries.SelectionChanged += (_, _) => Follow();
+        Follow();
+
+        group.AddTo(column, "AlbumEdit_GroupSeries");
+    }
+
+    /// <summary>The series as the window now says it: null for "stands alone", and null too for a yes
+    /// with no name, because a series nobody named is no series.</summary>
+    private RPM.Core.Library.AlbumSeries? SeriesNow()
+        => _inSeries is null ? _seriesSeed
+           : _inSeries.SelectedIndex != 1 ? null
+           : RPM.Core.Library.AlbumSeries.Of(
+               _seriesName is null ? null : MassEditDialog.ReadSuggest(_seriesName), _seriesVolume?.Text);
 
     /// <summary>One of these answers: work it out, yes, or no. Null, which means "work it out", is
     /// first, because it is the default and the common case.</summary>
@@ -873,6 +939,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
         var normalize = _normalize is null ? _normalizeSeed : TristateOf(_normalize.SelectedIndex);
         bool classical = _classical is null ? _classicalSeed == true : _classical.SelectedIndex == 1;
+        var series = SeriesNow();
 
         _result = new AlbumEditResult(
             fields, discs,
@@ -887,7 +954,9 @@ public sealed partial class AlbumEditDialog : ContentDialog
             classical,
             classical != (_classicalSeed == true),
             _picked,
-            TitleNote: _titleNote?.Wanted);
+            TitleNote: _titleNote?.Wanted,
+            Series: series,
+            SeriesChanged: series != _seriesSeed);
         Hide();
     }
 
@@ -898,9 +967,10 @@ public sealed partial class AlbumEditDialog : ContentDialog
     public static async Task<AlbumEditResult?> ShowAsync(
         XamlRoot xamlRoot, string folder, IReadOnlyList<TrackRow> rows,
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null, bool? normalize = null, bool? classical = null,
-        byte[]? discArtHeld = null)
+        byte[]? discArtHeld = null, RPM.Core.Library.AlbumSeries? series = null,
+        IReadOnlyList<string>? knownSeries = null)
     {
-        var dialog = new AlbumEditDialog(folder, rows, lookup, normalize, classical, discArtHeld)
+        var dialog = new AlbumEditDialog(folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries)
         {
             XamlRoot = xamlRoot,
         };

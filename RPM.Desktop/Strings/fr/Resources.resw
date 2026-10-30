@@ -5245,6 +5245,46 @@
     <value>Non</value>
     <comment>Album editor choice: this is not a classical record. The default.</comment>
   </data>
+  <data name="AlbumEdit_GroupSeries" xml:space="preserve">
+    <value>SÉRIE</value>
+    <comment>Album editor group kicker for the series a record is one volume of, such as a box-set edition released over many volumes. ALLCAPS, like every other group kicker.</comment>
+  </data>
+  <data name="AlbumEdit_InSeries" xml:space="preserve">
+    <value>Fait partie d'une série</value>
+    <comment>Album editor field label: whether this record is one volume of a series of releases, such as volume 43 of The Complete Mozart Edition.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesYes" xml:space="preserve">
+    <value>Oui</value>
+    <comment>Album editor choice: this record is one volume of a series.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesNo" xml:space="preserve">
+    <value>Non</value>
+    <comment>Album editor choice: this record stands alone. The default.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesName" xml:space="preserve">
+    <value>Série</value>
+    <comment>Album editor field label: the name of the series this record belongs to. The box also offers the series already in the library.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesNameHint" xml:space="preserve">
+    <value>p. ex. The Complete Mozart Edition</value>
+    <comment>Placeholder in the album editor's series name box. The example is a real box set's own title, so it stays in English.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesVolume" xml:space="preserve">
+    <value>Volume</value>
+    <comment>Album editor field label: which volume of the series this record is.</comment>
+  </data>
+  <data name="AlbumEdit_SeriesVolumeHint" xml:space="preserve">
+    <value>p. ex. 43</value>
+    <comment>Placeholder in the album editor's volume box.</comment>
+  </data>
+  <data name="Album_SeriesVolume" xml:space="preserve">
+    <value>Volume {0} de {1}</value>
+    <comment>Line under an album's title on its page: which volume of which series it is. {0} is the volume as the listener typed it (43, IV, 3a), {1} the series' name.</comment>
+  </data>
+  <data name="Album_SeriesPart" xml:space="preserve">
+    <value>Fait partie de {0}</value>
+    <comment>Line under an album's title on its page, for a series whose volumes are not numbered. {0} is the series' name.</comment>
+  </data>
   <data name="AlbumEdit_GroupSettings" xml:space="preserve">
     <value>RÉGLAGES</value>
     <comment>Album editor group kicker for the answers kept in the library rather than written into the files. ALLCAPS, like every other group kicker.</comment>

@@ -869,9 +869,23 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
         // gives each row the path its file actually landed at (`MassEdit.WriteToLibrary` to
         // `TrackRow.FiledAt`). Without that, the rows that this window still holds would name files that had
         // moved, and its OK would skip every one of them without saying so.
+        // The record's own answers, the ones kept in the library rather than the files, go in and come back
+        // out the same way as from the album page's editor. Without them this door opened every record as an
+        // unclassified one standing alone, and dropped whatever was said about either.
+        var db = App.Services.GetRequiredService<LibraryService>().Db;
+        var meta = db.GetAlbumMeta(folder);
         var touched = await AlbumEdit.EditAsync(
             XamlRoot, LibraryFolderPath(folder) ?? folder, rows,
-            wantArt => LookUpReleaseForRowsAsync(rows, wantArt, LibraryTrackStep(rows, ticked: false)));
+            wantArt => LookUpReleaseForRowsAsync(rows, wantArt, LibraryTrackStep(rows, ticked: false)),
+            normalize: meta.Normalize,
+            classical: meta.Classical,
+            series: meta.InSeries,
+            knownSeries: db.AlbumSeriesNames(),
+            onLibraryFacts: facts =>
+            {
+                facts.WriteTo(db, folder);
+                App.Services.GetRequiredService<NormalizationService>().Forget();
+            });
         foreach (var f in touched.Append(folder).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             AlbumWall.RefreshAlbum(f);

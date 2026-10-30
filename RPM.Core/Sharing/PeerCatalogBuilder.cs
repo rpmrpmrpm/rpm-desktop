@@ -160,6 +160,11 @@ public static class PeerCatalogBuilder
                 Released = meta.Released,
                 Edition = meta.Edition,
                 Styles = meta.Styles,
+
+                // Which series the record is a volume of. Always sent, "" for none, so a receiver can
+                // tell "stands alone" from a build that never heard of series (ApplyAlbumMetaEdits).
+                Series = meta.InSeries?.Name ?? "",
+                SeriesVolume = meta.InSeries?.Volume ?? "",
                 PopularTrack = meta.PopularTrack,
                 PopularAskedUtcTicks = meta.PopularAskedUtcTicks,
 
@@ -200,6 +205,8 @@ public static class PeerCatalogBuilder
                     ReleaseGroupId: a.ReleaseGroupId,
                     Edition: a.Edition,
                     Styles: a.Styles,
+                    Series: a.Series,
+                    SeriesVolume: a.SeriesVolume,
                     PopularTrack: a.PopularTrack,
                     PopularAskedUtcTicks: a.PopularAskedUtcTicks),
                 a.EditedUtcTicks))

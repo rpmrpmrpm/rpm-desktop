@@ -67,8 +67,8 @@ public sealed partial class LibraryDatabase
             cmd.CommandText =
                 """
                 INSERT INTO queue_album (classical_set, classical, normalize_set, normalize, disc_hash,
-                                         release_provider, release_id)
-                VALUES ($cs, $c, $ns, $n, $disc, $provider, $release)
+                                         release_provider, release_id, series_set, series, series_volume)
+                VALUES ($cs, $c, $ns, $n, $disc, $provider, $release, $ss, $series, $volume)
                 RETURNING id
                 """;
         }
@@ -78,7 +78,8 @@ public sealed partial class LibraryDatabase
                 """
                 UPDATE queue_album
                 SET classical_set = $cs, classical = $c, normalize_set = $ns, normalize = $n,
-                    disc_hash = $disc, release_provider = $provider, release_id = $release
+                    disc_hash = $disc, release_provider = $provider, release_id = $release,
+                    series_set = $ss, series = $series, series_volume = $volume
                 WHERE id = $id
                 RETURNING id
                 """;
@@ -91,6 +92,9 @@ public sealed partial class LibraryDatabase
         cmd.Parameters.AddWithValue("$disc", (object?)discHash ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$provider", (object?)merged.ReleaseProvider ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$release", (object?)merged.ReleaseId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$ss", merged.SeriesSet ? 1 : 0);
+        cmd.Parameters.AddWithValue("$series", (object?)merged.Series?.Name ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$volume", (object?)merged.Series?.Volume ?? DBNull.Value);
 
         var newId = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
         StampRowsLocked(rowIds, newId);
@@ -288,7 +292,9 @@ public sealed partial class LibraryDatabase
         Normalize: TriBack(r, "normalize"),
         RemoveDiscArt: Str(r, "disc_hash") == ArtRemovedHash,
         ReleaseProvider: Str(r, "release_provider"),
-        ReleaseId: Str(r, "release_id"));
+        ReleaseId: Str(r, "release_id"),
+        SeriesSet: Int(r, "series_set") != 0,
+        Series: AlbumSeries.Of(Str(r, "series"), Str(r, "series_volume")));
 
     /// <summary>A three-valued answer as SQLite holds it: NULL means leave it to the app, and 0 or 1 means
     /// a person has said so.</summary>

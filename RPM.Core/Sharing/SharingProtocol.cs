@@ -488,6 +488,11 @@ public sealed record PeerAlbum
     /// Taking the lender's saves a request against somebody's rate limit.</summary>
     [JsonPropertyName("styles")] public string? Styles { get; init; }
 
+    /// <summary>The series the record is one volume of, and which volume. "" for none. Absent from an older
+    /// peer's listing, which reads as null and leaves the receiver's own answer standing.</summary>
+    [JsonPropertyName("series")] public string? Series { get; init; }
+    [JsonPropertyName("seriesVolume")] public string? SeriesVolume { get; init; }
+
     /// <summary>The record's best-known song, as the lender's machine was told it. It is not the lender's opinion,
     /// and it is not their listening. It is the same public answer that this machine would fetch for itself. Taking
     /// theirs saves a guest three calls to two rate-limited services.</summary>

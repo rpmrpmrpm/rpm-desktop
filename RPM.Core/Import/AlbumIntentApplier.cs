@@ -28,6 +28,8 @@ public static class AlbumIntentApplier
             db.SetAlbumClassical(relativeFolder, intent.Classical);
         if (intent.NormalizeSet)
             db.SetAlbumNormalize(relativeFolder, intent.Normalize);
+        if (intent.SeriesSet)
+            db.SetAlbumSeries(relativeFolder, intent.Series);
 
         // The intent carries the record the user settled on in the queue, because it is what named the
         // tracks. Store it as the album's own link too. Otherwise an album identified by hand would

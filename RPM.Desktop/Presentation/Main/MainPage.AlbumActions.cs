@@ -364,14 +364,11 @@ public sealed partial class MainPage
             ask => LookUpReleaseAsync(folder, ask, LibraryTrackStep(rows, ticked: false)),
             normalize: meta.Normalize,
             classical: meta.Classical,
+            series: meta.InSeries,
+            knownSeries: db.AlbumSeriesNames(),
             onLibraryFacts: facts =>
             {
-                if (facts.NormalizeChanged)
-                    db.SetAlbumNormalize(folder, facts.Normalize);
-
-                // The listener's own answer, and the only thing that makes a record classical.
-                if (facts.ClassicalChanged)
-                    db.SetAlbumClassical(folder, facts.Classical);
+                facts.WriteTo(db, folder);
 
                 // The resolver caches per album, and the record being edited may be the one playing.
                 // Both answers feed it: the classical one is what excuses a record from levelling.

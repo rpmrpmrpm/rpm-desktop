@@ -763,6 +763,14 @@
           <TextBlock x:Name="EditionText" FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFFFF"
                      Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center"
                      HorizontalAlignment="Center" Visibility="Collapsed"/>
+          <!-- The series this record is one volume of: "Volume 43 of The Complete Mozart Edition". The
+              listener's own answer from the album editor (see AlbumSeries), so it is set with the rest of
+              the album's library facts in ApplyMeta. The same weight as the edition, because it is the
+              same kind of note about the name, and left out for the records that stand alone.
+              -->
+          <TextBlock x:Name="SeriesText" FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFFFF"
+                     Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center"
+                     HorizontalAlignment="Center" Visibility="Collapsed"/>
           <TextBlock x:Name="SubtitleText" FontSize="12" Foreground="#B8FFFFFF" TextWrapping="Wrap"
                      TextAlignment="Center" HorizontalAlignment="Center"/>
         </StackPanel>
