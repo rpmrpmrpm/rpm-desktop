@@ -25,6 +25,14 @@ on:
   # Started by hand only on a tag: "Use workflow from" must name rpm-v<X.Y.Z>. A run on a branch stops
   # at Determine version, because a version typed here would name no commit.
   workflow_dispatch:
+    inputs:
+      no_delta:
+        description: >-
+          Full package only, added to the live feed (no delta). For a release that adds a file in a
+          folder the previous package does not have: update.exe cannot write it, and the delta step
+          fails. The same as release-mac.sh --no-delta.
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -226,6 +234,7 @@ jobs:
       # listed (scripts/release_delta.py, and DeltaChain in the app for why the feed must only grow).
       # It runs before the upload, so a delta that fails is never published.
       - name: Delta from the previous release
+        if: ${{ !inputs.no_delta }}
         shell: pwsh
         run: |
           python -I -m unittest discover -s rpm-desktop/scripts -p test_release_delta.py
@@ -265,6 +274,27 @@ jobs:
             --channel ${{ env.CHANNEL }} --full $full --delta $delta --out release
           if ($LASTEXITCODE -ne 0) { throw "Could not write the feed." }
           "delta: {0:N1} MB, full: {1:N1} MB" -f ((Get-Item $delta).Length / 1MB), ((Get-Item $full).Length / 1MB)
+
+      # The run started by hand with no_delta: the live feed is kept and this release is added to it as
+      # a full package only. Installed copies download the whole package for this one update.
+      - name: Full package only, added to the live feed
+        if: ${{ inputs.no_delta }}
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $updateHost = (Select-String -Path rpm-desktop/RPM.Desktop/Services/Updates/UpdateChannel.cs `
+            -Pattern 'const string Host = "([^"]+)"').Matches[0].Groups[1].Value
+          if (-not $updateHost) { throw "Could not read Host from UpdateChannel.cs." }
+
+          python -I rpm-desktop/scripts/release_delta.py previous --feed "$updateHost/${{ env.CHANNEL }}/" `
+            --channel ${{ env.CHANNEL }} --version $version --out previous --no-delta
+          if ($LASTEXITCODE -ne 0) { throw "Could not read the live feed from $updateHost." }
+
+          $full = "release/${{ env.PACK_ID }}-$version-${{ env.CHANNEL }}-full.nupkg"
+          python -I rpm-desktop/scripts/release_delta.py feed --previous "previous/releases.${{ env.CHANNEL }}.json" `
+            --channel ${{ env.CHANNEL }} --full $full --no-delta --out release
+          if ($LASTEXITCODE -ne 0) { throw "Could not write the feed." }
+          "no delta: full package {0:N1} MB" -f ((Get-Item $full).Length / 1MB)
 
       # Signed in again: the build above can outlast the first sign-in's hour.
       - uses: aws-actions/configure-aws-credentials@v6
