@@ -545,8 +545,13 @@ public sealed partial class TrackInfoService
     /// <summary>Answers written before the API sent the record's own artist can name the wrong act. For a
     /// record whose two halves named different people, the act that a name search found is stored, with its
     /// country, its links and an article about the wrong person. Changing this version drops those
-    /// answers.</summary>
-    private const string CacheVersion = "v9";
+    /// answers.
+    ///
+    /// <para>v10 (2026-10-30): a classical record with no article of its own is described by the work it
+    /// records (its opera's or symphony's article, its premiere, its genres), where it was described by
+    /// whichever recording a title search ranked first. Answers kept under v9 carry that recording.</para>
+    /// </summary>
+    private const string CacheVersion = "v10";
 
     private static string CacheKey(string artist, string? album) =>
         $"{CacheVersion} {artist.Trim()} {album?.Trim() ?? ""}".ToLowerInvariant();
