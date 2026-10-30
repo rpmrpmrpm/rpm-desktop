@@ -1039,6 +1039,8 @@ if [ "${DMG}" = true ]; then
     echo "  package : ${NUPKG_PATH}"
     if [ -f "${DELTA_PATH}" ]; then
         echo "  delta   : ${DELTA_PATH} ($(du -h "${DELTA_PATH}" | cut -f1))"
+    elif [ "${NO_DELTA}" = true ]; then
+        echo "  delta   : none (--no-delta)"
     else
         echo "  delta   : none (--first-release)"
     fi
