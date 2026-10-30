@@ -268,9 +268,7 @@ public sealed partial class QueueCard : UserControl
         var shuffled = Model?.IsQueueShuffled == true;
         ShuffleKey.IsEnabled = Model?.CanShuffleQueue == true;
         PaintKey(ShuffleKey, shuffled);
-        var shuffleTip = Loc.Get(shuffled ? "Deck_QueueUnshuffle" : "Rpm_Queue_Shuffle");
-        ToolTipService.SetToolTip(ShuffleKey, shuffleTip);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ShuffleKey, shuffleTip);
+        IconName.Set(ShuffleKey, Loc.Get(shuffled ? "Deck_QueueUnshuffle" : "Rpm_Queue_Shuffle"));
 
         RearrangeKey.IsEnabled = _rearranging || _rows.Count > 1;
         PaintKey(RearrangeKey, _rearranging);
