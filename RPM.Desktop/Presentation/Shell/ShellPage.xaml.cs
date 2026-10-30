@@ -1535,6 +1535,7 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
 
         // One-shot: each waiting handler is called once. A second splash (there is never one) must
         // not call them again.
+        HasRevealed = true;
         var waiting = Revealed;
         Revealed = null;
         waiting?.Invoke();
@@ -1548,6 +1549,10 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     /// would resize itself behind a black rectangle, which looks like a slow start.</para>
     /// </summary>
     public static event Action? Revealed;
+
+    /// <summary>True once <see cref="Revealed"/> has been raised. A page that arrives after it has nothing
+    /// left to wait for.</summary>
+    public static bool HasRevealed { get; private set; }
 
     /// <summary>Shows the artwork band and the library-only menu items on the library page. On the setup
     /// page it collapses them, and the setup page gets the whole window for its picker.</summary>

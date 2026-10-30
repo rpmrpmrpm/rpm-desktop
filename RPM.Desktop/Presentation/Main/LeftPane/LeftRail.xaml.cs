@@ -22,6 +22,13 @@ internal sealed partial class LeftRail : UserControl
     /// button that is.</summary>
     public FrameworkElement ImportTabTarget => RailImport;
 
+    /// <summary>The middle of the three side screens (track info, the visualizers and the radio). The
+    /// first-run hint about them points here, which is between the other two.</summary>
+    public FrameworkElement SideScreensTarget => RailViz;
+
+    /// <summary>The three side screens' buttons, top to bottom.</summary>
+    public IReadOnlyList<FrameworkElement> SideScreensParts => [RailTrackInfo, RailViz, RailRadio];
+
     /// <summary>
     /// Turns the fold button to show what it does now: left while there is a view to fold, right
     /// once the view is folded and pressing the button brings it back.

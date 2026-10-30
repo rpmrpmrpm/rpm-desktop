@@ -15,40 +15,34 @@
        Both buttons finish. Becoming a supporter opens a browser and lands on the library anyway. A
        purchase that completes somewhere else must not leave the app parked here waiting for it. -->
 
-  <Grid Margin="52,40,52,0" RowSpacing="16">
+  <!-- Centred, as the first step is: the heading and what it heads are one group in the middle of the
+       window, with the air above and below it shared (TopSpace and BottomSpace). The top margin keeps
+       the group clear of the mark the host keeps in the corner. -->
+  <Grid Margin="52,110,52,0" RowSpacing="26">
     <Grid.RowDefinitions>
+      <RowDefinition x:Name="TopSpace" Height="*"/>
       <RowDefinition Height="Auto"/>
-      <RowDefinition Height="*"/>
+      <RowDefinition x:Name="BodyRow" Height="Auto"/>
+      <RowDefinition x:Name="BottomSpace" Height="*"/>
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <!-- Header: the record, the step, and the result. -->
-    <Grid Grid.Row="0" ColumnSpacing="16">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
-
-      <ctl:RecordDisc x:Name="Disc" Grid.Column="0" IsHitTestVisible="False"/>
-
-      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-        <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"/>
-        <TextBlock Text="{loc:Str Key=Wizard_DoneTitle}"
-                   FontFamily="{StaticResource RpmDisplayFontBold}"
-                   FontSize="24" Foreground="White"/>
-      </StackPanel>
-
-      <!-- What was imported. Step two shows the source folder here. This is the news, so it sits on the
-           header's own line, not in a card further down. -->
-      <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2"
-                  HorizontalAlignment="Right">
+    <!-- The kicker and the heading as the first step sets them, centred over what they head. -->
+    <StackPanel Grid.Row="1" Spacing="20" HorizontalAlignment="Center" MaxWidth="1000">
+      <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"
+                 HorizontalAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=Wizard_DoneTitle}"
+                 FontFamily="{StaticResource RpmDisplayFontBold}"
+                 FontSize="38" LineHeight="42" Foreground="White" TextWrapping="Wrap"
+                 TextAlignment="Center" HorizontalAlignment="Center"/>
+      <!-- What was imported, under the heading: this is the news. -->
+      <StackPanel Spacing="2" HorizontalAlignment="Center">
         <TextBlock x:Name="AlbumsText" FontSize="16" FontWeight="Bold" Foreground="White"
-                   HorizontalAlignment="Right"/>
+                   HorizontalAlignment="Center"/>
         <TextBlock x:Name="TracksText" FontSize="12.5" Foreground="#8CFFFFFF"
-                   HorizontalAlignment="Right"/>
+                   HorizontalAlignment="Center"/>
       </StackPanel>
-    </Grid>
+    </StackPanel>
 
     <!-- The ask. -->
     <!-- The card is centred, at the height its content needs. Two other placements put the empty space
@@ -56,7 +50,7 @@
          looked like a large box with a little writing in it. Top-aligned, the whole lower half of the
          window was bare above the buttons. There is not enough on this screen to fill a tall window, so
          an island of content with air around it is the right look. -->
-    <Border Grid.Row="1" CornerRadius="12" Padding="26,22" MaxWidth="1000"
+    <Border x:Name="SupportCard" Grid.Row="2" CornerRadius="12" Padding="26,22" MaxWidth="1000"
             VerticalAlignment="Center" HorizontalAlignment="Stretch"
             Background="#13FFFFFF" BorderThickness="1" BorderBrush="#2BFFFFFF">
       <Grid RowSpacing="15">
@@ -102,7 +96,7 @@
     </Border>
 
     <!-- Footer. It uses the same band as the other two steps. -->
-    <Grid Grid.Row="2" Height="{StaticResource WizardFooterHeight}">
+    <Grid Grid.Row="4" Height="{StaticResource WizardFooterHeight}">
       <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right"
                   VerticalAlignment="Center">
         <!-- Its words are set in Show: with nothing imported it says Import and goes back a step,

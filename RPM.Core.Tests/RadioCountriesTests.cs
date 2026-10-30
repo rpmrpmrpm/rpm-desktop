@@ -104,6 +104,34 @@ public class RadioCountriesTests
         Assert.Contains(offered, c => c.Code == $"C{RadioCountries.Offered - 1:D3}");
     }
 
+    /// <summary>The listener's own country leads, ahead of the A to Z, even when it has few stations.
+    /// The list is still no longer than <see cref="RadioCountries.Offered"/>.</summary>
+    [Fact]
+    public void The_listeners_country_comes_first()
+    {
+        var many = Enumerable.Range(0, RadioCountries.Offered + 5)
+            .Select(i => new RadioFacet($"Country {i:D3}", $"C{i:D3}", 1000 - i))
+            .Append(new RadioFacet("The Netherlands", "nl", 1))
+            .ToList();
+
+        var offered = RadioCountries.ForPicker(many, home: "NL");
+
+        Assert.Equal(RadioCountries.Offered, offered.Count);
+        Assert.Equal(("NL", "Netherlands"), (offered[0].Code, offered[0].Name));
+        Assert.Equal("Country 000", offered[1].Name);
+    }
+
+    /// <summary>A home country the directory does not have changes nothing.</summary>
+    [Fact]
+    public void An_unknown_home_country_leaves_the_list_alone()
+    {
+        IReadOnlyList<RadioFacet> countries = [new("Germany", "DE", 2000), new("Austria", "AT", 500)];
+
+        Assert.Equal(
+            RadioCountries.ForPicker(countries).Select(c => c.Code),
+            RadioCountries.ForPicker(countries, home: "ZZ").Select(c => c.Code));
+    }
+
     /// <summary>A to Z by the shown name, so "The Netherlands" is under N and "The United Kingdom Of
     /// Great Britain And Northern Ireland" under U.</summary>
     [Fact]

@@ -168,6 +168,52 @@ public sealed partial class AuthService
     }
 
     /// <summary>
+    /// Makes an rpm account with an email and password (<c>auth/register</c>). The account starts
+    /// unconfirmed: the accounts service mails a six-digit code, which <see cref="ConfirmSignUpAsync"/>
+    /// takes. Signing up happens only in the apps, so a new listener can do it without a browser.
+    /// </summary>
+    public Task<SignUpAnswer> SignUpAsync(string name, string email, string password) => PostSignUpAsync(
+        "auth/register", new RegisterRequest(name.Trim(), email.Trim(), password), AuthJson.Default.RegisterRequest);
+
+    /// <summary>Takes the mailed code (<c>auth/confirm</c>). The account is live once this answers
+    /// <see cref="SignUpAnswer.Ok"/>; signing in with the password then works.</summary>
+    public Task<SignUpAnswer> ConfirmSignUpAsync(string email, string code) => PostSignUpAsync(
+        "auth/confirm", new ConfirmRequest(email.Trim(), code.Trim()), AuthJson.Default.ConfirmRequest);
+
+    /// <summary>Mails a fresh code (<c>auth/resend-code</c>).</summary>
+    public Task<SignUpAnswer> ResendSignUpCodeAsync(string email) => PostSignUpAsync(
+        "auth/resend-code", new EmailOnlyRequest(email.Trim()), AuthJson.Default.EmailOnlyRequest);
+
+    private async Task<SignUpAnswer> PostSignUpAsync<T>(
+        string path, T request, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> type)
+    {
+        try
+        {
+            var res = await _http.PostAsJsonAsync(path, request, type);
+            if (res.IsSuccessStatusCode)
+                return SignUpAnswer.Ok;
+
+            // The service's refusals carry a code ("already_registered", "weak_password", ...). The
+            // sentence beside it is English and stays in the log; the window says its own.
+            var body = await res.Content.ReadAsStringAsync();
+            Said.Line("auth", $"{path} refused: {(int)res.StatusCode} {body}");
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                if (json.RootElement.TryGetProperty("code", out var code) && code.GetString() is { Length: > 0 } said)
+                    return new SignUpAnswer(false, said);
+            }
+            catch (System.Text.Json.JsonException) { }
+            return new SignUpAnswer(false, "refused");
+        }
+        catch (Exception ex)
+        {
+            Faults.Note("auth", path, ex);
+            return new SignUpAnswer(false, "network");
+        }
+    }
+
+    /// <summary>
     /// Social sign-in. It asks the accounts API for a one-time session and a browser URL and opens that URL.
     /// When the person is done, the website sends the browser back to this app with a one-time code: to the
     /// sign-in sheet on macOS (<see cref="MacWebAuth"/>), and to a port on <c>127.0.0.1</c> on Windows and
@@ -623,6 +669,18 @@ public sealed partial class AuthService
     private sealed record DeleteAccountRequest(
         [property: JsonPropertyName("confirmEmail")] string ConfirmEmail);
 
+    private sealed record RegisterRequest(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("email")] string Email,
+        [property: JsonPropertyName("password")] string Password);
+
+    private sealed record ConfirmRequest(
+        [property: JsonPropertyName("email")] string Email,
+        [property: JsonPropertyName("code")] string Code);
+
+    private sealed record EmailOnlyRequest(
+        [property: JsonPropertyName("email")] string Email);
+
     /// <summary>The shapes of the account API, as the source generator describes them. The shape of the stored
     /// session is in <see cref="SessionStore"/>.</summary>
     [JsonSerializable(typeof(LoginRequest))]
@@ -633,6 +691,9 @@ public sealed partial class AuthService
     [JsonSerializable(typeof(RefreshRequest))]
     [JsonSerializable(typeof(RefreshResponse))]
     [JsonSerializable(typeof(DeleteAccountRequest))]
+    [JsonSerializable(typeof(RegisterRequest))]
+    [JsonSerializable(typeof(ConfirmRequest))]
+    [JsonSerializable(typeof(EmailOnlyRequest))]
     private sealed partial class AuthJson : JsonSerializerContext;
 
 }

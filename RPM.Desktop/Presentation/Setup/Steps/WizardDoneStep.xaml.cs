@@ -38,12 +38,21 @@ public sealed partial class WizardDoneStep : UserControl
     private static readonly Windows.UI.Color Cyan = Windows.UI.Color.FromArgb(0xFF, 0x04, 0xC8, 0xFF);
     private static readonly Windows.UI.Color Gold = Windows.UI.Color.FromArgb(0xFF, 0xEF, 0xAF, 0x12);
 
+    /// <summary>
+    /// Whether the last step asks for support: the card with the perks, and the Become a supporter
+    /// button. Off while rpm is not taking supporters yet; the card is kept whole, so turning this back on
+    /// is all it takes to bring it back.
+    /// </summary>
+    private const bool AsksForSupport = false;
+
     public WizardDoneStep()
     {
         InitializeComponent();
-        Kicker.Text = Loc.Format("Wizard_StepOf", 3, 3);
-        WizardRecord.Dress(Disc, size: 48);
+        Kicker.Text = WizardSteps.Kicker(WizardSteps.Count);
         BuildPerks();
+
+        SupportCard.Visibility = AsksForSupport ? Visibility.Visible : Visibility.Collapsed;
+        SupportButton.Visibility = AsksForSupport ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>

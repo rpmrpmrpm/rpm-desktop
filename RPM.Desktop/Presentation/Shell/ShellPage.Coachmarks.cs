@@ -50,6 +50,10 @@ public sealed partial class ShellPage
         });
     }
 
+    /// <summary>True while something on screen has said the tour comes after it: the beta welcome that
+    /// follows setup. The hints are drawn once it is put back to false and refreshed.</summary>
+    public static bool CoachmarksHeld { get; set; }
+
     /// <summary>The library page, or null when something else is up.</summary>
     private MainPage? LibraryPage => RootFrame.Content as MainPage;
 
@@ -62,8 +66,9 @@ public sealed partial class ShellPage
         _coach.Clear();
 
         // Only over the library, and not while the splash is up. The wizard has the whole window and
-        // its own three steps to explain it. The splash is a black sheet with nothing to point at.
-        if (!OnLibrary || SplashOverlay.Visibility == Visibility.Visible)
+        // its own steps to explain it. The splash is a black sheet with nothing to point at. Nor while
+        // the beta welcome is up, which says the tour comes next (CoachmarksHeld).
+        if (!OnLibrary || SplashOverlay.Visibility == Visibility.Visible || CoachmarksHeld)
         {
             HoldArtGrip(false);
             _coach.Hide();
@@ -71,6 +76,22 @@ public sealed partial class ShellPage
         }
 
         var due = CoachmarkState.Remaining().ToList();
+
+        // Signed in already: the sign-in hint has nothing left to ask, and must not hold the tour open.
+        if (Auth is { IsLoggedIn: true } && due.Contains(CoachMark.SignIn))
+        {
+            CoachmarkState.Seen(CoachMark.SignIn);
+            return;   // Seen asks for the next draw
+        }
+
+        // The import pane's hint asks for the pane to be closed again. Once it has been on screen and the
+        // pane is gone, it has been answered.
+        if (_importCoachShown && due.Contains(CoachMark.ImportSources) && LibraryPage?.CoachImportTarget is null)
+        {
+            _importCoachShown = false;
+            CoachmarkState.Seen(CoachMark.ImportSources);
+            return;   // Seen asks for the next draw
+        }
 
         // The grip comes up before the hint about it. The grip is drawn only while the pointer is on
         // its strip, so while it is hidden it cannot be measured, and the hint cannot be placed. If the
@@ -89,12 +110,40 @@ public sealed partial class ShellPage
             if (!Place(mark))
                 continue;
 
+            // A step of the tour that is not the one on screen fades in, rather than appearing in one
+            // frame where the last one was.
+            if (_lastMark != mark)
+                _coach.FadeIn();
+            _lastMark = mark;
+
+            _tourShown = true;
             _coach.Show();
             return;
         }
 
+        // The last hint answered, in a run that showed the tour: the card that ends it, once.
+        if (due.Count == 0 && _tourShown && !CoachmarkState.FinaleSeen)
+        {
+            _coach.AddFinale(
+                Loc.Get("Coach_DoneTitle"), Loc.Get("Coach_DoneBody"), Loc.Get("Coach_DoneButton"),
+                CoachmarkState.SeeFinale);
+            if (_lastMark is not null)
+                _coach.FadeIn();
+            _lastMark = null;
+            _coach.Show();
+            return;
+        }
+
+        _lastMark = null;
         _coach.Hide();
     }
+
+    /// <summary>Set once a hint has been drawn in this run, so the end of the tour can be marked: a run that
+    /// starts with the tour already over shows no finale.</summary>
+    private bool _tourShown;
+
+    /// <summary>The hint on screen, so a redraw of the same one does not fade it in again.</summary>
+    private CoachMark? _lastMark;
 
     /// <summary>
     /// Keeps the artwork grip on screen while the hint about it is up.
@@ -130,8 +179,12 @@ public sealed partial class ShellPage
     private bool Place(CoachMark mark) => mark switch
     {
         CoachMark.AddMusic => PlaceAddMusic(),
+        CoachMark.ImportSources => PlaceImportSources(),
+        CoachMark.SideScreens => PlaceSideScreens(),
         CoachMark.ArtHeader => PlaceArtHeader(),
         CoachMark.Views => PlaceViews(),
+        CoachMark.AppViews => PlaceAppViews(),
+        CoachMark.AppViewsOpen => PlaceAppViewsOpen(),
         CoachMark.SignIn => PlaceSignIn(),
         _ => false,
     };
@@ -151,13 +204,128 @@ public sealed partial class ShellPage
             || _coach!.TryRect(target) is not { } rect)
             return false;
 
+        // No Next: the hint is answered by pressing Import. Closing it instead skips the pane's own hint
+        // too, which could otherwise only come up when the pane is opened.
+        _coach.AddSpotlight(rect);
         _coach.AddCallout(
             Loc.Get("Coach_AddMusic"),
             bubbleAt: new Point(rect.Right + Reach, rect.Y - 30),
             arrowTo: new Point(rect.Right + 6, rect.Y + rect.Height / 2),
             BubbleWidth,
-            onDismiss: () => CoachmarkState.Seen(CoachMark.AddMusic),
+            onDismiss: () =>
+            {
+                CoachmarkState.Seen(CoachMark.ImportSources);
+                CoachmarkState.Seen(CoachMark.AddMusic);
+            },
             anchor: CoachmarkPainter.ArrowAnchor.LeftCenter);
+        return true;
+    }
+
+    /// <summary>Set once the import pane's hint has been drawn, so its pane closing can retire it. A pane
+    /// that was never shown the hint closing says nothing.</summary>
+    private bool _importCoachShown;
+
+    /// <summary>The import pane, once its button has been pressed. The bubble sits over the pane's right
+    /// edge, beside what it describes, with the arrow reaching back into the pane.</summary>
+    private bool PlaceImportSources()
+    {
+        if (LibraryPage?.CoachImportTarget is not { } target
+            || _coach!.TryRect(target) is not { } rect)
+            return false;
+
+        // Next does what the hint asks: closes the pane.
+        _coach.AddSpotlight(rect, pad: 2);
+        _coach.AddCallout(
+            Loc.Get("Coach_ImportSources"),
+            bubbleAt: new Point(rect.Right + Reach, rect.Y + rect.Height / 2 - 70),
+            arrowTo: new Point(rect.Right - 12, rect.Y + rect.Height / 2),
+            BubbleWidth,
+            onDismiss: () => CoachmarkState.Seen(CoachMark.ImportSources),
+            anchor: CoachmarkPainter.ArrowAnchor.LeftCenter,
+            onNext: () =>
+            {
+                _importCoachShown = false;
+                LibraryPage?.CloseImportForCoach();
+                CoachmarkState.Seen(CoachMark.ImportSources);
+            });
+        _importCoachShown = true;
+        return true;
+    }
+
+    /// <summary>The rail's side screens. The bubble sits to the right of the rail, level with the middle
+    /// one of the three, like the import hint.</summary>
+    private bool PlaceSideScreens()
+    {
+        if (LibraryPage?.CoachSideScreensTarget is not { } target
+            || _coach!.TryRect(target) is not { } rect)
+            return false;
+
+        // All three are lit, not just the middle one the arrow points at.
+        var lit = rect;
+        foreach (var part in LibraryPage.CoachSideScreensParts)
+            if (_coach.TryRect(part) is { } r)
+                lit.Union(r);
+
+        _coach.AddSpotlight(lit);
+        _coach.AddCallout(
+            Loc.Get("Coach_SideScreens"),
+            bubbleAt: new Point(rect.Right + Reach, rect.Y - 30),
+            arrowTo: new Point(rect.Right + 6, rect.Y + rect.Height / 2),
+            BubbleWidth,
+            onDismiss: () => CoachmarkState.Seen(CoachMark.SideScreens),
+            anchor: CoachmarkPainter.ArrowAnchor.LeftCenter,
+            onNext: () => CoachmarkState.Seen(CoachMark.SideScreens));
+        return true;
+    }
+
+    /// <summary>The deck's eye button, bottom right. The bubble sits above it and to the left, as the
+    /// sign-in hint does for the menu beside it.</summary>
+    private bool PlaceAppViews()
+    {
+        if (LibraryPage?.CoachAppViewsTarget is not { } target
+            || _coach!.TryRect(target) is not { } rect)
+            return false;
+
+        // No Next: the hint is answered by pressing the eye button. Closing it instead skips the picker's
+        // own hint too, which could otherwise only come up when the picker is opened.
+        _coach.AddSpotlight(rect);
+        _coach.AddCallout(
+            Loc.Get("Coach_AppViews"),
+            bubbleAt: new Point(rect.X - BubbleWidth - Reach, rect.Y - 120),
+            arrowTo: new Point(rect.X + rect.Width / 2, rect.Y - 6),
+            BubbleWidth,
+            onDismiss: () =>
+            {
+                CoachmarkState.Seen(CoachMark.AppViewsOpen);
+                CoachmarkState.Seen(CoachMark.AppViews);
+            },
+            flipArch: true);
+        return true;
+    }
+
+    /// <summary>Beside the views picker while it is open: to its left, level with it, so the bubble covers
+    /// none of the three cards it is about.</summary>
+    private bool PlaceAppViewsOpen()
+    {
+        if (LibraryPage?.CoachAppViewsPickerTarget is not { } target
+            || _coach!.TryRect(target) is not { } rect)
+            return false;
+
+        // Next closes the picker, which is what answers this hint. Its cards are held still meanwhile: a
+        // view picked here would leave the tour pointing into a window that has gone.
+        LibraryPage.HoldViewPickerForCoach();
+        _coach.AddSpotlight(rect, pad: 2);
+        _coach.AddCallout(
+            Loc.Get("Coach_AppViewsOpen"),
+            bubbleAt: new Point(rect.X - BubbleWidth - Reach, rect.Y + 10),
+            arrowTo: new Point(rect.X - 6, rect.Y + rect.Height / 2),
+            BubbleWidth,
+            onDismiss: () => CoachmarkState.Seen(CoachMark.AppViewsOpen),
+            onNext: () =>
+            {
+                LibraryPage?.CloseViewPickerForCoach();
+                CoachmarkState.Seen(CoachMark.AppViewsOpen);
+            });
         return true;
     }
 
@@ -168,12 +336,14 @@ public sealed partial class ShellPage
         if (_coach!.TryRect(ArtGrip) is not { } rect)
             return false;
 
+        _coach.AddSpotlight(rect, pad: 14);
         _coach.AddCallout(
             Loc.Get("Coach_ArtHeader"),
             bubbleAt: new Point(rect.X - BubbleWidth - 40, rect.Bottom + Reach),
             arrowTo: new Point(rect.X + rect.Width / 2, rect.Bottom + 6),
             BubbleWidth,
             onDismiss: () => CoachmarkState.Seen(CoachMark.ArtHeader),
+            onNext: () => CoachmarkState.Seen(CoachMark.ArtHeader),
             flipArch: true);
         return true;
     }
@@ -194,12 +364,14 @@ public sealed partial class ShellPage
             || _coach!.TryRect(target) is not { } rect)
             return false;
 
+        _coach.AddSpotlight(rect);
         _coach.AddCallout(
             Loc.Get("Coach_SignIn"),
             bubbleAt: new Point(rect.X - BubbleWidth - Reach, rect.Y - 120),
             arrowTo: new Point(rect.X + rect.Width / 2, rect.Y - 6),
             BubbleWidth,
             onDismiss: () => CoachmarkState.Seen(CoachMark.SignIn),
+            onNext: () => CoachmarkState.Seen(CoachMark.SignIn),
             flipArch: true);
         return true;
     }
@@ -239,12 +411,14 @@ public sealed partial class ShellPage
         // bottom of the bubble would go downwards and then have to climb back around the bubble to
         // reach the switch.
         var middle = rect.X + rect.Width / 2;
+        _coach.AddSpotlight(rect);
         _coach.AddCallout(
             Loc.Get("Coach_Views"),
             bubbleAt: new Point(middle - BubbleWidth / 2, rect.Bottom + Reach),
             arrowTo: new Point(middle, rect.Bottom + 5),
             BubbleWidth,
-            onDismiss: () => CoachmarkState.Seen(CoachMark.Views));
+            onDismiss: () => CoachmarkState.Seen(CoachMark.Views),
+            onNext: () => CoachmarkState.Seen(CoachMark.Views));
         return true;
     }
 }

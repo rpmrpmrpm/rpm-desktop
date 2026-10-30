@@ -2121,8 +2121,12 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
                 Countries.Add(RadioFacetItem.Any(Loc.Get("Radio_AllCountries")));
 
                 // Which countries, under which names, in which order: see RadioCountries.ForPicker. The
-                // phone builds its list with a port of the same function.
-                foreach (var country in RadioCountries.ForPicker(countries))
+                // phone builds its list with a port of the same function. The listener's own country
+                // leads (AppCountry).
+                var home = App.Services.GetService<Services.Shell.SettingsService>() is { } settings
+                    ? Services.Shell.AppCountry.Code(settings)
+                    : null;
+                foreach (var country in RadioCountries.ForPicker(countries, home))
                     Countries.Add(new RadioFacetItem(country));
             });
         }

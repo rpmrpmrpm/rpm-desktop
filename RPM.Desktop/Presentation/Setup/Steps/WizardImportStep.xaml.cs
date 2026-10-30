@@ -75,8 +75,7 @@ public sealed partial class WizardImportStep : UserControl
     public WizardImportStep()
     {
         InitializeComponent();
-        Kicker.Text = Loc.Format("Wizard_StepOf", 2, 3);
-        WizardRecord.Dress(Disc, size: 48);
+        Kicker.Text = WizardSteps.Kicker(4);
 
         PlanGrid.Art = Cover;
         PlanGrid.Columns = PlanColumns();
@@ -553,6 +552,9 @@ public sealed partial class WizardImportStep : UserControl
 
     // The press
 
+    /// <summary>How long the press runs before the line saying it may take a while comes up.</summary>
+    private static readonly TimeSpan PressPatience = TimeSpan.FromSeconds(10);
+
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
         if (_model is null || _libraryPath is null)
@@ -563,12 +565,24 @@ public sealed partial class WizardImportStep : UserControl
         ShowFace(Face.Pressing);
         PressRunningChanged?.Invoke(this, true);
 
+        // A first import of a whole collection takes minutes. After ten seconds a line over the bar says
+        // so, so the wait reads as work and not as a hang.
+        var slow = new Dissolve(PressSlow, "wizard.press");
+        slow.Set(0);
+        var patience = DispatcherQueue.CreateTimer();
+        patience.Interval = PressPatience;
+        patience.IsRepeating = false;
+        patience.Tick += (_, _) => slow.To(1, TimeSpan.FromMilliseconds(600));
+        patience.Start();
+
         try
         {
             await _model.RunImportAsync();
         }
         finally
         {
+            patience.Stop();
+            slow.Set(0);
             PressRunningChanged?.Invoke(this, false);
         }
 
@@ -667,6 +681,13 @@ public sealed partial class WizardImportStep : UserControl
         PressPanel.Visibility = face is Face.Pressing ? Visibility.Visible : Visibility.Collapsed;
 
         SourceChrome.Visibility = face is Face.Review ? Visibility.Visible : Visibility.Collapsed;
+
+        // The review fills the window under its heading: the plan is a grid worth all the height there
+        // is. Every other face is a small group, centred with its heading.
+        var review = face is Face.Review;
+        TopSpace.Height = review ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        BottomSpace.Height = TopSpace.Height;
+        BodyRow.Height = review ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
         ImportButton.Visibility = face is Face.Review ? Visibility.Visible : Visibility.Collapsed;
 
         // Nothing is skippable while the press is running: the files are already moving.

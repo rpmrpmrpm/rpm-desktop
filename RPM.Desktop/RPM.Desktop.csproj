@@ -431,6 +431,8 @@
     <Content Include="Assets\Sounds\rpm-open.wav" CopyToOutputDirectory="PreserveNewest" />
     <!-- Pegasus's own opener, played as its loading cover fades away (PegasusPlayer.PlayOpeningSound). -->
     <Content Include="Assets\Sounds\rpm-open-pegasus.wav" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The setup wizard's music, the Android TV set-up's own loop (SetupLoop). -->
+    <Content Include="Assets\Sounds\setup-loop.mp3" CopyToOutputDirectory="PreserveNewest" />
 
     <!-- One photograph for the head of every genre's page (Pexels License: free use, commercial use
          included, redistribution as part of a work permitted). Chosen once and cut to the head's own

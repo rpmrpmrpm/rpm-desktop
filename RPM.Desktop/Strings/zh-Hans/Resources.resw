@@ -1538,7 +1538,7 @@
     <comment>Settings, Music folder card: creating or opening the mirror failed. The first-run wizard has its own, Wizard_FolderFailed.</comment>
   </data>
   <data name="Wizard_FolderFailed" xml:space="preserve">
-    <value>无法打开该文件夹。请选择其他文件夹。</value>
+    <value>无法打开该文件夹。没关系，换一个文件夹即可。</value>
     <comment>First-run setup, folder step: the chosen folder could not be opened as a library. There is no previous music folder at this point.</comment>
   </data>
   <data name="Settings_Naming" xml:space="preserve">
@@ -1596,7 +1596,7 @@
     <value>关闭</value>
   </data>
   <data name="Setup_ExistingLibrary" xml:space="preserve">
-    <value>现有的 rpm 音乐文件夹。将直接打开。</value>
+    <value>这已经是一个 rpm 音乐文件夹，rpm 将直接打开它。</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
     <value>此文件夹不是空的。请选择一个空文件夹，或选择一个现有的 rpm 音乐文件夹以打开它。</value>
@@ -4132,7 +4132,7 @@
     <value>提交举报</value>
   </data>
   <data name="Login_NewHere" xml:space="preserve">
-    <value>第一次使用？使用 Apple 或 Google 继续，账户会自动创建。</value>
+    <value>新用户？用电子邮件注册，或使用 Apple 或 Google 继续，系统会为你创建账户。</value>
   </data>
   <data name="Login_Subtitle" xml:space="preserve">
     <value>请登录您的 rpm 账户。</value>
@@ -7722,7 +7722,7 @@
     <comment>Setup wizard step 1 heading.</comment>
   </data>
   <data name="Wizard_FolderBody" xml:space="preserve">
-    <value>选择一个空文件夹。rpm 会把导入的所有音乐命名整理后存放在其中。</value>
+    <value>选择一个空文件夹，其余的交给 rpm。你导入的所有音乐都会在其中命名整理，让你的收藏始终井井有条。</value>
     <comment>Setup wizard step 1, line under the heading.</comment>
   </data>
   <data name="Wizard_NoFolderChosen" xml:space="preserve">
@@ -7734,7 +7734,7 @@
     <comment>Setup wizard step 2 heading.</comment>
   </data>
   <data name="Wizard_ImportBody" xml:space="preserve">
-    <value>选择音乐当前所在位置。rpm 会读取、检查并归档到你的收藏中。</value>
+    <value>音乐已经放在别处了？没问题！选择它所在的文件夹，rpm 会读取、检查，并将其整齐地归入你的收藏。</value>
     <comment>Setup wizard step 2, line under the heading, before a source is chosen.</comment>
   </data>
   <data name="Wizard_ScanSummary" xml:space="preserve">
@@ -7770,7 +7770,7 @@
     <comment>Setup wizard step 2, under the destination preview.</comment>
   </data>
   <data name="Wizard_DoneTitle" xml:space="preserve">
-    <value>设置完成</value>
+    <value>一切就绪！</value>
     <comment>Setup wizard step 3 heading.</comment>
   </data>
   <data name="Wizard_DoneAlbums" xml:space="preserve">
@@ -7786,7 +7786,7 @@
     <comment>Setup wizard step 3, heading over the supporter pitch.</comment>
   </data>
   <data name="Wizard_SupportPitch" xml:space="preserve">
-    <value>rpm 由一支热爱音乐的小团队打造，我们相信收藏并真正拥有自己的音乐。支持者帮助我们承担托管费用和新功能的开发。</value>
+    <value>rpm 由一个热爱音乐的小团队打造，我们相信收藏并拥有属于自己的音乐。支持者让 rpm 得以持续：他们承担托管费用，并帮助我们开发新功能。</value>
     <comment>Setup wizard step 3, the supporter pitch.</comment>
   </data>
   <data name="Wizard_Finish" xml:space="preserve">
@@ -7794,15 +7794,15 @@
     <comment>Setup wizard step 3, the button that finishes without becoming a supporter.</comment>
   </data>
   <data name="Coach_AddMusic" xml:space="preserve">
-    <value>在这里添加音乐。给 rpm 指定一个文件夹、一张 CD 或一台唱机，它会把所有内容归入你的收藏。</value>
+    <value>你的音乐从这里进来！来吧，点一下“导入”。</value>
     <comment>First-run hint pointing at the Import tab in the left rail.</comment>
   </data>
   <data name="Coach_ArtHeader" xml:space="preserve">
-    <value>拖动这里可以展开封面，双击可以收起。</value>
+    <value>正在播放音乐，想看看封面？拖动这里打开，双击即可再收起来。</value>
     <comment>First-run hint pointing at the grip under the artwork band.</comment>
   </data>
   <data name="Coach_Views" xml:space="preserve">
-    <value>查看收藏的三种方式：列表、封面墙，或专辑网格。</value>
+    <value>按你的方式浏览收藏！随时在专辑网格、专辑列表和数据表之间切换。</value>
     <comment>First-run hint pointing at the view switch in the library header.</comment>
   </data>
   <data name="HomeLock_Kicker" xml:space="preserve">
@@ -7866,8 +7866,12 @@
     <comment>Tooltip on the × in the top-right corner of the playlists pane card about lists that are not there yet. Hides the card for good.</comment>
   </data>
   <data name="Wizard_Welcome" xml:space="preserve">
-    <value>欢迎使用 rpm。我们将引导你完成音乐收藏的设置。</value>
+    <value>欢迎使用 rpm！我们来设置你的音乐收藏，只需几个步骤。</value>
     <comment>Setup wizard step 1, under the wordmark and tagline, above the folder question.</comment>
+  </data>
+  <data name="Wizard_Hello" xml:space="preserve">
+    <value>欢迎使用 rpm！</value>
+    <comment>Setup wizard, first launch: the welcome alone in the middle of the window while the opening sound plays, before step 1 fades in.</comment>
   </data>
   <data name="Wizard_ChooseFolder" xml:space="preserve">
     <value>选择文件夹</value>
@@ -7898,15 +7902,15 @@
     <comment>Setup wizard step 2 press button, Copy, when some files are not identified.</comment>
   </data>
   <data name="Wizard_LayoutHint" xml:space="preserve">
-    <value>请选择音乐收藏所使用的文件夹结构。</value>
+    <value>你希望收藏如何排列？选择最适合你的文件夹结构。</value>
     <comment>Setup wizard step 2, under the Folder layout heading, above the template choices.</comment>
   </data>
   <data name="Wizard_OriginalsHint" xml:space="preserve">
-    <value>你希望 rpm 如何处理所选文件夹中的音乐文件？</value>
+    <value>rpm 应如何处理你所选文件夹中的音乐文件？</value>
     <comment>Setup wizard step 2, under The original files heading, above the move/copy choice.</comment>
   </data>
   <data name="Wizard_PlanHint" xml:space="preserve">
-    <value>这是你音乐收藏的初始文件夹结构。</value>
+    <value>这是你的音乐收藏最初的样子预览。</value>
     <comment>Setup wizard step 2, under the Music collection heading, above the destination grid.</comment>
   </data>
   <data name="QueueDup_InCloud" xml:space="preserve">
@@ -8026,7 +8030,7 @@
     <comment>Settings button that puts every coachmark back.</comment>
   </data>
   <data name="Coach_SignIn" xml:space="preserve">
-    <value>登录 rpm 即可使用云功能：手机上访问你的收藏，随时随地在线播放。</value>
+    <value>把音乐随身带走！登录 rpm 即可使用云端：收藏就在你的手机上，随时随地都能播放。</value>
     <comment>First-run hint pointing at the menu, shown only while signed out.</comment>
   </data>
   <data name="Settings_Hints" xml:space="preserve">
@@ -9316,5 +9320,293 @@
   <data name="Tv_QueueRearrangeHint" xml:space="preserve">
     <value>按 OK 拿起歌曲，上下键移动，再按 OK 放下。</value>
     <comment>Line under the title of the TV player's Now playing drawer while rearranging is on. OK, Up and Down are the TV remote's keys.</comment>
+  </data>
+  <data name="Wizard_RegionBody" xml:space="preserve">
+    <value>选择应用使用的语言，以及用于本地化的国家。</value>
+    <comment>Setup wizard step 1, line under the Country and language heading.</comment>
+  </data>
+  <data name="Wizard_LookTitle" xml:space="preserve">
+    <value>打造你的 rpm</value>
+    <comment>Setup wizard step 4 heading: the background, Pegasus's visualizer, the record and when rpm opens by itself.</comment>
+  </data>
+  <data name="Wizard_LookBackgroundHint" xml:space="preserve">
+    <value>整个应用背后的图片。之后也可以在设置中使用你自己的图片。</value>
+    <comment>Setup wizard step 4, line under the Background heading.</comment>
+  </data>
+  <data name="Wizard_LookStart" xml:space="preserve">
+    <value>自动打开 rpm</value>
+    <comment>Setup wizard step 4, heading over the two switches: open rpm for a music CD, and for a music file.</comment>
+  </data>
+  <data name="Wizard_LayoutTitle" xml:space="preserve">
+    <value>你想如何浏览你的收藏？</value>
+    <comment>Setup wizard step 5 heading: the view the library opens in.</comment>
+  </data>
+  <data name="Wizard_LayoutBody" xml:space="preserve">
+    <value>选择资料库打开时的视图。你可以随时在资料库顶部切换。</value>
+    <comment>Setup wizard step 5, line over the three view pictures.</comment>
+  </data>
+  <data name="Wizard_LayoutWallDesc" xml:space="preserve">
+    <value>所有封面并排陈列，就像架子上的唱片。</value>
+    <comment>Setup wizard step 5, under the Album grid picture.</comment>
+  </data>
+  <data name="Wizard_LayoutListDesc" xml:space="preserve">
+    <value>每张专辑配上封面和曲目列表。</value>
+    <comment>Setup wizard step 5, under the Album list picture.</comment>
+  </data>
+  <data name="Wizard_LayoutTableDesc" xml:space="preserve">
+    <value>所有歌曲以行列呈现，便于排序和编辑。</value>
+    <comment>Setup wizard step 5, under the Data table picture.</comment>
+  </data>
+  <data name="Wizard_RoomOriginalDesc" xml:space="preserve">
+    <value>柔和的光随音乐飘动、律动。</value>
+    <comment>Pegasus's Original room animation, one line under its name (setup wizard and Display settings).</comment>
+  </data>
+  <data name="Wizard_RoomYangDesc" xml:space="preserve">
+    <value>发光的球体绕着中心旋转，拖曳出光尾。</value>
+    <comment>Pegasus's Yang room animation, one line under its name.</comment>
+  </data>
+  <data name="Wizard_RoomLavaDesc" xml:space="preserve">
+    <value>像熔岩灯一样上升又下沉的色块。</value>
+    <comment>Pegasus's Lava room animation, one line under its name.</comment>
+  </data>
+  <data name="Wizard_RoomAlchemyDesc" xml:space="preserve">
+    <value>宽阔的光带在屏幕上流淌。</value>
+    <comment>Pegasus's Alchemy room animation, one line under its name.</comment>
+  </data>
+  <data name="Settings_PegasusVisualizer" xml:space="preserve">
+    <value>Pegasus 中的可视化效果</value>
+    <comment>Heading for the choice of Pegasus's room animation (setup wizard step 4 and Display settings).</comment>
+  </data>
+  <data name="Settings_PegasusVisualizerHint" xml:space="preserve">
+    <value>Pegasus 播放时音乐背后流动的光。</value>
+    <comment>Line under the Visualizer in Pegasus heading.</comment>
+  </data>
+  <data name="Settings_SameAsWindows" xml:space="preserve">
+    <value>与 Windows 相同（{0}）</value>
+    <comment>Display settings, first entry of the language and country pickers: follow Windows. {0} is what Windows gives now.</comment>
+  </data>
+  <data name="Settings_LanguageRestart" xml:space="preserve">
+    <value>重新启动 rpm 以在所有地方使用新语言。</value>
+    <comment>Display settings, shown after the language is changed.</comment>
+  </data>
+  <data name="Settings_RestartNow" xml:space="preserve">
+    <value>立即重新启动</value>
+    <comment>Display settings, button that closes rpm and starts it again.</comment>
+  </data>
+  <data name="Settings_MusicFiles" xml:space="preserve">
+    <value>音乐文件</value>
+    <comment>Library settings, heading of the card for opening music files with rpm.</comment>
+  </data>
+  <data name="Settings_OpenMusicFiles" xml:space="preserve">
+    <value>播放音乐文件时打开 rpm</value>
+    <comment>Switch: make rpm the app Windows opens music files with (setup wizard step 4 and Library settings).</comment>
+  </data>
+  <data name="Settings_OpenMusicFilesHint" xml:space="preserve">
+    <value>你打开的音乐文件会在 rpm 中播放。Windows 会请你在其设置中确认使用 rpm。</value>
+    <comment>Line under the Open rpm when a music file is played switch.</comment>
+  </data>
+  <data name="Settings_OpenMusicFilesType" xml:space="preserve">
+    <value>音乐文件</value>
+    <comment>What Windows calls a file type rpm opens, in Explorer's Type column and Open with.</comment>
+  </data>
+  <data name="Settings_LibraryLayout" xml:space="preserve">
+    <value>资料库布局</value>
+    <comment>Library settings, heading of the choice of the view the library opens in.</comment>
+  </data>
+  <data name="Settings_LibraryLayoutHint" xml:space="preserve">
+    <value>资料库打开时的视图。资料库顶部的按钮也可以切换。</value>
+    <comment>Line under the Library layout heading.</comment>
+  </data>
+  <data name="Wizard_HelloSubtitle" xml:space="preserve">
+    <value>让我们开始吧。</value>
+    <comment>Setup wizard, first launch: the line under the welcome greeting, shown after two seconds.</comment>
+  </data>
+  <data name="Wizard_Continue" xml:space="preserve">
+    <value>继续</value>
+    <comment>Setup wizard, first launch: the button under the welcome that goes on to step 1.</comment>
+  </data>
+  <data name="Beta_WelcomeTitle" xml:space="preserve">
+    <value>感谢你加入封闭测试！</value>
+    <comment>The note shown once after setup: its heading.</comment>
+  </data>
+  <data name="Beta_WelcomeIntro" xml:space="preserve">
+    <value>很高兴你的加入！你是最早使用 rpm 的人之一，也因此成为打造它的一员。</value>
+    <comment>The beta welcome: the first paragraph, under the heading.</comment>
+  </data>
+  <data name="Beta_WelcomeWhatHeading" xml:space="preserve">
+    <value>封闭测试是什么</value>
+    <comment>The beta welcome: the small heading over its three points.</comment>
+  </data>
+  <data name="Beta_WelcomeUse" xml:space="preserve">
+    <value>把你自己的收藏带进 rpm，让它成为你的音乐播放器。翻录 CD、录制黑胶或导入文件，全由你决定！</value>
+    <comment>The beta welcome, first point: what testers are asked to do.</comment>
+  </data>
+  <data name="Beta_WelcomeTell" xml:space="preserve">
+    <value>有东西坏了、缺了，或者特别好用？告诉我们！你会直接和打造 rpm 的人交流，你的反馈决定我们接下来做什么。</value>
+    <comment>The beta welcome, second point: reporting back.</comment>
+  </data>
+  <data name="Beta_WelcomeGet" xml:space="preserve">
+    <value>作为感谢，你将获得带 100 GB 云空间的 iPhone 版 rpm，以及所有支持者福利。Android TV 版 rpm 即将完成，你会第一个拿到！</value>
+    <comment>The beta welcome, third point: what testers get.</comment>
+  </data>
+  <data name="Beta_WelcomeTourLine" xml:space="preserve">
+    <value>接下来，快速游览一下！rpm 会一步步带你认识应用，让你清楚每样东西在哪里。我们开始吧！</value>
+    <comment>The beta welcome: the last paragraph, saying the tour of hints follows.</comment>
+  </data>
+  <data name="Beta_WelcomeTour" xml:space="preserve">
+    <value>带我看看</value>
+    <comment>The beta welcome's button: closes it and starts the tour of hints.</comment>
+  </data>
+  <data name="Coach_ImportSources" xml:space="preserve">
+    <value>你可以选择从文件夹、CD、黑胶唱片或 DVD 导入。然后通过目录编号、条形码或标题和艺人找到这张发行。很简单吧？现在，先把这个区域关上吧。</value>
+    <comment>First-run hint beside the import pane, after Import was pressed. Asks for the pane to be closed again.</comment>
+  </data>
+  <data name="Coach_SideScreens" xml:space="preserve">
+    <value>在左侧边栏，你还能找到曲目信息、可视化效果和网络电台。了解你的音乐，让可视化效果在后台静静播放，或者收听电台。</value>
+    <comment>First-run hint pointing at the rail's track info, visualizations and internet radio buttons.</comment>
+  </data>
+  <data name="Coach_AppViews" xml:space="preserve">
+    <value>rpm 有不止一种方式呈现你的音乐！点一下这里看看各种视图。</value>
+    <comment>First-run hint pointing at the deck's eye button, which opens the views picker.</comment>
+  </data>
+  <data name="Coach_AppViewsOpen" xml:space="preserve">
+    <value>“主界面”是完整的应用，用来浏览和管理收藏。RPaMp 是一个小巧的播放器，工作时不会打扰你。Pegasus 则铺满整个屏幕，专为沙发而生，配有可视化效果和歌词。随时都可以切换！</value>
+    <comment>First-run hint beside the open views picker: what Main, RPaMp and Pegasus each are. Main is View_Library's own word.</comment>
+  </data>
+  <data name="Wizard_AccountTitle" xml:space="preserve">
+    <value>你的 rpm 账户</value>
+    <comment>Setup wizard step 2 heading.</comment>
+  </data>
+  <data name="Wizard_AccountBody" xml:space="preserve">
+    <value>把音乐随身带走！有了 rpm 账户，你的收藏就在手机上，随时随地都能播放。云端功能仅限有账户的用户使用，其他一切无需账户也能用，所以你随时可以稍后再登录。</value>
+    <comment>Setup wizard step 2, line under the heading: the cloud needs an account, nothing else does.</comment>
+  </data>
+  <data name="Wizard_AccountSignedIn" xml:space="preserve">
+    <value>已登录：{0}</value>
+    <comment>Setup wizard step 2, once signed in. {0} is the account's name or email.</comment>
+  </data>
+  <data name="Coach_Next" xml:space="preserve">
+    <value>下一步</value>
+    <comment>The link under a first-run hint that moves the tour on to the next one.</comment>
+  </data>
+  <data name="Coach_DoneTitle" xml:space="preserve">
+    <value>游览到此结束！</value>
+    <comment>The card that ends the first-run tour: its heading.</comment>
+  </data>
+  <data name="Coach_DoneBody" xml:space="preserve">
+    <value>现在你已经熟悉 rpm 了。尽情翻录、录制、导入和播放，打造属于你自己的收藏。祝你收藏愉快！</value>
+    <comment>The card that ends the first-run tour: the line under the heading.</comment>
+  </data>
+  <data name="Coach_DoneButton" xml:space="preserve">
+    <value>开始收藏</value>
+    <comment>The card that ends the first-run tour: the button that closes it and hands the app over.</comment>
+  </data>
+  <data name="Wizard_AccountLoggedIn" xml:space="preserve">
+    <value>你已登录！</value>
+    <comment>Setup wizard step 2, once signed in: the news, over who is signed in.</comment>
+  </data>
+  <data name="Wizard_DiscogsTitle" xml:space="preserve">
+    <value>关联你的 Discogs 账户</value>
+    <comment>Setup wizard step 2, once signed in: the heading of the offer to connect Discogs.</comment>
+  </data>
+  <data name="Wizard_DiscogsBody" xml:space="preserve">
+    <value>有 Discogs 账户吗？把它关联到 rpm，找到唱片的确切版本就轻而易举。Discogs 由和你一样的收藏者编目，所以就连最稀有的发行通常也能找到！</value>
+    <comment>Setup wizard step 2, once signed in: why to connect Discogs.</comment>
+  </data>
+  <data name="Wizard_DiscogsLinked" xml:space="preserve">
+    <value>Discogs 已关联！</value>
+    <comment>Setup wizard step 2, once Discogs is connected. The Discogs user name may follow in brackets.</comment>
+  </data>
+  <data name="SignUp_Title" xml:space="preserve">
+    <value>注册 rpm</value>
+    <comment>The sign-up window's title.</comment>
+  </data>
+  <data name="SignUp_Button" xml:space="preserve">
+    <value>注册</value>
+    <comment>Sign-in window: the button beside Sign in that opens the sign-up window instead.</comment>
+  </data>
+  <data name="SignUp_Subtitle" xml:space="preserve">
+    <value>一分钟创建你的 rpm 账户！之后你的收藏随你而行。</value>
+    <comment>Sign-up window, the line over the form.</comment>
+  </data>
+  <data name="SignUp_Name" xml:space="preserve">
+    <value>名字</value>
+    <comment>Sign-up window: the name field's placeholder.</comment>
+  </data>
+  <data name="SignUp_PasswordRule" xml:space="preserve">
+    <value>至少 8 个字符，包含大写字母、小写字母和数字。</value>
+    <comment>Sign-up window, under the password field: the accounts service's password rule.</comment>
+  </data>
+  <data name="SignUp_Create" xml:space="preserve">
+    <value>创建账户</value>
+    <comment>Sign-up window: the button that sends the form.</comment>
+  </data>
+  <data name="SignUp_Confirm" xml:space="preserve">
+    <value>确认</value>
+    <comment>Sign-up window: the button that sends the mailed code.</comment>
+  </data>
+  <data name="SignUp_CodeSent" xml:space="preserve">
+    <value>快好了！我们已向 {0} 发送了六位数验证码，请在下方输入。</value>
+    <comment>Sign-up window, the code face. {0} is the email address.</comment>
+  </data>
+  <data name="SignUp_Code" xml:space="preserve">
+    <value>验证码</value>
+    <comment>Sign-up window: the code field's placeholder.</comment>
+  </data>
+  <data name="SignUp_Resend" xml:space="preserve">
+    <value>重新发送验证码</value>
+    <comment>Sign-up window, under the code field.</comment>
+  </data>
+  <data name="SignUp_CodeResent" xml:space="preserve">
+    <value>新的验证码已发送，请查看收件箱！</value>
+    <comment>Sign-up window: a fresh code was mailed (asked for, or because the old one expired).</comment>
+  </data>
+  <data name="SignUp_NeedFields" xml:space="preserve">
+    <value>请填写名字、电子邮件和密码。</value>
+    <comment>Sign-up window: a field was left empty.</comment>
+  </data>
+  <data name="SignUp_NeedCode" xml:space="preserve">
+    <value>请输入邮件中的验证码。</value>
+    <comment>Sign-up window: the code field was left empty.</comment>
+  </data>
+  <data name="SignUp_AlreadyRegistered" xml:space="preserve">
+    <value>该电子邮件已有账户，请尝试登录。</value>
+    <comment>Sign-up window: the address already has an account.</comment>
+  </data>
+  <data name="SignUp_WeakPassword" xml:space="preserve">
+    <value>该密码太容易被猜到。请至少使用 8 个字符，包含大写字母、小写字母和数字。</value>
+    <comment>Sign-up window: the password does not meet the rule.</comment>
+  </data>
+  <data name="SignUp_InvalidEmail" xml:space="preserve">
+    <value>这看起来不像电子邮件地址。</value>
+    <comment>Sign-up window: the address was refused.</comment>
+  </data>
+  <data name="SignUp_InvalidName" xml:space="preserve">
+    <value>名字可使用字母、数字、空格、连字符和句点，长度为 2 到 50 个字符。</value>
+    <comment>Sign-up window: the name was refused.</comment>
+  </data>
+  <data name="SignUp_InvalidCode" xml:space="preserve">
+    <value>验证码不正确，请再看看邮件。</value>
+    <comment>Sign-up window: the code was wrong.</comment>
+  </data>
+  <data name="SignUp_TooMany" xml:space="preserve">
+    <value>尝试次数过多，请稍后再试。</value>
+    <comment>Sign-up window: the accounts service is limiting attempts.</comment>
+  </data>
+  <data name="SignUp_Failed" xml:space="preserve">
+    <value>无法创建账户，请重试。</value>
+    <comment>Sign-up window: any other failure.</comment>
+  </data>
+  <data name="Wizard_AccountSignUp" xml:space="preserve">
+    <value>注册 rpm</value>
+    <comment>Setup wizard step 2: opens the sign-up window.</comment>
+  </data>
+  <data name="Wizard_AccountHaveOne" xml:space="preserve">
+    <value>已有账户？登录</value>
+    <comment>Setup wizard step 2, under Sign up: opens the sign-in window for an email and password.</comment>
+  </data>
+  <data name="Wizard_ImportSlow" xml:space="preserve">
+    <value>请稍候！大型收藏的导入可能需要一些时间，不妨去喝杯咖啡，让 rpm 慢慢整理。</value>
+    <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
 </root>

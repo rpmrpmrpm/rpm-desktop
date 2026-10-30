@@ -54,7 +54,38 @@ internal sealed partial class TransportDeck : UserControl
 
     /// <summary>Called when the picker opens, rather than kept in step with every change. The picker is closed
     /// most of the time, and this is the only place the answer is shown.</summary>
-    private void ViewFlyout_Opening(object? sender, object e) => ViewPickerContent.SetCurrent(_view);
+    private void ViewFlyout_Opening(object? sender, object e)
+    {
+        ViewPickerContent.SetCurrent(_view);
+
+        // Opening it is the answer to the hint that points at the eye button.
+        Coachmarks.CoachmarkState.Seen(RPM.Core.Library.CoachMark.AppViews);
+    }
+
+    /// <summary>Laid out now, so the hint about what each view is can be placed beside it.</summary>
+    private void ViewFlyout_Opened(object? sender, object e) => ShellPage.Current?.RefreshCoachmarks();
+
+    /// <summary>Closing the picker is the answer to the hint beside it, once the hint before it is.</summary>
+    private void ViewFlyout_Closed(object? sender, object e)
+    {
+        HoldViewPicker(false);
+        if (!Coachmarks.CoachmarkState.Remaining().Contains(RPM.Core.Library.CoachMark.AppViews))
+            Coachmarks.CoachmarkState.Seen(RPM.Core.Library.CoachMark.AppViewsOpen);
+        ShellPage.Current?.RefreshCoachmarks();
+    }
+
+    /// <summary>Closes the views picker, for the hint beside it.</summary>
+    public void CloseViewPicker() => ViewFlyout.Hide();
+
+    /// <summary>Holds the picker's cards still while the hint beside it explains them: the picker is a
+    /// popup over the tour's sheet, so the sheet cannot stop a press on it. Let go when it closes.</summary>
+    public void HoldViewPicker(bool hold) => ViewPickerContent.IsHitTestVisible = !hold;
+
+    /// <summary>The eye button. The first-run hint about rpm's views points at it.</summary>
+    public FrameworkElement ViewTarget => ViewButton;
+
+    /// <summary>The picker the eye button opens, while it is open, and null otherwise.</summary>
+    public FrameworkElement? ViewPickerTarget => ViewFlyout.IsOpen ? ViewPickerContent : null;
 
     // ── the player ────────────────────────────────────────────────────────────
 

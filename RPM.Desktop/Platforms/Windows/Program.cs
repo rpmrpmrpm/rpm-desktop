@@ -35,7 +35,11 @@ internal static class Program
         // The uninstall hook removes the AutoPlay handler that RPM wrote into the user's registry,
         // before the uninstaller removes the files. Velopack ends the process after the hook.
         Velopack.VelopackApp.Build()
-            .OnBeforeUninstallFastCallback(_ => Services.Shell.DiscAutoPlayService.ForgetOnUninstall())
+            .OnBeforeUninstallFastCallback(_ =>
+            {
+                Services.Shell.DiscAutoPlayService.ForgetOnUninstall();
+                Services.Shell.MusicFileService.ForgetOnUninstall();
+            })
             .Run();
 
         // A shortcut or an installer can start the app with any working directory. The app reads several

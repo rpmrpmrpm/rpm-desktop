@@ -26,6 +26,14 @@ public sealed class CoachmarkPainter
     private readonly Canvas _canvas;
     private readonly FrameworkElement _clampArea;
 
+    /// <summary>
+    /// What a hint is drawn with (the bubble, its arrow, its buttons, the ring round the lit section), on
+    /// a layer of its own over the dim and the sheet. So a hint can fade in on its own (<see cref="FadeIn"/>)
+    /// while the dim stays where it is: fading the whole overlay would lift the dim off the app for a
+    /// moment at every step.
+    /// </summary>
+    private readonly Canvas _marks = new();
+
     /// <param name="canvas">The canvas the shapes go into.</param>
     /// <param name="clampArea">
     /// What limits a bubble's placement. Pass the OVERLAY here, not the Canvas. A Canvas measures to zero,
@@ -36,6 +44,7 @@ public sealed class CoachmarkPainter
     {
         _canvas = canvas;
         _clampArea = clampArea;
+        _canvas.Children.Add(_marks);
     }
 
     /// <summary>The margin a bubble keeps from the edge of the overlay.</summary>
@@ -46,7 +55,36 @@ public sealed class CoachmarkPainter
     private static Brush Accent => (Brush)Application.Current.Resources["RpmCyanBrush"];
 
     /// <summary>Take every callout off. Called before a rebuild.</summary>
-    public void Clear() => _canvas.Children.Clear();
+    public void Clear()
+    {
+        _marks.Children.Clear();
+        _canvas.Children.Clear();
+        _canvas.Children.Add(_marks);
+    }
+
+    private Storyboard? _markFade;
+
+    /// <summary>Fades the hint just drawn in, for a step of the tour that is not the one before it. The
+    /// redraws that follow a resize or a scroll do not call it, so they do not flicker.</summary>
+    public void FadeIn()
+    {
+        _markFade?.Stop();
+        var anim = new DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(anim, _marks);
+        Storyboard.SetTargetProperty(anim, "Opacity");
+
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Completed += (_, _) => _marks.Opacity = 1;
+        _markFade = sb;
+        sb.Begin();
+    }
 
     private bool _shown;
     private Storyboard? _fade;
@@ -147,6 +185,118 @@ public sealed class CoachmarkPainter
         RightCenter,
     }
 
+    /// <summary>The dim laid over everything but the section a hint is about.</summary>
+    private static readonly Windows.UI.Color Dim = ColorHelper.FromArgb(0xA6, 0x02, 0x05, 0x0A);
+
+    /// <summary>
+    /// Dims the window except <paramref name="lit"/>, which is ringed in the accent, so the eye goes to the
+    /// section the hint is about. Drawn under the hint, and click-through like the rest of the overlay: the
+    /// section it lights is usually the one the hint asks to be pressed.
+    /// </summary>
+    /// <param name="lit">The section, in the canvas's coordinates (see <see cref="TryRect"/>).</param>
+    /// <param name="pad">How far the lit area reaches past the section on every side.</param>
+    public void AddSpotlight(Rect lit, double pad = 6)
+    {
+        var w = _clampArea.ActualWidth;
+        var h = _clampArea.ActualHeight;
+        if (w < 1 || h < 1)
+            return;
+
+        var hole = new Rect(lit.X - pad, lit.Y - pad, lit.Width + 2 * pad, lit.Height + 2 * pad);
+
+        // The whole window and the hole in it, filled even-odd: everything but the hole is dimmed.
+        var shape = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        shape.Children.Add(new RectangleGeometry { Rect = new Rect(0, 0, w, h) });
+        shape.Children.Add(new RectangleGeometry { Rect = hole });
+
+        _canvas.Children.Insert(0, new Microsoft.UI.Xaml.Shapes.Path
+        {
+            Data = shape,
+            Fill = new SolidColorBrush(Dim),
+            IsHitTestVisible = false,
+        });
+
+        var ring = new Border
+        {
+            Width = hole.Width,
+            Height = hole.Height,
+            CornerRadius = new CornerRadius(8),
+            BorderBrush = Accent,
+            BorderThickness = new Thickness(1.5),
+            IsHitTestVisible = false,
+        };
+        Canvas.SetLeft(ring, hole.X);
+        Canvas.SetTop(ring, hole.Y);
+        _marks.Children.Insert(0, ring);
+    }
+
+    /// <summary>
+    /// The end of the tour: the window dimmed, and a card in the middle of it with a heading, a line and a
+    /// button. Unlike a hint it takes the clicks, so the app waits for the button.
+    /// </summary>
+    public void AddFinale(string title, string body, string button, Action onClose)
+    {
+        var w = _clampArea.ActualWidth;
+        var h = _clampArea.ActualHeight;
+        if (w < 1 || h < 1)
+            return;
+
+        _canvas.Children.Insert(0, new Rectangle
+        {
+            Width = w,
+            Height = h,
+            Fill = new SolidColorBrush(Dim),
+        });
+
+        var close = new Button
+        {
+            Style = (Style)Application.Current.Resources["GlassPrimaryButtonStyle"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(28, 0, 28, 0),
+            Content = button,
+        };
+        close.Click += (_, _) => onClose();
+
+        var content = new StackPanel { Spacing = 14 };
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontFamily = (FontFamily)Application.Current.Resources["RpmDisplayFontBold"],
+            FontSize = 30,
+            Foreground = new SolidColorBrush(Colors.White),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = body,
+            FontSize = 14,
+            LineHeight = 22,
+            Foreground = new SolidColorBrush(ColorHelper.FromArgb(0xC4, 0xFF, 0xFF, 0xFF)),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        close.Margin = new Thickness(0, 10, 0, 0);
+        content.Children.Add(close);
+
+        var card = new Border
+        {
+            Width = 460,
+            CornerRadius = new CornerRadius(16),
+            Background = new SolidColorBrush(ColorHelper.FromArgb(0xF7, 0x0E, 0x15, 0x20)),
+            BorderBrush = Accent,
+            BorderThickness = new Thickness(1.5),
+            Padding = new Thickness(32, 28, 32, 26),
+            Child = content,
+        };
+        card.Measure(new Size(460, double.PositiveInfinity));
+        Canvas.SetLeft(card, (w - 460) / 2);
+        Canvas.SetTop(card, Math.Max(Edge, (h - card.DesiredSize.Height) / 2));
+        _marks.Children.Add(card);
+    }
+
     /// <summary>
     /// A caption bubble with its top-left at <paramref name="bubbleAt"/>, and an arrow from it to
     /// <paramref name="arrowTo"/>.
@@ -156,10 +306,13 @@ public sealed class CoachmarkPainter
     /// <param name="anchor">Which part of the bubble the arrow leaves from.</param>
     /// <param name="flipArch">Bows the arrow the other way. Use it where the default bow would curve the
     /// arrow through the control it points at.</param>
+    /// <param name="onNext">Called when the Next link under the bubble is pressed. Without one there is no
+    /// Next: the hint is answered by pressing what it points at.</param>
     public void AddCallout(
         string caption, Point bubbleAt, Point arrowTo, double bubbleWidth,
         Action? onDismiss = null,
-        ArrowAnchor anchor = ArrowAnchor.Auto, bool flipArch = false)
+        ArrowAnchor anchor = ArrowAnchor.Auto, bool flipArch = false,
+        Action? onNext = null)
     {
         var bubble = BuildBubble(caption, bubbleWidth, out var bw, out var bh);
 
@@ -181,12 +334,75 @@ public sealed class CoachmarkPainter
         };
         DrawArrow(arrowFrom, arrowTo, Accent, flipArch);
 
-        _canvas.Children.Add(bubble);
+        _marks.Children.Add(bubble);
 
         // Added last, so that it sits over the bubble. It is the only part that takes clicks, so a click
         // anywhere else on the callout reaches the app.
         if (onDismiss is not null)
             AddDismissPill(left, top, onDismiss);
+        if (onNext is not null)
+        {
+            AddNext(left + bw, top + bh, onNext);
+            AddBlocker();
+        }
+    }
+
+    /// <summary>
+    /// A clear sheet over the whole window, under the hint, that takes every click. A hint with a Next is
+    /// moved on by its Next and nothing else: a press in the app behind it (opening a pane, switching a
+    /// view) would change what the tour is pointing at from under it. Only the hint's own buttons, which
+    /// are drawn over the sheet, still answer.
+    /// </summary>
+    private void AddBlocker()
+    {
+        var w = _clampArea.ActualWidth;
+        var h = _clampArea.ActualHeight;
+        if (w < 1 || h < 1)
+            return;
+
+        // A transparent brush, not none: an element with no fill is not hit-tested, so clicks would pass.
+        _canvas.Children.Insert(0, new Rectangle
+        {
+            Width = w,
+            Height = h,
+            Fill = new SolidColorBrush(Colors.Transparent),
+        });
+    }
+
+    /// <summary>"Next ›" under the bubble's bottom-right corner: a real button, like the dismiss disc, so the
+    /// keyboard reaches it too.</summary>
+    private void AddNext(double right, double bottom, Action onNext)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        row.Children.Add(new TextBlock
+        {
+            Text = Strings.Loc.Get("Coach_Next"),
+            FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = Accent,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = "",   // Font Awesome's chevron-right
+            FontFamily = new FontFamily("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid"),
+            FontSize = 10,
+            Foreground = Accent,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        var next = new Button
+        {
+            Style = (Style)Application.Current.Resources["BareButtonStyle"],
+            Padding = new Thickness(6, 4, 6, 4),
+            Content = row,
+        };
+        next.Click += (_, _) => onNext();
+
+        next.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(next, right - next.DesiredSize.Width);
+        Canvas.SetTop(next, bottom + 8);
+        _marks.Children.Add(next);
     }
 
     /// <summary>
@@ -261,7 +477,7 @@ public sealed class CoachmarkPainter
 
         Canvas.SetLeft(close, left - pill / 2);
         Canvas.SetTop(close, top - pill / 2);
-        _canvas.Children.Add(close);
+        _marks.Children.Add(close);
     }
 
     /// <summary>The point on the rim of <paramref name="rect"/> closest to
@@ -314,7 +530,7 @@ public sealed class CoachmarkPainter
         var geometry = new PathGeometry();
         geometry.Figures.Add(figure);
 
-        _canvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path
+        _marks.Children.Add(new Microsoft.UI.Xaml.Shapes.Path
         {
             Data = geometry,
             Stroke = brush,
@@ -329,6 +545,6 @@ public sealed class CoachmarkPainter
         head.Points.Add(end);
         head.Points.Add(new Point(baseCenter.X + px * (headLen * 0.55), baseCenter.Y + py * (headLen * 0.55)));
         head.Points.Add(new Point(baseCenter.X - px * (headLen * 0.55), baseCenter.Y - py * (headLen * 0.55)));
-        _canvas.Children.Add(head);
+        _marks.Children.Add(head);
     }
 }

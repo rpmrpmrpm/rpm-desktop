@@ -1,0 +1,79 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Setup.Steps.WizardRegionStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <!-- Step one: the language rpm speaks and the country it listens from. One group, centred, as every
+       step is: the kicker, the heading, the line and the two choices. -->
+
+  <Grid>
+
+    <!-- The mark and its tagline are the host's (WizardPage), in the same corner on every step. -->
+
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                Margin="52,44,52,96" Spacing="30" MaxWidth="1080">
+
+        <StackPanel Spacing="20" Width="560" HorizontalAlignment="Center">
+
+          <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"
+                 HorizontalAlignment="Center"/>
+
+          <TextBlock Text="{loc:Str Key=Tv_Setup_RegionTitle}"
+                     FontFamily="{StaticResource RpmDisplayFontBold}"
+                     FontSize="38" LineHeight="42" Foreground="White" TextWrapping="Wrap"
+                 TextAlignment="Center" HorizontalAlignment="Center"/>
+
+          <TextBlock Text="{loc:Str Key=Wizard_RegionBody}" FontSize="14" LineHeight="22"
+                     Foreground="#A3FFFFFF" TextWrapping="Wrap" MaxWidth="460"
+                 TextAlignment="Center" HorizontalAlignment="Center"/>
+
+          <!-- The two choices, one row each, in a card like the folder step's picker. The language
+               rebuilds the wizard in that language the moment it is picked, so what is read next is
+               already in it. -->
+          <Border CornerRadius="12" Padding="16,14" Background="#13FFFFFF"
+                  BorderThickness="1" BorderBrush="#2BFFFFFF">
+            <Grid ColumnSpacing="14" RowSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <FontIcon Grid.Row="0" Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xF1AB;"
+                        FontSize="16" Foreground="{StaticResource RpmCyanBrush}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{loc:Str Key=Tv_Setup_Language}" FontSize="14"
+                         Foreground="White" VerticalAlignment="Center" MinWidth="80"/>
+              <ComboBox x:Name="LanguageBox" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Stretch"
+                        SelectionChanged="Language_Changed"/>
+
+              <FontIcon Grid.Row="1" Grid.Column="0" Style="{StaticResource FaIcon}" Glyph="&#xF0AC;"
+                        FontSize="16" Foreground="{StaticResource RpmCyanBrush}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{loc:Str Key=Tv_Setup_Country}" FontSize="14"
+                         Foreground="White" VerticalAlignment="Center" MinWidth="80"/>
+              <ComboBox x:Name="CountryBox" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                        MaxDropDownHeight="420"/>
+            </Grid>
+          </Border>
+
+        </StackPanel>
+    </StackPanel>
+
+    <!-- Footer, on the dots' line, at the far end. -->
+    <Grid Height="{StaticResource WizardFooterHeight}" VerticalAlignment="Bottom">
+      <ctl:RpmPrimaryButton x:Name="NextButton" Click="Next_Click"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Margin="0,0,52,0" Padding="26,0">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="{loc:Str Key=Wizard_Next}" FontWeight="Bold" VerticalAlignment="Center"/>
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF054;" FontSize="12"
+                    VerticalAlignment="Center"/>
+        </StackPanel>
+      </ctl:RpmPrimaryButton>
+    </Grid>
+  </Grid>
+</UserControl>

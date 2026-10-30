@@ -31,6 +31,8 @@ public sealed partial class DisplaySettingsPage : Page
         // for no reason.
         RecordToggle.IsOn = _settings.HeaderRecord;
         ArtistPhotoToggle.IsOn = _settings.HeaderArtistPhoto;
+        FillRegion();
+        FillRoomStyles();
         _loaded = true;
 
         // The row lights whichever backdrop is actually standing. One of them is a supporter's, so the
@@ -65,6 +67,90 @@ public sealed partial class DisplaySettingsPage : Page
             return;
 
         _settings.HeaderArtistPhoto = ArtistPhotoToggle.IsOn;
+    }
+
+    // Language and country
+    //
+    // The first entry of each follows Windows, and says what Windows is giving. Picking it clears the
+    // stored choice, so the app follows a later change of Windows' own.
+
+    private void FillRegion()
+    {
+        LanguageBox.Items.Add(new ComboBoxItem
+        {
+            Content = Loc.Format("Settings_SameAsWindows", AppLanguage.NativeName(AppLanguage.SystemDefault())),
+            Tag = "",
+        });
+        foreach (var tag in AppLanguage.Offered)
+            LanguageBox.Items.Add(new ComboBoxItem { Content = AppLanguage.NativeName(tag), Tag = tag });
+        LanguageBox.SelectedIndex = AppLanguage.Known(_settings.Language) is { } language
+            ? 1 + AppLanguage.Offered.ToList().IndexOf(language)
+            : 0;
+
+        var system = AppCountry.SystemCode();
+        CountryBox.Items.Add(new ComboBoxItem
+        {
+            Content = Loc.Format("Settings_SameAsWindows", system is null ? "—" : AppCountry.Name(system)),
+            Tag = "",
+        });
+        CountryBox.SelectedIndex = 0;
+        foreach (var country in AppCountry.All())
+        {
+            CountryBox.Items.Add(new ComboBoxItem { Content = country.Name, Tag = country.Code });
+            if (country.Code == _settings.Country)
+                CountryBox.SelectedIndex = CountryBox.Items.Count - 1;
+        }
+    }
+
+    private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loaded || LanguageBox.SelectedItem is not ComboBoxItem { Tag: string tag })
+            return;
+
+        var chosen = tag.Length == 0 ? null : tag;
+        if (chosen == _settings.Language)
+            return;
+
+        _settings.Language = chosen;
+        AppLanguage.Apply(chosen);
+        RestartRow.Visibility = Visibility.Visible;
+    }
+
+    private void OnCountryChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loaded || CountryBox.SelectedItem is not ComboBoxItem { Tag: string code })
+            return;
+
+        _settings.Country = code.Length == 0 ? null : code;
+    }
+
+    /// <summary>Closes rpm and starts it again, so the screens built before the change are rebuilt in
+    /// the new language.</summary>
+    private void OnRestart(object sender, RoutedEventArgs e) => App.Restart();
+
+    // Pegasus's visualizer
+
+    private void FillRoomStyles()
+    {
+        var current = RPM.Core.Viz.RoomStyles.Named(_settings.PegasusRoomStyle);
+        foreach (var style in Enum.GetValues<RPM.Core.Viz.RoomStyle>())
+        {
+            RoomStyleRadios.Items.Add(new RadioButton
+            {
+                Content = $"{Loc.Get($"Tv_RoomStyle{style}")} · {Loc.Get($"Wizard_Room{style}Desc")}",
+                Tag = style,
+            });
+            if (style == current)
+                RoomStyleRadios.SelectedIndex = RoomStyleRadios.Items.Count - 1;
+        }
+    }
+
+    private void OnRoomStyleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loaded || RoomStyleRadios.SelectedItem is not RadioButton { Tag: RPM.Core.Viz.RoomStyle style })
+            return;
+
+        _settings.PegasusRoomStyle = style.ToString();
     }
 
     /// <summary>May arrive on any thread, because the standing is read from the network.</summary>

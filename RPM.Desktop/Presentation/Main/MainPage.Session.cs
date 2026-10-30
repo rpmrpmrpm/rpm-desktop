@@ -148,7 +148,60 @@ public sealed partial class MainPage
         // the splash and the screen, and the gap between the attach ending and this line is the queue
         // ahead of it. Read with: rpmscope log --channel boot
         RPM.Core.Diagnostics.Scope.Said("boot", "home asked");
+
+        if (AfterSetup)
+        {
+            AfterSetup = false;
+            LandAfterSetup();
+            return;
+        }
+
         ShowHome(true);
+    }
+
+    /// <summary>
+    /// Set by the setup wizard as it hands over to the library: the next landing is the first one, and
+    /// gets <see cref="LandAfterSetup"/> instead of home.
+    /// </summary>
+    public static bool AfterSetup { get; set; }
+
+    /// <summary>
+    /// The first landing after setup. A collection too small for home (under
+    /// <see cref="RPM.Core.Library.HomeGate.LeastAlbums"/>) opens on the library itself, where the music
+    /// just imported is, rather than on home's locked panel. Then the beta welcome is shown, and the tour
+    /// of hints waits for it to close.
+    /// </summary>
+    private void LandAfterSetup()
+    {
+        var albums = 0;
+        try
+        {
+            albums = App.Services.GetRequiredService<LibraryService>().Db
+                .CountAlbumFolders(RPM.Core.Library.TrackScope.Anywhere);
+        }
+        catch { /* no count: the library is the safe place to land */ }
+
+        var home = albums >= RPM.Core.Library.HomeGate.LeastAlbums;
+        RPM.Core.Diagnostics.Scope.Said("boot", $"after setup: {albums} albums, landing on {(home ? "home" : "the library")}");
+        ShowHome(home);
+
+        ShellPage.CoachmarksHeld = true;
+        DispatcherQueue?.TryEnqueue(DispatcherQueuePriority.Low, async () =>
+        {
+            try
+            {
+                await Dialogs.BetaWelcomeDialog.ShowAsync(XamlRoot);
+            }
+            catch (Exception e)
+            {
+                RPM.Core.Diagnostics.Said.Line("setup", $"the beta welcome could not be shown: {e.Message}");
+            }
+            finally
+            {
+                ShellPage.CoachmarksHeld = false;
+                ShellPage.Current?.RefreshCoachmarks();
+            }
+        });
     }
 
     // ── how far down each view was ──

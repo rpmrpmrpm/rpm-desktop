@@ -363,6 +363,48 @@
         </StackPanel>
       </Border>
 
+      <!-- Which app Windows opens a music file with. Like the disc switch, it writes Windows' own setting
+           and reads it back; making rpm the default is confirmed on Windows' Default apps page. -->
+      <Border x:Name="MusicFilesCard" Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf1c7;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_MusicFiles}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <ToggleSwitch x:Name="MusicFilesToggle"
+                        Header="{loc:Str Key=Settings_OpenMusicFiles}"
+                        Toggled="OnMusicFilesToggled"
+                        OffContent="" OnContent="" />
+          <TextBlock Text="{loc:Str Key=Settings_OpenMusicFilesHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <TextBlock x:Name="MusicFilesStatus"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"
+                     Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
+      <!-- The view the library opens in. The header's three view keys switch it as well, and both
+           write the same setting. -->
+      <Border x:Name="LayoutCard" Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00a;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_LibraryLayout}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_LibraryLayoutHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <RadioButtons x:Name="LayoutRadios" SelectionChanged="OnLayoutChanged">
+            <RadioButton Content="{loc:Str Key=Library_ViewGrid}" />
+            <RadioButton Content="{loc:Str Key=Library_ViewAlbums}" />
+            <RadioButton Content="{loc:Str Key=Library_ViewTable}" />
+          </RadioButtons>
+        </StackPanel>
+      </Border>
+
       <Border x:Name="FingerprintCard" Style="{StaticResource ContentBorderStyle}" Padding="18">
         <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="10">

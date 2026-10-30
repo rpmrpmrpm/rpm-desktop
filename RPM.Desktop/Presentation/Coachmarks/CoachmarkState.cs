@@ -38,6 +38,21 @@ internal static class CoachmarkState
         Shell.ShellPage.Current?.RefreshCoachmarks();
     }
 
+    /// <summary>The key the tour's closing card is remembered under, with the hints' own. Putting the hints
+    /// back puts it back too.</summary>
+    private const string FinaleKey = "tour-done";
+
+    /// <summary>Whether the closing card has been answered.</summary>
+    public static bool FinaleSeen => Settings.CoachmarksSeen.Contains(FinaleKey, StringComparer.Ordinal);
+
+    /// <summary>The closing card's button: the tour is over, and the app is the user's.</summary>
+    public static void SeeFinale()
+    {
+        if (!FinaleSeen)
+            Settings.MarkCoachmarkSeen(FinaleKey);
+        Shell.ShellPage.Current?.RefreshCoachmarks();
+    }
+
     /// <summary>Put every hint back, and show the first one again.</summary>
     public static void Reset()
     {

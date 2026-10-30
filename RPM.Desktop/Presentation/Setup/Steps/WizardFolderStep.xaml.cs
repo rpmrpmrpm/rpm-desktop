@@ -42,13 +42,8 @@ public sealed partial class WizardFolderStep : UserControl
     public WizardFolderStep()
     {
         InitializeComponent();
-        Kicker.Text = Loc.Format("Wizard_StepOf", 1, 3);
+        Kicker.Text = WizardSteps.Kicker(3);
 
-        // The big one, and the only one that turns. This is the screen where the record is the picture.
-        // The later steps keep it as a small mark beside the heading.
-        WizardRecord.Dress(Disc, size: 330, turn: true);
-
-        DressTagline();
         Dress();
     }
 
@@ -96,26 +91,6 @@ public sealed partial class WizardFolderStep : UserControl
     }
 
     private bool Adoptable => _state is FolderState.Empty or FolderState.ExistingLibrary;
-
-    /// <summary>
-    /// The tagline under the mark, split the way the artwork header splits it.
-    /// </summary>
-    /// <remarks>The leading "re-" is shown a shade darker, and only where the translation really
-    /// starts with it. The hyphen is an English style choice. Other languages join the prefix to the
-    /// word, or say it another way, so they get the line in one tone rather than an arbitrary few
-    /// characters darkened. The rule is the same as <c>ArtDisplay.SyncTagline</c>, because it is the
-    /// same line under the same mark. Two rules would eventually disagree.
-    /// </remarks>
-    private void DressTagline()
-    {
-        var line = Loc.Get("Art_ParkedTagline");
-        var split = line.StartsWith("re-", StringComparison.Ordinal) ? 3
-                  : line.StartsWith("re", StringComparison.Ordinal) ? 2
-                  : 0;
-
-        TaglineHead.Text = line[..split];
-        TaglineTail.Text = line[split..];
-    }
 
     /// <summary>The row, the glyph and the button, all from the one state. It is one method, not a
     /// property per element, so the state cannot change without every element updating.

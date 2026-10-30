@@ -47,22 +47,36 @@ public static class RadioCountries
     /// <para>Ties on station count are decided by code, so the cut does not depend on the order in which
     /// the directory answered.</para>
     /// </summary>
-    public static IReadOnlyList<RadioFacet> ForPicker(IReadOnlyList<RadioFacet> countries)
+    /// <param name="countries">The directory's countries.</param>
+    /// <param name="home">The listener's own country, by ISO code, or null. When the directory has it, it
+    /// leads the list, ahead of the A to Z, whether or not it is among the most stations.</param>
+    public static IReadOnlyList<RadioFacet> ForPicker(IReadOnlyList<RadioFacet> countries, string? home = null)
     {
         ArgumentNullException.ThrowIfNull(countries);
 
-        return [.. countries
+        var merged = countries
             .GroupBy(c => c.Code.Trim().ToUpperInvariant(), StringComparer.Ordinal)
             .Select(same => new RadioFacet(
                 same.OrderByDescending(c => c.StationCount).First().Name,
                 same.Key,
                 same.Sum(c => c.StationCount)))
+            .ToList();
+
+        var homeCode = home?.Trim().ToUpperInvariant();
+        var first = merged.FirstOrDefault(c => c.Code == homeCode);
+
+        IEnumerable<RadioFacet> rest = merged
+            .Where(c => c != first)
             .OrderByDescending(c => c.StationCount)
             .ThenBy(c => c.Code, StringComparer.Ordinal)
-            .Take(Offered)
+            .Take(first is null ? Offered : Offered - 1)
             .Select(c => c with { Name = Short(c.Name, c.Code) })
             .OrderBy(c => c.Name, StringComparer.CurrentCulture)
-            .ThenBy(c => c.Code, StringComparer.Ordinal)];
+            .ThenBy(c => c.Code, StringComparer.Ordinal);
+
+        return first is null
+            ? [.. rest]
+            : [first with { Name = Short(first.Name, first.Code) }, .. rest];
     }
 
     /// <summary>

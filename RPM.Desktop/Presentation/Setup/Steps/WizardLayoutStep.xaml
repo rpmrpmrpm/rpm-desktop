@@ -1,0 +1,44 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Setup.Steps.WizardLayoutStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <!-- Step five: the view the library opens in. Three tiles, each a picture of the library in that
+       view, so the choice is made by looking.
+
+       Centred, as the first step is: the heading, its line and the tiles are one group in the middle of
+       the window. The top margin keeps the group clear of the mark the host keeps in the corner. -->
+
+  <Grid Margin="52,110,52,0">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+      <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"
+                 HorizontalAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=Wizard_LayoutTitle}"
+                 FontFamily="{StaticResource RpmDisplayFontBold}"
+                 FontSize="38" LineHeight="42" Foreground="White" TextWrapping="Wrap"
+                 TextAlignment="Center" HorizontalAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=Wizard_LayoutBody}" FontSize="14" LineHeight="22"
+                 Foreground="#A3FFFFFF" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center"
+                 TextAlignment="Center"/>
+      <StackPanel x:Name="Layouts" Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center"
+                  Margin="0,10,0,0"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Height="{StaticResource WizardFooterHeight}">
+      <ctl:RpmPrimaryButton x:Name="NextButton" Click="Next_Click"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Padding="26,0">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="{loc:Str Key=Wizard_Next}" FontWeight="Bold" VerticalAlignment="Center"/>
+          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF054;" FontSize="12"
+                    VerticalAlignment="Center"/>
+        </StackPanel>
+      </ctl:RpmPrimaryButton>
+    </Grid>
+  </Grid>
+</UserControl>

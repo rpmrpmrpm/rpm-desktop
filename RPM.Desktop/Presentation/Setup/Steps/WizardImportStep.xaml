@@ -37,42 +37,39 @@
     <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#45FFFFFF"/>
   </UserControl.Resources>
 
-  <Grid Margin="52,40,52,0" RowSpacing="16">
+  <!-- Centred, as the first step is: the heading and what it heads are one group in the middle of the
+       window, with the air above and below it shared (TopSpace and BottomSpace). The top margin keeps
+       the group clear of the mark the host keeps in the corner. -->
+  <Grid Margin="52,110,52,0" RowSpacing="26">
     <Grid.RowDefinitions>
+      <RowDefinition x:Name="TopSpace" Height="*"/>
       <RowDefinition Height="Auto"/>
-      <RowDefinition Height="*"/>
+      <RowDefinition x:Name="BodyRow" Height="Auto"/>
+      <RowDefinition x:Name="BottomSpace" Height="*"/>
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <!-- ═══ header: the small record, the kicker, the heading, the source ═══ -->
-    <Grid Grid.Row="0" ColumnSpacing="16">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
-
-      <ctl:RecordDisc x:Name="Disc" Grid.Column="0" IsHitTestVisible="False"/>
-
-      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-        <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"/>
-        <TextBlock Text="{loc:Str Key=Wizard_ImportTitle}"
-                   FontFamily="{StaticResource RpmDisplayFontBold}"
-                   FontSize="24" Foreground="White"/>
-      </StackPanel>
-
-      <StackPanel x:Name="SourceChrome" Grid.Column="2" Orientation="Horizontal" Spacing="12"
-                  VerticalAlignment="Center" Visibility="Collapsed">
+    <!-- The kicker and the heading as the first step sets them, centred over what they head. -->
+    <StackPanel Grid.Row="1" Spacing="20" HorizontalAlignment="Center" MaxWidth="1000">
+      <TextBlock x:Name="Kicker" FontSize="11" Foreground="#6BFFFFFF" CharacterSpacing="220"
+                 HorizontalAlignment="Center"/>
+      <TextBlock Text="{loc:Str Key=Wizard_ImportTitle}"
+                 FontFamily="{StaticResource RpmDisplayFontBold}"
+                 FontSize="38" LineHeight="42" Foreground="White" TextWrapping="Wrap"
+                 TextAlignment="Center" HorizontalAlignment="Center"/>
+      <!-- The folder being reviewed, and the way back to choose another. Shown on the review only. -->
+      <StackPanel x:Name="SourceChrome" Orientation="Horizontal" Spacing="12"
+                  HorizontalAlignment="Center" Visibility="Collapsed">
         <TextBlock x:Name="SourceText" FontSize="13" Foreground="#A3FFFFFF"
-                   VerticalAlignment="Center" MaxWidth="320"
+                   VerticalAlignment="Center" MaxWidth="420"
                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
         <ctl:RpmButton Click="ChangeSource_Click" Padding="16,0"
                        Content="{loc:Str Key=Settings_Change}"/>
       </StackPanel>
-    </Grid>
+    </StackPanel>
 
     <!-- ═══ face one: where is the music ═══ -->
-    <StackPanel x:Name="SourcePanel" Grid.Row="1" VerticalAlignment="Center"
+    <StackPanel x:Name="SourcePanel" Grid.Row="2" VerticalAlignment="Center"
                 HorizontalAlignment="Center" Spacing="26" MaxWidth="760">
 
       <TextBlock Text="{loc:Str Key=Wizard_ImportBody}" FontSize="14" LineHeight="22"
@@ -97,7 +94,7 @@
     </StackPanel>
 
     <!-- ═══ scanning ═══ -->
-    <StackPanel x:Name="ScanPanel" Grid.Row="1" Visibility="Collapsed" Spacing="18"
+    <StackPanel x:Name="ScanPanel" Grid.Row="2" Visibility="Collapsed" Spacing="18"
                 VerticalAlignment="Center" HorizontalAlignment="Center">
       <!-- Turned by ShowFace with the panel, so it is not turning while the panel is down. -->
       <ctl:RecordSpinner x:Name="ScanSpinner" Width="48" Height="48" HorizontalAlignment="Center"/>
@@ -106,7 +103,7 @@
     </StackPanel>
 
     <!-- ═══ face two: the review ═══ -->
-    <Grid x:Name="ReviewPanel" Grid.Row="1" Visibility="Collapsed" RowSpacing="14">
+    <Grid x:Name="ReviewPanel" Grid.Row="2" Visibility="Collapsed" RowSpacing="14">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
@@ -202,16 +199,20 @@
     </Grid>
 
     <!-- ═══ pressing ═══ -->
-    <StackPanel x:Name="PressPanel" Grid.Row="1" Visibility="Collapsed" Spacing="20"
+    <StackPanel x:Name="PressPanel" Grid.Row="2" Visibility="Collapsed" Spacing="20"
                 VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock x:Name="PressText" FontSize="15" Foreground="White" HorizontalAlignment="Center"/>
+      <!-- Comes up after ten seconds of pressing, so a long first import is not taken for a stuck one. -->
+      <TextBlock x:Name="PressSlow" Text="{loc:Str Key=Wizard_ImportSlow}" Opacity="0"
+                 FontSize="13" LineHeight="20" Foreground="#A3FFFFFF" TextWrapping="Wrap"
+                 TextAlignment="Center" HorizontalAlignment="Center" MaxWidth="420"/>
       <ProgressBar x:Name="PressBar" Width="360" Height="6"
                    Foreground="{StaticResource RpmCyanBrush}" Background="#1FFFFFFF"/>
     </StackPanel>
 
     <!-- ═══ footer ═══ The dots' line. This step's own margin already gives the 52 pt side gutter, so
          the buttons only need to match the band's height and centre in it. -->
-    <Grid Grid.Row="2" Height="{StaticResource WizardFooterHeight}">
+    <Grid Grid.Row="4" Height="{StaticResource WizardFooterHeight}">
       <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Right"
                   VerticalAlignment="Center">
         <ctl:RpmLink x:Name="SkipLink" Click="Skip_Click" Content="{loc:Str Key=Wizard_SkipForNow}"

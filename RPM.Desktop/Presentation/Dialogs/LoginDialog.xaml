@@ -180,6 +180,15 @@
           </StackPanel>
         </Button>
 
+        <!-- For someone with no account yet: the sign-up window, in place of this one. -->
+        <Button x:Name="SignUpButton" Click="SignUpButton_Click"
+                Style="{StaticResource GlassButtonStyle}" Padding="18,0">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf234;" FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=SignUp_Button}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+
         <ctl:RpmPrimaryButton x:Name="SignInButton" Click="SignInButton_Click" Padding="18,0">
           <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
             <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf007;" FontSize="11" VerticalAlignment="Center"/>

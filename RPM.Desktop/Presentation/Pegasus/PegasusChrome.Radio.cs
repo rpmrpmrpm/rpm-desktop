@@ -526,14 +526,16 @@ public sealed partial class PegasusChrome
     /// </remarks>
     private static (string? Code, string Name) ListenerCountry()
     {
+        // The country the listener chose, or Windows' region (AppCountry).
+        var code = App.Services.GetService<SettingsService>() is { } settings
+            ? AppCountry.Code(settings)
+            : AppCountry.SystemCode();
+        if (code is null)
+            return (null, "");
+
         try
         {
-            var region = RegionInfo.CurrentRegion;
-            var code = region.TwoLetterISORegionName;
-            if (code.Length != 2 || !char.IsLetter(code[0]) || !char.IsLetter(code[1]) || code == "IV")
-                return (null, "");
-            code = code.ToUpperInvariant();
-            return (code, RadioCountries.Short(region.EnglishName, code));
+            return (code, RadioCountries.Short(new RegionInfo(code).EnglishName, code));
         }
         catch (ArgumentException)
         {

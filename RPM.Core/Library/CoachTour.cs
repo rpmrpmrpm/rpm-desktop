@@ -3,14 +3,29 @@ namespace RPM.Core.Library;
 /// <summary>One first-run hint, in the order they are shown.</summary>
 public enum CoachMark
 {
-    /// <summary>Where music comes in. Points at the Import tab of the rail.</summary>
+    /// <summary>Where music comes in. Points at the Import tab of the rail, and asks for it to be
+    /// pressed.</summary>
     AddMusic,
+
+    /// <summary>What the import pane does, once it is open: the sources, and finding the release. Asks for
+    /// the pane to be closed again, which retires it.</summary>
+    ImportSources,
+
+    /// <summary>The rail's other side screens: track info, the visualizers and the radio.</summary>
+    SideScreens,
 
     /// <summary>That the artwork band opens and closes. Points at its grip.</summary>
     ArtHeader,
 
     /// <summary>That the library has three views. Points at the view switch.</summary>
     Views,
+
+    /// <summary>That rpm itself has views: the deck's eye button, which is to be pressed.</summary>
+    AppViews,
+
+    /// <summary>What each of those views is, beside the picker the eye button opened. Closing the picker
+    /// retires it.</summary>
+    AppViewsOpen,
 
     /// <summary>That there is an account and what it is for. Points at the menu the sign-in is in. Shown
     /// only while nobody is signed in.</summary>
@@ -34,12 +49,17 @@ public static class CoachTour
     /// what every other hint is about. The header has no artwork, and the views have nothing to switch
     /// between, until there is music.
     ///
+    /// <para>Two pairs lead into each other: the Import press opens the pane its second hint is about,
+    /// and the eye button opens the picker its second hint is about. The second of each pair can only be
+    /// placed while the first has opened what it points at, so it follows on its own.</para>
+    ///
     /// <para>Sign-in is last. It is the only mark that is an invitation rather than an explanation. The
     /// other three describe the app in front of the user, and this one asks them to go and get something.
     /// It is shown after they have been told how the app works.</para>
     /// </summary>
     public static readonly IReadOnlyList<CoachMark> Order =
-        [CoachMark.AddMusic, CoachMark.ArtHeader, CoachMark.Views, CoachMark.SignIn];
+        [CoachMark.AddMusic, CoachMark.ImportSources, CoachMark.SideScreens, CoachMark.ArtHeader,
+         CoachMark.Views, CoachMark.AppViews, CoachMark.AppViewsOpen, CoachMark.SignIn];
 
     /// <summary>The mark's key in the settings file. The keys are written out here, not taken from the
     /// enum's names. Renaming the enum must not silently show a dismissed hint again on everybody's
@@ -48,8 +68,12 @@ public static class CoachTour
     public static string Key(CoachMark mark) => mark switch
     {
         CoachMark.AddMusic => "add-music",
+        CoachMark.ImportSources => "import-sources",
+        CoachMark.SideScreens => "side-screens",
         CoachMark.ArtHeader => "art-header",
         CoachMark.Views => "views",
+        CoachMark.AppViews => "app-views",
+        CoachMark.AppViewsOpen => "app-views-open",
         CoachMark.SignIn => "sign-in",
         _ => throw new ArgumentOutOfRangeException(nameof(mark)),
     };

@@ -42,6 +42,17 @@ public sealed partial class LoginDialog : ContentDialog
 
     private async void SignInButton_Click(object sender, RoutedEventArgs e) => await TryPasswordLoginAsync();
 
+    /// <summary>Set when Sign up was pressed: this window closes and the sign-up window opens in its place
+    /// (see <see cref="ShowAsync"/>), because two dialogs cannot be up at once.</summary>
+    private bool _wantsSignUp;
+
+    private void SignUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        _pollCts?.Cancel();
+        _wantsSignUp = true;
+        Hide();
+    }
+
     /// <summary>Opens the website's reset page with the address typed so far. The reset is finished
     /// there. The person then comes back to this dialog and signs in with the new password.</summary>
     private void ForgotButton_Click(object sender, RoutedEventArgs e)
@@ -125,6 +136,7 @@ public sealed partial class LoginDialog : ContentDialog
         GoogleButton.IsEnabled = enabled;
         AppleButton.IsEnabled = enabled;
         SignInButton.IsEnabled = enabled;
+        SignUpButton.IsEnabled = enabled;
         EmailBox.IsEnabled = enabled;
         PasswordBox.IsEnabled = enabled;
     }
@@ -166,6 +178,8 @@ public sealed partial class LoginDialog : ContentDialog
         if (!string.IsNullOrWhiteSpace(reason))
             dialog.SubtitleText.Text = reason;
         await DialogHost.ShowAsync(dialog);
+        if (dialog._wantsSignUp)
+            return await SignUpDialog.ShowAsync(auth, xamlRoot);
         return dialog._success;
     }
 }

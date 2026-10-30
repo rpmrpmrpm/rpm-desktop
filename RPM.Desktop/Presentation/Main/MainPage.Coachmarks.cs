@@ -17,6 +17,38 @@ public sealed partial class MainPage
     /// <summary>The rail's Import button, bottom left.</summary>
     internal FrameworkElement? CoachAddMusicTarget => Rail?.ImportTabTarget;
 
+    /// <summary>The import pane, while it is the left pane's view and open, and null otherwise.</summary>
+    internal FrameworkElement? CoachImportTarget =>
+        Panes.Tab == LeftTab.Import && Panes.Open && ImportWorkbench is { Visibility: Visibility.Visible } pane
+            ? pane
+            : null;
+
+    /// <summary>The rail's side screens: track info, the visualizers and the radio.</summary>
+    internal FrameworkElement? CoachSideScreensTarget => Rail?.SideScreensTarget;
+
+    /// <summary>All three side screens' buttons, which the hint about them lights together.</summary>
+    internal IReadOnlyList<FrameworkElement> CoachSideScreensParts => Rail?.SideScreensParts ?? [];
+
+    /// <summary>Folds the import pane away: the import hint's Next, which does what the hint asks.</summary>
+    internal void CloseImportForCoach()
+    {
+        if (Panes.Open && Panes.Tab == LeftTab.Import)
+            Panes.ToggleView();
+        ShellPage.Current?.RefreshCoachmarks();
+    }
+
+    /// <summary>Closes the views picker: the Next of the hint beside it.</summary>
+    internal void CloseViewPickerForCoach() => Deck?.CloseViewPicker();
+
+    /// <summary>Holds the views picker's cards still while its hint is up.</summary>
+    internal void HoldViewPickerForCoach() => Deck?.HoldViewPicker(true);
+
+    /// <summary>The deck's eye button, where rpm's views are chosen.</summary>
+    internal FrameworkElement? CoachAppViewsTarget => Deck?.ViewTarget;
+
+    /// <summary>The views picker, while it is open.</summary>
+    internal FrameworkElement? CoachAppViewsPickerTarget => Deck?.ViewPickerTarget;
+
     /// <summary>
     /// The three-key view switch in the library header, or null while nobody can see it.
     ///

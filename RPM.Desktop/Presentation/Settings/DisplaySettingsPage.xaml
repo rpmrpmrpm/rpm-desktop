@@ -25,6 +25,45 @@
                    FontSize="13" Foreground="#99FFFFFF" TextWrapping="Wrap" />
       </StackPanel>
 
+      <!-- The language the app speaks and the country it listens from. The same two the first step of
+           setup asks. A new language reaches every screen built after the change; the restart is
+           offered for the ones already built. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf1ab;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Tv_Setup_RegionTitle}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Tv_Setup_RegionHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <Grid ColumnSpacing="14" RowSpacing="10" MaxWidth="520" HorizontalAlignment="Left">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="{loc:Str Key=Tv_Setup_Language}" FontSize="13" Foreground="White"
+                       VerticalAlignment="Center" MinWidth="80"/>
+            <ComboBox x:Name="LanguageBox" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                      SelectionChanged="OnLanguageChanged"/>
+            <TextBlock Grid.Row="1" Text="{loc:Str Key=Tv_Setup_Country}" FontSize="13" Foreground="White"
+                       VerticalAlignment="Center" MinWidth="80"/>
+            <ComboBox x:Name="CountryBox" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                      MaxDropDownHeight="420" SelectionChanged="OnCountryChanged"/>
+          </Grid>
+          <StackPanel x:Name="RestartRow" Orientation="Horizontal" Spacing="12" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=Settings_LanguageRestart}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextWrapping="Wrap" VerticalAlignment="Center" MaxWidth="360"/>
+            <ctl:RpmButton Click="OnRestart" Padding="18,0" Content="{loc:Str Key=Settings_RestartNow}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
       <!-- No section heading over this card, because the card holds one setting. A heading would say
            the same thing as the "Background" line inside it. The "Art display" heading
            (Settings_ArtDisplay) names the card below, which is a different subject. This card is the
@@ -85,6 +124,22 @@
                         OffContent="" OnContent="" />
           <TextBlock Text="{loc:Str Key=Settings_HeaderArtistPhotoHint}"
                      FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- What Pegasus draws behind the music. Pegasus's own side menu steps through the same four; this
+           is the same setting, read the next time Pegasus opens. -->
+      <Border Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf5aa;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_PegasusVisualizer}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_PegasusVisualizerHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <RadioButtons x:Name="RoomStyleRadios" SelectionChanged="OnRoomStyleChanged"/>
         </StackPanel>
       </Border>
 

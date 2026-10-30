@@ -43,6 +43,7 @@ public sealed partial class LibrarySettingsPage : Page
         ShareListeningToggle.IsOn = _settings.ShareListening;
         AnalysisTagsToggle.IsOn = _settings.WriteAnalysisTags;
         CatalogueFillToggle.IsOn = _settings.ImportFillFromCatalogue;
+        LayoutRadios.SelectedIndex = (int)_settings.LibraryView;
         _loading = false;
 
         BuildJumpLinks();
@@ -52,6 +53,7 @@ public sealed partial class LibrarySettingsPage : Page
         RefreshAnalysisTagStatus();
         InitNaming();
         _ = RefreshDiscDefaultAsync();
+        _ = RefreshMusicFilesAsync();
     }
 
     // Table of contents
@@ -75,6 +77,8 @@ public sealed partial class LibrarySettingsPage : Page
             ("Settings_RequiredTagsTitle", RequiredTagsCard),
             ("Settings_MultiDisc", MultiDiscCard),
             ("Settings_Discs", DiscsCard),
+            ("Settings_MusicFiles", MusicFilesCard),
+            ("Settings_LibraryLayout", LayoutCard),
             ("Settings_Fingerprinting", FingerprintCard),
             ("Settings_AnalysisTags", AnalysisTagsCard),
         ];
@@ -161,6 +165,57 @@ public sealed partial class LibrarySettingsPage : Page
 
         DiscDefaultStatus.Text = actual == wanted ? "" : Loc.Get("Settings_DiscDefaultFailed");
         DiscDefaultStatus.Visibility = actual == wanted ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    // Music files: whether Windows opens them with rpm
+
+    /// <summary>Sets the switch from the registry, which is where the setting lives (see
+    /// <see cref="MusicFileService"/>).</summary>
+    private async Task RefreshMusicFilesAsync()
+    {
+        var files = _services.GetRequiredService<MusicFileService>();
+        if (!files.IsSupported)
+        {
+            MusicFilesCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var offered = await files.IsOfferedAsync();
+        _loading = true;
+        MusicFilesToggle.IsOn = offered;
+        _loading = false;
+    }
+
+    private async void OnMusicFilesToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+
+        var files = _services.GetRequiredService<MusicFileService>();
+        var wanted = MusicFilesToggle.IsOn;
+
+        MusicFilesToggle.IsEnabled = false;
+        var actual = await files.SetAsync(wanted);
+        MusicFilesToggle.IsEnabled = true;
+
+        _loading = true;
+        MusicFilesToggle.IsOn = actual;
+        _loading = false;
+
+        MusicFilesStatus.Text = actual == wanted ? "" : Loc.Get("Settings_DiscDefaultFailed");
+        MusicFilesStatus.Visibility = actual == wanted ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>The view the library opens in. The library listens to settings and switches under the
+    /// open dialog.</summary>
+    private void OnLayoutChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || LayoutRadios.SelectedIndex < 0)
+            return;
+
+        var view = (LibraryViewMode)LayoutRadios.SelectedIndex;
+        if (view != _settings.LibraryView)
+            _settings.LibraryView = view;
     }
 
     /// <summary>Move or copy on import. Each import reads it fresh, so a change here needs only the write.

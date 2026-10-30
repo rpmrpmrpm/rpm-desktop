@@ -305,14 +305,24 @@ public sealed partial class MainPage
     {
         Rail.TabRequested += tab =>
         {
-            // Opening the import view is the answer to the hint that points at its button.
+            // Opening the import view is the answer to the hint that points at its button. Opening any
+            // of the other three is the answer to the hint about the side screens.
             if (tab == LeftTab.Import)
                 Coachmarks.CoachmarkState.Seen(RPM.Core.Library.CoachMark.AddMusic);
+            else
+                Coachmarks.CoachmarkState.Seen(RPM.Core.Library.CoachMark.SideScreens);
 
             RPM.Desktop.Diagnostics.SwitchDiag.Begin($"pane {tab}");
             Panes.OpenTab(tab);   // the conductor is made on first use, not here
+
+            // The import pane's own hint follows the pane: it comes up with it and goes when it goes.
+            ShellPage.Current?.RefreshCoachmarks();
         };
-        Rail.CloseRequested += () => Panes.ToggleView();
+        Rail.CloseRequested += () =>
+        {
+            Panes.ToggleView();
+            ShellPage.Current?.RefreshCoachmarks();
+        };
         VizBody.LaunchRequested += id => ShellPage.Current?.ShowVisualizer(id);
 
         // A play written to the log does not mark the home screen stale. Every row on home is a

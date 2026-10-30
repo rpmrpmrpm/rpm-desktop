@@ -1538,7 +1538,7 @@
     <comment>Settings, Music folder card: creating or opening the mirror failed. The first-run wizard has its own, Wizard_FolderFailed.</comment>
   </data>
   <data name="Wizard_FolderFailed" xml:space="preserve">
-    <value>That folder could not be opened. Choose another folder.</value>
+    <value>That folder couldn't be opened. No problem, just choose another one.</value>
     <comment>First-run setup, folder step: the chosen folder could not be opened as a library. There is no previous music folder at this point.</comment>
   </data>
   <data name="Settings_Naming" xml:space="preserve">
@@ -1596,7 +1596,7 @@
     <value>Close</value>
   </data>
   <data name="Setup_ExistingLibrary" xml:space="preserve">
-    <value>Existing rpm music folder. It will be opened.</value>
+    <value>This is already an rpm music folder. rpm will open it.</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
     <value>This folder isn't empty. Pick an empty folder, or an existing rpm music folder to open it.</value>
@@ -4132,7 +4132,7 @@
     <value>Send report</value>
   </data>
   <data name="Login_NewHere" xml:space="preserve">
-    <value>New here? Continue with Apple or Google and an account is made for you.</value>
+    <value>New here? Sign up with your email, or continue with Apple or Google and an account is made for you.</value>
   </data>
   <data name="Login_Subtitle" xml:space="preserve">
     <value>Please sign in to your rpm account.</value>
@@ -7722,7 +7722,7 @@
     <comment>Setup wizard step 1 heading.</comment>
   </data>
   <data name="Wizard_FolderBody" xml:space="preserve">
-    <value>Pick one empty folder. rpm files everything you import into it, named and organised.</value>
+    <value>Pick an empty folder, and rpm takes care of the rest. Everything you import is named and organised in it, so your collection always stays tidy.</value>
     <comment>Setup wizard step 1, line under the heading.</comment>
   </data>
   <data name="Wizard_NoFolderChosen" xml:space="preserve">
@@ -7734,7 +7734,7 @@
     <comment>Setup wizard step 2 heading.</comment>
   </data>
   <data name="Wizard_ImportBody" xml:space="preserve">
-    <value>Choose where your music is now. rpm reads it, checks it, and files it into your collection.</value>
+    <value>Already have your music somewhere else? No problem! Choose the folder it's in, and rpm reads it, checks it and files it neatly into your collection.</value>
     <comment>Setup wizard step 2, line under the heading, before a source is chosen.</comment>
   </data>
   <data name="Wizard_ScanSummary" xml:space="preserve">
@@ -7770,7 +7770,7 @@
     <comment>Setup wizard step 2, under the destination preview.</comment>
   </data>
   <data name="Wizard_DoneTitle" xml:space="preserve">
-    <value>You're set up</value>
+    <value>You're all set!</value>
     <comment>Setup wizard step 3 heading.</comment>
   </data>
   <data name="Wizard_DoneAlbums" xml:space="preserve">
@@ -7786,7 +7786,7 @@
     <comment>Setup wizard step 3, heading over the supporter pitch.</comment>
   </data>
   <data name="Wizard_SupportPitch" xml:space="preserve">
-    <value>rpm is built by a small team of dedicated people who love music and believe in collecting and owning your own music. Supporters help with the hosting costs and with the development of new features.</value>
+    <value>rpm is made by a small team of people who love music, and who believe in collecting and owning your own. Supporters help keep it going: they cover the hosting costs and help us build new features.</value>
     <comment>Setup wizard step 3, the supporter pitch.</comment>
   </data>
   <data name="Wizard_Finish" xml:space="preserve">
@@ -7794,15 +7794,15 @@
     <comment>Setup wizard step 3, the button that finishes without becoming a supporter.</comment>
   </data>
   <data name="Coach_AddMusic" xml:space="preserve">
-    <value>Add music here. Point rpm at a folder, a CD or a turntable and it files everything into your collection.</value>
+    <value>This is where your music comes in! Go ahead, give Import a press.</value>
     <comment>First-run hint pointing at the Import tab in the left rail.</comment>
   </data>
   <data name="Coach_ArtHeader" xml:space="preserve">
-    <value>Drag this to open the artwork, or double click it to put it away.</value>
+    <value>Currently playing something and want to see the artwork? Drag this to open it, or double-click it to tuck it away again.</value>
     <comment>First-run hint pointing at the grip under the artwork band.</comment>
   </data>
   <data name="Coach_Views" xml:space="preserve">
-    <value>Three ways to look at your collection: a list, a wall of covers, or the albums in a grid.</value>
+    <value>Browse your collection your way! Switch between the album grid, the album list and the data table, any time you like.</value>
     <comment>First-run hint pointing at the view switch in the library header.</comment>
   </data>
   <data name="HomeLock_Kicker" xml:space="preserve">
@@ -7866,8 +7866,12 @@
     <comment>Tooltip on the × in the top-right corner of the playlists pane card about lists that are not there yet. Hides the card for good.</comment>
   </data>
   <data name="Wizard_Welcome" xml:space="preserve">
-    <value>Welcome to rpm. We will guide you through setting up your music collection.</value>
+    <value>Welcome to rpm! Let's get your music collection set up. It only takes a few steps.</value>
     <comment>Setup wizard step 1, under the wordmark and tagline, above the folder question.</comment>
+  </data>
+  <data name="Wizard_Hello" xml:space="preserve">
+    <value>Welcome to rpm!</value>
+    <comment>Setup wizard, first launch: the welcome alone in the middle of the window while the opening sound plays, before step 1 fades in.</comment>
   </data>
   <data name="Wizard_ChooseFolder" xml:space="preserve">
     <value>Choose a folder</value>
@@ -7898,15 +7902,15 @@
     <comment>Setup wizard step 2 press button, Copy, when some files are not identified.</comment>
   </data>
   <data name="Wizard_LayoutHint" xml:space="preserve">
-    <value>Please select the folder structure you wish to use for the music collection.</value>
+    <value>How would you like your collection laid out? Pick the folder structure that suits you best.</value>
     <comment>Setup wizard step 2, under the Folder layout heading, above the template choices.</comment>
   </data>
   <data name="Wizard_OriginalsHint" xml:space="preserve">
-    <value>What do you want rpm to do with the music files in the folder you selected?</value>
+    <value>What should rpm do with the music files in the folder you chose?</value>
     <comment>Setup wizard step 2, under The original files heading, above the move/copy choice.</comment>
   </data>
   <data name="Wizard_PlanHint" xml:space="preserve">
-    <value>This is the initial folder structure of your music collection.</value>
+    <value>Here's a preview of how your music collection will look to begin with.</value>
     <comment>Setup wizard step 2, under the Music collection heading, above the destination grid.</comment>
   </data>
   <data name="QueueDup_InCloud" xml:space="preserve">
@@ -8026,7 +8030,7 @@
     <comment>Settings button that puts every coachmark back.</comment>
   </data>
   <data name="Coach_SignIn" xml:space="preserve">
-    <value>Sign in to rpm to use the cloud: your collection on your phone, and streaming wherever you are.</value>
+    <value>Take your music with you! Sign in to rpm to use the cloud, so your collection is on your phone and streams wherever you are.</value>
     <comment>First-run hint pointing at the menu, shown only while signed out.</comment>
   </data>
   <data name="Settings_Hints" xml:space="preserve">
@@ -9316,5 +9320,293 @@
   <data name="Tv_QueueRearrangeHint" xml:space="preserve">
     <value>OK picks a song up, Up and Down carry it, OK puts it down.</value>
     <comment>Line under the title of the TV player's Now playing drawer while rearranging is on. OK, Up and Down are the TV remote's keys.</comment>
+  </data>
+  <data name="Wizard_RegionBody" xml:space="preserve">
+    <value>Choose the language the app should be in, and your country for localization.</value>
+    <comment>Setup wizard step 1, line under the Country and language heading.</comment>
+  </data>
+  <data name="Wizard_LookTitle" xml:space="preserve">
+    <value>Make rpm your own</value>
+    <comment>Setup wizard step 4 heading: the background, Pegasus's visualizer, the record and when rpm opens by itself.</comment>
+  </data>
+  <data name="Wizard_LookBackgroundHint" xml:space="preserve">
+    <value>The picture behind the whole app. You can also use one of your own later, in Settings.</value>
+    <comment>Setup wizard step 4, line under the Background heading.</comment>
+  </data>
+  <data name="Wizard_LookStart" xml:space="preserve">
+    <value>Open rpm automatically</value>
+    <comment>Setup wizard step 4, heading over the two switches: open rpm for a music CD, and for a music file.</comment>
+  </data>
+  <data name="Wizard_LayoutTitle" xml:space="preserve">
+    <value>How do you want to browse your collection?</value>
+    <comment>Setup wizard step 5 heading: the view the library opens in.</comment>
+  </data>
+  <data name="Wizard_LayoutBody" xml:space="preserve">
+    <value>Pick the view your library opens in. You can switch between them any time, at the top of the library.</value>
+    <comment>Setup wizard step 5, line over the three view pictures.</comment>
+  </data>
+  <data name="Wizard_LayoutWallDesc" xml:space="preserve">
+    <value>Every cover side by side, like your records on a shelf.</value>
+    <comment>Setup wizard step 5, under the Album grid picture.</comment>
+  </data>
+  <data name="Wizard_LayoutListDesc" xml:space="preserve">
+    <value>Each album with its cover and its tracklist.</value>
+    <comment>Setup wizard step 5, under the Album list picture.</comment>
+  </data>
+  <data name="Wizard_LayoutTableDesc" xml:space="preserve">
+    <value>Every song in rows and columns, to sort and edit.</value>
+    <comment>Setup wizard step 5, under the Data table picture.</comment>
+  </data>
+  <data name="Wizard_RoomOriginalDesc" xml:space="preserve">
+    <value>Soft lights that drift and pulse with the music.</value>
+    <comment>Pegasus's Original room animation, one line under its name (setup wizard and Display settings).</comment>
+  </data>
+  <data name="Wizard_RoomYangDesc" xml:space="preserve">
+    <value>Glowing balls circling the middle, trailing light.</value>
+    <comment>Pegasus's Yang room animation, one line under its name.</comment>
+  </data>
+  <data name="Wizard_RoomLavaDesc" xml:space="preserve">
+    <value>Blobs that rise and sink like a lava lamp.</value>
+    <comment>Pegasus's Lava room animation, one line under its name.</comment>
+  </data>
+  <data name="Wizard_RoomAlchemyDesc" xml:space="preserve">
+    <value>Broad ribbons of light flowing across the screen.</value>
+    <comment>Pegasus's Alchemy room animation, one line under its name.</comment>
+  </data>
+  <data name="Settings_PegasusVisualizer" xml:space="preserve">
+    <value>Visualizer in Pegasus</value>
+    <comment>Heading for the choice of Pegasus's room animation (setup wizard step 4 and Display settings).</comment>
+  </data>
+  <data name="Settings_PegasusVisualizerHint" xml:space="preserve">
+    <value>The moving lights behind the music when Pegasus plays.</value>
+    <comment>Line under the Visualizer in Pegasus heading.</comment>
+  </data>
+  <data name="Settings_SameAsWindows" xml:space="preserve">
+    <value>Same as Windows ({0})</value>
+    <comment>Display settings, first entry of the language and country pickers: follow Windows. {0} is what Windows gives now.</comment>
+  </data>
+  <data name="Settings_LanguageRestart" xml:space="preserve">
+    <value>Restart rpm to see the new language everywhere.</value>
+    <comment>Display settings, shown after the language is changed.</comment>
+  </data>
+  <data name="Settings_RestartNow" xml:space="preserve">
+    <value>Restart now</value>
+    <comment>Display settings, button that closes rpm and starts it again.</comment>
+  </data>
+  <data name="Settings_MusicFiles" xml:space="preserve">
+    <value>Music files</value>
+    <comment>Library settings, heading of the card for opening music files with rpm.</comment>
+  </data>
+  <data name="Settings_OpenMusicFiles" xml:space="preserve">
+    <value>Open rpm when a music file is played</value>
+    <comment>Switch: make rpm the app Windows opens music files with (setup wizard step 4 and Library settings).</comment>
+  </data>
+  <data name="Settings_OpenMusicFilesHint" xml:space="preserve">
+    <value>Music files you open play in rpm. Windows asks you to confirm rpm in its own settings.</value>
+    <comment>Line under the Open rpm when a music file is played switch.</comment>
+  </data>
+  <data name="Settings_OpenMusicFilesType" xml:space="preserve">
+    <value>Music file</value>
+    <comment>What Windows calls a file type rpm opens, in Explorer's Type column and Open with.</comment>
+  </data>
+  <data name="Settings_LibraryLayout" xml:space="preserve">
+    <value>Library layout</value>
+    <comment>Library settings, heading of the choice of the view the library opens in.</comment>
+  </data>
+  <data name="Settings_LibraryLayoutHint" xml:space="preserve">
+    <value>The view your library opens in. The keys at the top of the library switch it too.</value>
+    <comment>Line under the Library layout heading.</comment>
+  </data>
+  <data name="Wizard_HelloSubtitle" xml:space="preserve">
+    <value>Let's get you started.</value>
+    <comment>Setup wizard, first launch: the line under the welcome greeting, shown after two seconds.</comment>
+  </data>
+  <data name="Wizard_Continue" xml:space="preserve">
+    <value>Continue</value>
+    <comment>Setup wizard, first launch: the button under the welcome that goes on to step 1.</comment>
+  </data>
+  <data name="Beta_WelcomeTitle" xml:space="preserve">
+    <value>Thank you for joining the closed beta!</value>
+    <comment>The note shown once after setup: its heading.</comment>
+  </data>
+  <data name="Beta_WelcomeIntro" xml:space="preserve">
+    <value>We're so excited to have you on board! You're one of the very first people to use rpm, and that makes you part of building it.</value>
+    <comment>The beta welcome: the first paragraph, under the heading.</comment>
+  </data>
+  <data name="Beta_WelcomeWhatHeading" xml:space="preserve">
+    <value>What the closed beta is about</value>
+    <comment>The beta welcome: the small heading over its three points.</comment>
+  </data>
+  <data name="Beta_WelcomeUse" xml:space="preserve">
+    <value>Bring your own collection into rpm, and make it your music player. Rip your CDs, record your vinyl or import your files. It's all up to you!</value>
+    <comment>The beta welcome, first point: what testers are asked to do.</comment>
+  </data>
+  <data name="Beta_WelcomeTell" xml:space="preserve">
+    <value>Something broken, missing, or working really well? Let us know! You talk directly with the people who build rpm, and your feedback decides what we work on next.</value>
+    <comment>The beta welcome, second point: reporting back.</comment>
+  </data>
+  <data name="Beta_WelcomeGet" xml:space="preserve">
+    <value>As a thank you, you get rpm for iPhone with 100 GB in the cloud, and all the supporter perks. rpm for Android TV is almost ready, and you'll get it first!</value>
+    <comment>The beta welcome, third point: what testers get.</comment>
+  </data>
+  <data name="Beta_WelcomeTourLine" xml:space="preserve">
+    <value>Next up, a quick tour! rpm shows you around step by step, so you know right where everything is. Let's get started!</value>
+    <comment>The beta welcome: the last paragraph, saying the tour of hints follows.</comment>
+  </data>
+  <data name="Beta_WelcomeTour" xml:space="preserve">
+    <value>Show me around</value>
+    <comment>The beta welcome's button: closes it and starts the tour of hints.</comment>
+  </data>
+  <data name="Coach_ImportSources" xml:space="preserve">
+    <value>You can select if you want to import from a folder, your CD, a vinyl record or DVD. From there, find the release by searching the Catalog ID, barcode or title and artist. Easy, right? For now, let's close this section.</value>
+    <comment>First-run hint beside the import pane, after Import was pressed. Asks for the pane to be closed again.</comment>
+  </data>
+  <data name="Coach_SideScreens" xml:space="preserve">
+    <value>On the left sidebar, you can also find the track info, visualizer and internet radio side screens. Read up on your music, use a visualizer to just let it play in the background, or listen to the radio.</value>
+    <comment>First-run hint pointing at the rail's track info, visualizations and internet radio buttons.</comment>
+  </data>
+  <data name="Coach_AppViews" xml:space="preserve">
+    <value>rpm has more than one way to look at your music! Give this a press to see the views.</value>
+    <comment>First-run hint pointing at the deck's eye button, which opens the views picker.</comment>
+  </data>
+  <data name="Coach_AppViewsOpen" xml:space="preserve">
+    <value>Main is the full app, for browsing and managing your collection. RPaMp is a compact player that stays out of your way while you work. And Pegasus fills the whole screen, made for the couch, with the visualizer and the lyrics. Switch any time you like!</value>
+    <comment>First-run hint beside the open views picker: what Main, RPaMp and Pegasus each are. Main is View_Library's own word.</comment>
+  </data>
+  <data name="Wizard_AccountTitle" xml:space="preserve">
+    <value>Your rpm account</value>
+    <comment>Setup wizard step 2 heading.</comment>
+  </data>
+  <data name="Wizard_AccountBody" xml:space="preserve">
+    <value>Take your music with you! With an rpm account, your collection is on your phone and streams wherever you are. The cloud only works for people with an account, but everything else works without one, so you can always do this later.</value>
+    <comment>Setup wizard step 2, line under the heading: the cloud needs an account, nothing else does.</comment>
+  </data>
+  <data name="Wizard_AccountSignedIn" xml:space="preserve">
+    <value>Signed in as {0}</value>
+    <comment>Setup wizard step 2, once signed in. {0} is the account's name or email.</comment>
+  </data>
+  <data name="Coach_Next" xml:space="preserve">
+    <value>Next</value>
+    <comment>The link under a first-run hint that moves the tour on to the next one.</comment>
+  </data>
+  <data name="Coach_DoneTitle" xml:space="preserve">
+    <value>And that's the tour!</value>
+    <comment>The card that ends the first-run tour: its heading.</comment>
+  </data>
+  <data name="Coach_DoneBody" xml:space="preserve">
+    <value>You know your way around rpm now. Rip, record, import and play to your heart's content, and make your collection your own. Have fun collecting!</value>
+    <comment>The card that ends the first-run tour: the line under the heading.</comment>
+  </data>
+  <data name="Coach_DoneButton" xml:space="preserve">
+    <value>Start collecting</value>
+    <comment>The card that ends the first-run tour: the button that closes it and hands the app over.</comment>
+  </data>
+  <data name="Wizard_AccountLoggedIn" xml:space="preserve">
+    <value>You're logged in!</value>
+    <comment>Setup wizard step 2, once signed in: the news, over who is signed in.</comment>
+  </data>
+  <data name="Wizard_DiscogsTitle" xml:space="preserve">
+    <value>Link your Discogs account</value>
+    <comment>Setup wizard step 2, once signed in: the heading of the offer to connect Discogs.</comment>
+  </data>
+  <data name="Wizard_DiscogsBody" xml:space="preserve">
+    <value>Got a Discogs account? Link it to rpm, and finding the exact pressing of your records is a breeze. Discogs is catalogued by collectors just like you, so even the rarest releases are usually there!</value>
+    <comment>Setup wizard step 2, once signed in: why to connect Discogs.</comment>
+  </data>
+  <data name="Wizard_DiscogsLinked" xml:space="preserve">
+    <value>Discogs is linked!</value>
+    <comment>Setup wizard step 2, once Discogs is connected. The Discogs user name may follow in brackets.</comment>
+  </data>
+  <data name="SignUp_Title" xml:space="preserve">
+    <value>Sign up to rpm</value>
+    <comment>The sign-up window's title.</comment>
+  </data>
+  <data name="SignUp_Button" xml:space="preserve">
+    <value>Sign up</value>
+    <comment>Sign-in window: the button beside Sign in that opens the sign-up window instead.</comment>
+  </data>
+  <data name="SignUp_Subtitle" xml:space="preserve">
+    <value>Make your rpm account in a minute! Then your collection goes wherever you go.</value>
+    <comment>Sign-up window, the line over the form.</comment>
+  </data>
+  <data name="SignUp_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Sign-up window: the name field's placeholder.</comment>
+  </data>
+  <data name="SignUp_PasswordRule" xml:space="preserve">
+    <value>At least 8 characters, with an uppercase letter, a lowercase letter and a number.</value>
+    <comment>Sign-up window, under the password field: the accounts service's password rule.</comment>
+  </data>
+  <data name="SignUp_Create" xml:space="preserve">
+    <value>Create account</value>
+    <comment>Sign-up window: the button that sends the form.</comment>
+  </data>
+  <data name="SignUp_Confirm" xml:space="preserve">
+    <value>Confirm</value>
+    <comment>Sign-up window: the button that sends the mailed code.</comment>
+  </data>
+  <data name="SignUp_CodeSent" xml:space="preserve">
+    <value>Nearly there! We've sent a six-digit code to {0}. Type it in below.</value>
+    <comment>Sign-up window, the code face. {0} is the email address.</comment>
+  </data>
+  <data name="SignUp_Code" xml:space="preserve">
+    <value>Code</value>
+    <comment>Sign-up window: the code field's placeholder.</comment>
+  </data>
+  <data name="SignUp_Resend" xml:space="preserve">
+    <value>Send a new code</value>
+    <comment>Sign-up window, under the code field.</comment>
+  </data>
+  <data name="SignUp_CodeResent" xml:space="preserve">
+    <value>A new code is on its way. Check your inbox!</value>
+    <comment>Sign-up window: a fresh code was mailed (asked for, or because the old one expired).</comment>
+  </data>
+  <data name="SignUp_NeedFields" xml:space="preserve">
+    <value>Fill in your name, email and password.</value>
+    <comment>Sign-up window: a field was left empty.</comment>
+  </data>
+  <data name="SignUp_NeedCode" xml:space="preserve">
+    <value>Type in the code from the email.</value>
+    <comment>Sign-up window: the code field was left empty.</comment>
+  </data>
+  <data name="SignUp_AlreadyRegistered" xml:space="preserve">
+    <value>There's already an account with this email. Try signing in instead.</value>
+    <comment>Sign-up window: the address already has an account.</comment>
+  </data>
+  <data name="SignUp_WeakPassword" xml:space="preserve">
+    <value>That password is too easy to guess. Use at least 8 characters, with an uppercase letter, a lowercase letter and a number.</value>
+    <comment>Sign-up window: the password does not meet the rule.</comment>
+  </data>
+  <data name="SignUp_InvalidEmail" xml:space="preserve">
+    <value>That doesn't look like an email address.</value>
+    <comment>Sign-up window: the address was refused.</comment>
+  </data>
+  <data name="SignUp_InvalidName" xml:space="preserve">
+    <value>Your name can use letters, numbers, spaces, hyphens and dots, 2 to 50 of them.</value>
+    <comment>Sign-up window: the name was refused.</comment>
+  </data>
+  <data name="SignUp_InvalidCode" xml:space="preserve">
+    <value>That code isn't right. Have another look at the email.</value>
+    <comment>Sign-up window: the code was wrong.</comment>
+  </data>
+  <data name="SignUp_TooMany" xml:space="preserve">
+    <value>Too many tries for now. Wait a little, then try again.</value>
+    <comment>Sign-up window: the accounts service is limiting attempts.</comment>
+  </data>
+  <data name="SignUp_Failed" xml:space="preserve">
+    <value>Couldn't make the account. Please try again.</value>
+    <comment>Sign-up window: any other failure.</comment>
+  </data>
+  <data name="Wizard_AccountSignUp" xml:space="preserve">
+    <value>Sign up to rpm</value>
+    <comment>Setup wizard step 2: opens the sign-up window.</comment>
+  </data>
+  <data name="Wizard_AccountHaveOne" xml:space="preserve">
+    <value>Already have an account? Sign in</value>
+    <comment>Setup wizard step 2, under Sign up: opens the sign-in window for an email and password.</comment>
+  </data>
+  <data name="Wizard_ImportSlow" xml:space="preserve">
+    <value>Hang tight! A big collection can take a while to import, so feel free to grab a coffee while rpm files it all away.</value>
+    <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
 </root>

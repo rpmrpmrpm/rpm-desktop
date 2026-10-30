@@ -166,6 +166,9 @@ public sealed partial class SettingsService
         string? PegasusPicture = null,
         // ...and what its collection's screens are drawn on.
         string? PegasusPageBackground = null,
+        // The language the app speaks and the country it listens from. Null follows Windows.
+        string? Language = null,
+        string? Country = null,
         bool WriteAnalysisTags = true,
         bool SyncAllPausedByFull = false,
         DateTime? CloudFullNoticeUtc = null,
@@ -194,6 +197,27 @@ public sealed partial class SettingsService
     /// <summary>Raised when a setting changes, so that the sync engine can react to being switched
     /// on.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// The language the app's text is in, as a tag from <see cref="AppLanguage.Offered"/>, or null to
+    /// follow Windows. See <see cref="AppLanguage"/> for how a change reaches the screen.
+    /// </summary>
+    public string? Language
+    {
+        get => _model.Language;
+        set => Update(_model with { Language = value }, notify: false);
+    }
+
+    /// <summary>
+    /// The listener's country, as an ISO 3166 two-letter code, or null to use Windows' region. The radio
+    /// puts it first: it leads the country picker and names the essential stations. See
+    /// <see cref="AppCountry"/>.
+    /// </summary>
+    public string? Country
+    {
+        get => _model.Country;
+        set => Update(_model with { Country = value }, notify: false);
+    }
 
     /// <summary>The central music folder (the rpm library root). Null until first-run setup.</summary>
     public string? LibraryPath

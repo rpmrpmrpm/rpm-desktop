@@ -231,6 +231,15 @@ public partial class App : Application
         try
         {
             _instanceLock = new Mutex(initiallyOwned: true, @"Local\rpm.desktop", out var first);
+
+            // A music file double-clicked while rpm is open is played by the copy that is open. See
+            // MusicFileService. If nobody takes it, this copy starts and plays it itself.
+            if (!first && MusicFileService.TryHandOver(MusicFileService.FilesOnCommandLine()))
+            {
+                Environment.Exit(0);
+                return false;
+            }
+
             if (first || !Environment.GetCommandLineArgs().Contains("--rip-disc"))
                 return true;
         }
@@ -566,6 +575,7 @@ public partial class App : Application
                         // Registers RPM as the app that the machine opens when a music CD goes in. Only the
                         // settings page talks to it.
                         .AddSingleton<DiscAutoPlayService>()
+                        .AddSingleton<MusicFileService>()
                         // Watches the calendar for one minute a year. It is resolved eagerly at startup
                         // (below). Like the disc watcher, it has no callers, only a timer.
                         .AddSingleton<NewYearHerald>()
@@ -670,6 +680,10 @@ public partial class App : Application
             Host.Services.GetRequiredService<AuthService>().Load();
         var settings = Host.Services.GetRequiredService<SettingsService>();
         settings.Load();
+
+        // The chosen language, before anything is built with a string in it.
+        if (settings.Language is { } language)
+            AppLanguage.Apply(language);
 
         // The saved interface state: the pane, the search, the shelf's scroll position, and the queue. It
         // is read here for the same reason as the settings. The shell is built on the next line, and every
@@ -1167,6 +1181,7 @@ public partial class App : Application
             // The opening sound is also stopped. It runs as a child process, and it would otherwise keep
             // playing after the window has gone.
             try { AppSound.Silence(); } catch { }
+            try { SetupLoop.Silence(); } catch { }
 
 #if DEBUG
             try { Presentation.Gallery.GalleryWindow.Close(); } catch { }
@@ -1250,8 +1265,26 @@ public partial class App : Application
             //
             // This is logged after the cleanup above, and not instead of it. The session, the placement and
             // the player have already been written down by the time this runs.
+            //
+            // A restart starts the next copy here, after the library is closed, so the new one never finds
+            // the database held by the old one. See Restart.
+            if (_restartAfterClose && Environment.ProcessPath is { Length: > 0 } self)
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(self) { UseShellExecute = false }); } catch { }
             try { Exit(); } catch { }
         };
+    }
+
+    private static bool _restartAfterClose;
+
+    /// <summary>
+    /// Closes rpm the way the close button does, and starts it again once it has closed. For a change that
+    /// only a fresh start shows everywhere, such as the language.
+    /// </summary>
+    public static void Restart()
+    {
+        _restartAfterClose = true;
+        try { ((App)Current).MainWindow?.Close(); }
+        catch { _restartAfterClose = false; }
     }
 
     /// <summary>How long the card may stay up before the window is brought back, whether or not the startup
@@ -1344,6 +1377,17 @@ public partial class App : Application
             AppSound.PlayOpen(playback.Volume, stop: () => playback.PlayingPath is not null);
         }
         catch { /* This is a flourish, and it must never hold up a window. */ }
+
+        // The music files this copy was opened with, and the ones a later launch hands over. Both start
+        // once the window is up, so a double-clicked song plays over the app and not over the splash.
+        try
+        {
+            var player = Host.Services.GetRequiredService<RPaMpService>();
+            if (MusicFileService.FilesOnCommandLine() is { Count: > 0 } files)
+                MusicFileService.Play(player, files);
+            MusicFileService.Listen(handed => MusicFileService.Play(player, handed));
+        }
+        catch (Exception e) { RPM.Core.Diagnostics.Said.Line("open", $"could not play the opened files: {e.Message}"); }
     }
 
 

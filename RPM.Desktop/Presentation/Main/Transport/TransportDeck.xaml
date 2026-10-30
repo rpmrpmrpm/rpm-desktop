@@ -380,7 +380,8 @@
                 AutomationProperties.Name="{loc:Str Key=Deck_ViewTip}">
           <TextBlock Text="&#xf06e;" FontFamily="{StaticResource Fa}" FontSize="14"/>
           <Button.Flyout>
-            <Flyout x:Name="ViewFlyout" Placement="Top" Opening="ViewFlyout_Opening">
+            <Flyout x:Name="ViewFlyout" Placement="Top" Opening="ViewFlyout_Opening" Opened="ViewFlyout_Opened"
+                    Closed="ViewFlyout_Closed">
               <Flyout.FlyoutPresenterStyle>
                 <Style TargetType="FlyoutPresenter">
                   <Setter Property="Padding" Value="0"/>

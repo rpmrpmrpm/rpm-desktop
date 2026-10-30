@@ -3,6 +3,30 @@ using RPM.Core.Diagnostics;
 
 namespace RPM.Desktop.Services.Account;
 
+/// <summary>
+/// How a step of signing up ended: done, or the accounts service's reason for refusing it, as its own
+/// code ("already_registered", "weak_password", "invalid_email", "invalid_name", "invalid_code",
+/// "code_expired", "code_resent", "too_many"), or "network" and "refused" for the rest. The sign-up
+/// window turns the code into its own sentence (<see cref="StringKey"/>).
+/// </summary>
+public sealed record SignUpAnswer(bool Done, string? Code)
+{
+    public static readonly SignUpAnswer Ok = new(true, null);
+
+    /// <summary>The sentence the sign-up window shows for a refusal.</summary>
+    public string StringKey => Code switch
+    {
+        "already_registered" => "SignUp_AlreadyRegistered",
+        "weak_password" => "SignUp_WeakPassword",
+        "invalid_email" => "SignUp_InvalidEmail",
+        "invalid_name" => "SignUp_InvalidName",
+        "invalid_code" => "SignUp_InvalidCode",
+        "code_expired" or "code_resent" => "SignUp_CodeResent",
+        "too_many" => "SignUp_TooMany",
+        _ => "SignUp_Failed",
+    };
+}
+
 /// <summary>Why the accounts service said no to a sign-in.</summary>
 public enum SignInRefusal
 {

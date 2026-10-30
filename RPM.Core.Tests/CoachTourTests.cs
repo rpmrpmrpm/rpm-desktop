@@ -22,7 +22,10 @@ public class CoachTourTests
             seen.Add(CoachTour.Key(mark));
         }
 
-        Assert.Equal([CoachMark.AddMusic, CoachMark.ArtHeader, CoachMark.Views, CoachMark.SignIn], got);
+        Assert.Equal(
+            [CoachMark.AddMusic, CoachMark.ImportSources, CoachMark.SideScreens, CoachMark.ArtHeader,
+             CoachMark.Views, CoachMark.AppViews, CoachMark.AppViewsOpen, CoachMark.SignIn],
+            got);
     }
 
     [Fact]
@@ -30,7 +33,7 @@ public class CoachTourTests
     {
         // The listener found the view switch on their own before the tour reached it.
         Assert.Equal(CoachMark.AddMusic, CoachTour.Next([CoachTour.Key(CoachMark.Views)]));
-        Assert.Equal(CoachMark.ArtHeader,
+        Assert.Equal(CoachMark.ImportSources,
                      CoachTour.Next([CoachTour.Key(CoachMark.Views), CoachTour.Key(CoachMark.AddMusic)]));
     }
 
@@ -60,7 +63,8 @@ public class CoachTourTests
         Assert.Equal(CoachTour.Order, CoachTour.Remaining([]));
 
         Assert.Equal(
-            [CoachMark.ArtHeader, CoachMark.SignIn],
+            [CoachMark.ImportSources, CoachMark.SideScreens, CoachMark.ArtHeader, CoachMark.AppViews,
+             CoachMark.AppViewsOpen, CoachMark.SignIn],
             CoachTour.Remaining([CoachTour.Key(CoachMark.AddMusic), CoachTour.Key(CoachMark.Views)]));
     }
 
