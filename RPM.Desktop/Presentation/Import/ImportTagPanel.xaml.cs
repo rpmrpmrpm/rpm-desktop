@@ -37,7 +37,11 @@ public sealed record FoundArt(byte[] Picture, byte[]? Disc);
 /// <param name="DiscArt">The disc label to hold against the record until its files land, or null.</param>
 /// <param name="Cover">The sleeve that was written on the rows, when one was. It is reported, not acted on,
 /// because it is already on the rows. The workbench uses it to say what the press actually wrote.</param>
-public sealed record TagPanelEdit(IReadOnlyList<TrackRow> Rows, byte[]? DiscArt, byte[]? Cover = null);
+/// <param name="SeriesSet">Whether the series was changed. Like the disc label it is held against the record,
+/// not written on a row. <paramref name="Series"/> null with this set means "stands alone".</param>
+public sealed record TagPanelEdit(
+    IReadOnlyList<TrackRow> Rows, byte[]? DiscArt, byte[]? Cover = null,
+    bool SeriesSet = false, RPM.Core.Library.AlbumSeries? Series = null);
 
 public sealed partial class ImportTagPanel : UserControl
 {
@@ -151,6 +155,9 @@ public sealed partial class ImportTagPanel : UserControl
 
     private void Build()
     {
+        _seriesName = null;
+        _seriesVolume = null;
+        _seriesLoaded = "";
         _entries.Clear();
         _genreBox = null;
         _titleNote = null;
@@ -194,6 +201,8 @@ public sealed partial class ImportTagPanel : UserControl
                 group.Add(tick: null, label, input,
                     topAlign: field.Multiline || field.Kind == TagFieldKind.ReleaseType);
             }
+
+            AddSeries(group);
 
             // No heading. The panel's own header already says "Tags", and a group heading would repeat that word.
             if (group.BuildBare() is Grid rows)
@@ -720,7 +729,8 @@ public sealed partial class ImportTagPanel : UserControl
     /// <see cref="ImportWorkbenchView"/>'s Import button.</para>
     /// </summary>
     public bool HasPendingEdits
-        => _rows.Count > 0 && (_entries.Any(entry => entry.Touched) || PictureChosen || TitleNoteWanted);
+        => _rows.Count > 0 && (_entries.Any(entry => entry.Touched) || PictureChosen || TitleNoteWanted
+                               || SeriesTouched);
 
     /// <summary>Whether Apply should add "(Live)" or "(Mixed)" to the titles.</summary>
     private bool TitleNoteWanted => _titleNote?.Wanted is not null;
@@ -741,8 +751,13 @@ public sealed partial class ImportTagPanel : UserControl
     private void ApplyEdits()
     {
         var touched = _entries.Where(entry => entry.Touched).ToList();
-        if ((touched.Count == 0 && !PictureChosen && !TitleNoteWanted) || _rows.Count == 0)
+        if ((touched.Count == 0 && !PictureChosen && !TitleNoteWanted && !SeriesTouched) || _rows.Count == 0)
             return;
+
+        // Read before the baselines move below, which is what says whether it changed.
+        var seriesSet = SeriesTouched;
+        var series = SeriesNow();
+        _seriesLoaded = SeriesShown();
 
         foreach (var entry in touched)
         {
@@ -790,7 +805,7 @@ public sealed partial class ImportTagPanel : UserControl
         _chosenCover = _chosenDisc = null;
 
         RefreshButtons();
-        Applied?.Invoke(new TagPanelEdit(_rows, discArt, coverArt));
+        Applied?.Invoke(new TagPanelEdit(_rows, discArt, coverArt, seriesSet, series));
     }
 
     /// <summary>Throws the pending edits away by reading the rows again. Nothing was written, so there

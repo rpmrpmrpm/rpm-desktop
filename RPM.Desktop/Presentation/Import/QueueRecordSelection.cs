@@ -16,7 +16,9 @@ namespace RPM.Desktop.Presentation.Import;
 /// whole record has a stored answer to show.</para>
 /// </summary>
 /// <param name="DiscArt">The label the record already carries, or null where it carries none.</param>
-public sealed record QueueRecordSelection(byte[]? DiscArt)
+/// <param name="Series">The series the record has been named a volume of in the queue, or null. Like the
+/// disc label it belongs to the record, so only a whole record is offered it.</param>
+public sealed record QueueRecordSelection(byte[]? DiscArt, RPM.Core.Library.AlbumSeries? Series = null)
 {
     /// <summary>
     /// The one record every row is on, or null where they are not all on one.

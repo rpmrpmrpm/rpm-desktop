@@ -234,10 +234,20 @@ public sealed partial class MainModel
             ? _library.Db.QueueAlbumIntentForRows([.. rows.Select(r => r.QueueId)])
             : null;
 
-    /// <summary>The series names the library already files records under, for the album editor to
-    /// offer. Empty while no library is open.</summary>
+    /// <summary>The series names to offer: the ones the library already files records under, and the ones
+    /// named against records still in the import queue, once each, in alphabetical order. Empty while no
+    /// library is open.</summary>
     public IReadOnlyList<string> AlbumSeriesNames()
-        => _library.IsOpen ? _library.Db.AlbumSeriesNames() : [];
+    {
+        if (!_library.IsOpen)
+            return [];
+        var names = new List<string>();
+        foreach (var name in _library.Db.AlbumSeriesNames().Concat(_library.Db.QueueAlbumSeriesNames()))
+            if (!names.Contains(name, StringComparer.OrdinalIgnoreCase))
+                names.Add(name);
+        names.Sort(StringComparer.OrdinalIgnoreCase);
+        return names;
+    }
 
     /// <summary>The record that a selection is the WHOLE of. It is null when the selection is not one
     /// record's worth: some of a record's tracks, or tracks from several records. A window asks this before
@@ -254,9 +264,11 @@ public sealed partial class MainModel
 
         // Every row of the record is needed, not merely rows from it. Ticking six of a twelve-track album
         // would leave six tracks unseen, and the answer would be written over them.
-        return QueueGroupCount(record.Artist, record.Album) == rows.Count
-            ? new QueueRecordSelection(QueueAlbumIntentSharedByRows(rows)?.DiscArt)
-            : null;
+        if (QueueGroupCount(record.Artist, record.Album) != rows.Count)
+            return null;
+
+        var said = QueueAlbumIntentSharedByRows(rows);
+        return new QueueRecordSelection(said?.DiscArt, said is { SeriesSet: true } ? said.Series : null);
     }
 
     /// <summary>What these rows' record says about itself, when all the rows agree. A window asks this

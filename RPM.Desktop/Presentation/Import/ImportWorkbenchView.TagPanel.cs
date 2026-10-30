@@ -104,6 +104,11 @@ public sealed partial class ImportWorkbenchView
         var record = m.WholeQueueRecord(selected);
         QueueTagPanel.Record = record;
 
+        // The series the box offers: the library's, and any already named in this queue (see
+        // MainModel.AlbumSeriesNames). Read on every refresh, so a series named on one record is offered on
+        // the next one ticked.
+        QueueTagPanel.KnownSeries = record is null ? [] : m.AlbumSeriesNames();
+
         // The disc picture is fetched only when there is a place to show it. Asking a catalogue for a
         // picture with nowhere to go is slow and wasted.
         QueueTagPanel.Lookup = (rows, wantArt) => LookUpReleaseForRowsAsync(
@@ -155,8 +160,12 @@ public sealed partial class ImportWorkbenchView
 
         // Save the disc label first, while the rows still show which record they belong to. Saving the
         // fields can rename that record, and the label is keyed by row for that reason.
-        if (edit.DiscArt is { Length: > 0 } label)
-            m.SetQueueAlbumIntent(edit.Rows, new RPM.Core.Library.QueueAlbumIntent(DiscArt: label));
+        // The series goes the same way, and in the same intent, so one save holds both.
+        if (edit.DiscArt is { Length: > 0 } || edit.SeriesSet)
+            m.SetQueueAlbumIntent(edit.Rows, new RPM.Core.Library.QueueAlbumIntent(
+                DiscArt: edit.DiscArt is { Length: > 0 } label ? label : null,
+                SeriesSet: edit.SeriesSet,
+                Series: edit.Series));
 
         m.PersistQueueRows(edit.Rows);
 

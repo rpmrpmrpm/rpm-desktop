@@ -160,6 +160,29 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>Every series named against a record still in the queue. A box of ten volumes imported in
+    /// one go is named on its first volume, and the other nine have to be offered that name before any of
+    /// them has reached the library.</summary>
+    public IReadOnlyList<string> QueueAlbumSeriesNames()
+    {
+        using (_gate.Take())
+        {
+            EnsureQueueTableLocked();
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT series FROM queue_album
+                WHERE series_set = 1 AND series IS NOT NULL AND TRIM(series) <> ''
+                GROUP BY series COLLATE NOCASE
+                """;
+            using var reader = cmd.ExecuteReader();
+            var names = new List<string>();
+            while (reader.Read())
+                names.Add(reader.GetString(0));
+            return names;
+        }
+    }
+
     /// <summary>Every intent the queue holds, by id. An import needs this to apply them all in one pass,
     /// without a query per file.</summary>
     public IReadOnlyDictionary<long, QueueAlbumIntent> QueueAlbumIntents()
