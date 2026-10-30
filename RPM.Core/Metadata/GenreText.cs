@@ -21,9 +21,12 @@ internal static class GenreText
     /// Punk and Rock, and neither is a slashed compound.</summary>
     internal static readonly char[] WordBreaks = ['/', ',', '&', ';', '|', ' ', '-', '_'];
 
-    /// <summary>Punctuation and case are removed, so "Hip-Hop", "hip hop" and "HipHop" are one word.</summary>
+    /// <summary>Punctuation, case and accents are removed, so "Hip-Hop", "hip hop" and "HipHop" are one word,
+    /// and so are "Opéra Comique" and "Opera Comique". The text is decomposed first, which splits "é" into an
+    /// "e" and an accent mark, and the mark is not a letter, so it goes with the punctuation.</summary>
     internal static string Fold(string value)
-        => new([.. value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
+        => new([.. value.Normalize(System.Text.NormalizationForm.FormD)
+                       .Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
 
     /// <summary>
     /// How a label is looked up: the whole label first, then its words from left to right.

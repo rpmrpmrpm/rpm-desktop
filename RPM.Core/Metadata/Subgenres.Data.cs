@@ -16,7 +16,7 @@ public static partial class Subgenres
     /// whenever the list changes, because a number somebody has to remember to raise is a number
     /// that is wrong the first time somebody forgets.</para>
     /// </summary>
-    public const int Version = 1938881500;
+    public const int Version = 873513937;
 
     /// <summary>The shelves, in the order they are offered. Generated, so this and the
     /// styles under it can never disagree about which shelves exist.</summary>
@@ -307,26 +307,65 @@ public static partial class Subgenres
         new("Celtic Folk", "Folk"),
         new("Indie Folk", "Folk"),
         new("Folk Revival", "Folk"),
+        new("Medieval", "Classical"),
+        new("Renaissance", "Classical"),
         new("Early Music", "Classical"),
         new("Baroque", "Classical"),
         new("Classical Period", "Classical"),
         new("Romantic Classical", "Classical"),
+        new("Late Romantic", "Classical"),
+        new("Impressionist", "Classical"),
+        new("Modernist", "Classical"),
+        new("Serialism", "Classical"),
+        new("Minimalism", "Classical"),
         new("Contemporary Classical", "Classical"),
         new("Orchestral", "Classical"),
+        new("Symphony", "Classical"),
+        new("Concerto", "Classical"),
         new("Chamber Music", "Classical"),
-        new("Choral", "Classical"),
+        new("String Quartet", "Classical"),
+        new("Sonata", "Classical"),
         new("Solo Piano", "Classical"),
-        new("Minimalism", "Classical"),
-        new("Medieval", "Classical"),
-        new("Renaissance", "Classical"),
-        new("Impressionist", "Classical"),
+        new("Harpsichord", "Classical"),
+        new("Organ", "Classical"),
+        new("Classical Guitar", "Classical"),
+        new("Choral", "Classical"),
+        new("Oratorio", "Classical"),
+        new("Cantata", "Classical"),
+        new("Mass", "Classical"),
+        new("Requiem", "Classical"),
+        new("Art Song", "Classical"),
+        new("Ballet", "Classical"),
         new("Modern Classical", "Neo-Classical"),
         new("Post-Minimalism", "Neo-Classical"),
         new("Ambient Classical", "Neo-Classical"),
-        new("Grand Opera", "Opera"),
+        new("Opera Seria", "Opera"),
         new("Opera Buffa", "Opera"),
+        new("Dramma Giocoso", "Opera"),
+        new("Opera Semiseria", "Opera"),
         new("Bel Canto", "Opera"),
+        new("Verismo", "Opera"),
+        new("Tragédie en Musique", "Opera"),
+        new("Opéra-Ballet", "Opera"),
+        new("Opéra Comique", "Opera"),
+        new("Grand Opera", "Opera"),
+        new("Opéra Lyrique", "Opera"),
+        new("Opéra Bouffe", "Opera"),
+        new("Singspiel", "Opera"),
+        new("Romantische Oper", "Opera"),
+        new("Spieloper", "Opera"),
+        new("Märchenoper", "Opera"),
+        new("Musikdrama", "Opera"),
+        new("Zeitoper", "Opera"),
+        new("Ballad Opera", "Opera"),
+        new("Semi-Opera", "Opera"),
+        new("Savoy Opera", "Opera"),
+        new("Zarzuela", "Opera"),
         new("Operetta", "Opera"),
+        new("Intermezzo", "Opera"),
+        new("Chamber Opera", "Opera"),
+        new("Rescue Opera", "Opera"),
+        new("Opera-Oratorio", "Opera"),
         new("Heavy Metal", "Metal"),
         new("Alternative Metal", "Metal"),
         new("Industrial Metal", "Metal"),
@@ -490,5 +529,7 @@ public static partial class Subgenres
         "gothic", // gothic
         "glam", // glam
         "instrumental", // instrumental
+        "organ", // organ
+        "mass", // mass
     ];
 }

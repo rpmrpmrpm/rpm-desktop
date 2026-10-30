@@ -56,6 +56,11 @@ public class SubgenresTests
     [InlineData("DEEP-HOUSE", "Deep House", "House")]
     [InlineData("Post Punk", "Post-Punk", "Punk")]
     [InlineData("Pop Rap", "Pop Rap", "Rap")]
+    [InlineData("Singspiel", "Singspiel", "Opera")]
+    [InlineData("Opera Comique", "Opéra Comique", "Opera")]
+    [InlineData("opéra-comique", "Opéra Comique", "Opera")]
+    [InlineData("Marchenoper", "Märchenoper", "Opera")]
+    [InlineData("String Quartet", "String Quartet", "Classical")]
     public void A_style_is_found_however_it_is_spelled(string tag, string name, string genre)
     {
         var style = Subgenres.Match(tag);
@@ -63,6 +68,25 @@ public class SubgenresTests
         Assert.Equal(name, style.Name);
         Assert.Equal(genre, style.Genre);
     }
+
+    /// <summary>The opera list follows Wikipedia's list of opera genres (the forms a recording is filed
+    /// under, not every alternative name), and the classical list has forms beside its periods.</summary>
+    [Theory]
+    [InlineData("Opera", "Singspiel")]
+    [InlineData("Opera", "Opera Seria")]
+    [InlineData("Opera", "Zarzuela")]
+    [InlineData("Classical", "Symphony")]
+    [InlineData("Classical", "Art Song")]
+    public void Opera_and_classical_offer_their_forms(string shelf, string style)
+        => Assert.Contains(Subgenres.Under(shelf), s => s.Name == style);
+
+    /// <summary>"Organ" and "Mass" are offered, but a loose word is not read as either: "Organ Jazz" is
+    /// a jazz record and a gospel "Mass Choir" is not a classical one.</summary>
+    [Theory]
+    [InlineData("Organ Jazz")]
+    [InlineData("Mass Choir")]
+    public void A_classical_form_named_by_one_common_word_is_not_read_out_of_a_tag(string tag)
+        => Assert.NotEqual("Classical", Subgenres.Match(tag)?.Genre);
 
     /// <summary>A style under three shelves names none of them, so it is matched to nothing and the
     /// rest of the tag decides. It is still offered under each of its shelves, because somebody
