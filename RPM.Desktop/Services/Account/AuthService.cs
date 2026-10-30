@@ -176,7 +176,7 @@ public sealed partial class AuthService
         "auth/register", new RegisterRequest(name.Trim(), email.Trim(), password), AuthJson.Default.RegisterRequest);
 
     /// <summary>Takes the mailed code (<c>auth/confirm</c>). The account is live once this answers
-    /// <see cref="SignUpAnswer.Ok"/>; signing in with the password then works.</summary>
+    /// <see cref="SignUpAnswer.Done"/>; signing in with the password then works.</summary>
     public Task<SignUpAnswer> ConfirmSignUpAsync(string email, string code) => PostSignUpAsync(
         "auth/confirm", new ConfirmRequest(email.Trim(), code.Trim()), AuthJson.Default.ConfirmRequest);
 
@@ -191,25 +191,17 @@ public sealed partial class AuthService
         {
             var res = await _http.PostAsJsonAsync(path, request, type);
             if (res.IsSuccessStatusCode)
-                return SignUpAnswer.Ok;
+                return new SignUpAnswer.Done();
 
             // The service's refusals carry a code ("already_registered", "weak_password", ...). The
             // sentence beside it is English and stays in the log; the window says its own.
             var body = await res.Content.ReadAsStringAsync();
             Said.Line("auth", $"{path} refused: {(int)res.StatusCode} {body}");
-            try
-            {
-                using var json = System.Text.Json.JsonDocument.Parse(body);
-                if (json.RootElement.TryGetProperty("code", out var code) && code.GetString() is { Length: > 0 } said)
-                    return new SignUpAnswer(false, said);
-            }
-            catch (System.Text.Json.JsonException) { }
-            return new SignUpAnswer(false, "refused");
+            return SignUpAnswer.FromRefusal(body);
         }
         catch (Exception ex)
         {
-            Faults.Note("auth", path, ex);
-            return new SignUpAnswer(false, "network");
+            return new SignUpAnswer.Failed(Faults.Note("auth", path, ex));
         }
     }
 

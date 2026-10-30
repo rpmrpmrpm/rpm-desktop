@@ -4,25 +4,54 @@ using RPM.Core.Diagnostics;
 namespace RPM.Desktop.Services.Account;
 
 /// <summary>
-/// How a step of signing up ended: done, or the accounts service's reason for refusing it, as its own
-/// code ("already_registered", "weak_password", "invalid_email", "invalid_name", "invalid_code",
-/// "code_expired", "code_resent", "too_many"), or "network" and "refused" for the rest. The sign-up
-/// window turns the code into its own sentence (<see cref="StringKey"/>).
+/// How a step of signing up ended, as the sign-up window shows it. A closed set, like
+/// <see cref="SignInOutcome"/>: no case carries the service's English sentence or an exception's message.
 /// </summary>
-public sealed record SignUpAnswer(bool Done, string? Code)
+public abstract record SignUpAnswer
 {
-    public static readonly SignUpAnswer Ok = new(true, null);
+    private SignUpAnswer() { }
 
-    /// <summary>The sentence the sign-up window shows for a refusal.</summary>
-    public string StringKey => Code switch
+    public sealed record Done : SignUpAnswer;
+
+    /// <summary>The accounts service said no, with its own code: "already_registered", "social_account",
+    /// "weak_password", "invalid_email", "invalid_name", "invalid_code", "code_expired", "code_resent",
+    /// "too_many", or "refused" when the answer had no code.</summary>
+    public sealed record Refused(string Code) : SignUpAnswer;
+
+    /// <summary>The request did not complete.</summary>
+    public sealed record Failed(Fault Fault) : SignUpAnswer;
+
+    /// <summary>Reads a refusal's body. The code is taken, and the sentence beside it is left for the log.</summary>
+    public static Refused FromRefusal(string body)
     {
-        "already_registered" => "SignUp_AlreadyRegistered",
-        "weak_password" => "SignUp_WeakPassword",
-        "invalid_email" => "SignUp_InvalidEmail",
-        "invalid_name" => "SignUp_InvalidName",
-        "invalid_code" => "SignUp_InvalidCode",
-        "code_expired" or "code_resent" => "SignUp_CodeResent",
-        "too_many" => "SignUp_TooMany",
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(body);
+            if (json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && json.RootElement.TryGetProperty("code", out var code)
+                && code.ValueKind == System.Text.Json.JsonValueKind.String
+                && code.GetString() is { Length: > 0 } said)
+                return new Refused(said);
+        }
+        catch (System.Text.Json.JsonException) { }
+        return new Refused("refused");
+    }
+
+    /// <summary>The sentence the sign-up window shows, or null when there is nothing to say.</summary>
+    public string? StringKey => this switch
+    {
+        Done => null,
+        Refused { Code: "already_registered" } => "SignUp_AlreadyRegistered",
+        Refused { Code: "social_account" } => "SignUp_SocialAccount",
+        Refused { Code: "weak_password" } => "SignUp_WeakPassword",
+        Refused { Code: "invalid_email" } => "SignUp_InvalidEmail",
+        Refused { Code: "invalid_name" } => "SignUp_InvalidName",
+        Refused { Code: "invalid_code" } => "SignUp_InvalidCode",
+        Refused { Code: "code_expired" or "code_resent" } => "SignUp_CodeResent",
+        Refused { Code: "too_many" } => "SignUp_TooMany",
+
+        // Being offline or slow is worth saying as such, as the sign-in window does.
+        Failed { Fault: Fault.Offline or Fault.Timeout } failed => failed.Fault.StringKey(),
         _ => "SignUp_Failed",
     };
 }

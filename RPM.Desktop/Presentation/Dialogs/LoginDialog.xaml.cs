@@ -42,14 +42,24 @@ public sealed partial class LoginDialog : ContentDialog
 
     private async void SignInButton_Click(object sender, RoutedEventArgs e) => await TryPasswordLoginAsync();
 
-    /// <summary>Set when Sign up was pressed: this window closes and the sign-up window opens in its place
-    /// (see <see cref="ShowAsync"/>), because two dialogs cannot be up at once.</summary>
-    private bool _wantsSignUp;
+    /// <summary>The window that opens in this one's place when it closes (see <see cref="ShowAsync"/>),
+    /// because two dialogs cannot be up at once. Null opens nothing.</summary>
+    private Then? _then;
+
+    private abstract record Then
+    {
+        /// <summary>Sign up was pressed.</summary>
+        public sealed record SignUp : Then;
+
+        /// <summary>The account exists and was never confirmed. Its mail carries only a code, so the
+        /// sign-up window opens on the code, and signs in with this password once it is confirmed.</summary>
+        public sealed record Confirm(string Email, string Password) : Then;
+    }
 
     private void SignUpButton_Click(object sender, RoutedEventArgs e)
     {
         _pollCts?.Cancel();
-        _wantsSignUp = true;
+        _then = new Then.SignUp();
         Hide();
     }
 
@@ -119,7 +129,14 @@ public sealed partial class LoginDialog : ContentDialog
         ErrorText.Visibility = Visibility.Collapsed;
         try
         {
-            Show(await _auth.LoginAsync(email, password));
+            var outcome = await _auth.LoginAsync(email, password);
+            if (outcome is SignInOutcome.Refused { Why: SignInRefusal.NotConfirmed })
+            {
+                _then = new Then.Confirm(email, password);
+                Hide();
+                return;
+            }
+            Show(outcome);
         }
         catch (Exception ex)
         {
@@ -178,8 +195,11 @@ public sealed partial class LoginDialog : ContentDialog
         if (!string.IsNullOrWhiteSpace(reason))
             dialog.SubtitleText.Text = reason;
         await DialogHost.ShowAsync(dialog);
-        if (dialog._wantsSignUp)
-            return await SignUpDialog.ShowAsync(auth, xamlRoot);
-        return dialog._success;
+        return dialog._then switch
+        {
+            Then.SignUp => await SignUpDialog.ShowAsync(auth, xamlRoot),
+            Then.Confirm confirm => await SignUpDialog.ShowForCodeAsync(auth, xamlRoot, confirm.Email, confirm.Password),
+            _ => dialog._success,
+        };
     }
 }

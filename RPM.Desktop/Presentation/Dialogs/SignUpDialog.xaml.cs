@@ -11,11 +11,18 @@ namespace RPM.Desktop.Presentation.Dialogs;
 /// Making an rpm account with an email and password. The form goes to the accounts service, which mails
 /// a six-digit code; the code is typed here; and the new account is signed in with the password just
 /// chosen, so the window ends signed in, as the sign-in window does.
+///
+/// <para>The window also opens on the code alone (<see cref="ShowForCodeAsync"/>), for an account that was
+/// made and never confirmed: the sign-in window sends it here, because the mail carries only a code.</para>
 /// </summary>
 public sealed partial class SignUpDialog : ContentDialog
 {
     private readonly AuthService _auth;
     private bool _success;
+
+    /// <summary>True while a request is out. The window stays open meanwhile: closed in the middle of the
+    /// last step, it would answer "not signed in" while the sign-in finishes behind it.</summary>
+    private bool _busy;
 
     /// <summary>The address and password the code was mailed for, held for the sign-in that follows.</summary>
     private string _email = "", _password = "";
@@ -28,6 +35,7 @@ public sealed partial class SignUpDialog : ContentDialog
         _auth = auth;
         Shell.AttachResize(this, minWidth: 420, minHeight: 440, maxWidth: 620,
             defaultHeight: 480, defaultWidth: 500);
+        Closing += (_, args) => args.Cancel = _busy;
     }
 
     private async void Go_Click(object sender, RoutedEventArgs e) => await GoAsync();
@@ -50,6 +58,7 @@ public sealed partial class SignUpDialog : ContentDialog
 
     private async Task GoAsync()
     {
+        if (_busy) return;
         Say(null);
         Busy(true);
         try
@@ -63,6 +72,9 @@ public sealed partial class SignUpDialog : ContentDialog
         {
             Busy(false);
         }
+
+        if (_success)
+            Hide();
     }
 
     private async Task RegisterAsync()
@@ -77,12 +89,18 @@ public sealed partial class SignUpDialog : ContentDialog
         }
 
         var answer = await _auth.SignUpAsync(name, email, password);
-        if (!answer.Done)
+        if (answer.StringKey is { } refused)
         {
-            Say(Loc.Get(answer.StringKey));
+            Say(Loc.Get(refused));
             return;
         }
 
+        ShowCode(email, password);
+    }
+
+    /// <summary>Turns the window to the code face for <paramref name="email"/>.</summary>
+    private void ShowCode(string email, string password)
+    {
         _email = email;
         _password = password;
         CodeSentText.Text = Loc.Format("SignUp_CodeSent", email);
@@ -102,18 +120,18 @@ public sealed partial class SignUpDialog : ContentDialog
         }
 
         var answer = await _auth.ConfirmSignUpAsync(_email, code);
-        if (!answer.Done)
+        if (answer.StringKey is { } refused)
         {
-            Say(Loc.Get(answer.StringKey));
+            Say(Loc.Get(refused));
             return;
         }
 
-        // The account is live: sign it in with the password it was made with.
+        // The account is live: sign it in with the password it was made with. A second Confirm after a
+        // failed sign-in is safe, because the service answers a confirmed account as done.
         var signedIn = await _auth.LoginAsync(_email, _password);
         if (signedIn is SignInOutcome.SignedIn)
         {
             _success = true;
-            Hide();
             return;
         }
 
@@ -122,15 +140,24 @@ public sealed partial class SignUpDialog : ContentDialog
 
     private async void Resend_Click(object sender, RoutedEventArgs e)
     {
-        ResendButton.IsEnabled = false;
-        var answer = await _auth.ResendSignUpCodeAsync(_email);
-        ResendButton.IsEnabled = true;
-        Say(answer.Done ? Loc.Get("SignUp_CodeResent") : Loc.Get(answer.StringKey));
+        if (_busy) return;
+        Say(null);
+        Busy(true);
+        try
+        {
+            var answer = await _auth.ResendSignUpCodeAsync(_email);
+            Say(Loc.Get(answer.StringKey ?? "SignUp_CodeResent"));
+        }
+        finally
+        {
+            Busy(false);
+        }
     }
 
     private void Busy(bool busy)
     {
-        GoButton.IsEnabled = !busy;
+        _busy = busy;
+        GoButton.IsEnabled = CancelButton.IsEnabled = ResendButton.IsEnabled = !busy;
         NameBox.IsEnabled = EmailBox.IsEnabled = PasswordBox.IsEnabled = CodeBox.IsEnabled = !busy;
     }
 
@@ -141,10 +168,26 @@ public sealed partial class SignUpDialog : ContentDialog
     }
 
     /// <summary>Shows the window. Returns true when it ends with the new account signed in.</summary>
-    public static async Task<bool> ShowAsync(AuthService auth, XamlRoot? xamlRoot)
+    public static Task<bool> ShowAsync(AuthService auth, XamlRoot? xamlRoot) =>
+        ShowAsync(new SignUpDialog(auth), xamlRoot);
+
+    /// <summary>
+    /// Shows the window on the code face, for an account that exists and was never confirmed. No new code
+    /// is sent on opening: a new code would replace the one already in the person's inbox. "Send a new
+    /// code" is there for a mail that was lost, and an expired code is answered with a new one by the
+    /// service. Returns true when it ends with the account signed in.
+    /// </summary>
+    public static Task<bool> ShowForCodeAsync(AuthService auth, XamlRoot? xamlRoot, string email, string password)
+    {
+        var dialog = new SignUpDialog(auth);
+        dialog.ShowCode(email, password);
+        return ShowAsync(dialog, xamlRoot);
+    }
+
+    private static async Task<bool> ShowAsync(SignUpDialog dialog, XamlRoot? xamlRoot)
     {
         if (xamlRoot is null) return false;
-        var dialog = new SignUpDialog(auth) { XamlRoot = xamlRoot };
+        dialog.XamlRoot = xamlRoot;
         await DialogHost.ShowAsync(dialog);
         return dialog._success;
     }

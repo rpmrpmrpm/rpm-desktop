@@ -77,6 +77,59 @@ public class TroubleTextTests
         AssertInTable(all.Select(o => (o.StringKey!, 0)));
     }
 
+    // ── sign-up ──
+
+    [Theory]
+    [InlineData("already_registered", "SignUp_AlreadyRegistered")]
+    [InlineData("social_account", "SignUp_SocialAccount")]
+    [InlineData("weak_password", "SignUp_WeakPassword")]
+    [InlineData("invalid_email", "SignUp_InvalidEmail")]
+    [InlineData("invalid_name", "SignUp_InvalidName")]
+    [InlineData("invalid_code", "SignUp_InvalidCode")]
+    [InlineData("code_resent", "SignUp_CodeResent")]
+    [InlineData("too_many", "SignUp_TooMany")]
+    [InlineData("something_new", "SignUp_Failed")]
+    public void Each_sign_up_refusal_has_its_own_sentence(string code, string key) =>
+        Assert.Equal(key, new SignUpAnswer.Refused(code).StringKey);
+
+    [Fact]
+    public void The_refusal_code_is_read_from_the_body_and_not_the_sentence()
+    {
+        Assert.Equal("too_many", SignUpAnswer.FromRefusal("""{"error":"Too many attempts.","code":"too_many"}""").Code);
+        Assert.Equal("refused", SignUpAnswer.FromRefusal("""{"error":"name, email and password are required."}""").Code);
+        Assert.Equal("refused", SignUpAnswer.FromRefusal("<html>502 Bad Gateway</html>").Code);
+        Assert.Equal("refused", SignUpAnswer.FromRefusal("").Code);
+    }
+
+    [Fact]
+    public void Signing_up_with_no_network_says_so_and_not_could_not_make_the_account()
+    {
+        var offline = new SignUpAnswer.Failed(
+            Faults.Read(new HttpRequestException("No such host is known.", new SocketException(11001))));
+
+        Assert.Equal("Fault_Offline", offline.StringKey);
+        Assert.Equal("Fault_Timeout", new SignUpAnswer.Failed(Fault.Timeout).StringKey);
+        Assert.Equal("SignUp_Failed", new SignUpAnswer.Failed(Fault.Server).StringKey);
+    }
+
+    [Fact]
+    public void A_finished_step_says_nothing() => Assert.Null(new SignUpAnswer.Done().StringKey);
+
+    [Fact]
+    public void Every_sign_up_sentence_is_in_the_table()
+    {
+        SignUpAnswer[] all =
+        [
+            .. new[] { "already_registered", "social_account", "weak_password", "invalid_email", "invalid_name",
+                       "invalid_code", "code_resent", "too_many", "refused" }
+                .Select(code => (SignUpAnswer)new SignUpAnswer.Refused(code)),
+            new SignUpAnswer.Failed(Fault.Offline),
+            new SignUpAnswer.Failed(Fault.Unknown),
+        ];
+
+        AssertInTable(all.Select(a => (a.StringKey!, 0)));
+    }
+
     // ── cloud ──
 
     [Fact]

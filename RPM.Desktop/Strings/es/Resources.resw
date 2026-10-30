@@ -9573,6 +9573,10 @@
     <value>Ya hay una cuenta con este correo. Prueba a iniciar sesión.</value>
     <comment>Sign-up window: the address already has an account.</comment>
   </data>
+  <data name="SignUp_SocialAccount" xml:space="preserve">
+    <value>Este correo ya se usa con Apple o Google. Continúa con Apple o Google.</value>
+    <comment>Sign-up window: the address already signs in with Apple or Google, so an email account is refused.</comment>
+  </data>
   <data name="SignUp_WeakPassword" xml:space="preserve">
     <value>Esa contraseña es demasiado fácil. Usa al menos 8 caracteres, con una mayúscula, una minúscula y un número.</value>
     <comment>Sign-up window: the password does not meet the rule.</comment>
@@ -9582,7 +9586,7 @@
     <comment>Sign-up window: the address was refused.</comment>
   </data>
   <data name="SignUp_InvalidName" xml:space="preserve">
-    <value>Tu nombre puede llevar letras, números, espacios, guiones y puntos, de 2 a 50 caracteres.</value>
+    <value>Tu nombre puede llevar letras, números, espacios, guiones, puntos y apóstrofos, de 2 a 50 caracteres.</value>
     <comment>Sign-up window: the name was refused.</comment>
   </data>
   <data name="SignUp_InvalidCode" xml:space="preserve">
