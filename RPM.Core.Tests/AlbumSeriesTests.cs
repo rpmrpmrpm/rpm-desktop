@@ -142,6 +142,42 @@ public class AlbumSeriesTests : IDisposable
         Assert.Equal(Mozart, _db.GetAlbumMeta(Folder).InSeries);
     }
 
+    // ── the series laid out as a shelf ──
+
+    private static (string, AlbumSeries) Held(string folder, string? volume)
+        => (folder, new AlbumSeries("The Complete Mozart Edition", volume));
+
+    [Fact]
+    public void Every_numbered_volume_up_to_the_highest_held_has_a_place()
+    {
+        var shelf = SeriesShelf.Lay([Held("v4", "4"), Held("v2", "2")]);
+
+        Assert.Equal(["1", "2", "3", "4"], shelf.Slots.Select(s => s.Volume));
+        Assert.Equal([true, false, true, false], shelf.Slots.Select(s => s.IsMissing));
+        Assert.Equal(2, shelf.Have);
+        Assert.Equal(2, shelf.Missing);
+    }
+
+    [Fact]
+    public void Two_records_under_one_number_both_stand_there_and_unnumbered_ones_come_last()
+    {
+        var shelf = SeriesShelf.Lay([Held("box", null), Held("3b", "3b"), Held("1", "1"), Held("3a", "3a"), Held("iv", "IV")]);
+
+        Assert.Equal(["1", "", "3a", "3b", "iv", "box"], shelf.Slots.Select(s => s.Folder ?? ""));
+        Assert.Equal("2", shelf.Slots[1].Volume);
+        Assert.Equal(1, shelf.Missing);
+    }
+
+    /// <summary>A volume typed as a year is a typo, not a collection with two thousand holes in it.</summary>
+    [Fact]
+    public void A_gap_too_wide_to_be_a_collection_is_not_drawn()
+    {
+        var shelf = SeriesShelf.Lay([Held("v1", "1"), Held("v1991", "1991"), Held("v2", "2")]);
+
+        Assert.Equal(["v1", "v2", "v1991"], shelf.Slots.Select(s => s.Folder));
+        Assert.Equal(0, shelf.Missing);
+    }
+
     // ── the import queue ──
 
     private static QueueTrack Row(string file)

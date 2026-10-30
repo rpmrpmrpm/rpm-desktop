@@ -243,6 +243,8 @@ public sealed partial class AlbumDetailView : UserControl
         {
             _hasTopReview = false;
             _hasSimilar = false;
+            _similarRows = [];
+            _seriesRows = [];
             ShowTopReview();
             ShowSimilar();
         }
@@ -1026,7 +1028,16 @@ public sealed partial class AlbumDetailView : UserControl
         // The whole shelf, described the way the ranking needs it. Nothing is asked of Discogs or anybody else.
         // Every card in this row is a record the listener can play. So the only question is which of their own
         // records goes best beside this one.
-        var shelf = await Task.Run(() => ReadShelfTraits(library.Shelf));
+        // The series is read in the same pass. Its row is built from this same shelf, so a volume is named the way
+        // its suggestion card would name it.
+        var folder = _folder;
+        var (shelf, series, members) = await Task.Run(() =>
+        {
+            var db = library.Shelf;
+            var inSeries = db.GetAlbumMeta(folder).InSeries;
+            IReadOnlyList<(string Folder, AlbumSeries Series)> held = inSeries is null ? [] : db.AlbumsInSeries(inSeries.Name);
+            return (ReadShelfTraits(db), inSeries, held);
+        });
 
         if (ct.IsCancellationRequested) return;
 
@@ -1048,12 +1059,14 @@ public sealed partial class AlbumDetailView : UserControl
         // a different number of suggestions would then arrive at the wrong size, and correct itself a frame later,
         // which looks like a flinch. The width has not changed, so the answer already on the metrics is the answer
         // these cards need.
-        SimilarList.ItemsSource = rows;
-        _hasSimilar = rows.Count > 0;
-        ShowSimilar();
+        // The foot shows the series where the record has one and the suggestions otherwise. See
+        // AlbumDetailView.Series, which also says whether the foot has anything at all.
+        _similarRows = rows;
+        BuildSeriesRow(series, members, shelf, library.ShelfRoot ?? "", ct);
+        PaintFoot();
 
         foreach (var row in rows)
-            _ = FillSimilarCoverAsync(row, library.ShelfRoot ?? "", ct);
+            _ = FillSleeveAsync(row, row.Folder, row.Artist, row.Title, library.ShelfRoot ?? "", ct);
     }
 
     /// <summary>
@@ -1148,7 +1161,8 @@ public sealed partial class AlbumDetailView : UserControl
 
     /// <summary>The record's own sleeve, read off disk. Where this shelf is borrowed, or the album is offloaded, it
     /// comes from whoever holds it. Each card reads its own, so a slow one does not hold up the row.</summary>
-    private async Task FillSimilarCoverAsync(SimilarRow row, string root, CancellationToken ct)
+    private async Task FillSleeveAsync(
+        Services.Art.ISleeveCard row, string folder, string artist, string title, string root, CancellationToken ct)
     {
         try
         {
@@ -1157,9 +1171,9 @@ public sealed partial class AlbumDetailView : UserControl
             // whose artwork is about to land. See CoverFill and SimilarRow.FigureSeed.
             await Services.Art.CoverFill.DressAsync(
                 row,
-                token => SimilarSleeveAsync(row, root, token),
+                token => SimilarSleeveAsync(folder, artist, title, root, token),
                 async bytes => await RemoteImage.DecodeSmoothAsync(
-                    bytes, SimilarDecodeEdge(row, bytes), RemoteImage.Cut.Photograph),
+                    bytes, SimilarDecodeEdge(bytes), RemoteImage.Cut.Photograph),
                 ct);
         }
         catch { /* a card without a sleeve still names the record */ }
@@ -1168,9 +1182,10 @@ public sealed partial class AlbumDetailView : UserControl
     /// <summary>Where one suggestion's bytes come from, and nothing else. They come from the picture in the folder
     /// on this disk, then from whoever holds the record. In the harness, a drawn one is used. What an empty answer
     /// MEANS is not decided here. See <see cref="Services.Art.CoverFill"/>.</summary>
-    private static async Task<byte[]?> SimilarSleeveAsync(SimilarRow row, string root, CancellationToken ct)
+    private static async Task<byte[]?> SimilarSleeveAsync(
+        string folder, string artist, string title, string root, CancellationToken ct)
     {
-        if (row.Folder is { Length: > 0 } folder)
+        if (folder.Length > 0)
         {
             var full = Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar));
             if (FolderArtWriter.FindFolderImage(full) is { } image)
@@ -1180,14 +1195,14 @@ public sealed partial class AlbumDetailView : UserControl
             // suggestion on a shared library, not the odd record. An offloaded album of one's own has none either.
             // The page's own cover takes the other route in that case (see FillRemoteCoverAsync). Without this
             // fallback, the row of suggestions would read only the disk and draw blank squares.
-            return await RemoteSleeveForAsync(folder, row.Artist, row.Title, ct) is { Length: > 0 } bytes
+            return await RemoteSleeveForAsync(folder, artist, title, ct) is { Length: > 0 } bytes
                 ? await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge))
                 : null;
         }
 
         // The harness has no disk under its shelf, so it draws the sleeve in bytes. Otherwise every card in the row
         // would be blank.
-        return Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(row.Artist, row.Title)) : null;
+        return Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(artist, title)) : null;
     }
 
     /// <summary>The sleeve of an album whose folder holds no picture. It comes from the computer that has the
@@ -1230,9 +1245,9 @@ public sealed partial class AlbumDetailView : UserControl
     /// pane move. It is widened for a sleeve that is not square, because the card crops with UniformToFill, and
     /// what fills the square is the SHORT side.</para>
     /// </summary>
-    private int SimilarDecodeEdge(SimilarRow row, byte[] bytes)
+    private int SimilarDecodeEdge(byte[] bytes)
     {
-        var edge = ArtScaler.DecodeEdgeFor(row.Metrics.Edge, XamlRoot?.RasterizationScale ?? 1);
+        var edge = ArtScaler.DecodeEdgeFor(_similarMetrics.Edge, XamlRoot?.RasterizationScale ?? 1);
         var (w, h) = ArtScaler.BoundsOf(bytes);
         return ArtScaler.LongEdgeForShortSide(w, h, edge);
     }
@@ -1603,12 +1618,8 @@ public sealed partial class AlbumDetailView : UserControl
         // and doubled on the way up.
         MyStars.Value = meta.Rating;
 
-        // Which series it belongs to, under the name. A numbered volume says which one; a series that is
-        // not numbered says only that the record is part of it.
-        SeriesText.Text = meta.InSeries is not { } series ? ""
-            : series.Volume is { } volume ? Loc.Format("Album_SeriesVolume", volume, series.Name)
-            : Loc.Format("Album_SeriesPart", series.Name);
-        SeriesText.Visibility = SeriesText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Which series it belongs to, under the name, with the series' name a door to its row along the foot.
+        PaintSeriesLine(meta.InSeries);
 
         // A record with no linked pressing has no Discogs page to show. So the item is hidden, not left there to do
         // nothing.

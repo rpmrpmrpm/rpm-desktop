@@ -307,6 +307,19 @@ public sealed partial class MainPage
             ShowHome(true);
     }
 
+    /// <summary>
+    /// The record's page read again, where it is the one on screen. The page re-reads itself when the record's
+    /// TRACKS change (see AlbumDetailView.OnShelfChanged), and a series is not on the tracks: it is the library's
+    /// own note about the record. Without this, a series set in the editor would show only the next time the
+    /// page was opened.
+    /// </summary>
+    private void RereadAlbumPage(string folder)
+    {
+        if (AlbumDetail.Visibility == Visibility.Visible
+            && string.Equals(AlbumDetail.Folder, folder, StringComparison.OrdinalIgnoreCase))
+            AlbumDetail.Load(folder, Library.AlbumOpen.Again);
+    }
+
     // ── write a review ──
 
     private async Task ShowAlbumReviewDialogAsync(string folder)
@@ -359,6 +372,7 @@ public sealed partial class MainPage
         var db = App.Services.GetRequiredService<LibraryService>().Db;
         var meta = db.GetAlbumMeta(folder);
 
+        var seriesChanged = false;
         var touched = await AlbumEdit.EditAsync(
             XamlRoot, LibraryFolderPath(folder) ?? folder, rows,
             ask => LookUpReleaseAsync(folder, ask, LibraryTrackStep(rows, ticked: false)),
@@ -369,6 +383,7 @@ public sealed partial class MainPage
             onLibraryFacts: facts =>
             {
                 facts.WriteTo(db, folder);
+                seriesChanged = facts.SeriesChanged;
 
                 // The resolver caches per album, and the record being edited may be the one playing.
                 // Both answers feed it: the classical one is what excuses a record from levelling.
@@ -382,6 +397,8 @@ public sealed partial class MainPage
             AlbumWall.RefreshAlbum(f);
             AlbumList.RefreshAlbum(f);
         }
+        if (seriesChanged)
+            RereadAlbumPage(folder);
 
         // The record on the deck is the one that was just edited. Its sleeve and the label on the turning
         // disc were read when it started playing, so they are now one version behind. Only that record is

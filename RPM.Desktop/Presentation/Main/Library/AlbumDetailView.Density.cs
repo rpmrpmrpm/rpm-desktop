@@ -1686,7 +1686,8 @@ public sealed partial class AlbumDetailView
 
     /// <summary>Down while the row is shut and up while it is open, which is what an expander points
     /// everywhere else: the chevron points at where the row will go when it is pressed.</summary>
-    private void PointSimilarChevron(bool open) => SimilarChevron.Glyph = open ? "\uf077" : "\uf078";
+    private void PointSimilarChevron(bool open)
+        => SimilarChevron.Glyph = SeriesChevron.Glyph = open ? "\uf077" : "\uf078";
 
     private readonly SimilarSlide _similarSlide = new();
 
@@ -1717,7 +1718,11 @@ public sealed partial class AlbumDetailView
     /// scroll: the heading rises by the row on an open at the foot of the page, and drops by it on a
     /// close.</para>
     /// </remarks>
-    private void SimilarToggle_Click(object sender, RoutedEventArgs e)
+    private void SimilarToggle_Click(object sender, RoutedEventArgs e) => FootTab(FootShows.Similar);
+
+    /// <summary>The fold itself, whichever heading pressed it: the foot holds one row at a time (see
+    /// AlbumDetailView.Series), and that row opens and shuts as this one always has.</summary>
+    private void ToggleFoot()
     {
         // A groove fold in flight lands first. It clips this block on its right while it slides, and
         // the two moves cannot share one element.

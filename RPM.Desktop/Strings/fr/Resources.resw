@@ -5285,6 +5285,22 @@
     <value>Fait partie de {0}</value>
     <comment>Line under an album's title on its page, for a series whose volumes are not numbered. {0} is the series' name.</comment>
   </data>
+  <data name="Album_SeriesStillToFind" xml:space="preserve">
+    <value>Encore à trouver</value>
+    <comment>Name under an empty sleeve on the album page's series row: a numbered volume of the series that is not in the listener's collection.</comment>
+  </data>
+  <data name="Album_SeriesVolumeNumber" xml:space="preserve">
+    <value>Volume {0}</value>
+    <comment>Second line under a sleeve on the album page's series row. {0} is the volume as the listener typed it (43, IV, 3a).</comment>
+  </data>
+  <data name="Album_SeriesHave" xml:space="preserve">
+    <value>Vous en avez {0}</value>
+    <comment>Beside the series name over the album page's series row: how many of the series' records are in the collection, when none of the numbered volumes is missing. {0} is a number.</comment>
+  </data>
+  <data name="Album_SeriesHaveMissing" xml:space="preserve">
+    <value>Vous en avez {0} · {1} encore à trouver</value>
+    <comment>Beside the series name over the album page's series row. {0} is how many of the series' records are in the collection, {1} how many numbered volumes below the highest one held are not.</comment>
+  </data>
   <data name="AlbumEdit_GroupSettings" xml:space="preserve">
     <value>RÉGLAGES</value>
     <comment>Album editor group kicker for the answers kept in the library rather than written into the files. ALLCAPS, like every other group kicker.</comment>

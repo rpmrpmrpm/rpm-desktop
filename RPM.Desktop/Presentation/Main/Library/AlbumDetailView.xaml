@@ -436,6 +436,60 @@
       </Button>
     </DataTemplate>
 
+    <!-- One place on the series row: a volume the reader has, or one still to find. It is the suggestion's
+        card, measure for measure (the same padding, the same sleeve, the same two fourteen-point lines),
+        because it stands in the same row and the row is sized, folded and slid by one set of numbers (see
+        SimilarTileMetrics and SimilarSlide). A taller card would make every one of those numbers wrong.
+
+        A volume still to find is an empty sleeve with its number on it. It is drawn, not hidden, because a
+        row of what is there says nothing about what is not, and the gaps are what a collector reads a series
+        for. It cannot be pressed: there is no record behind it to open.
+
+        The record this page is showing wears a ring, so the reader can see where in the series they stand.
+        -->
+    <DataTemplate x:Key="SeriesTemplate" x:DataType="model:SeriesRow">
+      <Button Click="Series_Click" Tag="{Binding}" Background="Transparent" BorderThickness="0"
+              Padding="8" MinHeight="0" CornerRadius="10"
+              VerticalAlignment="Top" HorizontalContentAlignment="Left"
+              IsHitTestVisible="{Binding IsHeld}">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#14FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#22FFFFFF"/>
+        </Button.Resources>
+        <StackPanel Width="{Binding Metrics.Edge}" Spacing="6">
+          <Grid Width="{Binding Metrics.Edge}" Height="{Binding Metrics.Edge}">
+            <Grid Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisible}}">
+              <Border CornerRadius="6" Background="#33000000"/>
+              <Border CornerRadius="6" Background="{Binding FigureSeed, Converter={StaticResource SleeveFigure}}"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+              <Border CornerRadius="6">
+                <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+              </Border>
+              <FontIcon Glyph="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="20" Foreground="#4DFFFFFF"
+                        Visibility="{Binding HasCover, Converter={StaticResource BoolToVisible}, ConverterParameter=Invert}"/>
+            </Grid>
+            <Grid Visibility="{Binding IsMissing, Converter={StaticResource BoolToVisible}}">
+              <Rectangle RadiusX="6" RadiusY="6" Fill="#0DFFFFFF" Stroke="#40FFFFFF" StrokeThickness="1"
+                         StrokeDashArray="4,3"/>
+              <TextBlock Text="{Binding Mark}" FontSize="30" FontWeight="SemiBold" Foreground="#40FFFFFF"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         MaxLines="1" TextTrimming="CharacterEllipsis"/>
+            </Grid>
+            <Border CornerRadius="6" BorderThickness="2" BorderBrush="#E6FFFFFF" IsHitTestVisible="False"
+                    Visibility="{Binding IsHere, Converter={StaticResource BoolToVisible}}"/>
+          </Grid>
+          <StackPanel>
+            <TextBlock Text="{Binding Title, Converter={StaticResource Censor}}" FontSize="11" LineHeight="14" Height="14"
+                       Foreground="#EEFFFFFF" MaxLines="1" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{Binding Title, Converter={StaticResource Censor}}"/>
+            <TextBlock Text="{Binding Volume}" FontSize="11" LineHeight="14" Height="14"
+                       Foreground="#88FFFFFF" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+
   </UserControl.Resources>
 
 <!-- Two panels and the groove.
@@ -1407,20 +1461,42 @@
           A flat button, not a chip. It stands in the page's own foot, and a bordered key over a heading
           would look heavier than the heading.
           -->
-      <Button x:Name="SimilarToggle" Click="SimilarToggle_Click"
-              Background="Transparent" BorderThickness="0" Padding="0,2" MinHeight="0" MinWidth="0"
-              HorizontalAlignment="Left" HorizontalContentAlignment="Left">
-        <Button.Resources>
-          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-        </Button.Resources>
-        <StackPanel Orientation="Horizontal" Spacing="7">
-          <TextBlock Text="{loc:Str Key=Album_SimilarAlbums}" Style="{StaticResource SectionHeadingStyle}"
-                     VerticalAlignment="Center"/>
-          <FontIcon x:Name="SimilarChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
-                    FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
-        </StackPanel>
-      </Button>
+      <!-- Two rows share this foot: the series the record is a volume of, and more like it. Each heading
+          is a tab. The one showing is at full strength and carries the chevron, and pressing it folds the row
+          as before. The other is dimmed, and pressing it puts its own row up, unfolding the foot if it was
+          folded. Only a record in a series has the first heading at all.
+          -->
+      <StackPanel Orientation="Horizontal" Spacing="22" HorizontalAlignment="Left">
+        <Button x:Name="SeriesToggle" Click="SeriesToggle_Click" Visibility="Collapsed"
+                Background="Transparent" BorderThickness="0" Padding="0,2" MinHeight="0" MinWidth="0"
+                HorizontalContentAlignment="Left">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          </Button.Resources>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <TextBlock x:Name="SeriesHeading" Style="{StaticResource SectionHeadingStyle}"
+                       VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="SeriesCount" FontSize="11" Foreground="#88FFFFFF" VerticalAlignment="Center"/>
+            <FontIcon x:Name="SeriesChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
+                      FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="SimilarToggle" Click="SimilarToggle_Click"
+                Background="Transparent" BorderThickness="0" Padding="0,2" MinHeight="0" MinWidth="0"
+                HorizontalContentAlignment="Left">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+          </Button.Resources>
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <TextBlock Text="{loc:Str Key=Album_SimilarAlbums}" Style="{StaticResource SectionHeadingStyle}"
+                       VerticalAlignment="Center"/>
+            <FontIcon x:Name="SimilarChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
+                      FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
       <!-- Both the margin and the bottom padding are written from code. The values here are only what
           the row has until the first size pass.
 

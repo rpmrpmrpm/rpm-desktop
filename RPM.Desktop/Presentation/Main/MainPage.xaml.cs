@@ -874,6 +874,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
         // unclassified one standing alone, and dropped whatever was said about either.
         var db = App.Services.GetRequiredService<LibraryService>().Db;
         var meta = db.GetAlbumMeta(folder);
+        var seriesChanged = false;
         var touched = await AlbumEdit.EditAsync(
             XamlRoot, LibraryFolderPath(folder) ?? folder, rows,
             wantArt => LookUpReleaseForRowsAsync(rows, wantArt, LibraryTrackStep(rows, ticked: false)),
@@ -884,6 +885,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             onLibraryFacts: facts =>
             {
                 facts.WriteTo(db, folder);
+                seriesChanged = facts.SeriesChanged;
                 App.Services.GetRequiredService<NormalizationService>().Forget();
             });
         foreach (var f in touched.Append(folder).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -891,6 +893,8 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             AlbumWall.RefreshAlbum(f);
             AlbumList.RefreshAlbum(f);
         }
+        if (seriesChanged)
+            RereadAlbumPage(folder);
     }
 
     /// <summary>One track: the full per-file editor, the same window that the import queue opens for a single
