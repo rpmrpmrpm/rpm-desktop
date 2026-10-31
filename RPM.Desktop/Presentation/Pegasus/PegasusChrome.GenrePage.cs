@@ -403,6 +403,9 @@ public sealed partial class PegasusChrome
             var lists = new List<(SmartPlaylistId, int)>();
             foreach (var kind in SmartPlaylists.EssentialForAGenre.Concat(SmartPlaylists.BrokenOutByGenre))
             {
+                if (MoodSets.IsDropped(kind, genre.Name))
+                    continue;   // a dropped mood square is no list (see MoodSets)
+
                 var id = SmartPlaylistId.Within(kind, genre.Name);
                 var tracks = mirror.SmartPlaylistTotals(id, now).Tracks;
                 if (tracks >= SmartPlaylists.LeastToShow(id))

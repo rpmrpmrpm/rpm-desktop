@@ -259,7 +259,6 @@ public static partial class Credits
             new("Berşah B.", null, "Soul Jams (Soul)", null, "https://www.pexels.com/photo/person-hand-choosing-music-plates-8215772/", null, null, null, ["Pexels"]),
             new("Sami TÜRK", null, "Soundtrack", null, "https://www.pexels.com/photo/sofas-and-vintage-film-projectors-in-a-room-19374140/", null, null, null, ["Pexels"]),
             new("RDNE Stock project", null, "Spoken Word", null, "https://www.pexels.com/photo/close-up-shot-of-a-microphone-8198622/", null, null, null, ["Pexels"]),
-            new("Riccardo Bertolo", null, "Sunrise Set (House)", null, "https://www.pexels.com/photo/photo-of-a-rooftop-during-sunrise-6330741/", null, null, null, ["Pexels"]),
             new("Jonathan Cooper", null, "Techno", null, "https://www.pexels.com/photo/silhouette-of-people-at-a-concert-12560346/", null, null, null, ["Pexels"]),
             new("Ale Conchillos", null, "The Calm Before (Metal)", null, "https://www.pexels.com/photo/clouds-covering-the-sky-15953354/", null, null, null, ["Pexels"]),
             new("eberhard grossgasteiger", null, "The Lounge (Jazz)", null, "https://www.pexels.com/photo/body-of-water-near-trees-on-a-foggy-day-12366059/", null, null, null, ["Pexels"]),

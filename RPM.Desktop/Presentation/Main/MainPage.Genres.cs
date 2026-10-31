@@ -585,6 +585,10 @@ public sealed partial class MainPage
         var shelf = library.Shelf;
         foreach (var kind in kinds)
         {
+            // A mood square that was dropped is no list, here as anywhere. See MoodSets.
+            if (MoodSets.IsDropped(kind, genre.Name))
+                continue;
+
             var id = SmartPlaylistId.Within(kind, genre.Name);
 
             // A refusal is the whole shelf's, not this list's: the problem screen is up over the app,

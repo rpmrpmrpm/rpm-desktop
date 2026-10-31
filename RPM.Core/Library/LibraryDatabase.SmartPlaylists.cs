@@ -491,8 +491,9 @@ public sealed partial class LibraryDatabase
                                               .GenresWorthListing(SmartPlaylists.LeastForNarrowedRow(kind)))
             {
                 // A genre that another list has absorbed is not offered. Its songs are in that list
-                // now, so a row of its own would be the same music under a second name. See MoodSets.
-                if (MoodSets.IsAbsorbed(kind, genre))
+                // now, so a row of its own would be the same music under a second name. Nor is a
+                // square that was dropped. See MoodSets.
+                if (!MoodSets.IsOffered(kind, genre))
                     continue;
 
                 offered.Add(SmartPlaylistId.Within(kind, genre));

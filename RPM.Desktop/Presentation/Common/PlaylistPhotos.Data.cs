@@ -29,7 +29,7 @@ namespace RPM.Desktop.Presentation.Common;
 /// a path: where the assets sit is <see cref="PlaylistPhotos"/>'s business and it is the
 /// only thing that knows it.</param>
 /// <param name="Alt">What the picture is, in words, as Pexels describes it. Nothing draws
-/// this; it is here so the next person to open the table can tell the eighty-four apart
+/// this; it is here so the next person to open the table can tell the eighty-three apart
 /// without looking at them.</param>
 /// <param name="By">Who took it. The licence asks for no credit and this is the credit
 /// anyway.</param>
@@ -82,10 +82,6 @@ internal static partial class PlaylistPhotos
             "calm-hiphoprap.jpg",
             "A moody night scene of Saint Petersburg with raindrops on a window and blurred city lights.",
             "Viktoria Alipatova"),
-        new(new(SmartPlaylistKind.Calm, "House", 0),
-            "calm-house.jpg",
-            "A serene sunrise over Paris rooftops, capturing the warm morning glow.",
-            "Riccardo Bertolo"),
         new(new(SmartPlaylistKind.Calm, "Electronic / Dance", 0),
             "calm-electronicdance.jpg",
             "An enchanting view of clouds resembling ocean waves during twilight.",

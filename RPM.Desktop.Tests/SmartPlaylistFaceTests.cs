@@ -166,7 +166,7 @@ public class SmartPlaylistFaceTests : IDisposable
         foreach (var kind in SmartPlaylists.BrokenOutByGenre)
             foreach (var genre in Genres.All.Where(g => g != Genres.Unknown))
             {
-                if (MoodSets.IsAbsorbed(kind, genre))
+                if (!MoodSets.IsOffered(kind, genre))
                     continue;
 
                 var name = SmartPlaylistFace.Name(SmartPlaylistId.Within(kind, genre));
@@ -185,6 +185,20 @@ public class SmartPlaylistFaceTests : IDisposable
         foreach (var (cell, _) in MoodSets.EveryAbsorbed)
             Assert.Equal(
                 cell.Genre, SmartPlaylistFace.Name(SmartPlaylistId.Within(cell.Kind, cell.Genre)));
+    }
+
+    /// <summary>A dropped square has no title left behind either, for the same reason, and is not
+    /// offered.</summary>
+    [Fact]
+    public void A_dropped_square_has_no_title_left_behind()
+    {
+        Assert.NotEmpty(MoodSets.EveryDropped);
+        foreach (var cell in MoodSets.EveryDropped)
+        {
+            Assert.Equal(
+                cell.Genre, SmartPlaylistFace.Name(SmartPlaylistId.Within(cell.Kind, cell.Genre)));
+            Assert.False(MoodSets.IsOffered(cell.Kind, cell.Genre));
+        }
     }
 
     /// <summary>And the list that took it over really does draw from it. Absorption and drawing are
@@ -218,7 +232,7 @@ public class SmartPlaylistFaceTests : IDisposable
         var names = new List<string>();
         foreach (var kind in SmartPlaylists.BrokenOutByGenre)
             foreach (var genre in Genres.All.Where(g => g != Genres.Unknown))
-                if (!MoodSets.IsAbsorbed(kind, genre))
+                if (MoodSets.IsOffered(kind, genre))
                     names.Add(SmartPlaylistFace.Name(SmartPlaylistId.Within(kind, genre)));
 
         Assert.Equal(names.Count, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());

@@ -108,7 +108,7 @@ internal static class SmartPlaylistFace
     ///
     /// <para>The titles are in the order of <see cref="Genres.All"/>, so this table can be read down
     /// against the list it answers. Every genre has a line under every mood, except the squares that
-    /// MoodSets has taken over. A test checks this, and checks that no two titles are the same.</para>
+    /// MoodSets has taken over or dropped. A test checks this, and checks that no two titles are the same.</para>
     ///
     /// <para>A pair with no title falls back to the genre name. A genre added to <see cref="Genres.All"/>
     /// later reads as itself, not as nothing.</para>
@@ -127,7 +127,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Calm, "Trap")] = "Night Drive",
         [(SmartPlaylistKind.Calm, "Old School Hip Hop")] = "Corner Store",
         [(SmartPlaylistKind.Calm, "Hip-Hop / Rap")] = "Just the Bars",
-        [(SmartPlaylistKind.Calm, "House")] = "Sunrise Set",
+        // No line for (Calm, "House"), once "Sunrise Set": that square was dropped (see MoodSets.Dropped).
         [(SmartPlaylistKind.Calm, "Techno")] = "Slow Machine",
         [(SmartPlaylistKind.Calm, "Club")] = "Closing Time",
         [(SmartPlaylistKind.Calm, "Electronic / Dance")] = "Ambient Drift",
@@ -148,7 +148,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Calm, "Latin")] = "Bossa Hours",
         [(SmartPlaylistKind.Calm, "World")] = "Distant Shores",
         [(SmartPlaylistKind.Calm, "Religious")] = "Sanctuary",
-        [(SmartPlaylistKind.Calm, "Soundtrack")] = "End Credits",
+        // No line for (Calm, "Soundtrack"), once "End Credits": dropped (see MoodSets.Dropped).
         [(SmartPlaylistKind.Calm, "Video Game")] = "Save Point",
         [(SmartPlaylistKind.Calm, "Musical")] = "Curtain Down",
         [(SmartPlaylistKind.Calm, "Spoken Word")] = "Quiet Words",
@@ -181,7 +181,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Energetic, "Blues")] = "Juke Joint",
         [(SmartPlaylistKind.Energetic, "Country")] = "Tailgate",
         // No line for (Energetic, "Folk"): that square is taken over by another list (see MoodSets.Absorbed).
-        [(SmartPlaylistKind.Energetic, "Classical")] = "Fortissimo",
+        // No line for (Energetic, "Classical"), once "Fortissimo": dropped (see MoodSets.Dropped).
         [(SmartPlaylistKind.Energetic, "Neo-Classical")] = "Strings Rising",
         [(SmartPlaylistKind.Energetic, "Opera")] = "Grand Finale",
         [(SmartPlaylistKind.Energetic, "Metal")] = "Wall of Sound",

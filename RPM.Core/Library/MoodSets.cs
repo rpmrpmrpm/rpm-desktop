@@ -194,6 +194,18 @@ public static class MoodSets
     };
 
     /// <summary>
+    /// The squares that are no list at all, by choice. Unlike an absorbed square, nothing took them over:
+    /// they are not offered, have no title and no picture, and their songs are in no mood list of their
+    /// own (the whole mood still holds them). Dropped 2026-10-26.
+    /// </summary>
+    private static readonly HashSet<MoodCell> Dropped =
+    [
+        new(SmartPlaylistKind.Calm, "House"),           // was "Sunrise Set"
+        new(SmartPlaylistKind.Calm, "Soundtrack"),      // was "End Credits"
+        new(SmartPlaylistKind.Energetic, "Classical"),  // was "Fortissimo"
+    ];
+
+    /// <summary>
     /// The squares one narrowed mood list draws from, the lead first.
     ///
     /// <para>A list with no line in the table draws from its own square only. That is the case for most
@@ -214,6 +226,23 @@ public static class MoodSets
         ArgumentNullException.ThrowIfNull(genre);
         return Absorbed.ContainsKey(new MoodCell(kind, genre));
     }
+
+    /// <summary>Whether this square has been dropped: no list, and no other list in its place (see
+    /// <see cref="Dropped"/>).</summary>
+    public static bool IsDropped(SmartPlaylistKind kind, string genre)
+    {
+        ArgumentNullException.ThrowIfNull(genre);
+        return Dropped.Contains(new MoodCell(kind, genre));
+    }
+
+    /// <summary>Whether this square is a list of its own: neither taken over by another list nor dropped.
+    /// <c>LibraryDatabase.OfferedGeneratedLists</c> asks this; the genre pages, which build their cards
+    /// without it, ask <see cref="IsDropped"/>.</summary>
+    public static bool IsOffered(SmartPlaylistKind kind, string genre)
+        => !IsAbsorbed(kind, genre) && !IsDropped(kind, genre);
+
+    /// <summary>Every dropped square. For the test that checks this table against the titles.</summary>
+    public static IEnumerable<MoodCell> EveryDropped => Dropped;
 
     /// <summary>Every square that is no longer a list, with the list that took it. This is for the test
     /// that checks this table against the titles. It is not used on screen.</summary>
