@@ -312,6 +312,12 @@ public sealed partial class TrackInfoView : UserControl
             }
         });
 
+        // No file because the record was offloaded. The reader says only that there is nothing on this disk to
+        // read; the tags it went to the cloud with are in its sidecar, so the credits and the conductor come
+        // from there rather than vanishing with the file.
+        if (row is not null && !File.Exists(path))
+            tags = await Services.Cloud.RemoteTags.ForAsync(row, path) ?? tags;
+
         if (!ReferenceEquals(_build, build))
             return;
 
