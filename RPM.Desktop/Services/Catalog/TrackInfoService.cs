@@ -603,6 +603,7 @@ public sealed partial class TrackInfoService
     /// Native AOT, which serializes from this and never by reflection.</summary>
     [JsonSerializable(typeof(TrackDossier))]
     [JsonSerializable(typeof(ConductorCard))]
+    [JsonSerializable(typeof(LabelCard))]
     private sealed partial class TrackInfoJson : JsonSerializerContext;
 
     // ── the conductor ──
@@ -661,6 +662,70 @@ public sealed partial class TrackInfoService
                 return null;
             var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
             var card = JsonSerializer.Deserialize(File.ReadAllText(path), TrackInfoJson.Default.ConductorCard);
+            return card is null || age > DiskTtl || (card.Found is null && age > BlankTtl) ? null : card;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // ── the label ──
+
+    /// <summary>A label's answer as it is kept: the label, or null for "the encyclopedias have no label by
+    /// that name", which is kept for the shorter time.</summary>
+    private sealed record LabelCard(LabelProfile? Found);
+
+    private readonly Dictionary<string, LabelCard> _labels = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The record label a release names, from memory, then disk, then Wikidata and Wikipedia, as the
+    /// conductor is. Null where no label is found, and where the encyclopedias could not be asked (that is
+    /// not written down, so it is asked again next time).
+    ///
+    /// <para>On the same two clocks as the conductor. A shelf of one label's records asks about it on every
+    /// track, and the answer is the same every time.</para>
+    /// </summary>
+    public async Task<LabelProfile?> LabelAsync(string? tag, CancellationToken ct = default)
+    {
+        if (EncyclopediaLookup.LabelName(tag) is not { } name)
+            return null;
+
+        var key = $"label {CacheVersion} {name}".ToLowerInvariant();
+        lock (_labels)
+        {
+            if (_labels.TryGetValue(key, out var held))
+                return held.Found;
+        }
+
+        if (ReadLabel(key) is { } kept)
+        {
+            lock (_labels) _labels[key] = kept;
+            return kept.Found;
+        }
+
+        if (!(await _lookup.LabelAsync(tag, Languages(), ct)).Answers(out var found, out _))
+            return null;
+
+        var card = new LabelCard(found);
+        lock (_labels) _labels[key] = card;
+        try
+        {
+            File.WriteAllText(PathFor(key), JsonSerializer.Serialize(card, TrackInfoJson.Default.LabelCard));
+        }
+        catch { /* the cache is an optimisation */ }
+        return found;
+    }
+
+    private LabelCard? ReadLabel(string key)
+    {
+        try
+        {
+            var path = PathFor(key);
+            if (!File.Exists(path))
+                return null;
+            var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
+            var card = JsonSerializer.Deserialize(File.ReadAllText(path), TrackInfoJson.Default.LabelCard);
             return card is null || age > DiskTtl || (card.Found is null && age > BlankTtl) ? null : card;
         }
         catch

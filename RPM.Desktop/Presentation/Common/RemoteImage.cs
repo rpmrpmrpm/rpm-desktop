@@ -783,4 +783,42 @@ public static class RemoteImage
             return Asked.Answer<BitmapImage?>(null);
         }
     }
+
+    /// <summary>
+    /// Fetch and decode a logo, cut with <see cref="DecodeMarkAsync"/> to exactly the pixels a box that fits
+    /// it whole with Uniform draws. A logo is lettering, so it gets the app's cut for type, not the one for
+    /// photographs.
+    /// </summary>
+    /// <param name="width">The box's width in points.</param>
+    /// <param name="height">The box's height in points.</param>
+    /// <param name="rasterScale">The display's scale, which turns the points into pixels.</param>
+    public static async Task<Asked<BitmapImage?>> LoadToFitAsync(
+        string? url, double width, double height, double rasterScale, CancellationToken ct = default)
+    {
+        if (!(await BytesAsync(url, ct)).Answers(out var bytes, out var why))
+            return Asked.Failed<BitmapImage?>(why);
+
+        if (bytes is null)
+            return Asked.Answer<BitmapImage?>(null);
+
+        var scale = rasterScale > 0 ? rasterScale : 1;
+        var (wide, tall) = (width * scale, height * scale);
+
+        // The long side the fit leaves the picture at. A picture whose header cannot be read is capped at the
+        // box's shorter side, which fits whatever its shape.
+        var (w, h) = Services.Art.ArtScaler.BoundsOf(bytes);
+        var edge = w > 0 && h > 0
+            ? (int)Math.Ceiling(Math.Max(w, h) * Math.Min(wide / w, tall / h))
+            : (int)Math.Ceiling(Math.Min(wide, tall));
+
+        try
+        {
+            return Asked.Answer<BitmapImage?>(
+                await DecodeMarkAsync(bytes, edge, Services.Art.ArtScaler.MarkSide.Long));
+        }
+        catch
+        {
+            return Asked.Answer<BitmapImage?>(null);
+        }
+    }
 }

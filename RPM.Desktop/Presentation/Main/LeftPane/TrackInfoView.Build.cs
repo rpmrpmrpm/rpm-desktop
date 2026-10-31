@@ -189,6 +189,18 @@ public sealed partial class TrackInfoView
             ConductorPhoto = photo;
         }
 
+        /// <summary>The label the tags name, with its logo already decoded, or null. Fetched and handed over
+        /// beside the papers, as the conductor is.</summary>
+        public LabelProfile? Label { get; private set; }
+
+        public ImageSource? LabelLogo { get; private set; }
+
+        public void GotLabel(LabelProfile? label, ImageSource? logo)
+        {
+            Label = label;
+            LabelLogo = logo;
+        }
+
         public void GotPapers(TrackDossier? dossier)
         {
             Dossier = dossier;
@@ -579,6 +591,7 @@ public sealed partial class TrackInfoView
             ShowDossier(dossier);
 
         PaintConductor(build.Conductor, build.ConductorPhoto);
+        PaintLabel(build.Label, build.LabelLogo);
     }
 
     /// <summary>

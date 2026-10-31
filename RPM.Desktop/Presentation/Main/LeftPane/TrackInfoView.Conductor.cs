@@ -134,30 +134,46 @@ public sealed partial class TrackInfoView
     private void FlowConductorProse()
     {
         var text = _conductor?.Article is { } article ? (_conductorExpanded ? article.Extract : article.Lead) : "";
-        var width = ConductorBeside.ActualWidth;
+        FlowBeside(text, ConductorPhotoHeight, ConductorBeside, [ConductorName, ConductorRoles, ConductorYears],
+                   ConductorProse, ConductorProseBelow);
+    }
+
+    /// <summary>
+    /// Runs a text beside a picture and then under it: as many words as fit in <paramref name="column"/>
+    /// before the picture's foot go into <paramref name="beside"/>, and the rest into <paramref name="below"/>.
+    /// The conductor's card and the label's both read this way, one with the picture on the left and one on
+    /// the right.
+    /// </summary>
+    /// <param name="pictureHeight">How tall the picture stands. Infinity puts everything beside it, which is
+    /// what a card with no picture wants.</param>
+    /// <param name="column">The column beside the picture, whose width the text is measured at.</param>
+    /// <param name="head">The lines above the text in that column, measured to find where it starts.</param>
+    private static void FlowBeside(string text, double pictureHeight, StackPanel column,
+                                   IReadOnlyList<TextBlock> head, TextBlock beside, TextBlock below)
+    {
+        var width = column.ActualWidth;
 
         if (text.Length == 0)
         {
-            ConductorProse.Text = ConductorProseBelow.Text = "";
-            ConductorProse.Visibility = ConductorProseBelow.Visibility = Visibility.Collapsed;
+            beside.Text = below.Text = "";
+            beside.Visibility = below.Visibility = Visibility.Collapsed;
             return;
         }
 
-        // Before the first layout there is no width to measure against. Everything goes beside the photograph
-        // for that frame, and the column's first SizeChanged flows it properly.
-        if (width <= 0)
+        // Before the first layout there is no width to measure against. Everything goes beside the picture for
+        // that frame, and the column's first SizeChanged flows it properly.
+        if (width <= 0 || double.IsInfinity(pictureHeight))
         {
             Split(text, "");
             return;
         }
 
-        // A line belongs beside the photograph if it STARTS before the photograph ends. The last one may hang a
+        // A line belongs beside the picture if it STARTS before the picture ends. The last one may hang a
         // little below the picture's foot; the text under it then carries on from that line, with no gap, so the
         // paragraph reads straight through the join.
-        var room = ConductorPhotoHeight - HeadHeight(width) - ConductorProse.Margin.Top
-                   + ConductorProse.LineHeight - 4;
+        var room = pictureHeight - HeadHeight(width) - beside.Margin.Top + beside.LineHeight - 4;
         var words = text.Split(' ');
-        var probe = new TextBlock { Style = ConductorProse.Style, Width = width };
+        var probe = new TextBlock { Style = beside.Style, Width = width };
 
         double Height(int count)
         {
@@ -180,30 +196,30 @@ public sealed partial class TrackInfoView
 
         Split(string.Join(' ', words, 0, fits), string.Join(' ', words, fits, words.Length - fits).TrimStart());
 
-        void Split(string beside, string below)
+        void Split(string upper, string lower)
         {
-            ConductorProse.Text = beside;
-            ConductorProse.Visibility = beside.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            ConductorProseBelow.Text = below;
-            ConductorProseBelow.Visibility = below.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            beside.Text = upper;
+            beside.Visibility = upper.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            below.Text = lower;
+            below.Visibility = lower.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
-    }
 
-    /// <summary>How tall the name, the roles and the years stand at this width, with the gaps between them
-    /// and the one under them.</summary>
-    private double HeadHeight(double width)
-    {
-        var height = 0.0;
-        var shown = 0;
-        foreach (var line in new[] { ConductorName, ConductorRoles, ConductorYears })
+        // How tall the lines above the text stand at this width, with the gaps between them and the one under
+        // them.
+        double HeadHeight(double at)
         {
-            if (line.Visibility != Visibility.Visible)
-                continue;
-            line.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
-            height += line.DesiredSize.Height;
-            shown++;
+            var height = 0.0;
+            var shown = 0;
+            foreach (var line in head)
+            {
+                if (line.Visibility != Visibility.Visible)
+                    continue;
+                line.Measure(new Windows.Foundation.Size(at, double.PositiveInfinity));
+                height += line.DesiredSize.Height;
+                shown++;
+            }
+            return height + column.Spacing * shown;
         }
-        return height + ConductorBeside.Spacing * shown;
     }
 
     private double _conductorBesideWidth;

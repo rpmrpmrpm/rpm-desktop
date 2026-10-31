@@ -359,9 +359,10 @@ public sealed partial class TrackInfoView : UserControl
         // number of songs on the record. That is what tells an album from a single with the same name.
         // The count comes off the tags, because the mirror's row has no count. The tag states the
         // record's own track total, rather than counting the files in the folder.
-        // The conductor goes with the papers: asked beside them, handed over with them, put up with them.
+        // The conductor and the label go with the papers: asked beside them, handed over with them, put up with
+        // them.
         await LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0),
-                          tags?.Conductor);
+                          tags?.Conductor, tags?.Publisher);
     }
 
     /// <summary>
@@ -1813,7 +1814,8 @@ public sealed partial class TrackInfoView : UserControl
     // ── what the encyclopedias add ──
 
     private async Task LookUpAsync(
-        PaneBuild build, string? artist, string? album, string? credited, int tracks, string? conductor = null)
+        PaneBuild build, string? artist, string? album, string? credited, int tracks, string? conductor = null,
+        string? label = null)
     {
         var path = build.Path;
         _lookup?.Cancel();
@@ -1824,14 +1826,18 @@ public sealed partial class TrackInfoView : UserControl
 
         // Started now, and waited for by every way this lookup settles, so the section never goes up without
         // the conductor and the conductor never arrives after it. A record with no conductor answers at once.
+        // The label the same way, beside the conductor, for the same reason.
         var conducted = ConductorFor(conductor, XamlRoot?.RasterizationScale ?? 1);
+        var labelled = LabelFor(label, XamlRoot?.RasterizationScale ?? 1);
 
         async void Settle(TrackDossier? dossier)
         {
             var (who, photo) = await conducted;
+            var (house, logo) = await labelled;
             if (!ReferenceEquals(_build, build))
                 return;
             build.GotConductor(who, photo);
+            build.GotLabel(house, logo);
             build.GotPapers(dossier);
             Advance(build);
         }

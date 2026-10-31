@@ -667,6 +667,64 @@
             </Grid>
           </Border>
         </StackPanel>
+
+        <!-- The record label the tags name, under the conductor's card where there is one and the album's where
+             there is not, in the same layer for the same reason (see TrackInfoView.Label).
+
+             The conductor's card turned around: the name, the years it was active and what it is known for on the
+             left, the logo on the right. The logo sits on a light plate of its own, because most logos are drawn
+             dark on nothing and would vanish into the card. The article starts beside the logo and carries on under
+             it, measured into the two places as the conductor's is. A label with no logo gives the text the whole
+             width. -->
+        <StackPanel x:Name="LabelBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_AboutLabel}" Style="{StaticResource BlockHeading}"/>
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+            <Grid x:Name="LabelClip" SizeChanged="CardClip_SizeChanged">
+              <StackPanel x:Name="LabelPage" Spacing="8">
+                <StackPanel.RenderTransform>
+                  <TranslateTransform x:Name="LabelPageShift"/>
+                </StackPanel.RenderTransform>
+                <Grid x:Name="LabelTop" ColumnSpacing="14">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="LabelLogoColumn" Width="144"/>
+                  </Grid.ColumnDefinitions>
+
+                  <StackPanel x:Name="LabelBeside" Grid.Column="0" Spacing="3"
+                              SizeChanged="LabelBeside_SizeChanged">
+                    <TextBlock x:Name="LabelName" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="LabelYears" FontSize="11" Foreground="{StaticResource InkQuiet}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="LabelGenres" FontSize="11" Foreground="{StaticResource InkFaint}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="LabelProse" Style="{StaticResource Prose}" Margin="0,8,0,0"/>
+                  </StackPanel>
+
+                  <Border x:Name="LabelLogoPlate" Grid.Column="1" Height="96" VerticalAlignment="Top"
+                          CornerRadius="6" Background="#F2FFFFFF" Padding="10">
+                    <Image x:Name="LabelLogo" Stretch="Uniform"/>
+                  </Border>
+                </Grid>
+
+                <!-- The rest of the article, under the logo, at the card's full width; see ConductorProseBelow. -->
+                <TextBlock x:Name="LabelProseBelow" Style="{StaticResource Prose}" Visibility="Collapsed"
+                           Margin="0,-8,0,0"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <ctl:RpmLink x:Name="LabelMoreButton" Click="LabelMore_Click" FontSize="11"/>
+                  <ctl:RpmLink x:Name="LabelSourceButton" Click="LabelSource_Click" FontSize="11"/>
+                </StackPanel>
+
+                <!-- Where else it is written about. -->
+                <local:WrapRow x:Name="LabelLinks" HorizontalSpacing="14" VerticalSpacing="4"/>
+
+                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=LabelSourceButton}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
       </StackPanel>
 
         <!-- Where else this record is written about. These links sit under the two cards it belongs to, because they are
