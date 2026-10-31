@@ -1,9 +1,10 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using RPM.Core.Metadata.Providers;
 using RPM.Desktop.Presentation.Common;
 using RPM.Desktop.Presentation.Controls;
+using RPM.Desktop.Services.Art;
 using RPM.Desktop.Strings;
 
 namespace RPM.Desktop.Presentation.Main.LeftPane;
@@ -20,14 +21,11 @@ namespace RPM.Desktop.Presentation.Main.LeftPane;
 /// </summary>
 public sealed partial class TrackInfoView
 {
-    /// <summary>The logo's box: its width, and the height the article runs beside before it carries on
-    /// underneath. The plate's padding is inside both.</summary>
+    /// <summary>The box the logo fits inside: at most this wide, and at most this tall, which is as far as
+    /// the article runs beside it before it carries on underneath.</summary>
     private const double LabelLogoWidth = 144;
 
     private const double LabelLogoHeight = 96;
-
-    /// <summary>The plate's padding around the logo, as the XAML sets it.</summary>
-    private const double LabelLogoInset = 10;
 
     private LabelProfile? _label;
     private bool _labelExpanded;
@@ -35,7 +33,9 @@ public sealed partial class TrackInfoView
     /// <summary>The label a record's tags name, and its logo, cut to the size the card draws it at. Never
     /// throws: a label that cannot be found or fetched is no card.</summary>
     /// <param name="rasterScale">The display's scale, so the logo is cut to physical pixels.</param>
-    private static async Task<(LabelProfile? Label, ImageSource? Logo)> LabelFor(string? tag, double rasterScale)
+    /// <param name="ink">The card's writing colour, which a logo in one dark colour is repainted in.</param>
+    private static async Task<(LabelProfile? Label, BitmapImage? Logo)> LabelFor(
+        string? tag, double rasterScale, Windows.UI.Color ink)
     {
         if (EncyclopediaLookup.LabelName(tag) is null)
             return (null, null);
@@ -45,10 +45,11 @@ public sealed partial class TrackInfoView
             if (await Dossiers.LabelAsync(tag) is not { } label)
                 return (null, null);
 
-            ImageSource? logo = null;
+            var pen = new SkiaSharp.SKColor(ink.R, ink.G, ink.B, ink.A);
+            BitmapImage? logo = null;
             if (label.LogoUrl is { Length: > 0 } url
-                && (await RemoteImage.LoadToFitAsync(url, LabelLogoWidth - 2 * LabelLogoInset,
-                                                     LabelLogoHeight - 2 * LabelLogoInset, rasterScale))
+                && (await RemoteImage.LoadToFitAsync(url, LabelLogoWidth, LabelLogoHeight, rasterScale,
+                                                     cut => ArtScaler.InkMark(cut, pen)))
                     .Answers(out var picture, out _))
                 logo = picture;
             return (label, logo);
@@ -60,7 +61,7 @@ public sealed partial class TrackInfoView
     }
 
     /// <summary>Paints the card from what the errand brought. Synchronous, like every layer's paint.</summary>
-    private void PaintLabel(LabelProfile? label, ImageSource? logo)
+    private void PaintLabel(LabelProfile? label, BitmapImage? logo)
     {
         _label = label;
         _labelExpanded = false;
@@ -93,11 +94,16 @@ public sealed partial class TrackInfoView
             g.Length == 0 ? g : char.ToUpper(g[0], culture) + g[1..]));
         LabelGenres.Visibility = label.Genres.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        // No logo, no plate: the column goes, and the text has the card's whole width.
+        // The logo at the size its own shape gives inside the box, and its column no wider than it, so a tall
+        // mark leaves the text more room than a wide one. No logo, no column: the text has the whole width.
+        var (wide, tall) = LogoSize(logo);
+        _labelLogoHeight = tall;
         LabelLogo.Source = logo;
-        LabelLogoColumn.Width = new GridLength(logo is null ? 0 : LabelLogoWidth);
+        LabelLogo.Width = wide;
+        LabelLogo.Height = tall;
+        LabelLogoColumn.Width = new GridLength(wide);
         LabelTop.ColumnSpacing = logo is null ? 0 : 14;
-        LabelLogoPlate.Visibility = logo is null ? Visibility.Collapsed : Visibility.Visible;
+        LabelLogo.Visibility = logo is null ? Visibility.Collapsed : Visibility.Visible;
 
         LabelLinks.Children.Clear();
         foreach (var link in label.Links)
@@ -128,8 +134,25 @@ public sealed partial class TrackInfoView
     private void FlowLabelProse()
     {
         var text = _label?.Article is { } article ? (_labelExpanded ? article.Extract : article.Lead) : "";
-        var picture = LabelLogoPlate.Visibility == Visibility.Visible ? LabelLogoHeight : double.PositiveInfinity;
+        var picture = LabelLogo.Visibility == Visibility.Visible ? _labelLogoHeight : double.PositiveInfinity;
         FlowBeside(text, picture, LabelBeside, [LabelName, LabelYears, LabelGenres], LabelProse, LabelProseBelow);
+    }
+
+    /// <summary>How tall the logo on screen stands: what the article runs beside.</summary>
+    private double _labelLogoHeight;
+
+    /// <summary>The logo fitted whole inside the box, by its own proportions. Nothing for no logo; the whole
+    /// box for one whose size is not known yet.</summary>
+    private static (double Width, double Height) LogoSize(BitmapImage? logo)
+    {
+        if (logo is null)
+            return (0, 0);
+        if (logo.PixelWidth <= 0 || logo.PixelHeight <= 0)
+            return (LabelLogoWidth, LabelLogoHeight);
+
+        var aspect = (double)logo.PixelWidth / logo.PixelHeight;
+        var width = Math.Min(LabelLogoWidth, LabelLogoHeight * aspect);
+        return (Math.Round(width), Math.Round(width / aspect));
     }
 
     private double _labelBesideWidth;

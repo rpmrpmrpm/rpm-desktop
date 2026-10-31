@@ -792,8 +792,11 @@ public static class RemoteImage
     /// <param name="width">The box's width in points.</param>
     /// <param name="height">The box's height in points.</param>
     /// <param name="rasterScale">The display's scale, which turns the points into pixels.</param>
+    /// <param name="finish">A last step on the cut picture's bytes, run off the UI thread before it is decoded:
+    /// see <see cref="Services.Art.ArtScaler.InkMark"/>.</param>
     public static async Task<Asked<BitmapImage?>> LoadToFitAsync(
-        string? url, double width, double height, double rasterScale, CancellationToken ct = default)
+        string? url, double width, double height, double rasterScale,
+        Func<byte[], byte[]>? finish = null, CancellationToken ct = default)
     {
         if (!(await BytesAsync(url, ct)).Answers(out var bytes, out var why))
             return Asked.Failed<BitmapImage?>(why);
@@ -813,8 +816,13 @@ public static class RemoteImage
 
         try
         {
-            return Asked.Answer<BitmapImage?>(
-                await DecodeMarkAsync(bytes, edge, Services.Art.ArtScaler.MarkSide.Long));
+            // DecodeMarkAsync's two steps, with the finish between them.
+            var cut = await Task.Run(() =>
+            {
+                var fitted = Services.Art.ArtScaler.FitMark(bytes, edge, Services.Art.ArtScaler.MarkSide.Long);
+                return finish is null ? fitted : finish(fitted);
+            });
+            return Asked.Answer<BitmapImage?>(await DecodeAsync(cut, edge));
         }
         catch
         {

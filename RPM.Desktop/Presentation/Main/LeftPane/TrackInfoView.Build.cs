@@ -193,9 +193,9 @@ public sealed partial class TrackInfoView
         /// beside the papers, as the conductor is.</summary>
         public LabelProfile? Label { get; private set; }
 
-        public ImageSource? LabelLogo { get; private set; }
+        public Microsoft.UI.Xaml.Media.Imaging.BitmapImage? LabelLogo { get; private set; }
 
-        public void GotLabel(LabelProfile? label, ImageSource? logo)
+        public void GotLabel(LabelProfile? label, Microsoft.UI.Xaml.Media.Imaging.BitmapImage? logo)
         {
             Label = label;
             LabelLogo = logo;

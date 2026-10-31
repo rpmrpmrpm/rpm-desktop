@@ -323,6 +323,87 @@ public static class ArtScaler
     /// <summary>The same cut, capped on the height. See <see cref="FitMark"/>.</summary>
     public static byte[] FitHeight(byte[] bytes, int height) => FitMark(bytes, height, MarkSide.Height);
 
+    /// <summary>
+    /// A logo drawn in one dark colour on nothing, repainted in <paramref name="ink"/>; anything else, the same
+    /// bytes back.
+    ///
+    /// <para><b>Why.</b> A label's logo on Commons is a mark on a transparent ground, and most are black: drawn
+    /// for a white page. Put straight on a dark card they vanish. Repainting every pixel in the card's own ink,
+    /// keeping each pixel's coverage, gives the logo the colour the writing beside it has, which is how a
+    /// streaming service shows a label.</para>
+    ///
+    /// <para><b>Only one dark colour.</b> A logo in several colours is a design, and repainting it in one would
+    /// lose what makes it that label's. A pale logo already reads on a dark card. A picture with a ground of its
+    /// own (an article's photograph, a logo on a white box) has almost nothing transparent, and is a picture,
+    /// not a mark: all of these come back untouched.</para>
+    /// </summary>
+    public static byte[] InkMark(byte[] bytes, SKColor ink)
+    {
+        try
+        {
+            using var bitmap = SKBitmap.Decode(bytes);
+            if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0)
+                return bytes;
+
+            using var plain = bitmap.Copy(SKColorType.Rgba8888);
+            if (plain is null)
+                return bytes;
+
+            // Read unpremultiplied, so an edge pixel says the colour it is, not the colour times its coverage.
+            var pixels = new SKColor[plain.Width * plain.Height];
+            var bare = 0;
+            var inked = new List<SKColor>();
+            for (var y = 0; y < plain.Height; y++)
+                for (var x = 0; x < plain.Width; x++)
+                {
+                    var c = plain.GetPixel(x, y);
+                    pixels[(y * plain.Width) + x] = c;
+                    if (c.Alpha == 0)
+                        bare++;
+                    else if (c.Alpha >= 0xC0)
+                        inked.Add(c);
+                }
+
+            // A picture with its own ground, or nothing drawn at all.
+            if (bare < pixels.Length / 10 || inked.Count == 0)
+                return bytes;
+
+            // One colour: nearly every solid pixel close to the solid pixels' mean. Dark: that mean is.
+            double r = 0, g = 0, b = 0;
+            foreach (var c in inked) { r += c.Red; g += c.Green; b += c.Blue; }
+            r /= inked.Count; g /= inked.Count; b /= inked.Count;
+
+            const int Near = 48;
+            var near = inked.Count(c => Math.Abs(c.Red - r) <= Near && Math.Abs(c.Green - g) <= Near
+                                        && Math.Abs(c.Blue - b) <= Near);
+            if (near < inked.Count * 0.95)
+                return bytes;
+
+            // Dark enough to vanish: near black whatever its hue, or a dark grey. A saturated colour in its own
+            // right (Columbia's red) reads on a dark card and is the label's colour, so it is left as it is.
+            var luminance = ((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255;
+            var chroma = Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b));
+            if (!(luminance <= 0.12 || (luminance <= 0.35 && chroma < 60)))
+                return bytes;
+
+            using var painted = new SKBitmap(new SKImageInfo(plain.Width, plain.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+            for (var y = 0; y < plain.Height; y++)
+                for (var x = 0; x < plain.Width; x++)
+                {
+                    var alpha = pixels[(y * plain.Width) + x].Alpha;
+                    painted.SetPixel(x, y, ink.WithAlpha((byte)(alpha * ink.Alpha / 255)));
+                }
+
+            using var image = SKImage.FromBitmap(painted);
+            using var png = image.Encode(SKEncodedImageFormat.Png, 100);
+            return png is null || png.Size == 0 ? bytes : png.ToArray();
+        }
+        catch
+        {
+            return bytes;
+        }
+    }
+
     /// <summary>The side that <paramref name="side"/> names, in pixels.</summary>
     private static int Measured(int width, int height, MarkSide side) => side switch
     {

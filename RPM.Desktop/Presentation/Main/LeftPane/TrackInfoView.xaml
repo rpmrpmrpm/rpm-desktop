@@ -672,10 +672,10 @@
              there is not, in the same layer for the same reason (see TrackInfoView.Label).
 
              The conductor's card turned around: the name, the years it was active and what it is known for on the
-             left, the logo on the right. The logo sits on a light plate of its own, because most logos are drawn
-             dark on nothing and would vanish into the card. The article starts beside the logo and carries on under
-             it, measured into the two places as the conductor's is. A label with no logo gives the text the whole
-             width. -->
+             left, the logo on the right, straight on the card. A logo drawn in one dark colour is repainted in the
+             card's ink, or it would vanish into the card (see ArtScaler.InkMark). The article starts beside the logo
+             and carries on under it, measured into the two places as the conductor's is. A label with no logo gives
+             the text the whole width. -->
         <StackPanel x:Name="LabelBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=TrackInfo_AboutLabel}" Style="{StaticResource BlockHeading}"/>
           <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
@@ -701,10 +701,8 @@
                     <TextBlock x:Name="LabelProse" Style="{StaticResource Prose}" Margin="0,8,0,0"/>
                   </StackPanel>
 
-                  <Border x:Name="LabelLogoPlate" Grid.Column="1" Height="96" VerticalAlignment="Top"
-                          CornerRadius="6" Background="#F2FFFFFF" Padding="10">
-                    <Image x:Name="LabelLogo" Stretch="Uniform"/>
-                  </Border>
+                  <Image x:Name="LabelLogo" Grid.Column="1" Stretch="Uniform" MaxHeight="96"
+                         HorizontalAlignment="Right" VerticalAlignment="Top"/>
                 </Grid>
 
                 <!-- The rest of the article, under the logo, at the card's full width; see ConductorProseBelow. -->

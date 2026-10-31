@@ -1828,7 +1828,7 @@ public sealed partial class TrackInfoView : UserControl
         // the conductor and the conductor never arrives after it. A record with no conductor answers at once.
         // The label the same way, beside the conductor, for the same reason.
         var conducted = ConductorFor(conductor, XamlRoot?.RasterizationScale ?? 1);
-        var labelled = LabelFor(label, XamlRoot?.RasterizationScale ?? 1);
+        var labelled = LabelFor(label, XamlRoot?.RasterizationScale ?? 1, Ink("InkStrong").Color);
 
         async void Settle(TrackDossier? dossier)
         {
