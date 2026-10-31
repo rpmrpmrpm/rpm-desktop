@@ -16,7 +16,7 @@ public static partial class Subgenres
     /// whenever the list changes, because a number somebody has to remember to raise is a number
     /// that is wrong the first time somebody forgets.</para>
     /// </summary>
-    public const int Version = 1498540663;
+    public const int Version = 2098435208;
 
     /// <summary>The shelves, in the order they are offered. Generated, so this and the
     /// styles under it can never disagree about which shelves exist.</summary>
@@ -545,6 +545,7 @@ public static partial class Subgenres
         new("Requiem", "Classical"),
         new("Art Song", "Classical"),
         new("Ballet", "Classical"),
+        new("Ballroom Dance", "Classical"),
         new("Modern Classical", "Neo-Classical"),
         new("Post-Minimalism", "Neo-Classical"),
         new("Ambient Classical", "Neo-Classical"),
