@@ -1824,7 +1824,7 @@ public sealed partial class TrackInfoView : UserControl
 
         // Started now, and waited for by every way this lookup settles, so the section never goes up without
         // the conductor and the conductor never arrives after it. A record with no conductor answers at once.
-        var conducted = ConductorFor(conductor);
+        var conducted = ConductorFor(conductor, XamlRoot?.RasterizationScale ?? 1);
 
         async void Settle(TrackDossier? dossier)
         {
@@ -3480,18 +3480,22 @@ public sealed partial class TrackInfoView : UserControl
             ToolTipService.SetToolTip(tile, role);
 
         if (member.Photo is { Length: > 0 } url)
-            _ = DressFaceAsync(url, picture, photo, painting);
+            _ = DressFaceAsync(url, Edge, picture, photo, painting);
 
         return tile;
     }
 
     /// <summary>The photograph, through the app's picture cache, which identifies the app the way
-    /// Wikimedia asks. Shown only if this line-up is still the one on screen.</summary>
-    private async Task DressFaceAsync(string url, ImageBrush picture, Microsoft.UI.Xaml.Shapes.Ellipse photo, int painting)
+    /// Wikimedia asks, cut smooth to the circle's own pixels. Shown only if this line-up is still the one
+    /// on screen.</summary>
+    private async Task DressFaceAsync(string url, double edge, ImageBrush picture,
+                                      Microsoft.UI.Xaml.Shapes.Ellipse photo, int painting)
     {
         try
         {
-            if ((await RemoteImage.LoadAsync(url)).Answers(out var bitmap, out _) && bitmap is not null
+            var scale = XamlRoot?.RasterizationScale ?? 1;
+            if ((await RemoteImage.LoadToFillAsync(url, edge, edge, scale)).Answers(out var bitmap, out _)
+                && bitmap is not null
                 && painting == _membersPainted)
             {
                 picture.ImageSource = bitmap;

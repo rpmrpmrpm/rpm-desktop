@@ -28,9 +28,14 @@ public sealed partial class TrackInfoView
     private ConductorProfile? _conductor;
     private bool _conductorExpanded;
 
-    /// <summary>The conductor a track credits, and their photograph, decoded. Never throws: a conductor who
-    /// cannot be found or fetched is no card, and the papers go up without one.</summary>
-    private static async Task<(ConductorProfile? Who, ImageSource? Photo)> ConductorFor(string? credit)
+    /// <summary>The width of the photograph.</summary>
+    private const double ConductorPhotoWidth = 112;
+
+    /// <summary>The conductor a track credits, and their photograph, cut smooth to the size the card draws it
+    /// at. Never throws: a conductor who cannot be found or fetched is no card, and the papers go up without
+    /// one.</summary>
+    /// <param name="rasterScale">The display's scale, so the photograph is cut to physical pixels.</param>
+    private static async Task<(ConductorProfile? Who, ImageSource? Photo)> ConductorFor(string? credit, double rasterScale)
     {
         if (EncyclopediaLookup.ConductorName(credit) is null)
             return (null, null);
@@ -42,7 +47,8 @@ public sealed partial class TrackInfoView
 
             ImageSource? photo = null;
             if (who.PhotoUrl is { Length: > 0 } url
-                && (await RemoteImage.LoadAsync(url)).Answers(out var picture, out _))
+                && (await RemoteImage.LoadToFillAsync(url, ConductorPhotoWidth, ConductorPhotoHeight, rasterScale))
+                    .Answers(out var picture, out _))
                 photo = picture;
             return (who, photo);
         }
@@ -60,9 +66,14 @@ public sealed partial class TrackInfoView
         _conductorExpanded = false;
         if (person is null)
         {
-            ConductorBlock.Visibility = Visibility.Collapsed;
+            HideCard(ConductorMotion);
             return;
         }
+
+        // A "Show more" still growing on the last record's conductor is stopped and its height let go, or the
+        // new card would open at the old one's height.
+        ConductorMotion.Board?.Stop();
+        ConductorPage.Height = double.NaN;
 
         ConductorName.Text = person.Name;
 
@@ -206,11 +217,21 @@ public sealed partial class TrackInfoView
         FlowConductorProse();
     }
 
+    /// <summary>Grows into the rest of the article and shrinks back out of it, as the artist's and the album's
+    /// cards do (see MoveCard): measured before the text changes, then moved to whatever the new text
+    /// needs.</summary>
     private void ConductorMore_Click(object sender, RoutedEventArgs e)
     {
+        var was = ConductorPage.ActualHeight;
+
         _conductorExpanded = !_conductorExpanded;
         PaintConductorArticle();
+        MoveCard(ConductorMotion, ConductorBlock.Visibility == Visibility.Visible, way: 0, was);
     }
+
+    private CardMotion? _conductorMotion;
+    private CardMotion ConductorMotion
+        => _conductorMotion ??= new CardMotion(ConductorBlock, ConductorPage, ConductorPageShift);
 
     private void ConductorSource_Click(object sender, RoutedEventArgs e) => Open(_conductor?.Article?.Url);
 }

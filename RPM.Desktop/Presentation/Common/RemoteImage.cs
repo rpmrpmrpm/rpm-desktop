@@ -743,4 +743,44 @@ public static class RemoteImage
             return Asked.Answer<BitmapImage?>(null);   // bytes that are not a picture we can read
         }
     }
+
+    /// <summary>
+    /// Fetch and decode, cut with <see cref="DecodeArtAsync"/> to exactly the pixels a box that crops with
+    /// UniformToFill draws, so nothing scales the picture when it is drawn.
+    ///
+    /// <para>A portrait is a few hundred to a few thousand pixels across and is drawn an inch or two wide.
+    /// Left to the renderer, that reduction is not a cubic, and a face comes out grainy. The box need not be
+    /// square: the short side the cut asks for is whatever makes the picture cover BOTH of the box's sides,
+    /// worked out from the picture's own proportions.</para>
+    /// </summary>
+    /// <param name="width">The box's width in points.</param>
+    /// <param name="height">The box's height in points.</param>
+    /// <param name="rasterScale">The display's scale, which turns the points into pixels.</param>
+    public static async Task<Asked<BitmapImage?>> LoadToFillAsync(
+        string? url, double width, double height, double rasterScale, CancellationToken ct = default)
+    {
+        if (!(await BytesAsync(url, ct)).Answers(out var bytes, out var why))
+            return Asked.Failed<BitmapImage?>(why);
+
+        if (bytes is null)
+            return Asked.Answer<BitmapImage?>(null);
+
+        var scale = rasterScale > 0 ? rasterScale : 1;
+        var (wide, tall) = (width * scale, height * scale);
+
+        // A picture whose header cannot be read is cut as if it were square, which still covers the box.
+        var (w, h) = Services.Art.ArtScaler.BoundsOf(bytes);
+        var edge = w > 0 && h > 0
+            ? (int)Math.Ceiling(Math.Min(w, h) * Math.Max(wide / w, tall / h))
+            : (int)Math.Ceiling(Math.Max(wide, tall));
+
+        try
+        {
+            return Asked.Answer<BitmapImage?>(await DecodeArtAsync(bytes, edge));
+        }
+        catch
+        {
+            return Asked.Answer<BitmapImage?>(null);
+        }
+    }
 }
