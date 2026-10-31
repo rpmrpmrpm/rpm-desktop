@@ -642,8 +642,11 @@
                 </StackPanel>
               </Grid>
 
-              <!-- The rest of the article, under the photograph, at the card's full width. -->
-              <TextBlock x:Name="ConductorProseBelow" Style="{StaticResource Prose}" Visibility="Collapsed"/>
+              <!-- The rest of the article, under the photograph, at the card's full width. It carries straight on from
+                   the last line beside the photograph: the card's spacing is taken back, so the join reads as the next
+                   line of the same paragraph rather than the start of another. -->
+              <TextBlock x:Name="ConductorProseBelow" Style="{StaticResource Prose}" Visibility="Collapsed"
+                         Margin="0,-8,0,0"/>
 
               <StackPanel Orientation="Horizontal" Spacing="14">
                 <ctl:RpmLink x:Name="ConductorMoreButton" Click="ConductorMore_Click" FontSize="11"/>

@@ -140,7 +140,11 @@ public sealed partial class TrackInfoView
             return;
         }
 
-        var room = ConductorPhotoHeight - HeadHeight(width) - ConductorProse.Margin.Top;
+        // A line belongs beside the photograph if it STARTS before the photograph ends. The last one may hang a
+        // little below the picture's foot; the text under it then carries on from that line, with no gap, so the
+        // paragraph reads straight through the join.
+        var room = ConductorPhotoHeight - HeadHeight(width) - ConductorProse.Margin.Top
+                   + ConductorProse.LineHeight - 4;
         var words = text.Split(' ');
         var probe = new TextBlock { Style = ConductorProse.Style, Width = width };
 
