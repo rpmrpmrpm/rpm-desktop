@@ -130,13 +130,13 @@ public class SubgenresTests
         Assert.Equal(shelf, Subgenres.Match(style)?.Genre);
     }
 
-    /// <summary>Ballroom is a house style, but a record tagged "ballroom" is far more often waltzes and
-    /// foxtrots. Offered, never read out of a tag.</summary>
+    /// <summary>Ballroom is the house music of ball culture, and a tag that says it is a House record.</summary>
     [Fact]
-    public void Ballroom_is_offered_under_house_but_not_read()
+    public void Ballroom_is_a_house_style()
     {
-        Assert.Contains(Subgenres.Under("House"), s => s.Name == "Ballroom");
-        Assert.Null(Subgenres.Match("Ballroom"));
+        var choice = Genres.Read("ballroom");
+        Assert.Equal("House", choice.Genre);
+        Assert.Equal("Ballroom", choice.Subgenre);
     }
 
     [Theory]

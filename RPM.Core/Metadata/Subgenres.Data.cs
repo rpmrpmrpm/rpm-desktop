@@ -16,7 +16,7 @@ public static partial class Subgenres
     /// whenever the list changes, because a number somebody has to remember to raise is a number
     /// that is wrong the first time somebody forgets.</para>
     /// </summary>
-    public const int Version = 2118520763;
+    public const int Version = 1498540663;
 
     /// <summary>The shelves, in the order they are offered. Generated, so this and the
     /// styles under it can never disagree about which shelves exist.</summary>
@@ -742,6 +742,5 @@ public static partial class Subgenres
         "mass", // mass
         "hardcore", // hardcore
         "wave", // wave
-        "ballroom", // ballroom
     ];
 }
