@@ -58,6 +58,31 @@ public class BandLineupTests
         Assert.Equal("https://commons.wikimedia.org/wiki/Special:FilePath/Carol%20Decker.jpg?width=240", carol.Photo);
     }
 
+    /// <summary>The papers' MusicBrainz path names members by their MusicBrainz ids. They are found by the
+    /// entity that files the id (P434), and get their photographs even where the band has no entity, in
+    /// which case nobody is taken off.</summary>
+    [Fact]
+    public void A_member_named_by_a_musicbrainz_id_gets_their_photograph()
+    {
+        const string body = """
+        {
+          "entities": {
+            "Q4028": { "claims": {
+              "P434": [ { "mainsnak": { "datavalue": { "value": "05517043-ff78-4988-9c22-88c68588ebb9" } } } ],
+              "P18": [ { "mainsnak": { "datavalue": { "value": "Paul Simon.jpg" } } } ]
+            } }
+          }
+        }
+        """;
+        BandMember[] duo = [new("Paul Simon", "05517043-ff78-4988-9c22-88c68588ebb9"), new("Art Garfunkel", "fc0a5289-4b77-4246-9c8d-857c8b617f5d")];
+
+        var current = EncyclopediaLookup.CurrentLineup(body, band: null, duo);
+
+        Assert.Equal(2, current.Count);
+        Assert.Equal("https://commons.wikimedia.org/wiki/Special:FilePath/Paul%20Simon.jpg?width=240", current[0].Photo);
+        Assert.Null(current[1].Photo);
+    }
+
     /// <summary>A band that split up keeps its last line-up: memberships that ended when the band did are
     /// the band's ending, not somebody leaving.</summary>
     [Fact]

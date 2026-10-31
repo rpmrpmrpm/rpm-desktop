@@ -176,6 +176,19 @@ public sealed partial class TrackInfoView
         /// answer that justifies taking the strip away.</summary>
         public void NoPhoto() => Order.Answered(PaneErrand.Photo, found: false);
 
+        /// <summary>The conductor the track credits, with their photograph already decoded, or null. Not an
+        /// errand of its own: it is fetched beside the papers and handed over with them, so the card is
+        /// complete when its layer goes up (see LookUpAsync).</summary>
+        public ConductorProfile? Conductor { get; private set; }
+
+        public ImageSource? ConductorPhoto { get; private set; }
+
+        public void GotConductor(ConductorProfile? conductor, ImageSource? photo)
+        {
+            Conductor = conductor;
+            ConductorPhoto = photo;
+        }
+
         public void GotPapers(TrackDossier? dossier)
         {
             Dossier = dossier;
@@ -220,7 +233,7 @@ public sealed partial class TrackInfoView
     {
         PaneLayer.Facts => Sections,
         PaneLayer.Elsewhere => LinksBlock,
-        PaneLayer.Album => AlbumBlock,
+        PaneLayer.Album => AlbumSection,
         PaneLayer.Members => MembersBlock,
         PaneLayer.Artist => ArtistBlock,
         PaneLayer.Lyrics => LyricsBlock,
@@ -559,6 +572,8 @@ public sealed partial class TrackInfoView
     {
         if (build.Dossier is { } dossier)
             ShowDossier(dossier);
+
+        PaintConductor(build.Conductor, build.ConductorPhoto);
     }
 
     /// <summary>

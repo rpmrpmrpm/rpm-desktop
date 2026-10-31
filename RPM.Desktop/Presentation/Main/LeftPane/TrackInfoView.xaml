@@ -570,6 +570,9 @@
           </Border>
         </StackPanel>
 
+        <!-- The record's section: the album's card and, for a record that credits one, the conductor's. One
+             layer of the pane (see LayerElement), so the two go up and come down together. -->
+        <StackPanel x:Name="AlbumSection" Spacing="18">
         <!-- The record itself, as the catalogues have it. -->
         <StackPanel x:Name="AlbumBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=TrackInfo_AboutAlbum}" Style="{StaticResource BlockHeading}"/>
@@ -600,61 +603,62 @@
           </Border>
         </StackPanel>
 
-        <!-- The conductor, at the foot of what the pane says about the record. A classical record is as much the
-             conductor's as the composer's: two recordings of one opera differ by who conducted them, and the credit
-             is the one name on the sheet the reader may not know.
+        <!-- The conductor, under the album's card and in the same layer: it goes up when the album's card does and
+             comes down with it, so it never arrives on its own after the section has settled. The lookup is part of
+             the papers' errand for the same reason (see TrackInfoView.Conductor).
 
-             The photograph on the left and the person on the right: the name, what they were besides a conductor,
-             when they lived, and the opening of the article. Under both, the article's own two links and its
-             licence, then where else they are written about. Filled in code (see TrackInfoView.Conductor), only for
-             a track that credits a conductor the encyclopedias know. -->
-        <StackPanel x:Name="ConductorBlock" Margin="16,0,16,0" Visibility="Collapsed">
+             The photograph on the left and the person beside it: the name, what they were besides a conductor, and
+             when they lived. The opening of the article starts beside the photograph and carries on under it at the
+             card's full width; the words are measured into the two places (see FlowConductorProse), because WinUI
+             has no text that runs around a picture. The links and the licence are laid out as the album card's are. -->
+        <StackPanel x:Name="ConductorBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=TrackInfo_AboutConductor}" Style="{StaticResource BlockHeading}"/>
           <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
-            <Grid ColumnSpacing="14" RowSpacing="12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="112"/>
-                <ColumnDefinition Width="*"/>
-              </Grid.ColumnDefinitions>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-              </Grid.RowDefinitions>
+            <StackPanel Spacing="8">
+              <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="112"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-              <!-- A portrait's shape, not a sleeve's: the photograph is of a person. Cropped to fill, from the top,
-                   because a portrait's face is in its upper half. -->
-              <Grid Grid.Row="0" Grid.Column="0" Height="148" VerticalAlignment="Top">
-                <Border CornerRadius="6" Background="#26FFFFFF"/>
-                <FontIcon x:Name="ConductorPlaceholder" Glyph="&#xf007;" FontFamily="{StaticResource Fa}"
-                          FontSize="30" Foreground="#4DFFFFFF"/>
-                <Border CornerRadius="6">
-                  <Image x:Name="ConductorPhoto" Stretch="UniformToFill" VerticalAlignment="Top"/>
-                </Border>
+                <!-- A portrait's shape, not a sleeve's, cropped from the top, where a face is. -->
+                <Grid Grid.Column="0" Height="148" VerticalAlignment="Top">
+                  <Border CornerRadius="6" Background="#26FFFFFF"/>
+                  <FontIcon x:Name="ConductorPlaceholder" Glyph="&#xf007;" FontFamily="{StaticResource Fa}"
+                            FontSize="30" Foreground="#4DFFFFFF"/>
+                  <Border CornerRadius="6">
+                    <Image x:Name="ConductorPhoto" Stretch="UniformToFill" VerticalAlignment="Top"/>
+                  </Border>
+                </Grid>
+
+                <StackPanel x:Name="ConductorBeside" Grid.Column="1" Spacing="3"
+                            SizeChanged="ConductorBeside_SizeChanged">
+                  <TextBlock x:Name="ConductorName" FontSize="14" FontWeight="SemiBold"
+                             Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
+                  <TextBlock x:Name="ConductorRoles" FontSize="11" Foreground="{StaticResource InkQuiet}"
+                             TextWrapping="Wrap"/>
+                  <TextBlock x:Name="ConductorYears" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                  <TextBlock x:Name="ConductorProse" Style="{StaticResource Prose}" Margin="0,8,0,0"/>
+                </StackPanel>
               </Grid>
 
-              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="3">
-                <TextBlock x:Name="ConductorName" FontSize="14" FontWeight="SemiBold"
-                           Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
-                <TextBlock x:Name="ConductorRoles" FontSize="11" Foreground="{StaticResource InkQuiet}"
-                           TextWrapping="Wrap"/>
-                <TextBlock x:Name="ConductorYears" FontSize="11" Foreground="{StaticResource InkFaint}"/>
-                <TextBlock x:Name="ConductorProse" Style="{StaticResource Prose}" Margin="0,8,0,0"/>
-              </StackPanel>
+              <!-- The rest of the article, under the photograph, at the card's full width. -->
+              <TextBlock x:Name="ConductorProseBelow" Style="{StaticResource Prose}" Visibility="Collapsed"/>
 
-              <!-- The article's two links, across the card, and its licence beside them. -->
-              <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="14"
-                          HorizontalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="14">
                 <ctl:RpmLink x:Name="ConductorMoreButton" Click="ConductorMore_Click" FontSize="11"/>
                 <ctl:RpmLink x:Name="ConductorSourceButton" Click="ConductorSource_Click" FontSize="11"/>
-                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=ConductorSourceButton}"/>
               </StackPanel>
 
-              <!-- Where else they are written about, at the card's foot on the right. -->
-              <local:WrapRow x:Name="ConductorLinks" Grid.Row="2" Grid.ColumnSpan="2"
-                             HorizontalAlignment="Right" HorizontalSpacing="14" VerticalSpacing="4"/>
-            </Grid>
+              <!-- Where else they are written about. -->
+              <local:WrapRow x:Name="ConductorLinks" HorizontalSpacing="14" VerticalSpacing="4"/>
+
+              <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+              <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=ConductorSourceButton}"/>
+            </StackPanel>
           </Border>
         </StackPanel>
+      </StackPanel>
 
         <!-- Where else this record is written about. These links sit under the two cards it belongs to, because they are
              where the reader goes NEXT. The pane's own account of the artist and the album comes first, and this is the

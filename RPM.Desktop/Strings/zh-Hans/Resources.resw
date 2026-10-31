@@ -4753,6 +4753,10 @@
     <value>生于 {0} 年</value>
     <comment>On the conductor's card in the track info pane, for a conductor who is alive: the year they were born. {0} is the year.</comment>
   </data>
+  <data name="TrackInfo_AboutConductor" xml:space="preserve">
+    <value>关于指挥</value>
+    <comment>Heading over the conductor's card in the track info pane, under the album's card, on a record that credits a conductor.</comment>
+  </data>
   <data name="TrackInfo_AboutAlbum" xml:space="preserve">
     <value>关于专辑</value>
     <comment>Heading over the album notes, in the track info pane, on the drawer's album screen, and on the phone's sheet with the full Wikipedia text about an album.</comment>

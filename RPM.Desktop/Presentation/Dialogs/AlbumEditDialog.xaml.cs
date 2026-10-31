@@ -203,6 +203,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
         // this window writes to every track of the folder. See AddDiscScope for where those go instead.
         AddGroup(BasicLeft, TagFields.Groups.Release, TagScope.Album);
         AddGroup(BasicRight, TagFields.Groups.Publishing, TagScope.Album);
+        AddConductor(BasicRight);
         AddDiscScope(BasicRight);
 
         // Which pressing this is, how it sorts, and what it is in MusicBrainz. All of these are facts
@@ -240,6 +241,23 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
         TabStripHost.Child = strip;
         strip.Select(MetadataTabs.Basic);
+    }
+
+    /// <summary>
+    /// The conductor, the one credit this window offers.
+    ///
+    /// <para>The credits are a performance's facts, so they are filed per track and left to the per-file
+    /// editor. The conductor is the exception a classical record makes: an opera or a symphony is conducted
+    /// by one person from its first track to its last, and typing the name sixty times is the editor's job.
+    /// The box shows what most tracks say and marks the rest, like every other field here, and saving writes
+    /// it to all of them. It is also what the track info pane's card about the conductor is looked up by.</para>
+    /// </summary>
+    private void AddConductor(Panel column)
+    {
+        var group = new DenseFormGroup();
+        var conductor = TagFields.Get(TagFieldKind.Conductor);
+        AddField(group, conductor, _rows, DenseForm.Label(conductor.LabelKey));
+        group.AddTo(column, TagFields.Groups.Credits);
     }
 
     /// <summary>One group's album-level fields, in catalogue order.</summary>

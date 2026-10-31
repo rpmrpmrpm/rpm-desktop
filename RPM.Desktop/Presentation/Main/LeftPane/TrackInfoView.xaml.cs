@@ -353,13 +353,9 @@ public sealed partial class TrackInfoView : UserControl
         // number of songs on the record. That is what tells an album from a single with the same name.
         // The count comes off the tags, because the mirror's row has no count. The tag states the
         // record's own track total, rather than counting the files in the folder.
-        var papers = LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0));
-
-        // The conductor, beside the papers rather than after them. Started once the lookup above has cleared
-        // the last record's cards (ClearDossier runs before its first wait), so this one is not taken down with
-        // them.
-        _ = LoadConductorAsync(build, tags?.Conductor);
-        await papers;
+        // The conductor goes with the papers: asked beside them, handed over with them, put up with them.
+        await LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0),
+                          tags?.Conductor);
     }
 
     /// <summary>
@@ -1810,7 +1806,8 @@ public sealed partial class TrackInfoView : UserControl
 
     // ── what the encyclopedias add ──
 
-    private async Task LookUpAsync(PaneBuild build, string? artist, string? album, string? credited, int tracks)
+    private async Task LookUpAsync(
+        PaneBuild build, string? artist, string? album, string? credited, int tracks, string? conductor = null)
     {
         var path = build.Path;
         _lookup?.Cancel();
@@ -1819,10 +1816,16 @@ public sealed partial class TrackInfoView : UserControl
         _albumName = album;
         ClearDossier();
 
-        void Settle(TrackDossier? dossier)
+        // Started now, and waited for by every way this lookup settles, so the section never goes up without
+        // the conductor and the conductor never arrives after it. A record with no conductor answers at once.
+        var conducted = ConductorFor(conductor);
+
+        async void Settle(TrackDossier? dossier)
         {
+            var (who, photo) = await conducted;
             if (!ReferenceEquals(_build, build))
                 return;
+            build.GotConductor(who, photo);
             build.GotPapers(dossier);
             Advance(build);
         }

@@ -60,6 +60,8 @@ public sealed partial class ImportTagPanel : UserControl
         TagFieldKind.Comment,
         TagFieldKind.AlbumArtist,
         TagFieldKind.Composers,
+        // A classical record's conductor, which the track info pane's card about them is looked up by.
+        TagFieldKind.Conductor,
         TagFieldKind.Disc,
     ];
 

@@ -17,42 +17,66 @@ public sealed partial class EncyclopediaLookup
     /// band did, and a card for the Beatles with nobody on it says nothing. So a membership that ended in
     /// the year the band did, or later, counts as the band's own ending, not as somebody leaving.</para>
     ///
-    /// <para>One request, for the band and every member at once. A member the catalogue identified only by
-    /// a MusicBrainz id has no entity here; they keep their place and go without a photograph. Where the
-    /// request fails, the line-up is left exactly as it came.</para>
+    /// <para>One request for the band and every member at once. A member the catalogue names by their
+    /// MusicBrainz id (the papers' MusicBrainz path does) is found first, all of them in one search of
+    /// Wikidata's P434; Simon &amp; Garfunkel's two are Q4028 and Q4039 that way. Where the band has no entity
+    /// of its own, the members still get their photographs, and nobody is taken off: there is nothing to
+    /// read who left from. Where a request fails, the line-up is left as it came.</para>
     /// </summary>
     private async Task<IReadOnlyList<BandMember>?> LineupAsync(
         string? band, IReadOnlyList<BandMember>? members, CancellationToken ct)
     {
-        if (band is not { Length: > 1 } || band[0] != 'Q' || members is not { Count: > 0 })
+        if (members is not { Count: > 0 })
             return members;
 
-        var ids = members.Select(m => m.Mbid).Where(IsEntity).Select(id => id!).Distinct().Take(49).ToList();
+        var bandId = IsEntity(band) ? band : null;
+        var ids = members.Select(m => m.Mbid).Where(IsEntity).Select(id => id!).ToList();
+
+        var mbids = members.Select(m => m.Mbid).Where(IsMbid).Select(id => id!).Distinct().Take(25).ToList();
+        if (mbids.Count > 0)
+        {
+            var search = $"{WikidataApi}?action=query&list=search&format=json&srlimit=50&srprop="
+                       + $"&srsearch={Uri.EscapeDataString("haswbstatement:" + string.Join('|', mbids.Select(m => "P434=" + m)))}";
+            if ((await ReadAsync(search, SearchHits, ct)).Answers(out var hits, out _))
+                ids.AddRange(hits);
+        }
+
+        ids = [.. ids.Distinct().Take(bandId is null ? 50 : 49)];
         if (ids.Count == 0)
             return members;
 
         var url = $"{WikidataApi}?action=wbgetentities&format=json&props=claims"
-                + $"&ids={Uri.EscapeDataString(string.Join('|', ids.Prepend(band)))}";
-        return (await ReadAsync(url, body => CurrentLineup(body, band, members), ct))
+                + $"&ids={Uri.EscapeDataString(string.Join('|', bandId is null ? ids : ids.Prepend(bandId)))}";
+        return (await ReadAsync(url, body => CurrentLineup(body, bandId, members), ct))
             .Match(current => current, _ => members);
     }
 
     private static bool IsEntity(string? id) => id is { Length: > 1 } && id[0] == 'Q' && id[1..].All(char.IsDigit);
 
+    private static bool IsMbid(string? id) => id is { Length: 36 } && Guid.TryParse(id, out _);
+
     /// <summary>The members still in the band, with their photographs, read from one entity answer. See
-    /// <see cref="LineupAsync"/> for the rules.</summary>
-    internal static IReadOnlyList<BandMember> CurrentLineup(string body, string band, IReadOnlyList<BandMember> members)
+    /// <see cref="LineupAsync"/> for the rules. <paramref name="band"/> null keeps everybody.</summary>
+    internal static IReadOnlyList<BandMember> CurrentLineup(string body, string? band, IReadOnlyList<BandMember> members)
     {
         using var doc = JsonDocument.Parse(body);
-        if (!doc.RootElement.TryGetProperty("entities", out var entities))
+        if (!doc.RootElement.TryGetProperty("entities", out var entities) || entities.ValueKind != JsonValueKind.Object)
             return members;
+
+        // Which entity files each MusicBrainz id, so a member named by one is found by it.
+        var byMbid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entity in entities.EnumerateObject())
+            if (entity.Value.TryGetProperty("claims", out var c))
+                foreach (var mbid in StringsOf(c, "P434"))
+                    byMbid.TryAdd(mbid, entity.Name);
 
         // Each member's memberships: ended (with the year) or open, from both sides.
         var ended = new Dictionary<string, int?>(StringComparer.Ordinal);
         var open = new HashSet<string>(StringComparer.Ordinal);
         int? bandEnded = null;
 
-        if (entities.TryGetProperty(band, out var bandEntity) && bandEntity.TryGetProperty("claims", out var bandClaims))
+        if (band is not null && entities.TryGetProperty(band, out var bandEntity)
+            && bandEntity.TryGetProperty("claims", out var bandClaims))
         {
             bandEnded = YearNumber(YearOf(bandClaims, "P576"));
             foreach (var (member, end) in Memberships(bandClaims, "P527", target: null))
@@ -62,18 +86,22 @@ public sealed partial class EncyclopediaLookup
         var shown = new List<BandMember>(members.Count);
         foreach (var member in members)
         {
+            var id = IsEntity(member.Mbid) ? member.Mbid
+                   : member.Mbid is { } mbid && byMbid.TryGetValue(mbid, out var found) ? found
+                   : null;
+
             string? photo = null;
-            if (member.Mbid is { } id && IsEntity(id) && entities.TryGetProperty(id, out var person)
-                && person.TryGetProperty("claims", out var claims))
+            if (id is not null && entities.TryGetProperty(id, out var person) && person.TryGetProperty("claims", out var claims))
             {
-                foreach (var (_, end) in Memberships(claims, "P463", target: band))
-                    Note(id, end);
+                if (band is not null)
+                    foreach (var (_, end) in Memberships(claims, "P463", target: band))
+                        Note(id, end);
                 photo = StringsOf(claims, "P18").FirstOrDefault() is { } file
                     ? $"https://commons.wikimedia.org/wiki/Special:FilePath/{Uri.EscapeDataString(file)}?width=240"
                     : null;
             }
 
-            var left = member.Mbid is { } key && ended.TryGetValue(key, out var year) && !open.Contains(key)
+            var left = id is not null && ended.TryGetValue(id, out var year) && !open.Contains(id)
                        && !(bandEnded is { } split && year is { } y && y >= split);
             if (!left)
                 shown.Add(member with { Photo = photo ?? member.Photo });

@@ -552,8 +552,10 @@ public sealed partial class TrackInfoService
     /// whichever recording a title search ranked first. Answers kept under v9 carry that recording.</para>
     ///
     /// <para>v11 (2026-10-31): a band's line-up is the members still in it, each with a photograph.</para>
+    ///
+    /// <para>v12 (2026-10-31): members named by a MusicBrainz id get their photographs too.</para>
     /// </summary>
-    private const string CacheVersion = "v11";
+    private const string CacheVersion = "v12";
 
     private static string CacheKey(string artist, string? album) =>
         $"{CacheVersion} {artist.Trim()} {album?.Trim() ?? ""}".ToLowerInvariant();
