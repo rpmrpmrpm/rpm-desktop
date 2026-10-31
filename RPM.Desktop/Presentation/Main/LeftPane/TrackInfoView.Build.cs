@@ -570,6 +570,11 @@ public sealed partial class TrackInfoView
     /// finished rather than as still loading.</summary>
     private void PaintPapers(PaneBuild build)
     {
+        // The section the album's card and the conductor's share is this layer's element, and Bare and Strip
+        // collapse a layer's element when a new record comes in. Nothing inside it can bring it back, so it is
+        // put back here; the two cards still decide for themselves whether they are drawn.
+        AlbumSection.Visibility = Visibility.Visible;
+
         if (build.Dossier is { } dossier)
             ShowDossier(dossier);
 

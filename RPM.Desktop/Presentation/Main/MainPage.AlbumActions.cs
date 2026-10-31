@@ -829,6 +829,22 @@ public sealed partial class MainPage
     /// <param name="track">The one track being edited, when it is one track. Its own credits, the
     /// work it performs, its movement, its ISRC, who conducted, cannot be filled from an album, and a
     /// selection of several has no single answer for any of them.</param>
+    /// <summary>The one conductor every track names, or null where any track names another or none.</summary>
+    internal static string? SoleConductor(IReadOnlyList<ReleaseTrackInfo> tracks)
+    {
+        string? sole = null;
+        foreach (var track in tracks)
+        {
+            if (track.Conductor?.Trim() is not { Length: > 0 } name)
+                return null;
+            if (sole is null)
+                sole = name;
+            else if (!string.Equals(sole, name, StringComparison.OrdinalIgnoreCase))
+                return null;
+        }
+        return sole;
+    }
+
     private static Dictionary<Dialogs.TagFieldKind, string> ReleaseFields(
         Dialogs.PickedRelease picked, uint discCount, ReleaseTrackInfo? track = null)
     {
@@ -893,6 +909,12 @@ public sealed partial class MainPage
             SetMbid(Dialogs.TagFieldKind.ReleaseId, detail.Ref.Id);
             SetMbid(Dialogs.TagFieldKind.ReleaseGroupId, detail.ReleaseGroupId);
             SetMbid(Dialogs.TagFieldKind.ReleaseArtistId, detail.ArtistId);
+
+            // The conductor, for the record as a whole, where one person conducts every track the release
+            // lists: an opera, a symphony, a set of concertos. It fills the album editor's own Conductor box.
+            // A record two conductors share is left to the track step, which names each track's own.
+            if (track is null && SoleConductor(detail.Tracks) is { } conductor)
+                Set(Dialogs.TagFieldKind.Conductor, conductor);
         }
 
         if (track is not null)
