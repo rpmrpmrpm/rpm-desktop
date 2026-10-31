@@ -115,6 +115,30 @@ public class SubgenresTests
         Assert.Contains(Subgenres.Under("Electronic / Dance"), s => s.Name == style);
     }
 
+    /// <summary>House and Techno follow the same article's House and Techno families.</summary>
+    [Theory]
+    [InlineData("House", "Amapiano", "Afro House")]
+    [InlineData("House", "Complextro", "Electro House")]
+    [InlineData("House", "Hardbass", "Pumping House")]
+    [InlineData("House", "Pumping House", "UK Hard House")]
+    [InlineData("Techno", "Raggatek", "Free Tekno")]
+    [InlineData("Techno", "Free Tekno", "Hard Techno")]
+    public void House_and_techno_styles_sit_under_their_main_style(string shelf, string style, string parent)
+    {
+        Assert.Equal(parent, Subgenres.ParentOf(style));
+        Assert.Contains(Subgenres.Under(shelf), s => s.Name == style);
+        Assert.Equal(shelf, Subgenres.Match(style)?.Genre);
+    }
+
+    /// <summary>Ballroom is a house style, but a record tagged "ballroom" is far more often waltzes and
+    /// foxtrots. Offered, never read out of a tag.</summary>
+    [Fact]
+    public void Ballroom_is_offered_under_house_but_not_read()
+    {
+        Assert.Contains(Subgenres.Under("House"), s => s.Name == "Ballroom");
+        Assert.Null(Subgenres.Match("Ballroom"));
+    }
+
     [Theory]
     [InlineData("Trance")]
     [InlineData("Ambient")]
