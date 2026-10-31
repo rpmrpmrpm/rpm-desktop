@@ -84,7 +84,8 @@ public sealed record BandMember(
     string? Born = null,
     string? Died = null,
     bool HasDied = false,
-    string? Role = null);
+    string? Role = null,
+    string? Photo = null);
 
 public sealed record ArtistProfile(
     string? Mbid,

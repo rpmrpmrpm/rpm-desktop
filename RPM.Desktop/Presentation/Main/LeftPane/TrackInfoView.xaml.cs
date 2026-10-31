@@ -353,7 +353,13 @@ public sealed partial class TrackInfoView : UserControl
         // number of songs on the record. That is what tells an album from a single with the same name.
         // The count comes off the tags, because the mirror's row has no count. The tag states the
         // record's own track total, rather than counting the files in the folder.
-        await LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0));
+        var papers = LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0));
+
+        // The conductor, beside the papers rather than after them. Started once the lookup above has cleared
+        // the last record's cards (ClearDossier runs before its first wait), so this one is not taken down with
+        // them.
+        _ = LoadConductorAsync(build, tags?.Conductor);
+        await papers;
     }
 
     /// <summary>
@@ -1875,6 +1881,7 @@ public sealed partial class TrackInfoView : UserControl
         _artistArticle = null;
         _artistChoice = ArtistChoice.None;
         _albumArticle = null;
+
 
         // The record's own dossier goes with the record. It is where the Elsewhere box gets the album's
         // half of its doors (see PaintLinksFor), and the last record's album is not a door on this one.
@@ -3409,54 +3416,96 @@ public sealed partial class TrackInfoView : UserControl
         if (MembersBlock.Visibility != Visibility.Visible)
             return;
 
+        // A face for each, in a row that wraps: four across the pane. The row is painted afresh for every
+        // artist, and a photograph that lands after the reader has moved on is dropped (see MemberFace).
+        var painting = ++_membersPainted;
         foreach (var member in lineup)
+            MembersList.Children.Add(MemberFace(member, painting));
+    }
+
+    /// <summary>Counts the line-ups painted, so a photograph fetched for one is not put on the next.</summary>
+    private int _membersPainted;
+
+    /// <summary>
+    /// One member: a round photograph over their name. Until the photograph comes, and where there is
+    /// none, the circle carries their initials. The role, where the catalogue gives one, is the tooltip:
+    /// the name is what the row is for, and a second line under each face would double its height.
+    /// </summary>
+    private StackPanel MemberFace(BandMember member, int painting)
+    {
+        const double Edge = 64;
+
+        var face = new Grid { Width = Edge, Height = Edge, HorizontalAlignment = HorizontalAlignment.Center };
+        face.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse { Fill = Ink("InkPlateLit") });
+        face.Children.Add(new TextBlock
         {
-            var line = new Grid();
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Text = Initials(member.Name),
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = Ink("InkQuiet"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var picture = new ImageBrush { Stretch = Stretch.UniformToFill, AlignmentY = AlignmentY.Top };
+        var photo = new Microsoft.UI.Xaml.Shapes.Ellipse { Fill = picture, Opacity = 0 };
+        face.Children.Add(photo);
 
-            var name = new TextBlock
+        var name = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = Ink("InkBody"),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxLines = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        name.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = member.Name });
+        if (member.HasDied || member.Died is { Length: > 0 })
+            name.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = " †", Foreground = Ink("InkQuiet") });
+
+        var tile = new StackPanel { Width = 76, Spacing = 6 };
+        tile.Children.Add(face);
+        tile.Children.Add(name);
+        if (member.Role is { Length: > 0 } role)
+            ToolTipService.SetToolTip(tile, role);
+
+        if (member.Photo is { Length: > 0 } url)
+            _ = DressFaceAsync(url, picture, photo, painting);
+
+        return tile;
+    }
+
+    /// <summary>The photograph, through the app's picture cache, which identifies the app the way
+    /// Wikimedia asks. Shown only if this line-up is still the one on screen.</summary>
+    private async Task DressFaceAsync(string url, ImageBrush picture, Microsoft.UI.Xaml.Shapes.Ellipse photo, int painting)
+    {
+        try
+        {
+            if ((await RemoteImage.LoadAsync(url)).Answers(out var bitmap, out _) && bitmap is not null
+                && painting == _membersPainted)
             {
-                FontSize = 12,
-                Foreground = Ink("InkBody"),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxLines = 1,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            name.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = member.Name });
-
-            if (member.HasDied || member.Died is { Length: > 0 })
-                name.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
-                {
-                    Text = "  †",
-                    Foreground = Ink("InkQuiet"),
-                });
-
-            Grid.SetColumn(name, 0);
-            line.Children.Add(name);
-
-            // Held back rather than recoloured, as the addresses in the Elsewhere box are. At 70%
-            // opacity the text stands apart from the name whichever way round the pane's ink is. The
-            // text is what the member played, where the catalogue says so. It is not a birth date,
-            // because a date says nothing about why that name is on the record. A line with no role is
-            // better than a line with the wrong fact. See BandRoles.
-            if (member.Role is { Length: > 0 } role)
-            {
-                var years = new TextBlock
-                {
-                    Text = role,
-                    FontSize = 11,
-                    Foreground = Ink("InkBody"),
-                    Opacity = 0.7,
-                    Margin = new Thickness(10, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                Grid.SetColumn(years, 1);
-                line.Children.Add(years);
+                picture.ImageSource = bitmap;
+                photo.Opacity = 1;
             }
-
-            MembersList.Children.Add(line);
         }
+        catch
+        {
+            // The initials stay. A face that does not come is not a fault worth a word.
+        }
+    }
+
+    /// <summary>The initials of a name: "Carol Decker" is CD, "Bono" is B.</summary>
+    private static string Initials(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Where(w => char.IsLetter(w[0])).ToList();
+        return words.Count switch
+        {
+            0 => "",
+            1 => char.ToUpperInvariant(words[0][0]).ToString(),
+            _ => $"{char.ToUpperInvariant(words[0][0])}{char.ToUpperInvariant(words[^1][0])}",
+        };
     }
 
     /// <summary>

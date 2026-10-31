@@ -565,8 +565,8 @@
              catalogue's business. -->
         <StackPanel x:Name="MembersBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=TrackInfo_Members}" Style="{StaticResource BlockHeading}"/>
-          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14,10,14,10">
-            <StackPanel x:Name="MembersList" Spacing="6"/>
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+            <local:WrapRow x:Name="MembersList" HorizontalAlignment="Center" HorizontalSpacing="10" VerticalSpacing="14"/>
           </Border>
         </StackPanel>
 
@@ -596,6 +596,62 @@
                 <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
                 <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumSourceButton}"/>
               </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <!-- The conductor, at the foot of what the pane says about the record. A classical record is as much the
+             conductor's as the composer's: two recordings of one opera differ by who conducted them, and the credit
+             is the one name on the sheet the reader may not know.
+
+             The photograph on the left and the person on the right: the name, what they were besides a conductor,
+             when they lived, and the opening of the article. Under both, the article's own two links and its
+             licence, then where else they are written about. Filled in code (see TrackInfoView.Conductor), only for
+             a track that credits a conductor the encyclopedias know. -->
+        <StackPanel x:Name="ConductorBlock" Margin="16,0,16,0" Visibility="Collapsed">
+          <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+            <Grid ColumnSpacing="14" RowSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="112"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+
+              <!-- A portrait's shape, not a sleeve's: the photograph is of a person. Cropped to fill, from the top,
+                   because a portrait's face is in its upper half. -->
+              <Grid Grid.Row="0" Grid.Column="0" Height="148" VerticalAlignment="Top">
+                <Border CornerRadius="6" Background="#26FFFFFF"/>
+                <FontIcon x:Name="ConductorPlaceholder" Glyph="&#xf007;" FontFamily="{StaticResource Fa}"
+                          FontSize="30" Foreground="#4DFFFFFF"/>
+                <Border CornerRadius="6">
+                  <Image x:Name="ConductorPhoto" Stretch="UniformToFill" VerticalAlignment="Top"/>
+                </Border>
+              </Grid>
+
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="3">
+                <TextBlock x:Name="ConductorName" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ConductorRoles" FontSize="11" Foreground="{StaticResource InkQuiet}"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="ConductorYears" FontSize="11" Foreground="{StaticResource InkFaint}"/>
+                <TextBlock x:Name="ConductorProse" Style="{StaticResource Prose}" Margin="0,8,0,0"/>
+              </StackPanel>
+
+              <!-- The article's two links, across the card, and its licence beside them. -->
+              <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="14"
+                          HorizontalAlignment="Center">
+                <ctl:RpmLink x:Name="ConductorMoreButton" Click="ConductorMore_Click" FontSize="11"/>
+                <ctl:RpmLink x:Name="ConductorSourceButton" Click="ConductorSource_Click" FontSize="11"/>
+                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=ConductorSourceButton}"/>
+              </StackPanel>
+
+              <!-- Where else they are written about, at the card's foot on the right. -->
+              <local:WrapRow x:Name="ConductorLinks" Grid.Row="2" Grid.ColumnSpan="2"
+                             HorizontalAlignment="Right" HorizontalSpacing="14" VerticalSpacing="4"/>
             </Grid>
           </Border>
         </StackPanel>

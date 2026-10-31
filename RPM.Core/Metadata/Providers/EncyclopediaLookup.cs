@@ -23,7 +23,7 @@ namespace RPM.Core.Metadata.Providers;
 /// request per second per IP and refuses the rest, so its fetcher is the app's shared, throttled one.
 /// Wikipedia and Wikidata have no such limit, so they are asked directly.</para>
 /// </summary>
-public sealed class EncyclopediaLookup(FetchJson web)
+public sealed partial class EncyclopediaLookup(FetchJson web)
 {
     private const string WikidataApi = "https://www.wikidata.org/w/api.php";
 
@@ -74,7 +74,13 @@ public sealed class EncyclopediaLookup(FetchJson web)
         // when neither depends on the other.
         var artistArticle = ArticleAsync(papers.Artist?.WikidataId, artist?.Pages, wikis, ct);
         var albumArticle = ArticleAsync(null, album?.Pages, wikis, ct);
-        await Task.WhenAll(artistArticle, albumArticle);
+
+        // The line-up as it stands, with faces, from the same encyclopedia and at the same time. It is part of
+        // the dossier, so it is kept with it and painted once. See LineupAsync.
+        var lineup = LineupAsync(papers.Artist?.WikidataId, artist?.Members, ct);
+        await Task.WhenAll(artistArticle, albumArticle, lineup);
+        if (artist is not null && lineup.Result is { } current)
+            artist = artist with { Members = current };
 
         return artistArticle.Result.Match(
             aboutThem => albumArticle.Result.Match(

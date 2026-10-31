@@ -550,8 +550,10 @@ public sealed partial class TrackInfoService
     /// <para>v10 (2026-10-30): a classical record with no article of its own is described by the work it
     /// records (its opera's or symphony's article, its premiere, its genres), where it was described by
     /// whichever recording a title search ranked first. Answers kept under v9 carry that recording.</para>
+    ///
+    /// <para>v11 (2026-10-31): a band's line-up is the members still in it, each with a photograph.</para>
     /// </summary>
-    private const string CacheVersion = "v10";
+    private const string CacheVersion = "v11";
 
     private static string CacheKey(string artist, string? album) =>
         $"{CacheVersion} {artist.Trim()} {album?.Trim() ?? ""}".ToLowerInvariant();
@@ -598,6 +600,71 @@ public sealed partial class TrackInfoService
     /// <summary>The cached dossier's shape, as the source generator describes it. A published build is
     /// Native AOT, which serializes from this and never by reflection.</summary>
     [JsonSerializable(typeof(TrackDossier))]
+    [JsonSerializable(typeof(ConductorCard))]
     private sealed partial class TrackInfoJson : JsonSerializerContext;
+
+    // ── the conductor ──
+
+    /// <summary>A conductor's answer as it is kept: the person, or null for "the encyclopedias have nobody by
+    /// that name who conducts", which is an answer too and is kept for the shorter time.</summary>
+    private sealed record ConductorCard(ConductorProfile? Found);
+
+    private readonly Dictionary<string, ConductorCard> _conductors = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The conductor a record credits, from memory, then disk, then Wikidata and Wikipedia. Null where nobody
+    /// is found, and where the encyclopedias could not be asked (that is not written down, so it is asked again
+    /// next time).
+    ///
+    /// <para>Kept beside the dossiers, on the same two clocks: a month for a person found, five days for nobody.
+    /// A record of an opera credits one conductor on every track, and the pane asks on every track.</para>
+    /// </summary>
+    public async Task<ConductorProfile?> ConductorAsync(string? credit, CancellationToken ct = default)
+    {
+        if (EncyclopediaLookup.ConductorName(credit) is not { } name)
+            return null;
+
+        var key = $"conductor {CacheVersion} {name}".ToLowerInvariant();
+        lock (_conductors)
+        {
+            if (_conductors.TryGetValue(key, out var held))
+                return held.Found;
+        }
+
+        if (ReadConductor(key) is { } kept)
+        {
+            lock (_conductors) _conductors[key] = kept;
+            return kept.Found;
+        }
+
+        if (!(await _lookup.ConductorAsync(credit, Languages(), ct)).Answers(out var found, out _))
+            return null;
+
+        var card = new ConductorCard(found);
+        lock (_conductors) _conductors[key] = card;
+        try
+        {
+            File.WriteAllText(PathFor(key), JsonSerializer.Serialize(card, TrackInfoJson.Default.ConductorCard));
+        }
+        catch { /* the cache is an optimisation */ }
+        return found;
+    }
+
+    private ConductorCard? ReadConductor(string key)
+    {
+        try
+        {
+            var path = PathFor(key);
+            if (!File.Exists(path))
+                return null;
+            var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
+            var card = JsonSerializer.Deserialize(File.ReadAllText(path), TrackInfoJson.Default.ConductorCard);
+            return card is null || age > DiskTtl || (card.Found is null && age > BlankTtl) ? null : card;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
 }
