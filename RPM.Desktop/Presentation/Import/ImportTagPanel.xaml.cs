@@ -290,7 +290,8 @@ public sealed partial class ImportTagPanel : UserControl
             var genre = TagPanelValues.Of(_rows, TagFields.Get(TagFieldKind.Genre));
             var combo = MassEditDialog.SuggestBox(
                 stylesFor(genre.AllSame ? genre.CommonValue : null),
-                values.AllSame ? values.CommonValue : null);
+                values.AllSame ? values.CommonValue : null,
+                field.ParentOf);
             if (!values.AllSame)
                 combo.PlaceholderText = Loc.Get("MassEdit_Multiple");
             combo.TextSubmitted += (_, _) => Touch(field);

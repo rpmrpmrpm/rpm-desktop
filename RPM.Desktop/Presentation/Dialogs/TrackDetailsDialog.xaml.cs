@@ -891,7 +891,8 @@ public sealed partial class TrackDetailsDialog : ContentDialog
                 stylesFor(_byKind.TryGetValue(TagFieldKind.Genre, out var g)
                     ? MassEditDialog.ReadSuggest((ComboBox)g.Control)
                     : _row.Genre),
-                value);
+                value,
+                tag.ParentOf);
             if (_byKind.TryGetValue(TagFieldKind.Genre, out var genre) && genre.Control is ComboBox genreBox)
                 MassEditDialog.FollowGenre(combo, genreBox, stylesFor);
             input = combo;

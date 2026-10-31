@@ -56,10 +56,12 @@ public enum TagFieldKind
 /// text. It is drawn as a box that can be typed in, with the list beside it. A genre names a library
 /// group, so the groups that already exist are offered, and any other value can still be typed.</param>
 /// <param name="SuggestionsFor">The same as Suggestions, but narrowed by the genre the record already
-/// has. A style belongs to one genre, so the styles offered are the ones under that genre. That is a
-/// dozen names, not 394, and none of them from another genre. A field like this follows the genre box
-/// beside it. When the genre changes, the styles change too, because a style that fits the old genre
-/// may not fit the new one.</param>
+/// has. A style belongs to one genre, so the styles offered are the ones under that genre, and none of
+/// them from another genre. A field like this follows the genre box beside it. When the genre changes,
+/// the styles change too, because a style that fits the old genre may not fit the new one.</param>
+/// <param name="ParentOf">For a list of suggestions that is a tree read top to bottom: the entry each one
+/// sits under. The list is drawn with each entry indented beneath its main one, the way a shelf as big as
+/// Electronic / Dance is read: Trance, then Goa Trance and Psytrance under it.</param>
 public sealed record TagField(
     TagFieldKind Kind,
     string LabelKey,
@@ -74,7 +76,8 @@ public sealed record TagField(
     IReadOnlyList<TagFieldOption>? Options = null,
     bool Numeric = false,
     IReadOnlyList<string>? Suggestions = null,
-    Func<string?, IReadOnlyList<string>>? SuggestionsFor = null);
+    Func<string?, IReadOnlyList<string>>? SuggestionsFor = null,
+    Func<string, string?>? ParentOf = null);
 
 /// <summary> One entry in a choice field's list: what gets stored, and what the user reads. </summary>
 /// <param name="Value">Stored and compared exactly as written. It is never the label. A file tagged in
@@ -209,12 +212,12 @@ public static class TagFields
             r => r.Genre, (r, v) => r.Genre = v, (i, v) => i with { Genre = v },
             Suggestions: Genres.All),
         // The style: which part of the genre the record sits in. It is suggested from the styles under
-        // the genre already set, so the list is a dozen names, not 394. Like the genre above it, this
-        // is only a suggestion. A record already tagged "Northern Soul" keeps its value, whatever this
-        // offers.
+        // the genre already set, each main style with its own styles indented beneath it. Like the
+        // genre above it, this is only a suggestion. A record already tagged "Northern Soul" keeps its
+        // value, whatever this offers.
         new(TagFieldKind.Subgenre, "EditSel_Subgenre", TagScope.Album, Groups.Release,
             r => r.Subgenre, (r, v) => r.Subgenre = v, (i, v) => i with { Subgenre = v },
-            SuggestionsFor: StylesUnder),
+            SuggestionsFor: StylesUnder, ParentOf: Subgenres.ParentOf),
         // What kind of release it is. A closed list, so it is always one of the shelves the artist page has (see
         // ArtistShelves); Clear leaves the page guessing from the title.
         new(TagFieldKind.ReleaseType, "Details_ReleaseType", TagScope.Album, Groups.Release,

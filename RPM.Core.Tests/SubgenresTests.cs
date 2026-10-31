@@ -80,6 +80,79 @@ public class SubgenresTests
     public void Opera_and_classical_offer_their_forms(string shelf, string style)
         => Assert.Contains(Subgenres.Under(shelf), s => s.Name == style);
 
+    /// <summary>A main style is a style on the same shelf, and it comes before everything under it, so
+    /// a picker read top to bottom shows each style beneath the one it belongs to.</summary>
+    [Fact]
+    public void Every_main_style_is_on_the_same_shelf_and_comes_first()
+    {
+        foreach (var genre in Genres.All)
+        {
+            var under = Subgenres.Under(genre).Select(s => s.Name).ToList();
+            foreach (var style in Subgenres.Under(genre))
+                if (style.Parent is { } parent)
+                {
+                    Assert.Contains(parent, under);
+                    Assert.True(under.IndexOf(parent) < under.IndexOf(style.Name),
+                        $"{style.Name} is offered before {parent}, the style it sits under");
+                }
+        }
+    }
+
+    /// <summary>Electronic / Dance follows Wikipedia's list of electronic music genres: each main
+    /// style with its own styles under it, as deep as the article goes.</summary>
+    [Theory]
+    [InlineData("Psytrance", "Trance")]
+    [InlineData("Dark Psytrance", "Psytrance")]
+    [InlineData("Neurofunk", "Drum and Bass")]
+    [InlineData("Brostep", "Dubstep")]
+    [InlineData("Dubstep", "Bass Music")]
+    [InlineData("Aggrotech", "Dark Electro")]
+    [InlineData("Future Funk", "Vaporwave")]
+    [InlineData("Gabber", "Hardcore")]
+    public void Electronic_styles_sit_under_their_main_style(string style, string parent)
+    {
+        Assert.Equal(parent, Subgenres.ParentOf(style));
+        Assert.Contains(Subgenres.Under("Electronic / Dance"), s => s.Name == style);
+    }
+
+    [Theory]
+    [InlineData("Trance")]
+    [InlineData("Ambient")]
+    [InlineData("Drum and Bass")]
+    [InlineData("Deep House")]
+    [InlineData("Not a style")]
+    [InlineData(null)]
+    public void A_main_style_and_anything_unknown_sit_under_nothing(string? style)
+        => Assert.Null(Subgenres.ParentOf(style));
+
+    /// <summary>The nesting orders the list and never files a record: a Psytrance tag is a Psytrance
+    /// record on Electronic / Dance, not a Trance one.</summary>
+    [Theory]
+    [InlineData("psytrance", "Psytrance")]
+    [InlineData("Liquid Funk", "Liquid Funk")]
+    [InlineData("hard trance, techno", "Hard Trance")]
+    public void A_nested_style_is_read_as_itself(string tag, string style)
+    {
+        var choice = Genres.Read(tag);
+        Assert.Equal("Electronic / Dance", choice.Genre);
+        Assert.Equal(style, choice.Subgenre);
+    }
+
+    /// <summary>Hardcore is an electronic main style, but most records tagged "hardcore" are punk. It
+    /// is offered and never read out of a tag, so "hardcore, punk" is still a punk record. The same
+    /// for Wave, whose one word is inside every "something wave" tag.</summary>
+    [Theory]
+    [InlineData("Hardcore")]
+    [InlineData("Wave")]
+    public void A_main_style_named_by_one_common_word_is_offered_but_not_read(string style)
+    {
+        Assert.Contains(Subgenres.Under("Electronic / Dance"), s => s.Name == style);
+        Assert.Null(Subgenres.Match(style));
+    }
+
+    [Fact]
+    public void A_hardcore_punk_tag_stays_punk() => Assert.Equal("Punk", Genres.Match("hardcore, punk"));
+
     /// <summary>"Organ" and "Mass" are offered, but a loose word is not read as either: "Organ Jazz" is
     /// a jazz record and a gospel "Mass Choir" is not a classical one.</summary>
     [Theory]

@@ -412,7 +412,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
             // Narrowed by the genre, and it follows the genre. The styles under Rock are not the styles
             // under House. The genre box is right there to be corrected.
             var genre = Dominant([.. over.Select(TagFields.Get(TagFieldKind.Genre).Get).Select(v => v.Trim())]);
-            var combo = MassEditDialog.SuggestBox(stylesFor(genre), seed);
+            var combo = MassEditDialog.SuggestBox(stylesFor(genre), seed, tag.ParentOf);
             if (_fields.FirstOrDefault(f => f.Tag.Kind == TagFieldKind.Genre && f.Disc == disc)
                 is { Input: ComboBox genreBox })
                 MassEditDialog.FollowGenre(combo, genreBox, stylesFor);

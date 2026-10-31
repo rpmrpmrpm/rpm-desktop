@@ -6,7 +6,10 @@ namespace RPM.Core.Metadata;
 /// from the name. The list is not a tree. For example, <c>Electronic / Dance</c> sits beside <c>House</c>
 /// and <c>Techno</c> as the answer for dance music that none of the narrower shelves fits. So the parent of
 /// a style cannot be read from the words in its name.</param>
-public sealed record Subgenre(string Name, string Genre);
+/// <param name="Parent">The main style this one sits under on the same shelf, for example "Trance" for
+/// "Psytrance", or null for a main style. It orders and indents the list a person picks from, and nothing
+/// else: a record tagged Psytrance is filed as Psytrance, never as Trance.</param>
+public sealed record Subgenre(string Name, string Genre, string? Parent = null);
 
 /// <summary>
 /// The styles a record can be filed under. Each style hangs off one of <see cref="Genres.All"/>.
@@ -29,6 +32,10 @@ public static partial class Subgenres
 
     /// <summary>The styles under one shelf, in offering order, keyed by the shelf.</summary>
     private static readonly Dictionary<string, IReadOnlyList<Subgenre>> ByGenre;
+
+    /// <summary>The main style each style sits under, by its name as the list spells it. Only styles
+    /// that have one are in it.</summary>
+    private static readonly Dictionary<string, string> Parents;
 
     /// <summary>
     /// Both tables are built in a static CONSTRUCTOR, not in a field initialiser.
@@ -61,7 +68,19 @@ public static partial class Subgenres
         ByKey = keys;
         ByGenre = All.GroupBy(s => s.Genre, StringComparer.Ordinal)
                      .ToDictionary(g => g.Key, g => (IReadOnlyList<Subgenre>)[.. g], StringComparer.Ordinal);
+
+        var parents = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var style in All)
+            if (style.Parent is { } parent)
+                parents.TryAdd(style.Name, parent);
+        Parents = parents;
     }
+
+    /// <summary>The main style this one sits under, or null for a main style and for a name that is not
+    /// in the list. The name is taken exactly as the list spells it, because this is asked about the
+    /// entries of a picker that the list itself filled.</summary>
+    public static string? ParentOf(string? name)
+        => name is not null && Parents.TryGetValue(name, out var parent) ? parent : null;
 
     /// <summary>The styles offered under one shelf, in the order the list gives them. Empty for a shelf
     /// with no styles under it, and for a name that is not a shelf at all.</summary>

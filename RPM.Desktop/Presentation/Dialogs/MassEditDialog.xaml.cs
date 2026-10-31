@@ -357,7 +357,8 @@ public sealed partial class MassEditDialog : ContentDialog
             var agreed = _fields.TryGetValue(TagFieldKind.Genre, out var genre) && genre.Values.AllSame
                 ? genre.Values.CommonValue
                 : null;
-            var combo = SuggestBox(stylesFor(agreed), field.Values.AllSame ? field.Values.CommonValue : null);
+            var combo = SuggestBox(stylesFor(agreed), field.Values.AllSame ? field.Values.CommonValue : null,
+                                   field.Field.ParentOf);
             combo.IsEnabled = false;
             if (!field.Values.AllSame)
                 combo.PlaceholderText = Loc.Get("MassEdit_Multiple");
@@ -476,15 +477,16 @@ public sealed partial class MassEditDialog : ContentDialog
     /// </summary>
     /// <param name="text">What is in the box to start with. Null leaves it empty. That is how "these
     /// files do not agree" is shown.</param>
-    internal static ComboBox SuggestBox(IReadOnlyList<string> suggestions, string? text)
+    /// <param name="parentOf">The entry each suggestion sits under, for a list that is a tree read top
+    /// to bottom (see <see cref="TagField.ParentOf"/>). Null for a flat list.</param>
+    internal static ComboBox SuggestBox(IReadOnlyList<string> suggestions, string? text,
+                                        Func<string, string?>? parentOf = null)
     {
-        var combo = new ComboBox
-        {
-            IsEditable = true,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = new System.Collections.ObjectModel.ObservableCollection<string>(
-                suggestions.Prepend(ClearEntry)),
-        };
+        var combo = parentOf is null ? new ComboBox() : new NestedSuggestBox(parentOf);
+        combo.IsEditable = true;
+        combo.HorizontalAlignment = HorizontalAlignment.Stretch;
+        combo.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<string>(
+            suggestions.Prepend(ClearEntry));
 
         SetSuggestValue(combo, text);
 
@@ -499,6 +501,55 @@ public sealed partial class MassEditDialog : ContentDialog
         combo.DropDownClosed += (_, _) => SetSuggestValue(combo, combo.Text);
         combo.LostFocus += (_, _) => SetSuggestValue(combo, combo.Text);
         return combo;
+    }
+
+    /// <summary>
+    /// A suggest box whose list is a tree read top to bottom: each entry is indented one step for each
+    /// of its main entries above it in the list. The values stay plain names, so what is picked and
+    /// written is "Psytrance", never "    Psytrance". Only the row in the open list moves over.
+    ///
+    /// <para>An entry is indented only under a main entry that is in the list ABOVE it. A value typed
+    /// in by hand is put in near the top, after the Clear row (see <see cref="SetSuggestValue"/>). If it
+    /// happens to be a style from another shelf, its main style is not above it, and it is not indented
+    /// under nothing.</para>
+    ///
+    /// <para>The padding is set again every time a row is prepared, because the list reuses its rows
+    /// as it scrolls. A row that held an indented style may next hold a main one.</para>
+    /// </summary>
+    private sealed partial class NestedSuggestBox(Func<string, string?> parentOf) : ComboBox
+    {
+        private const double Step = 16;
+
+        protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
+        {
+            base.PrepareContainerForItemOverride(element, item);
+            if (element is not ComboBoxItem row)
+                return;
+
+            row.ClearValue(PaddingProperty);
+            if (DepthOf(item as string) is var depth and > 0)
+            {
+                var pad = row.Padding;
+                row.Padding = new Thickness(pad.Left + Step * depth, pad.Top, pad.Right, pad.Bottom);
+            }
+        }
+
+        private int DepthOf(string? name)
+        {
+            if (name is null || ItemsSource is not IList<string> items)
+                return 0;
+
+            var at = items.IndexOf(name);
+            var depth = 0;
+            for (var parent = parentOf(name); parent is not null; parent = parentOf(parent))
+            {
+                var above = items.IndexOf(parent);
+                if (above < 0 || above > at)
+                    break;
+                depth++;
+            }
+            return depth;
+        }
     }
 
     /// <summary>What a suggest box is currently saying. Never the Clear row's own label: that row
