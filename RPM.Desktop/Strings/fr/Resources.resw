@@ -3032,8 +3032,8 @@
     <value>Chargement de votre bibliothèque…</value>
   </data>
   <data name="Rpm_Library_Empty" xml:space="preserve">
-    <value>Rien ici pour l'instant. Envoyez votre bibliothèque depuis rpm sur votre ordinateur et elle apparaîtra ici.</value>
-    <comment>Empty state on the iPhone library tab when the user's cloud store is empty.</comment>
+    <value>Rien ici pour l'instant. Envoyez votre bibliothèque depuis rpm sur votre ordinateur et elle apparaîtra ici. Connectez-vous-y avec ce compte.</value>
+    <comment>Phone and TV apps: empty state of home, the album wall, the artists wall and the genres wall when the person's own collection has no music. A shared collection uses Rpm_Share_EmptyShelf.</comment>
   </data>
   <data name="Rpm_Library_Error" xml:space="preserve">
     <value>Impossible d'atteindre votre bibliothèque.</value>
@@ -3378,6 +3378,10 @@
   <data name="Rpm_Tab_Profile" xml:space="preserve">
     <value>Profil</value>
     <comment>iPhone tab bar label for the account and settings screen.</comment>
+  </data>
+  <data name="Rpm_Tab_Home" xml:space="preserve">
+    <value>Accueil</value>
+    <comment>Phone tab bar label for the home screen. The page itself uses Home_Heading, in lower case.</comment>
   </data>
   <data name="Rpm_Profile_Subtitle" xml:space="preserve">
     <value>Votre compte, votre stockage et le comportement de l'app.</value>
@@ -7898,8 +7902,12 @@
     <comment>Locked home panel heading when a single album is missing.</comment>
   </data>
   <data name="HomeLock_Body" xml:space="preserve">
-    <value>L'accueil montre ce que vous avez écouté et quoi mettre ensuite. Il lui faut quelques disques de plus pour être utile.</value>
-    <comment>Locked home panel, line under the heading.</comment>
+    <value>L'accueil montre ce que vous avez écouté récemment et suggère quoi écouter ensuite.</value>
+    <comment>Locked home panel, line under the heading. Desktop, where the heading already says how many albums are missing, and the phone and Apple TV for a shared collection, where the person cannot add music.</comment>
+  </data>
+  <data name="Rpm_HomeLock_Body" xml:space="preserve">
+    <value>L'accueil montre ce que vous avez écouté récemment et suggère quoi écouter ensuite. Envoyez plus d'albums depuis rpm sur votre ordinateur.</value>
+    <comment>Phone and Apple TV: locked home screen for the person's own collection, line under the heading. Music can only be added in the desktop app, so the line says where. A shared collection uses HomeLock_Body.</comment>
   </data>
   <data name="HomeLock_Progress" xml:space="preserve">
     <value>{0} albums sur {1}</value>
@@ -8601,9 +8609,13 @@
     <value>Scannez un code avec l'appareil photo de votre téléphone et connectez-vous sur votre téléphone.</value>
     <comment>Android TV sign-in screen, under the two QR codes (Google and Apple). The person scans one with a phone and finishes signing in there; the TV signs in by itself.</comment>
   </data>
-  <data name="Tv_Library_Empty" xml:space="preserve">
-    <value>Rien pour l'instant. Envoyez votre bibliothèque depuis rpm sur votre ordinateur et elle apparaîtra ici.</value>
-    <comment>Android TV album wall when the signed-in account has no music in the cloud.</comment>
+  <data name="Tv_Artist_NotHere" xml:space="preserve">
+    <value>Cet artiste n'a aucun album dans cette collection.</value>
+    <comment>Apple TV: artist page when the artist is not in the collection on screen, for example after switching collections.</comment>
+  </data>
+  <data name="Tv_Genre_NotHere" xml:space="preserve">
+    <value>Ce genre n'a aucun album dans cette collection.</value>
+    <comment>Apple TV: genre page when no album in the collection on screen is in the genre, for example after switching collections.</comment>
   </data>
   <data name="Tv_Library_ReadingCount" xml:space="preserve">
     <value>Lecture de votre bibliothèque ({0} titres)</value>
