@@ -108,7 +108,7 @@
 
     <!-- The repo's own compile-time rules: used by RPM.Analyzers -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
 
     <!-- Test framework: used by RPM.Fingerprint.Tests -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
