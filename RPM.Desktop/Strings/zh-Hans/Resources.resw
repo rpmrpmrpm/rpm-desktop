@@ -6217,22 +6217,6 @@
     <value>返回艺人</value>
     <comment>Tooltip on the back button of an artist's page.</comment>
   </data>
-  <data name="Artists_PhotoPrevious" xml:space="preserve">
-    <value>上一张照片</value>
-    <comment>Tooltip on the back arrow of the photo slideshow on an artist's page.</comment>
-  </data>
-  <data name="Artists_PhotoNext" xml:space="preserve">
-    <value>下一张照片</value>
-    <comment>Tooltip on the forward arrow of the photo slideshow on an artist's page.</comment>
-  </data>
-  <data name="Artists_PhotoSlideshowStart" xml:space="preserve">
-    <value>开始幻灯片放映</value>
-    <comment>Tooltip on the slideshow button of an artist's page while it is off.</comment>
-  </data>
-  <data name="Artists_PhotoSlideshowStop" xml:space="preserve">
-    <value>停止幻灯片放映</value>
-    <comment>Tooltip on the slideshow button of an artist's page while it is running.</comment>
-  </data>
   <data name="Artists_Albums" xml:space="preserve">
     <value>专辑</value>
     <comment>Heading over the records filed under the artist on their page.</comment>
@@ -6404,10 +6388,6 @@
   <data name="Artists_PopularSource" xml:space="preserve">
     <value>根据 Discogs 收藏者</value>
     <comment>Line under the Most popular heading saying where the ranking comes from.</comment>
-  </data>
-  <data name="Artists_PopularConnect" xml:space="preserve">
-    <value>在设置中连接 Discogs 账户以查看。</value>
-    <comment>Shown in the Most popular card on an artist's page when no Discogs account is connected.</comment>
   </data>
   <data name="Artists_PopularHave" xml:space="preserve">
     <value>{0} 人拥有</value>

@@ -5,6 +5,7 @@
              xmlns:artists="using:RPM.Desktop.Presentation.Main.Artists"
              xmlns:lib="using:RPM.Desktop.Presentation.Main.Library"
              xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+             xmlns:pane="using:RPM.Desktop.Presentation.Main.LeftPane.Controls"
              xmlns:conv="using:RPM.Desktop.Converters"
              xmlns:loc="using:RPM.Desktop.Strings"
              RequestedTheme="Dark">
@@ -62,8 +63,8 @@
       <Setter Property="IsTextSelectionEnabled" Value="True"/>
     </Style>
 
-    <!-- A button on the photograph: the back arrow at the top of the band and the slideshow arrows at the
-         foot. Only the outline is drawn, with no fill, because no flat colour is readable on every
+    <!-- A button on the photograph: the back arrow at the top of the band. Only the outline is drawn,
+         with no fill, because no flat colour is readable on every
          photograph. The line is heavier than a hairline because a 15% white line would vanish on a pale
          photograph. The fill appears only under the pointer. -->
     <Style x:Key="HeroChip" TargetType="Button">
@@ -358,16 +359,7 @@
                centred and not full width: the picture runs to the panel's edge, and squaring it against
                the cards below makes the column one piece. The 18 is the cards' own inset. Change it there
                and here. -->
-          <!-- A press anywhere on the picture stops the slideshow. The handler is on the `Grid` and not
-               on the photograph layers, because those two swap places on every dissolve and a handler on
-               the one that is up would miss every other press. Buttons on the band are not affected: a
-               `Button` marks `PointerPressed` as handled, so a press on an arrow does not reach here and
-               the arrows step without stopping the show. -->
-          <!-- The background is `Transparent` and not unset: a `Panel` with no `Background` is not
-               hit-tested in WinUI. The grid is outside `HeroLayers`, so the foot fade does not copy it
-               and it paints nothing. -->
-          <Grid x:Name="HeroBand" Height="360" Margin="0,0,18,0" Background="Transparent"
-                SizeChanged="HeroBand_SizeChanged" PointerPressed="HeroBand_PointerPressed">
+          <Grid x:Name="HeroBand" Height="360" Margin="0,0,18,0" SizeChanged="HeroBand_SizeChanged">
             <!-- The band and how it ends. The picture does not stop at a line and is not darkened into
                  one. Its own pixels are removed towards the foot, so the page shows through there: the
                  artist's colour, the blurred photograph, or whatever is behind. It is not a bar of colour
@@ -387,7 +379,7 @@
                  copy is their rendering, including the clip, so the band would be cut out of the thing
                  that paints it back. -->
             <Grid x:Name="HeroCut">
-              <!-- The layers that are copied. Everything that the dissolve should carry is inside.
+              <!-- The layers that are copied. Everything that the foot fade should carry is inside.
                    Everything that must stay solid (the name, the back button) is outside. -->
               <Grid x:Name="HeroLayers" SizeChanged="HeroLayers_SizeChanged">
                 <!-- The app's dark colour under a photograph, or the colour of their first record when
@@ -405,13 +397,6 @@
                      scaled copy from the top left corner, so a wide photograph would lose its right side
                      and not an even part of each end.)
 
-                     There are two layers and they are identical on purpose. Paging through the
-                     photographs dissolves one into the next: the next picture is put on the layer that is
-                     down, and the two swap opacity. One layer with its source changed during a fade would
-                     not work: for the frame between the two writes there is no picture, and the ground
-                     shows through. The code decides which layer is up (see `Show`), and neither is the
-                     main portrait.
-
                      The picture is anchored to the top, so a picture taller than the band loses its
                      bottom and not an even part of both ends. A square picture in this 4:3 band loses a
                      quarter of its height. If it were centred, an eighth would be cut from the top, where
@@ -422,12 +407,6 @@
                 <Border x:Name="Portrait" Visibility="Collapsed">
                   <Border.Background>
                     <ImageBrush x:Name="PortraitArt" Stretch="UniformToFill"
-                                AlignmentX="Center" AlignmentY="Top"/>
-                  </Border.Background>
-                </Border>
-                <Border x:Name="PortraitNext" Visibility="Collapsed" Opacity="0">
-                  <Border.Background>
-                    <ImageBrush x:Name="PortraitNextArt" Stretch="UniformToFill"
                                 AlignmentX="Center" AlignmentY="Top"/>
                   </Border.Background>
                 </Border>
@@ -462,15 +441,8 @@
               <TextBlock Text="&#xf060;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
             </Button>
 
-            <!-- The name and the picture controls share the foot of the band in one row and are not laid
-                 over each other. The name is as long as the artist's name, and buttons floating over the
-                 right side of the same corner would sit on top of a long name. -->
-            <Grid Margin="18,0,18,16" VerticalAlignment="Bottom" ColumnSpacing="12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-
+            <!-- Their name at the foot of the band. -->
+            <Grid Margin="18,0,18,16" VerticalAlignment="Bottom">
               <!-- Their name, shown in one of two ways. The logo is the act's own lettering from their
                    sleeves. When a catalogue has one, it is the title of this page. The text below is the
                    name that the tags spell, which is whatever the person who ripped the disc typed. Only
@@ -479,75 +451,30 @@
                    The text is the one that starts visible. Most artists have no logo, and a logo arrives
                    from the network some seconds after the page opens, so a page that started with a gap
                    would look as if it did not know its own title. -->
-              <Grid>
-                <TextBlock x:Name="ArtistName" FontSize="28" FontWeight="Bold" Foreground="#FFFFFFFF"
-                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="ArtistName" FontSize="28" FontWeight="Bold" Foreground="#FFFFFFFF"
+                         TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
 
-                <!-- Uniform and limited in both directions, never stretched: a logo is drawn lettering
-                     and must not be squashed. `Uniform` makes two limits safe: a mark that meets the
-                     width limit is drawn smaller and not narrower.
+              <!-- Uniform and limited in both directions, never stretched: a logo is drawn lettering
+                   and must not be squashed. `Uniform` makes two limits safe: a mark that meets the
+                   width limit is drawn smaller and not narrower.
 
-                     The height limit is a little more than two lines of 28-point text, which is the most
-                     that the text it replaces can use, so a page with a logo and a page without have the
-                     same height. It is the maximum here and not the size: the code lowers it for a mark
-                     that arrives smaller (see `LogoCap` and `LogoAsync`).
+                   The height limit here is only the value before the first logo. The code sets it for
+                   each mark (see `LogoCap` and `LogoAsync`).
 
-                     The width limit is not set here because it is a share of the band: see
-                     `ArtistPageLayout.LogoWidthShare`, applied in `HeroBand_SizeChanged` and read by
-                     `LogoAsync`, so the picture is cut to the size at which it is drawn. Height alone
-                     cannot limit a mark, because the width depends on the length of the act's name, and a
-                     long name set as one word can cross the whole band at a height that suits a short
-                     name.
+                   The width limit is not set here because it is a share of the band: see
+                   `ArtistPageLayout.LogoWidthShare`, applied in `HeroBand_SizeChanged` and read by
+                   `LogoAsync`, so the picture is cut to the size at which it is drawn. Height alone
+                   cannot limit a mark, because the width depends on the length of the act's name, and a
+                   long name set as one word can cross the whole band at a height that suits a short
+                   name.
 
-                     Left-aligned, so that wide and narrow marks start where the text starts. This works
-                     only because the picture arrives cut to its lettering (see `ArtistLogos`). As the
-                     catalogues publish them, every logo is the same 800 by 310 canvas, and aligning the
-                     canvas would put a short mark a third of the way across the page with nothing to its
-                     left. -->
-                <Image x:Name="ArtistLogo" Visibility="Collapsed"
-                       Stretch="Uniform" MaxHeight="72"
-                       HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
-              </Grid>
-
-              <!-- Back, play and forward through the artist's photographs. Hidden until there is more
-                   than one picture. An artist with one photograph, or with a generated figure for a band,
-                   would see three buttons that do nothing. -->
-              <StackPanel x:Name="PhotoControls" Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                          VerticalAlignment="Bottom" Visibility="Collapsed">
-                <Button Click="PhotoPrevious_Click" Style="{StaticResource HeroChip}"
-                        ToolTipService.ToolTip="{loc:Str Key=Artists_PhotoPrevious}"
-                        AutomationProperties.Name="{loc:Str Key=Artists_PhotoPrevious}">
-                  <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
-                  </Button.Resources>
-                  <TextBlock Text="&#xf053;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
-                </Button>
-
-                <!-- The slideshow switch. It is hidden and kept in the tree: the slideshow starts itself
-                     when there is more than one photograph and stops on a press anywhere on the picture,
-                     so this button has no state to show. `Slideshow` still sets its glyph and tooltip, so
-                     showing it again needs only one line. -->
-                <Button x:Name="PhotoAuto" Click="PhotoAuto_Click" Style="{StaticResource HeroChip}"
-                        Visibility="Collapsed">
-                  <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
-                  </Button.Resources>
-                  <TextBlock x:Name="PhotoAutoGlyph" Text="&#xf04b;" FontFamily="{StaticResource Fa}"
-                             FontSize="11" Foreground="#EEFFFFFF"/>
-                </Button>
-
-                <Button Click="PhotoNext_Click" Style="{StaticResource HeroChip}"
-                        ToolTipService.ToolTip="{loc:Str Key=Artists_PhotoNext}"
-                        AutomationProperties.Name="{loc:Str Key=Artists_PhotoNext}">
-                  <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#4D000000"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#66000000"/>
-                  </Button.Resources>
-                  <TextBlock Text="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#EEFFFFFF"/>
-                </Button>
-              </StackPanel>
+                   Centred on the foot of the band. This works only because the picture arrives cut to
+                   its lettering (see `ArtistLogos`). As the catalogues publish them, every logo is the
+                   same 800 by 310 canvas, and centring the canvas would put a short mark off to one side
+                   of its own empty space. -->
+              <Image x:Name="ArtistLogo" Visibility="Collapsed"
+                     Stretch="Uniform" MaxHeight="72"
+                     HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
             </Grid>
           </Grid>
 
@@ -588,27 +515,43 @@
           <StackPanel x:Name="AboutBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
             <TextBlock Text="{loc:Str Key=TrackInfo_AboutArtist}" Style="{StaticResource BlockHeading}"/>
             <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
-              <StackPanel Spacing="8">
-                <!-- The catalogue's name for them, and not the collection's. The two often differ, so
-                     both are shown: the band at the top shows what the tags spell, and this shows who
-                     MusicBrainz says it is. -->
-                <TextBlock x:Name="AboutName" FontSize="14" FontWeight="SemiBold"
-                           Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
-                <TextBlock x:Name="AboutFacts" FontSize="11" Foreground="{StaticResource InkFaint}"
-                           TextWrapping="Wrap"/>
-                <!-- The whole article is shown. The track pane shows a lead paragraph with "Show more",
-                     because that column is 300 points wide and has a fact sheet, a tracklist and two more
-                     cards, so a long biography would push everything off the pane. This is a page about
-                     the artist, in a column that scrolls separately and has only the wall behind it. The
-                     reason for the fold does not apply here. -->
-                <TextBlock x:Name="AboutProse" Style="{StaticResource Prose}"/>
+              <!-- The window the page grows inside, clipped to itself, as the track pane's cards are. While
+                   the card grows into the whole article, the words are already at their full length inside
+                   a box that has not finished opening, and without the clip they would hang out of the
+                   bottom of the card. The clip is set in code (see `AboutClip_SizeChanged`). -->
+              <Grid x:Name="AboutClip" SizeChanged="AboutClip_SizeChanged">
+                <StackPanel x:Name="AboutPage" Spacing="8">
+                  <!-- The catalogue's name for them, and not the collection's. The two often differ, so
+                       both are shown: the band at the top shows what the tags spell, and this shows who
+                       MusicBrainz says it is. -->
+                  <TextBlock x:Name="AboutName" FontSize="14" FontWeight="SemiBold"
+                             Foreground="{StaticResource InkStrong}" TextWrapping="Wrap"/>
+                  <TextBlock x:Name="AboutFacts" FontSize="11" Foreground="{StaticResource InkFaint}"
+                             TextWrapping="Wrap"/>
+                  <!-- The first paragraph, with "Show more" for the rest, as the track pane shows it. The
+                       whole article would push the line-up, the links and the wall far down the column. -->
+                  <TextBlock x:Name="AboutProse" Style="{StaticResource Prose}"/>
 
-                <!-- Wikipedia asks to be named, and the reader should know the source. -->
-                <ctl:RpmLink x:Name="AboutSourceButton"
-                             Click="AboutSource_Click" FontSize="11"/>
-                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
-                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AboutSourceButton}"/>
-              </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="14">
+                    <ctl:RpmLink x:Name="AboutMoreButton" Click="AboutMore_Click" FontSize="11"/>
+                    <!-- Wikipedia asks to be named, and the reader should know the source. -->
+                    <ctl:RpmLink x:Name="AboutSourceButton" Click="AboutSource_Click" FontSize="11"/>
+                  </StackPanel>
+                  <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+                  <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AboutSourceButton}"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <!-- Who is in the band, under the card about the band, as a face over each name, the same row
+               as the track pane's. Only for a group, and only when the catalogue has the data. Filled in
+               code (see `PaintMembers`). -->
+          <StackPanel x:Name="MembersBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=TrackInfo_Members}" Style="{StaticResource BlockHeading}"/>
+            <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
+              <pane:WrapRow x:Name="MembersList" HorizontalAlignment="Center"
+                            HorizontalSpacing="10" VerticalSpacing="14"/>
             </Border>
           </StackPanel>
 
@@ -623,7 +566,7 @@
           <!-- The records of theirs that most people own, from Discogs. Filled in code, because the
                number depends on the answer of the catalogue. The whole block is hidden when there is no
                answer. That includes every user who has not connected a Discogs account, because the data
-               is read with their account. -->
+               is read with their account: the card appears once they have connected one. -->
           <StackPanel x:Name="PopularBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
             <StackPanel Spacing="2">
               <TextBlock Text="{loc:Str Key=Artists_Popular}" Style="{StaticResource BlockHeading}"/>
@@ -636,25 +579,7 @@
                  own padding of 6, so eight plus six is the fourteen that every other card on the page
                  uses to inset its text. This gives one left edge down the column. -->
             <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="8">
-              <StackPanel Spacing="2">
-                <StackPanel x:Name="PopularList" Spacing="2"/>
-                <!-- The one reason for an empty card that the reader can act on, so it is the one that is
-                     printed. All the others (no Discogs page for this artist, a rate limit, no network)
-                     hide the whole card, because a card that explains a condition nobody can fix is in
-                     the way. -->
-                <TextBlock x:Name="PopularConnect" Text="{loc:Str Key=Artists_PopularConnect}"
-                           FontSize="11.5" Foreground="{StaticResource InkFaint}"
-                           TextWrapping="Wrap" Margin="6,2,6,2" Visibility="Collapsed"/>
-              </StackPanel>
-            </Border>
-          </StackPanel>
-
-          <!-- Who is in the band, under the card about the band. Only for a group, and only when the
-               catalogue has the data. -->
-          <StackPanel x:Name="MembersBlock" Spacing="8" Margin="18,0,18,0" Visibility="Collapsed">
-            <TextBlock Text="{loc:Str Key=TrackInfo_Members}" Style="{StaticResource BlockHeading}"/>
-            <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14,10,14,10">
-              <StackPanel x:Name="MembersList" Spacing="6"/>
+              <StackPanel x:Name="PopularList" Spacing="2"/>
             </Border>
           </StackPanel>
 

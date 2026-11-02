@@ -93,21 +93,20 @@ public static class ArtistPageLayout
     /// <para>The height cap alone cannot limit a logo, and that is why this exists. A logo is capped at a
     /// height and drawn in its own proportions, so its width depends on the artist's name. A short name is
     /// a small mark at that height. A long name, such as "kanYeWest" written as one word, fills most of the
-    /// band. It then runs under the photo's own controls and leaves the picture with only a strip above the
-    /// text.</para>
+    /// band. It then leaves the picture with only a strip above the text.</para>
     ///
     /// <para>The rest of the width is not spare room. It is where the picture is still a picture. The title
     /// is a caption on the photo, not a sheet laid over it. This share sets how much of the frame the title
     /// may cover.</para>
     ///
-    /// <para>The share is 0.42, which is 3/5 times 0.7. The 0.7 scale makes the lettering 30 percent
-    /// smaller, with its proportions kept. The mark is limited by both a height and a width. See LogoCap in
-    /// ArtistDetailView, which is scaled by the same 0.7. Shrinking only one of the two limits would change
+    /// <para>The share is 0.504, which is 0.42 times 1.2: the lettering is 20 percent larger than at a 0.42
+    /// share, with its proportions kept. The mark is limited by both a height and a width. See LogoCap in
+    /// ArtistDetailView, which is scaled by the same 1.2. Scaling only one of the two limits would change
     /// the drawn size by less than intended for some marks, and would not change the shape of any mark,
-    /// because the drawing stays uniform. Shrinking both scales every mark by exactly 0.7, whichever limit
+    /// because the drawing stays uniform. Scaling both changes every mark by exactly 1.2, whichever limit
     /// it was resting on.</para>
     /// </summary>
-    public const double LogoWidthShare = 0.42;
+    public const double LogoWidthShare = 0.504;
 
     /// <summary>The widest the lettering may be drawn on a band this wide.
     ///

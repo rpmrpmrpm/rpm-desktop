@@ -6217,22 +6217,6 @@
     <value>Retour aux artistes</value>
     <comment>Tooltip on the back button of an artist's page.</comment>
   </data>
-  <data name="Artists_PhotoPrevious" xml:space="preserve">
-    <value>Photo précédente</value>
-    <comment>Tooltip on the back arrow of the photo slideshow on an artist's page.</comment>
-  </data>
-  <data name="Artists_PhotoNext" xml:space="preserve">
-    <value>Photo suivante</value>
-    <comment>Tooltip on the forward arrow of the photo slideshow on an artist's page.</comment>
-  </data>
-  <data name="Artists_PhotoSlideshowStart" xml:space="preserve">
-    <value>Lancer le diaporama</value>
-    <comment>Tooltip on the slideshow button of an artist's page while it is off.</comment>
-  </data>
-  <data name="Artists_PhotoSlideshowStop" xml:space="preserve">
-    <value>Arrêter le diaporama</value>
-    <comment>Tooltip on the slideshow button of an artist's page while it is running.</comment>
-  </data>
   <data name="Artists_Albums" xml:space="preserve">
     <value>Albums</value>
     <comment>Heading over the records filed under the artist on their page.</comment>
@@ -6404,10 +6388,6 @@
   <data name="Artists_PopularSource" xml:space="preserve">
     <value>Selon les collectionneurs sur Discogs</value>
     <comment>Line under the Most popular heading saying where the ranking comes from.</comment>
-  </data>
-  <data name="Artists_PopularConnect" xml:space="preserve">
-    <value>Connectez un compte Discogs dans les paramètres pour voir ceci.</value>
-    <comment>Shown in the Most popular card on an artist's page when no Discogs account is connected.</comment>
   </data>
   <data name="Artists_PopularHave" xml:space="preserve">
     <value>{0} le possèdent</value>

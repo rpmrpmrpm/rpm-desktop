@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.UI;
 
@@ -128,16 +129,6 @@ public sealed partial class ArtistDetailView : UserControl
     /// record where there is no photograph. It is the wall's own loader, so opening a box does not fetch
     /// again the picture that the box already shows.</summary>
     public Func<ArtistWallItem, CancellationToken, Task<ArtistFace>>? PortraitLoader { get; set; }
-
-    /// <summary>
-    /// Every photograph the app can show of one artist, best first. The photograph that the band
-    /// already shows is the first one. Empty for an artist with no photograph.
-    ///
-    /// <para>This is separate from <see cref="PortraitLoader"/> because it answers another question.
-    /// <see cref="PortraitLoader"/> says which picture is this artist, and the answer is the same
-    /// everywhere in the app. This loader says what other pictures exist, and only the band asks.</para>
-    /// </summary>
-    public Func<ArtistWallItem, CancellationToken, Task<Asked<IReadOnlyList<string>>>>? GalleryLoader { get; set; }
 
     /// <summary>
     /// The artist's own logo (the mark from their sleeves, on a transparent background), or null where
@@ -300,13 +291,9 @@ public sealed partial class ArtistDetailView : UserControl
 
             // Every fade here runs on the render tick. A page removed during a fade would leave the app
             // asking for frames that it has nothing to draw.
-            _turning?.Cancel();
             _groundFade?.Stop();
             foreach (var shelf in Shelves)
                 shelf.Unfold.Stop();
-            _slideshowTimer?.Stop();
-            _portraitFade?.Stop();
-            _portraitNextFade?.Stop();
         };
     }
 
@@ -397,24 +384,15 @@ public sealed partial class ArtistDetailView : UserControl
         LinksRow.Children.Clear();
         MembersList.Children.Clear();
         PopularBlock.Visibility = Visibility.Collapsed;
-        PopularConnect.Visibility = Visibility.Collapsed;
         PopularList.Children.Clear();
         _article = null;
-
-        // The photographs belong to the artist being left, and so does the slideshow. It is stopped here,
-        // and PhotosAsync starts it again when the list of this artist arrives. The hold is cleared too:
-        // stopping the show for one artist does not apply to the next.
-        Slideshow(false);
-        _slideshowHeld = false;
-        _turning?.Cancel();
-        _photos.Clear();
-        _photo = 0;
-        PhotoControls.Visibility = Visibility.Collapsed;
+        _aboutExpanded = false;
+        _aboutGrowth?.Stop();
+        _aboutGrowth = null;
+        AboutPage.Height = double.NaN;
 
         Portrait.Visibility = Visibility.Collapsed;
-        PutPortrait(next: false, picture: null, runOff: null);
-        PortraitNext.Visibility = Visibility.Collapsed;
-        PutPortrait(next: true, picture: null, runOff: null);
+        PutPortrait(picture: null, runOff: null);
         PortraitGround.Fill = Unlit;
         PortraitVeil.Fill = null;
         PageGround.Visibility = Visibility.Collapsed;
@@ -455,11 +433,6 @@ public sealed partial class ArtistDetailView : UserControl
         _loading?.Cancel();
         _bandLoading?.Cancel();
         _bandGesture++;   // a record that is still being read has nothing to open into
-
-        // The band is about to fade out. A slideshow left running would keep changing photographs
-        // behind the wall while the app runs, and would repaint the window each time.
-        Slideshow(false);
-        _turning?.Cancel();
 
         // The same applies to the cloud marks inside the record that was left open. The drawer is kept
         // in place during the fade (see below), and a pulsing mark behind a hidden page is a timer that
@@ -518,31 +491,8 @@ public sealed partial class ArtistDetailView : UserControl
     /// every <see cref="LogoAsync"/> checks. If the band is ever changed to write the title (for example
     /// a name over a generated figure), the two can race.</para>
     ///
-    /// <para><b>Three more, once the band is up.</b> (8) the list of the artist's other photographs,
-    /// from the saved order or the art sources. The band starts it and never awaits it. (9) one of those
-    /// photographs being fetched because the reader pressed an arrow. It can be in flight while (8) is
-    /// still arriving, and the next press can replace it. (10) the timer of the slideshow, which asks
-    /// for (9) every fifteen seconds without any action on the page. A wide photo in (1) or (9) is also
-    /// baked into a <see cref="RunOff"/> canvas on a worker before it is decoded. The same token check
-    /// follows the bake.</para>
-    ///
-    /// <para><b>Which of those can meet.</b> (8) and (9) touch different things: the list and the index,
-    /// and the two picture layers. (9) cannot run before (8) has arrived, because the controls that
-    /// start it stay hidden until the list is in. Two instances of (9) can overlap. <c>_turning</c>
-    /// handles that: the next press cancels the previous fetch, so a reader who presses an arrow many
-    /// times cannot have four photographs arrive on the band in the order the network finishes them.
-    /// (10) only calls (9), on the dispatcher, so it is the same arrival. <see cref="Load"/> and
-    /// <see cref="Close"/> stop all three. This keeps a slideshow from changing photographs on a page
-    /// that nobody sees.</para>
-    ///
-    /// <para><b>One the reader brings.</b> (15) a press on the band, which stops the slideshow. It can
-    /// happen at any time. The case that matters is a press before (8) arrives: the show is started when
-    /// the list of photographs arrives, so a press made while that fetch was still out would be
-    /// overruled a moment later by a show that starts. <c>_slideshowHeld</c> prevents this. The press
-    /// writes it, (8) reads it, and both run on the dispatcher, so neither can see it half written. The
-    /// rule that keeps it safe: <b>the flag is cleared in <see cref="Load"/> and nowhere else</b>, so it
-    /// means "this reader, this artist". If it were cleared where the show is stopped, for example in
-    /// <see cref="Close"/>, a press would last only until the next fetch arrived.</para>
+    /// <para>A wide photo in (1) is baked into a <see cref="RunOff"/> canvas on a worker before it is
+    /// decoded. The same token check follows the bake.</para>
     ///
     /// <para><b>Four more, once a record is opened.</b> (11) the read of the record itself: its track
     /// list, its cover at the drawer size and its background. A press on a cover starts it, and it takes
@@ -622,10 +572,11 @@ public sealed partial class ArtistDetailView : UserControl
     }
 
     /// <summary>The band across the top and the colour of the whole page, from the same cache as the
-    /// boxes on the wall. The band shows the artist's square image where fanart.tv has one, while the
-    /// box on the wall shows their backdrop. For those artists the picture of the band may still need a
-    /// fetch when the page opens. For all other artists it is the picture of the box, which is already
-    /// held.</summary>
+    /// boxes on the wall. The band shows one square image of the artist where fanart.tv has one, and
+    /// not the one the track pane shows where it has two (see ArtistPortraits.PageSquareAsync), while
+    /// the box on the wall shows their backdrop. For those artists the picture of the band may still
+    /// need a fetch when the page opens. For all other artists it is the picture of the box, which is
+    /// already held. There is one picture and no paging.</summary>
     private async Task BandAsync(ArtistWallItem artist, CancellationToken ct)
     {
         if (PortraitLoader is not { } load)
@@ -682,11 +633,7 @@ public sealed partial class ArtistDetailView : UserControl
         if (ct.IsCancellationRequested)
             return;
 
-        Show(first, baked?.Aspect, dissolve: false);
-
-        // The rest of the photographs follow. They are started and not awaited: the picture above is
-        // already on screen, and this waits for a catalogue read on its own schedule.
-        _ = PhotosAsync(artist, ct);
+        Show(first, baked?.Aspect);
     }
 
     // ── the title over the band ──
@@ -697,10 +644,9 @@ public sealed partial class ArtistDetailView : UserControl
     /// resized twice, once well and once at draw time.
     ///
     /// <para><see cref="ArtistPageLayout.LogoWidthShare"/> is scaled in the same proportion as this
-    /// value. A mark can be limited by either bound, and scaling both reduces every mark by the same
-    /// factor. The written name is not scaled, so a page with a logo reads smaller than a page with the
-    /// written name.</para></summary>
-    private const double LogoCap = 50;
+    /// value. A mark can be limited by either bound, and scaling both changes every mark by the same
+    /// factor. The written name is not scaled with them.</para></summary>
+    private const double LogoCap = 60;
 
     /// <summary>
     /// The artist's own logo over the band, in place of their name, where a catalogue has one.
@@ -790,329 +736,39 @@ public sealed partial class ArtistDetailView : UserControl
         }
     }
 
-    // ── the artist's photographs, and paging through them ──
+    // ── the artist's photograph ──
 
-    /// <summary>How long one photograph is held before the slideshow moves on. It is long enough for the
-    /// page to read as a page with a picture and not as a screensaver.</summary>
-    private const double PhotoHoldSeconds = 15;
-
-    /// <summary>How long one picture takes to dissolve into the next.</summary>
-    private const double PhotoDissolveMs = 420;
-
-    /// <summary>Every photograph of the artist on screen. The one that the band opened with is first.
-    /// With fewer than two, there is nothing to page between and the controls stay hidden.</summary>
-    private readonly List<string> _photos = [];
-
-    /// <summary>Which of them is shown.</summary>
-    private int _photo;
-
-    /// <summary>Whether the picture on screen is on <c>PortraitNext</c> and not on <c>Portrait</c>.
-    /// The two layers take turns; neither is the permanent one.</summary>
-    private bool _showingNext;
-
-    private ChromeFade? _portraitFade;
-    private ChromeFade? _portraitNextFade;
-
-    /// <summary>Whether the slideshow is running. It is off each time a page opens, and
-    /// <see cref="PhotosAsync"/> starts it when there is more than one photograph to turn.</summary>
-    private bool _slideshow;
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _slideshowTimer;
-
-    /// <summary>Whether the reader has stopped the slideshow on this page by pressing the picture.
-    ///
-    /// <para>It is needed because two things race. The list of photographs is fetched (arrival 8), and
-    /// the slideshow starts when it arrives. The press that stops the show can happen at any time,
-    /// including before the list has arrived. Without this flag, a reader who pressed the picture during
-    /// the fetch would see the show start a moment later. The page would overrule a decision that the
-    /// reader already made.</para>
-    ///
-    /// <para>Only <see cref="Load"/> clears it, so it applies per artist and not per app. It records an
-    /// answer about the page being read, and the next page has not been told anything.</para></summary>
-    private bool _slideshowHeld;
-
-    /// <summary>Cancels the fetch of the picture that is being moved to. It is separate from the token
-    /// of the page because the next press cancels it as well as the next artist. A reader who presses an
-    /// arrow many times must not have four photographs arrive on the band in the order they finish.</summary>
-    private CancellationTokenSource? _turning;
-
-    /// <summary>
-    /// The list of photographs, once the catalogues have been read.
-    ///
-    /// <para>It checks the token after the await, like everything else in this file. The reader can be
-    /// on the page of another artist when the list of one artist comes back, and controls that appeared
-    /// for the wrong artist would page that page through photographs of a stranger.</para>
-    /// </summary>
-    private async Task PhotosAsync(ArtistWallItem artist, CancellationToken ct)
-    {
-        if (GalleryLoader is not { } load)
-            return;
-
-        try
-        {
-            var answer = await load(artist, ct);
-            if (ct.IsCancellationRequested)
-                return;
-
-            // The list could not be read. The band keeps the one picture it has, with no controls and no
-            // slideshow, as for an artist with one photo. Nothing is stored, so the list is asked for
-            // again the next time the artist is opened.
-            if (!answer.Answers(out var photos, out _))
-                return;
-
-            _photos.Clear();
-            _photos.AddRange(photos);
-            _photo = 0;
-
-            // The loader puts the picture that is already on screen first, so index 0 is the one shown.
-            PhotoControls.Visibility = _photos.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-
-            // The show starts here and not in Load, because this is the first moment when there is
-            // anything to turn. If it started in Load, it would tick against an empty list, and the
-            // fifteen seconds would be used before the photographs arrived.
-            //
-            // Two things must not be overruled, and the token check above covers only the first: the
-            // reader having left for another artist. This check covers the reader still being here and
-            // having already stopped the show (see _slideshowHeld).
-            if (_photos.Count > 1 && !_slideshowHeld)
-                Slideshow(true);
-        }
-        catch (OperationCanceledException)
-        {
-            // The reader went to another artist.
-        }
-        catch
-        {
-            // No catalogue answered. The band keeps the one picture it has and says nothing about it.
-        }
-    }
-
-    private void PhotoPrevious_Click(object sender, RoutedEventArgs e) => Turn(-1, byHand: true);
-
-    private void PhotoNext_Click(object sender, RoutedEventArgs e) => Turn(1, byHand: true);
-
-    private void PhotoAuto_Click(object sender, RoutedEventArgs e)
-    {
-        _slideshowHeld = _slideshow;   // pressing it off is the same answer as pressing the picture
-        Slideshow(!_slideshow);
-    }
-
-    /// <summary>
-    /// A press on the picture stops the slideshow for as long as the reader stays on this artist.
-    /// <see cref="_slideshowHeld"/> keeps it stopped, so a list of photographs that was still in flight
-    /// when the press happened does not start it again.
-    ///
-    /// <para>It only stops. A press means "leave it where it is", said by a reader who is looking at the
-    /// photograph that is shown. If it were a toggle, a second press to hold the page still would start
-    /// the turning again, which is the opposite of what the first press asked for.</para>
-    ///
-    /// <para>The arrows and the back button never reach this method (a Button marks the press as
-    /// handled), so this is a press on the photograph itself and nothing else.</para>
-    /// </summary>
-    private void HeroBand_PointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_slideshow)
-            return;
-
-        _slideshowHeld = true;
-        Slideshow(false);
-    }
-
-    /// <summary>
-    /// One step through the artist's photographs, forwards or back, wrapping at both ends.
-    /// </summary>
-    /// <param name="byHand">Whether a person pressed an arrow. A press while the slideshow is running
-    /// restarts its clock. Without that, the show could move away from a photograph a second after the
-    /// reader chose it.</param>
-    private void Turn(int step, bool byHand)
-    {
-        if (_photos.Count < 2)
-            return;
-
-        _photo = ((_photo + step) % _photos.Count + _photos.Count) % _photos.Count;
-
-        if (byHand && _slideshow && _slideshowTimer is { } timer)
-        {
-            timer.Stop();
-            timer.Start();
-        }
-
-        _ = TurnToAsync(_photos[_photo], step);
-    }
-
-    /// <summary>
-    /// Fetches one photograph (from the shared cache, so a picture already seen costs nothing) and
-    /// dissolves the band into it.
-    ///
-    /// <para><b>Three outcomes, kept apart.</b> The picture: it is shown. No picture at the address (a
-    /// 404, or a page instead of a picture): the photo is removed from the pager and the turn continues
-    /// to the next one in the same direction, so a press always lands on a picture. Could not be
-    /// fetched: the photo stays in the pager, the band keeps the picture it has, and the index has still
-    /// moved, so the next press goes on and does not retry it.</para>
-    ///
-    /// <para>The first two outcomes are kept apart because a photo that no longer exists would otherwise
-    /// stay in the pager as a page that never shows. A press on it would do nothing, and the slideshow
-    /// would hold the previous photo twice as long.</para>
-    /// </summary>
-    private async Task TurnToAsync(string url, int step)
-    {
-        _turning?.Cancel();
-        var cts = _turning = new CancellationTokenSource();
-        var ct = cts.Token;
-
-        try
-        {
-            var answer = await ArtistPortraits.PictureAsync(url, ct);
-            if (ct.IsCancellationRequested)
-                return;
-
-            if (!answer.Answers(out var picture, out _))
-                return;
-
-            if (picture is null)
-            {
-                DropGonePhoto(url, step);
-                return;
-            }
-
-            var baked = await RunOff.BakeAsync(picture.Thumb, ct);
-            if (ct.IsCancellationRequested)
-                return;
-
-            var bitmap = await RemoteImage.DecodeAsync(baked?.Canvas ?? picture.Thumb);
-            if (ct.IsCancellationRequested)
-                return;
-
-            Show(bitmap, baked?.Aspect, dissolve: true);
-        }
-        catch (OperationCanceledException)
-        {
-            // Another press, or another artist.
-        }
-        catch
-        {
-            // Not a picture that this computer can read.
-        }
-    }
-
-    /// <summary>
-    /// Removes a photo that the host says does not exist from the pager, and turns on to the next one in
-    /// the same direction. Only the turn that is still current (its token has not fired) calls it, so
-    /// the list is this artist's and no newer press has moved the index.
-    ///
-    /// <para>The photo is removed by address and not by index, and the index is then set from the
-    /// position of the address: the photo after it now stands in that place. With fewer than two photos
-    /// left, the controls are hidden and the slideshow stops, as for an artist with one photo.</para>
-    /// </summary>
-    private void DropGonePhoto(string url, int step)
-    {
-        var at = _photos.FindIndex(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase));
-        if (at < 0)
-            return;
-
-        _photos.RemoveAt(at);
-        PhotoControls.Visibility = _photos.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-
-        if (_photos.Count < 2)
-        {
-            Slideshow(false);
-            return;
-        }
-
-        // Turn adds the step, so stand one short of the photo that now fills the removed slot (going
-        // forward) or on the slot itself (going back, where the next photo is the one before it).
-        _photo = step > 0 ? at - 1 : at;
-        Turn(step, byHand: false);
-    }
-
-    /// <summary>
-    /// Puts a picture in the band, on whichever of the two layers is hidden. That layer then comes up as
-    /// the other goes. The first picture of a page arrives without a dissolve: there is nothing under it
-    /// to dissolve from, and a page that faded in its own photograph would show itself being assembled.
-    /// </summary>
+    /// <summary>Puts the picture in the band. It arrives without a fade: there is nothing under it to
+    /// fade from, and a page that faded in its own photograph would show itself being assembled.</summary>
     /// <param name="runOff">The aspect of the photo when <paramref name="picture"/> is a
     /// <see cref="RunOff"/> canvas, and null for a picture that fills the band. It is required, because
     /// the depth of the foot dissolve depends on it.</param>
-    private void Show(Microsoft.UI.Xaml.Media.Imaging.BitmapImage picture, double? runOff, bool dissolve)
+    private void Show(Microsoft.UI.Xaml.Media.Imaging.BitmapImage picture, double? runOff)
     {
-        var incomingIsNext = !_showingNext;
-        var incoming = incomingIsNext ? PortraitNext : Portrait;
-        var leaving = incomingIsNext ? Portrait : PortraitNext;
+        PutPortrait(picture, runOff);
+        Portrait.Visibility = Visibility.Visible;
 
-        PutPortrait(incomingIsNext, picture, runOff);
-        incoming.Visibility = Visibility.Visible;
-        _showingNext = incomingIsNext;
-
-        var over = dissolve ? PhotoDissolveMs : 0;
-        Dissolving(incoming).To(1, over);
-        Dissolving(leaving).To(0, over);
-
-        // The depth of the dissolve follows the picture that is now up. The size of the band may not
-        // change, so the update is called here.
+        // The depth of the dissolve follows the picture. The size of the band may not change, so the
+        // update is called here.
         UpdateHeroFade((float)HeroLayers.ActualWidth, (float)HeroLayers.ActualHeight);
     }
 
-    /// <summary>The aspect of the photo for each band layer while it shows a <see cref="RunOff"/>
-    /// canvas, and null while it shows a picture that fills the band. Only
-    /// <see cref="PutPortrait"/> writes it.</summary>
+    /// <summary>The aspect of the photo while the band shows a <see cref="RunOff"/> canvas, and null
+    /// while it shows a picture that fills the band. Only <see cref="PutPortrait"/> writes it.</summary>
     private double? _portraitRunOff;
-    private double? _portraitNextRunOff;
-
-    /// <summary>The same, for the layer that is up.</summary>
-    private double? ShowingRunOff => _showingNext ? _portraitNextRunOff : _portraitRunOff;
 
     /// <summary>
-    /// Writes the picture of one band layer and whether it is a reflected wide photo. It is the only
-    /// place that writes either, so the picture of a layer and the dissolve depth read for it cannot
-    /// disagree.
+    /// Writes the picture of the band and whether it is a reflected wide photo. It is the only place
+    /// that writes either, so the picture and the dissolve depth read for it cannot disagree.
     ///
     /// <para>Both kinds are drawn in the same way, covering the band from the top (see the markup). For
     /// a reflected photo this means the canvas is scaled to the width of the band and the mirror runs
     /// off the bottom.</para>
     /// </summary>
-    private void PutPortrait(bool next, ImageSource? picture, double? runOff)
+    private void PutPortrait(ImageSource? picture, double? runOff)
     {
-        (next ? PortraitNextArt : PortraitArt).ImageSource = picture;
-
-        if (next)
-            _portraitNextRunOff = runOff;
-        else
-            _portraitRunOff = runOff;
-    }
-
-    /// <summary>The opacity of one layer, eased on the render tick. See <see cref="ChromeFade"/> for
-    /// why this is not a storyboard.</summary>
-    private ChromeFade Dissolving(FrameworkElement layer)
-        => layer == Portrait
-            ? _portraitFade ??= new ChromeFade(Portrait)
-            : _portraitNextFade ??= new ChromeFade(PortraitNext);
-
-    /// <summary>Starts or stops the slideshow. It writes the glyph and the tooltip of the switch even
-    /// though the switch is collapsed. The button is hidden and not removed, and a state that it does
-    /// not carry while hidden would be wrong when it comes back. The picture shows the state: it is
-    /// turning, or stopped where the reader left it.</summary>
-    private void Slideshow(bool on)
-    {
-        _slideshow = on;
-        PhotoAutoGlyph.Text = on ? "\uf04c" : "\uf04b";
-        IconName.Set(PhotoAuto,
-            Loc.Get(on ? "Artists_PhotoSlideshowStop" : "Artists_PhotoSlideshowStart"));
-
-        if (!on)
-        {
-            _slideshowTimer?.Stop();
-            return;
-        }
-
-        if (_slideshowTimer is null)
-        {
-            _slideshowTimer = DispatcherQueue.CreateTimer();
-            _slideshowTimer.Interval = TimeSpan.FromSeconds(PhotoHoldSeconds);
-            _slideshowTimer.IsRepeating = true;
-            _slideshowTimer.Tick += (_, _) => Turn(1, byHand: false);
-        }
-
-        _slideshowTimer.Stop();
-        _slideshowTimer.Start();
+        PortraitArt.ImageSource = picture;
+        _portraitRunOff = runOff;
     }
 
     /// <summary>The artist's colour across the panel, or the surface of the panel where there is none.
@@ -1526,6 +1182,10 @@ public sealed partial class ArtistDetailView : UserControl
     /// <summary>The article on the card, kept so the "Read on Wikipedia" link has a page to open.</summary>
     private EncyclopediaArticle? _article;
 
+    /// <summary>Whether the reader has pressed "Show more" on this artist. Only <see cref="Load"/> clears
+    /// it, so a fresher answer for the same artist does not fold a card the reader opened.</summary>
+    private bool _aboutExpanded;
+
     /// <summary>
     /// What the catalogues say about the artist: the biography, the outside links and the members.
     ///
@@ -1629,20 +1289,10 @@ public sealed partial class ArtistDetailView : UserControl
         if (ct.IsCancellationRequested)
             return;
 
-        switch (answer)
-        {
-            case PopularAnswer.Found found:
-                PaintPopular(found.Releases);
-                break;
-
-            // The card is shown with one line instead of a list. It is shown and not hidden, because this
-            // is an answer that the reader can act on, and a card that is simply absent is a feature that
-            // nobody knows exists.
-            case PopularAnswer.NotConnected:
-                PopularConnect.Visibility = Visibility.Visible;
-                PopularBlock.Visibility = Visibility.Visible;
-                break;
-        }
+        // Every other answer, a listener with no Discogs account connected among them, shows no card. It
+        // appears once they have connected one.
+        if (answer is PopularAnswer.Found found)
+            PaintPopular(found.Releases);
     }
 
     /// <summary>
@@ -1652,7 +1302,6 @@ public sealed partial class ArtistDetailView : UserControl
     private void PaintPopular(IReadOnlyList<PopularRelease> popular)
     {
         PopularList.Children.Clear();
-        PopularConnect.Visibility = Visibility.Collapsed;
 
         var place = 0;
         foreach (var release in popular)
@@ -1849,24 +1498,101 @@ public sealed partial class ArtistDetailView : UserControl
              : began;
     }
 
-    /// <summary>The article in full, and the credit that says where it came from. There is no fold: see
-    /// the markup for why this page shows the whole of what the track pane shows only the first
-    /// paragraph of.</summary>
+    /// <summary>The first paragraph of the article, or all of it after "Show more", and the credit that
+    /// says where it came from. The same fold as the track pane's artist card.</summary>
     private void ApplyArticle()
     {
         if (_article is not { } article)
         {
             AboutProse.Visibility = Visibility.Collapsed;
+            AboutMoreButton.Visibility = Visibility.Collapsed;
             AboutSourceButton.Visibility = Visibility.Collapsed;
             return;
         }
 
         AboutProse.Visibility = Visibility.Visible;
-        AboutProse.Text = article.Extract;
+        AboutProse.Text = _aboutExpanded ? article.Extract : article.Lead;
+
+        AboutMoreButton.Visibility = article.HasMore ? Visibility.Visible : Visibility.Collapsed;
+        AboutMoreButton.Content = Loc.Get(_aboutExpanded ? "TrackInfo_ShowLess" : "TrackInfo_ShowMore");
 
         AboutSourceButton.Visibility = Visibility.Visible;
         AboutSourceButton.Content = Loc.Get("TrackInfo_ReadOnWikipedia");
     }
+
+    private void AboutMore_Click(object sender, RoutedEventArgs e)
+    {
+        // Measured before the paragraph changes length, and grown into afterwards.
+        var was = AboutPage.ActualHeight;
+
+        _aboutExpanded = !_aboutExpanded;
+        ApplyArticle();
+        GrowAbout(was);
+    }
+
+    /// <summary>The grow that is running on the card, if any.</summary>
+    private Storyboard? _aboutGrowth;
+
+    /// <summary>
+    /// Moves the card's height from what it was to what the new text needs, so the cards under it slide
+    /// down or up with it and do not jump. It is the height part of the track pane's <c>MoveCard</c>,
+    /// with the same time and the same ease, so "Show more" moves the same on both.
+    ///
+    /// <para>The height goes back to Auto at the end, always. A card left at the height of one article
+    /// would clip the next one, and a change of the column's width would never reach it. The storyboard
+    /// is stopped first, because a landed animation holds its property and a plain write under it is
+    /// ignored.</para>
+    /// </summary>
+    private void GrowAbout(double was)
+    {
+        _aboutGrowth?.Stop();
+        _aboutGrowth = null;
+        AboutPage.Height = double.NaN;
+
+        if (was <= 0.5 || AboutPage.ActualWidth <= 0)
+            return;
+
+        AboutPage.Measure(new Windows.Foundation.Size(AboutPage.ActualWidth, double.PositiveInfinity));
+        var wants = AboutPage.DesiredSize.Height;
+        if (wants <= 0 || Math.Abs(was - wants) <= 0.5)
+            return;
+
+        AboutPage.Height = was;
+        var move = new DoubleAnimation
+        {
+            From = was,
+            To = wants,
+            Duration = new Duration(TimeSpan.FromMilliseconds(220)),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            // Height is a layout property. An animation of it has to say so, or it is dropped.
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(move, AboutPage);
+        Storyboard.SetTargetProperty(move, "Height");
+
+        var board = new Storyboard();
+        board.Children.Add(move);
+        board.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_aboutGrowth, board))
+                return;
+            board.Stop();
+            _aboutGrowth = null;
+            AboutPage.Height = double.NaN;
+        };
+
+        _aboutGrowth = board;
+        board.Begin();
+    }
+
+    /// <summary>The window the card grows inside, cut to its own size. A geometry cannot be bound to the
+    /// size of the thing it clips, so it is rebuilt whenever that size changes, which during a grow is
+    /// every frame.</summary>
+    private void AboutClip_SizeChanged(object sender, SizeChangedEventArgs e)
+        => AboutClip.Clip = new RectangleGeometry
+        {
+            Rect = new Windows.Foundation.Rect(0, 0, e.NewSize.Width, e.NewSize.Height),
+        };
 
     /// <summary>
     /// The only sites this box offers, in the order they are shown. It is the list of the track pane, for
@@ -1981,13 +1707,12 @@ public sealed partial class ArtistDetailView : UserControl
     };
 
     /// <summary>
-    /// The members of the band. Only for a group with somebody in it: a person has no members, and a
-    /// band whose entry nobody has filled in has none either, so the card would be a heading over an
-    /// empty list.
+    /// The members of the band, as the track pane shows them: a round photograph over each name, in a
+    /// row that wraps. Only for a group with somebody in it: a person has no members, and a band whose
+    /// entry nobody has filled in has none either, so the card would be a heading over an empty list.
     ///
-    /// <para>The name is on the left and the role on the right, faded, because the name is what is read
-    /// and the role is only glanced at. A dagger goes beside any member who has died, because nothing
-    /// else on the line says it.</para>
+    /// <para>A dagger goes beside any member who has died, because nothing else on the face says it. The
+    /// role, where the catalogue gives one, is the tooltip.</para>
     /// </summary>
     private void PaintMembers(ArtistProfile? profile)
     {
@@ -2001,48 +1726,95 @@ public sealed partial class ArtistDetailView : UserControl
         if (MembersBlock.Visibility != Visibility.Visible)
             return;
 
+        // The row is painted afresh for every answer, and a photograph that lands after a newer one has
+        // been painted is dropped (see MemberFace).
+        var painting = ++_membersPainted;
         foreach (var member in lineup)
+            MembersList.Children.Add(MemberFace(member, painting));
+    }
+
+    /// <summary>Counts the line-ups painted, so a photograph fetched for one is not put on the next.</summary>
+    private int _membersPainted;
+
+    /// <summary>One member: a round photograph over their name. Until the photograph comes, and where
+    /// there is none, the circle carries their initials. The same face as the track pane's.</summary>
+    private StackPanel MemberFace(BandMember member, int painting)
+    {
+        const double Edge = 64;
+
+        var face = new Grid { Width = Edge, Height = Edge, HorizontalAlignment = HorizontalAlignment.Center };
+        face.Children.Add(new Ellipse { Fill = Ink("InkPlateLit") });
+        face.Children.Add(new TextBlock
         {
-            var line = new Grid();
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Text = Initials(member.Name),
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = Ink("InkQuiet"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var picture = new ImageBrush { Stretch = Stretch.UniformToFill, AlignmentY = AlignmentY.Top };
+        var photo = new Ellipse { Fill = picture, Opacity = 0 };
+        face.Children.Add(photo);
 
-            var name = new TextBlock
+        var name = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = Ink("InkBody"),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxLines = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        name.Inlines.Add(new Run { Text = member.Name });
+        if (member.HasDied || member.Died is { Length: > 0 })
+            name.Inlines.Add(new Run { Text = " †", Foreground = Ink("InkQuiet") });
+
+        var tile = new StackPanel { Width = 76, Spacing = 6 };
+        tile.Children.Add(face);
+        tile.Children.Add(name);
+        if (member.Role is { Length: > 0 } role)
+            ToolTipService.SetToolTip(tile, role);
+
+        if (member.Photo is { Length: > 0 } url)
+            _ = DressFaceAsync(url, Edge, picture, photo, painting);
+
+        return tile;
+    }
+
+    /// <summary>The photograph, through the app's picture cache, cut smooth to the circle's own pixels.
+    /// Shown only if this line-up is still the one on screen.</summary>
+    private async Task DressFaceAsync(string url, double edge, ImageBrush picture, Ellipse photo, int painting)
+    {
+        try
+        {
+            var scale = XamlRoot?.RasterizationScale ?? 1;
+            if ((await RemoteImage.LoadToFillAsync(url, edge, edge, scale)).Answers(out var bitmap, out _)
+                && bitmap is not null
+                && painting == _membersPainted)
             {
-                FontSize = 12,
-                Foreground = Ink("InkBody"),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxLines = 1,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            name.Inlines.Add(new Run { Text = member.Name });
-
-            if (member.HasDied || member.Died is { Length: > 0 })
-                name.Inlines.Add(new Run { Text = "  †", Foreground = Ink("InkQuiet") });
-
-            Grid.SetColumn(name, 0);
-            line.Children.Add(name);
-
-            // What they played, where the catalogue says. It is not the birth date, because a date says
-            // nothing about why that name is on the record, and a line with no role is better than a
-            // line with the wrong fact. See BandRoles.
-            if (member.Role is { Length: > 0 } role)
-            {
-                var years = new TextBlock
-                {
-                    Text = role,
-                    FontSize = 11,
-                    Foreground = Ink("InkBody"),
-                    Opacity = 0.7,
-                    Margin = new Thickness(10, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                Grid.SetColumn(years, 1);
-                line.Children.Add(years);
+                picture.ImageSource = bitmap;
+                photo.Opacity = 1;
             }
-
-            MembersList.Children.Add(line);
         }
+        catch
+        {
+            // The initials stay. A face that does not come is not a fault worth a word.
+        }
+    }
+
+    /// <summary>The initials of a name: "Carol Decker" is CD, "Bono" is B.</summary>
+    private static string Initials(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Where(w => char.IsLetter(w[0])).ToList();
+        return words.Count switch
+        {
+            0 => "",
+            1 => char.ToUpperInvariant(words[0][0]).ToString(),
+            _ => $"{char.ToUpperInvariant(words[0][0])}{char.ToUpperInvariant(words[^1][0])}",
+        };
     }
 
     private SolidColorBrush Ink(string key) => (SolidColorBrush)Resources[key];
@@ -2162,7 +1934,7 @@ public sealed partial class ArtistDetailView : UserControl
         // Over a reflected wide photo the dissolve covers the space under the photo, which fades the
         // mirror out; HeroFadeShare of the band would reach up into the photo itself. See
         // RunOff.FadeDepth.
-        var wanted = ShowingRunOff is { } aspect
+        var wanted = _portraitRunOff is { } aspect
             ? RunOff.FadeDepth(width, height, aspect)
             : Math.Min(Math.Min(height * HeroFadeShare, HeroFadeDepthMax), height);
         var depth = MathF.Round((float)wanted);

@@ -386,16 +386,14 @@ public static class ArtistPortraits
     /// two askers share one. These are separate tables, not entries in <see cref="Settled"/>. That is
     /// needed.
     /// <see cref="Settled"/> holds the answer from <see cref="ChooseAsync"/>, which the wall's boxes, the
-    /// genre cards and the home banner all show. <see cref="ShownFirst"/> puts that answer at the front of
-    /// the artist page's pager. A square stored there would become the picture on every one of those
-    /// surfaces. The artist page puts the square first on purpose. It does that by calling
-    /// <see cref="SquareAsync"/> by name (see MainPage.LoadArtistPicturesAsync), not through this
-    /// table.</summary>
+    /// genre cards and the home banner all show. A square stored there would become the picture on every
+    /// one of those surfaces.</summary>
     private static readonly Dictionary<string, string> SquareSettled = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, Task<Asked<string?>>> SquareChoosing = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary> Which picture an artist gets on a surface about that one artist: the track pane's upright
-    /// strip and the artist page's band. It is fanart.tv's square artist thumb where there is one, and
+    /// strip, and the artist page's band where the act has no second square (see
+    /// <see cref="PageSquareAsync"/>). It is fanart.tv's square artist thumb where there is one, and
     /// otherwise the picture that everything else in the app shows. The 16:9 boxes on the artists wall and
     /// on a genre page use <see cref="ChooseAsync"/>'s backdrop instead.
     ///
@@ -506,20 +504,45 @@ public static class ArtistPortraits
             .Then(art => OnePerPicture(art.Thumbs.Where(u => !string.IsNullOrWhiteSpace(u)).ToList()));
     }
 
-    /// <summary> Whether the artist page's pager turns through the artist's square photos rather than their
-    /// wide ones. This is true when the band opened on one of the squares. If an artist has square photos,
-    /// the pager shows only those. Wide photos are shown only for an artist with no square.
+    /// <summary>
+    /// The artist page's one photograph: a square of the act that the track pane does not show, where
+    /// fanart.tv has more than one.
     ///
-    /// <para>This is decided from the picture that the band opened on, not from whether squares exist. Page
-    /// one of the pager must be the picture on screen. <see cref="SquareAsync"/> is settled once for each
-    /// artist per session. So if an artist's first artwork answer had no squares (for example, because
-    /// fanart.tv was down, or the answer was partial), that artist keeps a wide photo in the band and in
-    /// the pager until the app is restarted. The track pane shows the same wide photo, so the two surfaces
-    /// agree.</para>
+    /// <para>The band is four by three, so a square fits it best of the pictures there are. The track pane
+    /// shows <see cref="SquareAsync"/>'s square, and a page that opened on the same picture would repeat
+    /// what the reader has just seen beside it. So the page takes the next square in fanart.tv's likes
+    /// order. An act with one square shows that square on both. An act with none shows the backdrop that
+    /// <see cref="SquareAsync"/> falls back to, as the track pane does.</para>
     /// </summary>
-    public static bool PagesSquares(string? opened, IReadOnlyList<string> squares)
-        => !string.IsNullOrWhiteSpace(opened)
-           && squares.Contains(opened, StringComparer.OrdinalIgnoreCase);
+    /// <returns>The same kinds of answer as <see cref="SquareAsync"/>: an address, null for an artist with
+    /// no photograph, or unanswered where a lookup did not answer.</returns>
+    public static async Task<Asked<string?>> PageSquareAsync(string artist, string? album, CancellationToken ct = default)
+    {
+        if (!(await SquareAsync(artist, album, ct)).Answers(out var pane, out var why))
+            return Asked.Failed<string?>(why);
+
+        if (!(await SquaresAsync(artist, album, ct)).Answers(out var squares, out why))
+            return Asked.Failed<string?>(why);
+
+        return Asked.Answer(OtherSquare(pane, squares));
+    }
+
+    /// <summary>The first square that is not <paramref name="pane"/>, compared as
+    /// <see cref="OnePerPicture"/> compares (by file name, so a mirror of the same picture is the same
+    /// picture). <paramref name="pane"/> itself where there is no other square, which includes a
+    /// <paramref name="pane"/> that is a backdrop and not a square at all.</summary>
+    public static string? OtherSquare(string? pane, IReadOnlyList<string> squares)
+    {
+        if (string.IsNullOrWhiteSpace(pane))
+            return squares.FirstOrDefault() ?? pane;
+
+        var shown = FileName(pane);
+        if (!squares.Any(s => string.Equals(FileName(s), shown, StringComparison.OrdinalIgnoreCase)))
+            return pane;
+
+        return squares.FirstOrDefault(s => !string.Equals(FileName(s), shown, StringComparison.OrdinalIgnoreCase))
+               ?? pane;
+    }
 
     /// <summary>The artist's photographs to choose between: the order the app has saved for them, or the
     /// catalogues' if nothing is saved, with one entry per picture.</summary>
@@ -675,53 +698,6 @@ public static class ArtistPortraits
                 _ => []);
     }
 
-    /// <summary>
-    /// The same photographs with the one the app has SETTLED on at the front.
-    ///
-    /// <para>For a surface that pages through an artist's pictures. It opens on the picture that everything
-    /// else in the app shows for that artist. So the first picture shown is the one already on screen, and
-    /// page one is not a jump. The chosen picture is put at the front, even when the list passed in does
-    /// not contain it. A saved order and a fresh answer from the sources can disagree. A carousel whose
-    /// first page is not the picture it opened on can never be paged back to that picture.</para>
-    /// </summary>
-    public static IReadOnlyList<string> ShownFirst(string artist, IReadOnlyList<string> urls)
-    {
-        lock (Settled)
-        {
-            return Settled.TryGetValue(artist, out var shown)
-                ? WithFirst(urls, shown)
-                : urls;   // Nothing is chosen yet, so the list keeps its own order.
-        }
-    }
-
-    /// <summary>The same move, with the picture to lead on given as a parameter, instead of looked up. This
-    /// is where the rule is easiest to read and test. Null, or a blank value, leaves the list exactly as it
-    /// came.</summary>
-    public static IReadOnlyList<string> WithFirst(IReadOnlyList<string> urls, string? shown)
-    {
-        if (string.IsNullOrWhiteSpace(shown))
-            return urls;
-
-        var at = -1;
-        for (var i = 0; i < urls.Count; i++)
-        {
-            if (string.Equals(urls[i], shown, StringComparison.OrdinalIgnoreCase))
-            {
-                at = i;
-                break;
-            }
-        }
-
-        if (at == 0)
-            return urls;
-
-        var moved = urls.ToList();
-        if (at > 0)
-            moved.RemoveAt(at);
-        moved.Insert(0, shown);
-        return moved;
-    }
-
     /// <summary>Three wide by four tall, as a width over a height. This is the shape an upright strip
     /// needs.</summary>
     private const double PortraitShape = 3.0 / 4.0;
@@ -746,13 +722,17 @@ public static class ArtistPortraits
 
         foreach (var url in urls)
         {
-            var slash = url.LastIndexOf('/');
-            var name = slash >= 0 && slash < url.Length - 1 ? url[(slash + 1)..] : url;
-
-            if (seen.Add(name))
+            if (seen.Add(FileName(url)))
                 kept.Add(url);
         }
 
         return kept;
+    }
+
+    /// <summary>What two mirrors of one picture share: the part of the address after the last slash.</summary>
+    private static string FileName(string url)
+    {
+        var slash = url.LastIndexOf('/');
+        return slash >= 0 && slash < url.Length - 1 ? url[(slash + 1)..] : url;
     }
 }

@@ -144,26 +144,26 @@ public class ArtistPageLayoutTests
     // ── the lettering over the band ──
 
     [Fact]
-    public void LogoMaxWidth_IsFortyTwoHundredthsOfTheBand()
+    public void LogoMaxWidth_IsJustOverHalfTheBand()
     {
         // Written out rather than LogoWidthShare read back, for the reason the band's shape is: a test
-        // that restates the constant agrees with whatever the constant becomes. 0.42 is three fifths
-        // times seven tenths: the lettering is thirty per cent smaller than a 0.6 share.
+        // that restates the constant agrees with whatever the constant becomes. 0.504 is 0.42 times 1.2:
+        // the lettering is twenty per cent larger than a 0.42 share.
         for (var width = 1d; width <= 3000; width += 7)
             Assert.True(
-                Math.Abs(ArtistPageLayout.LogoMaxWidth(width) - width * 0.42) <= 0.5,
+                Math.Abs(ArtistPageLayout.LogoMaxWidth(width) - width * 0.504) <= 0.5,
                 $"a band {width} wide allowed {ArtistPageLayout.LogoMaxWidth(width)} of lettering");
     }
 
     [Fact]
-    public void LogoMaxWidth_IsSevenTenthsOfWhatItWas()
+    public void LogoMaxWidth_IsSixFifthsOfWhatItWas()
     {
-        // A mark is bounded both by a height cap and by this width. Only scaling BOTH by 0.7 makes every
-        // mark 0.7 times the size, keeping its proportions, whichever bound applies to it, so the pair is
-        // checked rather than the number alone. LogoCap lives in ArtistDetailView and is 72 * 0.7
-        // rounded; it is restated, not read, so that this test notices if one of the two is changed alone.
-        Assert.Equal(0.6 * 0.7, ArtistPageLayout.LogoWidthShare, 3);
-        Assert.Equal(50d, Math.Round(72 * 0.7));
+        // A mark is bounded both by a height cap and by this width. Only scaling BOTH by 1.2 makes every
+        // mark 1.2 times the size, keeping its proportions, whichever bound applies to it, so the pair is
+        // checked rather than the number alone. LogoCap lives in ArtistDetailView and is 50 * 1.2; it is
+        // restated, not read, so that this test notices if one of the two is changed alone.
+        Assert.Equal(0.42 * 1.2, ArtistPageLayout.LogoWidthShare, 3);
+        Assert.Equal(60d, 50 * 1.2, 3);
     }
 
     [Fact]
@@ -184,11 +184,11 @@ public class ArtistPageLayoutTests
     public void LogoMaxWidth_BoundsALongNameByWidthRatherThanHeight()
     {
         // The case the bound is for: a name set as one long word, published about six and a half times
-        // as wide as it is tall. At the 50-point height cap that needs 333 points across, and the widest
-        // band in the app is a folded one at 700, so the height cap alone would let it cross nearly half
-        // the photograph. The width is what limits it, and it comes out SHORTER than the cap as a
+        // as wide as it is tall. At the 60-point height cap that needs 400 points across, and the widest
+        // band in the app is a folded one at 700, so the height cap alone would let it cross more than
+        // half the photograph. The width is what limits it, and it comes out SHORTER than the cap as a
         // result: scaled, not cropped, because the drawing is uniform.
-        const double capHeight = 50, markWide = 800, markHigh = 120;
+        const double capHeight = 60, markWide = 800, markHigh = 120;
 
         var room = ArtistPageLayout.LogoMaxWidth(ArtistPageLayout.AboutMin + ArtistPageLayout.ShelfRoom);
         var drawn = Math.Min(capHeight, room * markHigh / markWide);
@@ -203,7 +203,7 @@ public class ArtistPageLayoutTests
         // The invariant behind the one above, over every band the app builds and every proportion a
         // catalogue publishes, from squarish sleeve marks to the longest wordmarks. Whatever comes
         // back, the width it is drawn at is inside the room it was given.
-        const double capHeight = 50;
+        const double capHeight = 60;
 
         foreach (var band in new[] { 360d, 420, 520, 700, 900, 1400 })
         {

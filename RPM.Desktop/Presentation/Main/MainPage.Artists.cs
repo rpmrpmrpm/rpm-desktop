@@ -58,7 +58,6 @@ public sealed partial class MainPage
                 ? null
                 : App.Services.GetRequiredService<TrackInfoService>().Cached(artist, album: null);
         ArtistDetail.PopularLoader = LoadPopularReleasesAsync;
-        ArtistDetail.GalleryLoader = LoadArtistPicturesAsync;
         ArtistDetail.LogoLoader = LoadArtistLogoAsync;
         ArtistDetail.PlaylistsLoader = LoadArtistPlaylistsAsync;
 
@@ -397,7 +396,7 @@ public sealed partial class MainPage
     /// </summary>
     /// <param name="choose">Which of the artist's pictures this surface wears:
     /// <see cref="ArtistPortraits.ChooseAsync"/> (a backdrop) for a box, <see
-    /// cref="ArtistPortraits.SquareAsync"/> (the square first) for the artist page. No default: the two
+    /// cref="ArtistPortraits.PageSquareAsync"/> (a square first) for the artist page. No default: the two
     /// surfaces differ on purpose, and a default would be one of them wearing the other's picture without
     /// anybody deciding it.</param>
     private async Task<ArtistFace> LoadArtistFaceAsync(
@@ -449,66 +448,6 @@ public sealed partial class MainPage
     /// collaborations still has a record to be asked about.</summary>
     private string? AlbumAskedAbout(ArtistWallItem artist)
         => artist.Own.FirstOrDefault() is { } folder ? AlbumNameFor(folder) : null;
-
-    /// <summary>Every photograph the app can show of one artist, for the band at the top of their page to
-    /// page through. The one it already wears comes first, so page one is what is on screen.
-    ///
-    /// <para>The saved order is used where there is one. It is the order the now-playing carousel was left
-    /// in, and the user may have arranged it by hand. Where there is none, the art sources' own list is
-    /// used. Both are read exactly as <see cref="ArtistPortraits.ChooseAsync"/> reads them, with the same
-    /// list and the same de-duplication. So the picture the band opened on is one of these, not a fifth
-    /// thing.</para>
-    ///
-    /// <para>The pictures themselves are not fetched here. This is a list of addresses. Each one is
-    /// downloaded only if the reader pages to it. Opening and reading an artist does not ask for their other
-    /// photographs.</para>
-    ///
-    /// <para><b>Squares only, where the band opened on one.</b> The band opens on the picture that <see
-    /// cref="LoadArtistPageFaceAsync"/> chose. That is <see cref="ArtistPortraits.SquareAsync"/>'s answer:
-    /// the square of the act from fanart.tv, where there is one. For such an artist the pager shows their
-    /// squares and nothing else. The wide backdrops are left out. An artist with no square opens on a
-    /// backdrop, and pages through the backdrops. Each one is drawn at the band's width, with its
-    /// reflection under it (see <see cref="RunOff"/>). See <see cref="ArtistPortraits.PagesSquares"/> for
-    /// why the choice follows the opening picture.</para>
-    ///
-    /// <para>Either way, the opening picture is put at the front, because the page's pager treats page one
-    /// as the picture on screen. Nothing here is saved, so a square cannot reach the backdrop order that
-    /// the now-playing carousel keeps.</para>
-    /// </summary>
-    /// <returns>Unanswered where a lookup did not answer: the page keeps its one picture and does not start
-    /// the slideshow, and the next time the artist is opened it asks again.</returns>
-    private async Task<Asked<IReadOnlyList<string>>> LoadArtistPicturesAsync(
-        ArtistWallItem artist, CancellationToken ct)
-    {
-        if (NobodyInParticular(artist.Name))
-            return Asked.Answer<IReadOnlyList<string>>([]);
-
-        var album = AlbumAskedAbout(artist);
-        if (!(await ArtistPortraits.SquareAsync(artist.Name, album, ct)).Answers(out var opened, out var why))
-            return Asked.Failed<IReadOnlyList<string>>(why);
-
-        if (!(await ArtistPortraits.SquaresAsync(artist.Name, album, ct)).Answers(out var squares, out why))
-            return Asked.Failed<IReadOnlyList<string>>(why);
-
-        if (ArtistPortraits.PagesSquares(opened, squares))
-            return Asked.Answer(ArtistPortraits.WithFirst(squares, opened));
-
-        return (await BackdropsForPageAsync(artist, ct)).Then(backdrops => ArtistPortraits.WithFirst(backdrops, opened));
-    }
-
-    /// <summary>The artist's backdrops for the band's pager. The saved order is used where there is one,
-    /// and the art sources' order where there is not. The backdrop that the rest of the app wears goes at
-    /// the front.</summary>
-    private async Task<Asked<IReadOnlyList<string>>> BackdropsForPageAsync(ArtistWallItem artist, CancellationToken ct)
-    {
-        var saved = ArtistPortraits.SavedBackdrops(artist.Name);
-        if (saved.Count > 0)
-            return Asked.Answer(ArtistPortraits.ShownFirst(artist.Name, saved));
-
-        var album = artist.Albums.Count > 0 ? AlbumNameFor(artist.Albums[0]) : null;
-        return (await App.Services.GetRequiredService<ArtworkService>().GetAsync(artist.Name, album, ct: ct))
-            .Then(art => ArtistPortraits.ShownFirst(artist.Name, ArtistPortraits.OnePerPicture(art.Backgrounds)));
-    }
 
     /// <summary>A picture MADE for an artist nobody has photographed, out of the colours of the first
     /// record the collection files under them.
@@ -587,11 +526,12 @@ public sealed partial class MainPage
     /// </summary>
     private async Task<ArtistFace> LoadArtistPageFaceAsync(ArtistWallItem artist, CancellationToken ct)
     {
-        // The square comes first. The page is about one artist, and fanart.tv's square is framed on them.
-        // The box on the wall wears a backdrop (see LoadArtistPortraitAsync). So for an act with a square,
-        // the box and the page show two different pictures. That is the intended result.
+        // A square comes first. The page is about one artist, and fanart.tv's square is framed on them.
+        // The box on the wall wears a backdrop (see LoadArtistPortraitAsync), and the track pane wears the
+        // first square, so the page takes another square where there is one (see PageSquareAsync). For an
+        // act with two squares the box, the pane and the page show three pictures. That is intended.
         if (!NobodyInParticular(artist.Name))
-            return await LoadArtistFaceAsync(artist, ArtistPortraits.SquareAsync, ct);
+            return await LoadArtistFaceAsync(artist, ArtistPortraits.PageSquareAsync, ct);
 
         // The mosaic comes first. The made figure is used only where the mosaic cannot be drawn. That happens
         // when a shelf's records are nearly all without artwork, or when Skia will not paint on this machine.
