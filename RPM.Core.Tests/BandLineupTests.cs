@@ -8,23 +8,30 @@ namespace RPM.Core.Tests;
 /// </summary>
 public class BandLineupTests
 {
-    private static string Claim(string id, string? endYear = null)
+    private static string Claim(string id, string? endYear = null, string? startYear = null)
     {
         var value = "\"mainsnak\": { \"datavalue\": { \"value\": { \"id\": \"" + id + "\" } } }";
-        return endYear is null
+        var qualifiers = new List<string>();
+        if (startYear is not null)
+            qualifiers.Add("\"P580\": [ " + Time(startYear) + " ]");
+        if (endYear is not null)
+            qualifiers.Add("\"P582\": [ " + Time(endYear) + " ]");
+        return qualifiers.Count == 0
             ? "{ " + value + " }"
-            : "{ " + value + ", \"qualifiers\": { \"P582\": [ { \"datavalue\": { \"value\": { \"time\": \"+"
-              + endYear + "-01-01T00:00:00Z\" } } } ] } }";
+            : "{ " + value + ", \"qualifiers\": { " + string.Join(", ", qualifiers) + " } }";
     }
 
+    private static string Time(string year)
+        => "{ \"datavalue\": { \"value\": { \"time\": \"+" + year + "-01-01T00:00:00Z\" } } }";
+
     /// <summary>A band, Q1, as its entity and its members' entities answer: Q10 is in it; Q11 left in
-    /// 2001 by the band's own list; Q12 left in 1990 and came back; Q13 left by their own list of bands;
-    /// Q14 nobody wrote anything about.</summary>
+    /// 2001 by the band's own list; Q12 left in 1990 and came back in 1995; Q13 left by their own list of
+    /// bands; Q14 nobody wrote anything about.</summary>
     private static string Answer(string? dissolved = null) => $$"""
     {
       "entities": {
         "Q1": { "claims": {
-          "P527": [ {{Claim("Q10")}}, {{Claim("Q11", "2001")}}, {{Claim("Q12", "1990")}}, {{Claim("Q12")}} ]
+          "P527": [ {{Claim("Q10")}}, {{Claim("Q11", "2001")}}, {{Claim("Q12", "1990")}}, {{Claim("Q12", startYear: "1995")}} ]
           {{(dissolved is null ? "" : $$""", "P576": [ { "mainsnak": { "datavalue": { "value": { "time": "+{{dissolved}}-06-01T00:00:00Z" } } } } ]""")}}
         } },
         "Q10": { "claims": { "P18": [ { "mainsnak": { "datavalue": { "value": "Carol Decker.jpg" } } } ] } },
@@ -92,5 +99,57 @@ public class BandLineupTests
 
         Assert.Contains(current, m => m.Name == "Gone 2001");
         Assert.DoesNotContain(current, m => m.Name == "Left Themselves");
+    }
+
+    /// <summary>The Beatles as Wikidata has them, cut down. The band's list ends the four in 1970, the year
+    /// it split; John Lennon's own list ends his membership in 1969. Chas Newby and Tommy Moore left early,
+    /// and each has an open membership with no start as well.</summary>
+    private const string Beatles = """
+    {
+      "entities": {
+        "Q1299": { "claims": {
+          "P576": [ { "mainsnak": { "datavalue": { "value": { "time": "+1970-04-10T00:00:00Z" } } } } ],
+          "P527": [ BAND ]
+        } },
+        "Q1203": { "claims": { "P463": [ LENNON ] } },
+        "Q2599": { "claims": {} },
+        "Q207335": { "claims": {} },
+        "Q5087041": { "claims": { "P463": [ NEWBY ] } },
+        "Q5992927": { "claims": { "P463": [ MOORE ] } }
+      }
+    }
+    """;
+
+    [Fact]
+    public void A_member_whose_own_list_ends_a_year_before_the_band_split_stays()
+    {
+        var body = Beatles
+            .Replace("BAND", string.Join(", ",
+                Claim("Q1203", "1970", "1960"), Claim("Q2599", "1970", "1960"), Claim("Q207335", "1962", "1960"),
+                Claim("Q5087041", "1961", "1960"), Claim("Q5992927", "1960", "1960")))
+            .Replace("LENNON", Claim("Q1299", "1969", "1960"))
+            .Replace("NEWBY", Claim("Q1299", "1961", "1960") + ", " + Claim("Q1299"))
+            .Replace("MOORE", Claim("Q1299"));
+        BandMember[] members =
+        [
+            new("John Lennon", "Q1203"), new("Paul McCartney", "Q2599"), new("Pete Best", "Q207335"),
+            new("Chas Newby", "Q5087041"), new("Tommy Moore", "Q5992927"),
+        ];
+
+        var current = EncyclopediaLookup.CurrentLineup(body, "Q1299", members);
+
+        Assert.Equal(["John Lennon", "Paul McCartney"], current.Select(m => m.Name));
+    }
+
+    /// <summary>An open membership with no start, beside an ended one, is a gap in the data and not a
+    /// return.</summary>
+    [Fact]
+    public void An_open_membership_with_no_start_is_not_a_return()
+    {
+        var body = Answer().Replace(Claim("Q12", startYear: "1995"), Claim("Q12"));
+
+        var current = EncyclopediaLookup.CurrentLineup(body, "Q1", Members);
+
+        Assert.DoesNotContain(current, m => m.Name == "Came Back");
     }
 }

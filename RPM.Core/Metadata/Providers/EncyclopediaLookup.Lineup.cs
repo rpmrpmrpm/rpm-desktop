@@ -8,10 +8,16 @@ public sealed partial class EncyclopediaLookup
     /// The band's line-up as it stands, each member with their photograph: who has left is taken off.
     ///
     /// <para><b>"Left" is what Wikidata says, and only that.</b> A membership with an end date, on the
-    /// band's own list of members (P527) or on the member's list of bands (P463), is one that ended. A
-    /// member with an ended membership and an open one has come back, and stays. A member nobody wrote an
-    /// end for stays too: no date is not proof of leaving, and a line-up emptied by a gap in the data is
-    /// worse than one that is a little long.</para>
+    /// band's own list of members (P527) or on the member's list of bands (P463), is one that ended. Where
+    /// the two lists give different years, the later one counts: John Lennon's own entity ends his
+    /// Beatles membership in 1969, the band's ends it in 1970. A member nobody wrote an end for stays: no
+    /// date is not proof of leaving, and a line-up emptied by a gap in the data is worse than one that is
+    /// a little long.</para>
+    ///
+    /// <para><b>A return needs a start.</b> A member with an ended membership has come back, and stays,
+    /// only when an open membership starts in the year the old one ended or later. An open membership with
+    /// no start beside an ended one is a gap in the data, not a return: the Beatles' Chas Newby and Tommy
+    /// Moore each have one.</para>
     ///
     /// <para><b>A band that has split up keeps its last line-up.</b> Everybody's membership ended when the
     /// band did, and a card for the Beatles with nobody on it says nothing. So a membership that ended in
@@ -70,9 +76,10 @@ public sealed partial class EncyclopediaLookup
                 foreach (var mbid in StringsOf(c, "P434"))
                     byMbid.TryAdd(mbid, entity.Name);
 
-        // Each member's memberships: ended (with the year) or open, from both sides.
+        // Each member's memberships from both sides: the latest year one ended in, and the start year of
+        // each open one (null where none is written).
         var ended = new Dictionary<string, int?>(StringComparer.Ordinal);
-        var open = new HashSet<string>(StringComparer.Ordinal);
+        var open = new Dictionary<string, List<int?>>(StringComparer.Ordinal);
         int? bandEnded = null;
 
         if (band is not null && entities.TryGetProperty(band, out var bandEntity)
@@ -101,28 +108,34 @@ public sealed partial class EncyclopediaLookup
                     : null;
             }
 
-            var left = id is not null && ended.TryGetValue(id, out var year) && !open.Contains(id)
+            var left = id is not null && ended.TryGetValue(id, out var year) && !CameBack(id, year)
                        && !(bandEnded is { } split && year is { } y && y >= split);
             if (!left)
                 shown.Add(member with { Photo = photo ?? member.Photo });
         }
         return shown;
 
-        void Note(string member, (bool Ended, int? Year) end)
+        void Note(string member, (bool Ended, int? Year, int? Start) end)
         {
-            if (end.Ended)
-                ended[member] = end.Year;
-            else
-                open.Add(member);
+            if (!end.Ended)
+                (open.TryGetValue(member, out var starts) ? starts : open[member] = []).Add(end.Start);
+            else if (!ended.TryGetValue(member, out var known) || known is null || end.Year > known)
+                ended[member] = end.Year ?? known;
         }
+
+        // An end with no year cannot be placed, so any open membership with a start counts as a return.
+        bool CameBack(string member, int? endYear)
+            => open.TryGetValue(member, out var starts)
+               && starts.Any(start => start is { } s && (endYear is null || s >= endYear));
     }
 
     /// <summary>
     /// The memberships one entity's claims state, as the entity each one points at, whether it ended (it
-    /// has an end time, P582, even one whose date is "unknown") and the year it did. For a member's list
-    /// of bands (P463) only the statements about <paramref name="target"/> are wanted.
+    /// has an end time, P582, even one whose date is "unknown"), the year it did, and the year it started
+    /// (P580). For a member's list of bands (P463) only the statements about <paramref name="target"/> are
+    /// wanted.
     /// </summary>
-    private static IEnumerable<(string Value, (bool Ended, int? Year) End)> Memberships(
+    private static IEnumerable<(string Value, (bool Ended, int? Year, int? Start) End)> Memberships(
         JsonElement claims, string property, string? target)
     {
         if (!claims.TryGetProperty(property, out var statements) || statements.ValueKind != JsonValueKind.Array)
@@ -137,20 +150,25 @@ public sealed partial class EncyclopediaLookup
             if (target is not null && id != target)
                 continue;
 
-            if (s.TryGetProperty("qualifiers", out var qualifiers) && qualifiers.TryGetProperty("P582", out var ends)
-                && ends.ValueKind == JsonValueKind.Array)
-                yield return (id, ends.EnumerateArray().Select(EndYear).FirstOrDefault((true, null)));
+            var hasQualifiers = s.TryGetProperty("qualifiers", out var qualifiers);
+            var start = hasQualifiers && qualifiers.TryGetProperty("P580", out var starts)
+                        && starts.ValueKind == JsonValueKind.Array
+                ? starts.EnumerateArray().Select(QualifierYear).FirstOrDefault(y => y is not null)
+                : null;
+
+            if (hasQualifiers && qualifiers.TryGetProperty("P582", out var ends) && ends.ValueKind == JsonValueKind.Array)
+                yield return (id, (true, ends.EnumerateArray().Select(QualifierYear).FirstOrDefault(), start));
             else
-                yield return (id, (false, null));
+                yield return (id, (false, null, start));
         }
     }
 
-    private static (bool Ended, int? Year) EndYear(JsonElement qualifier)
+    /// <summary>The year of a time qualifier, or null where its date is "unknown".</summary>
+    private static int? QualifierYear(JsonElement qualifier)
         => qualifier.TryGetProperty("datavalue", out var dv) && dv.TryGetProperty("value", out var v)
            && v.ValueKind == JsonValueKind.Object && v.TryGetProperty("time", out var t)
-           && YearNumber(t.GetString()?.TrimStart('+').Split('-')[0]) is { } year
-            ? (true, year)
-            : (true, null);
+            ? YearNumber(t.GetString()?.TrimStart('+').Split('-')[0])
+            : null;
 
     private static int? YearNumber(string? year) => int.TryParse(year, out var y) ? y : null;
 }

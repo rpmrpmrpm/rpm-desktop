@@ -554,8 +554,12 @@ public sealed partial class TrackInfoService
     /// <para>v11 (2026-10-31): a band's line-up is the members still in it, each with a photograph.</para>
     ///
     /// <para>v12 (2026-10-31): members named by a MusicBrainz id get their photographs too.</para>
+    ///
+    /// <para>v13: where the band's list and the member's own list end a membership in different years, the
+    /// later year counts, and an open membership with no start is not a return. Answers kept under v12 can
+    /// leave out John Lennon and keep Chas Newby.</para>
     /// </summary>
-    private const string CacheVersion = "v12";
+    private const string CacheVersion = "v13";
 
     private static string CacheKey(string artist, string? album) =>
         $"{CacheVersion} {artist.Trim()} {album?.Trim() ?? ""}".ToLowerInvariant();
