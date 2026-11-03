@@ -143,6 +143,7 @@ public sealed partial class SettingsService
         string? AudioDevice = null,
         IReadOnlyList<EqProfile>? DeviceEq = null,
         IReadOnlyList<OutputVolume>? DeviceVolumes = null,
+        bool DeviceVolume = false,
         IReadOnlyList<CastDeviceProfile>? CastDevices = null,
         bool CastScreenOn = true,
         RPM.Core.Audio.CastAudioFormat CastFormat = RPM.Core.Audio.CastAudioFormat.Mp3,
@@ -1025,6 +1026,20 @@ public sealed partial class SettingsService
     {
         get => _model.DeviceEq ?? [];
         set => Update(_model with { DeviceEq = value }, notify: false);
+    }
+
+    /// <summary>
+    /// Whether the volume slider turns a Bluetooth speaker's own volume rather than the app's.
+    ///
+    /// <para>For a Bluetooth speaker the two can be told apart, and the speaker's is the cleaner one: it is
+    /// sent to the speaker, so no bits are lost before the codec (see <c>VolumeRouting</c>). But on this
+    /// machine it is the output volume of the whole desktop, so the browser and every other sound go down
+    /// with the record. Off, the default, keeps the slider on the app alone.</para>
+    /// </summary>
+    public bool DeviceVolume
+    {
+        get => _model.DeviceVolume;
+        set => Update(_model with { DeviceVolume = value });
     }
 
     /// <summary>

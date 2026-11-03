@@ -164,8 +164,18 @@ public sealed partial class SoundSettingsPage : Page
         RenderEq();
         RenderNormalize();
         MixtapeSwitch.IsOn = _settings.MixtapeAfter;
+        DeviceVolumeSwitch.IsOn = _settings.DeviceVolume;
 
         _loading = false;
+    }
+
+    /// <summary>Takes effect at once: the player hears the setting change and settles the volume on the
+    /// speakers playing now (see PlaybackService.TakesDeviceVolume).</summary>
+    private void OnDeviceVolumeToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        _settings.DeviceVolume = DeviceVolumeSwitch.IsOn;
     }
 
     /// <summary>Counts from the next list that ends: the transport reads the setting when a list's last song

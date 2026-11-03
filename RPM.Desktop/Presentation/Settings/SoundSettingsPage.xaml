@@ -49,6 +49,15 @@
 
           <TextBlock x:Name="CurrentText"
                      FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
+
+          <!-- Whose volume the slider turns on a Bluetooth speaker: rpm's, or the speaker's own, which is
+               the whole desktop's. See SettingsService.DeviceVolume. -->
+          <ToggleSwitch x:Name="DeviceVolumeSwitch"
+                        Header="{loc:Str Key=Settings_DeviceVolume}"
+                        Toggled="OnDeviceVolumeToggled"
+                        Margin="0,6,0,0"/>
+          <TextBlock Text="{loc:Str Key=Settings_DeviceVolumeHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"/>
         </StackPanel>
       </Border>
 

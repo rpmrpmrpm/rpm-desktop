@@ -207,6 +207,9 @@ internal static unsafe class WinSystemVolume
     /// </summary>
     internal static bool Open(string? name) => Ask(() => OpenOnWorker(EndpointNames.Bare(name)), false);
 
+    /// <summary>Lets go of the endpoint held, and stops following it.</summary>
+    internal static void Release() => Ask(() => { ReleaseHeld(); return true; }, false);
+
     private static bool OpenOnWorker(string name)
     {
         ReleaseHeld();

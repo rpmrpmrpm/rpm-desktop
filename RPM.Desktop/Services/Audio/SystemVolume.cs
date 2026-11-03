@@ -56,7 +56,9 @@ internal static class SystemVolume
     /// <para>Called on every output change, including the empty name left behind by a cast. The empty name
     /// is how the hold on the previous endpoint is released when the music leaves this machine.</para>
     /// </summary>
-    internal static bool Retarget(string? device)
+    /// <param name="take">Whether the listener lets the app hold a speaker's own volume at all (the
+    /// DeviceVolume setting). False releases whatever was held and holds nothing.</param>
+    internal static bool Retarget(string? device, bool take = true)
     {
         Listen();
 
@@ -64,7 +66,8 @@ internal static class SystemVolume
         // an empty name while casting. That name is passed straight through, and each platform half
         // releases what it held before it looks for anything new.
         var hardware =
-            OperatingSystem.IsMacOS() ? MacSystemVolume.Open(device)
+            !take ? Release()
+            : OperatingSystem.IsMacOS() ? MacSystemVolume.Open(device)
             : OperatingSystem.IsWindows() ? WinSystemVolume.Open(device)
             : false;
 
@@ -100,6 +103,15 @@ internal static class SystemVolume
 
         return OperatingSystem.IsMacOS() ? MacSystemVolume.TryWrite(volume)
              : OperatingSystem.IsWindows() && WinSystemVolume.TryWrite(volume);
+    }
+
+    /// <summary>Lets go of the endpoint held, so nothing of the machine's is turned or followed. Always
+    /// false: nothing is ours.</summary>
+    private static bool Release()
+    {
+        if (OperatingSystem.IsMacOS()) MacSystemVolume.Release();
+        else if (OperatingSystem.IsWindows()) WinSystemVolume.Release();
+        return false;
     }
 
     /// <summary>Subscribes once to the platform half that is present on this machine.</summary>

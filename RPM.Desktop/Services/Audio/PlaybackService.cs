@@ -395,6 +395,27 @@ public sealed partial class PlaybackService : IDisposable
     /// a room belongs to the room.</summary>
     public bool IsHardwareVolume => VolumeHeldBy != VolumeKnob.App;
 
+    /// <summary>
+    /// Whether the slider may turn a Bluetooth speaker's own volume, which on this machine is the whole
+    /// desktop's output volume (the DeviceVolume setting). Off, the slider is the app's own gain on every
+    /// speaker. A cast is not affected: the room's volume is the room's, and nothing else plays there.
+    ///
+    /// <para>Changing it settles the volume again on the speakers playing now, exactly as a new output
+    /// does, so the slider's mark and its level move over at once.</para>
+    /// </summary>
+    public bool TakesDeviceVolume
+    {
+        get => _takesDeviceVolume;
+        set
+        {
+            if (_takesDeviceVolume == value) return;
+            _takesDeviceVolume = value;
+            AnnounceOutput(OutputDeviceName);
+        }
+    }
+
+    private bool _takesDeviceVolume;
+
     /// <summary>The speaker we are casting to, or null when playing on this computer.</summary>
     public CastDevice? CastDevice { get { lock (_gate) return _castDevice; } }
 
@@ -750,7 +771,7 @@ public sealed partial class PlaybackService : IDisposable
     /// </summary>
     private void AnnounceOutput(string device)
     {
-        var hardware = SystemVolume.Retarget(IsCasting ? "" : OutputDeviceName);
+        var hardware = SystemVolume.Retarget(IsCasting ? "" : OutputDeviceName, _takesDeviceVolume);
 
         OutputDeviceChanged?.Invoke(device);
 

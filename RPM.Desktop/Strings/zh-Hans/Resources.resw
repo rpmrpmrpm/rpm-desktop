@@ -437,7 +437,7 @@
     <value>连接 Discogs</value>
   </data>
   <data name="Catalog_DiscogsConnectFailed" xml:space="preserve">
-    <value>Discogs 未能完成连接。请重试。</value>
+    <value>Discogs 没有连接成功。再试一次吧！</value>
   </data>
   <data name="Catalog_DiscogsConnected" xml:space="preserve">
     <value>已连接</value>
@@ -452,7 +452,7 @@
     <value>未连接</value>
   </data>
   <data name="Catalog_DiscogsPending" xml:space="preserve">
-    <value>请在浏览器中完成 Discogs 登录，然后重新检查。</value>
+    <value>请先在浏览器中完成 Discogs 登录，然后回来再检查一次。</value>
   </data>
   <data name="Catalog_DiscogsSignIn" xml:space="preserve">
     <value>请先登录 rpm</value>
@@ -465,13 +465,13 @@
     <value>此处不可用</value>
   </data>
   <data name="Catalog_DiscogsWhy" xml:space="preserve">
-    <value>Discogs 由唱片持有者共同编目，rpm 数据库没有收录的压片通常在这里能找到。连接你自己的账户后，搜索计入你自己的调用额度，而不是所有 rpm 用户共用的额度。</value>
+    <value>Discogs 由唱片的主人们共同整理，常常收录 rpm 数据库里没有的版本。连接你自己的帐户后，搜索会使用你自己的频率限额，而不是和所有人共用一个。</value>
   </data>
   <data name="Catalog_Heading" xml:space="preserve">
     <value>唱片数据库</value>
   </data>
   <data name="Catalog_Intro" xml:space="preserve">
-    <value>查找专辑时 rpm 会搜索的位置。搜索需要 rpm 账户；连接 Discogs 账户即可一并搜索 Discogs。</value>
+    <value>这里是你查找专辑时 rpm 去搜索的地方。搜索需要 rpm 帐户；连接 Discogs 后，rpm 也会在那里搜索。</value>
   </data>
   <data name="Catalog_RpmSearched" xml:space="preserve">
     <value>始终参与搜索。无需连接。</value>
@@ -482,7 +482,7 @@
     <comment>RPM catalogue status on the Catalog settings page, signed out.</comment>
   </data>
   <data name="Catalog_FanartWhy" xml:space="preserve">
-    <value>rpm 从 fanart.tv 获取艺人照片、方形艺人图片和标志。添加你自己的免费 fanart.tv 个人密钥，新图片将在 2 天后而不是 7 天后可用。密钥保存在你的 rpm 账户中，并在你的所有设备上使用。</value>
+    <value>rpm 从 fanart.tv 获取艺人照片、方形图片和标志。添加你自己的免费个人密钥后，新图片 2 天就能拿到，而不是 7 天。密钥保存在你的 rpm 帐户里，所以在你所有设备上都能用。</value>
     <comment>Catalog settings page, fanart.tv section: what fanart.tv provides and what adding a personal key changes.</comment>
   </data>
   <data name="Catalog_FanartKeyPlaceholder" xml:space="preserve">
@@ -543,7 +543,7 @@
     <value>云存储</value>
   </data>
   <data name="Cloud_Intro" xml:space="preserve">
-    <value>把你的音乐同时保存在 rpm 云端和这台电脑上。除非你另行设置，文件都会留在磁盘上。</value>
+    <value>把你的音乐安全地存进 rpm 云端，同时保留在这台电脑上。除非你另有安排，文件都会原地不动。</value>
   </data>
   <data name="Cloud_ModeAll" xml:space="preserve">
     <value>同步所有音乐</value>
@@ -568,7 +568,7 @@
     <comment>Cloud settings, heading of the card that says what is not on this computer.</comment>
   </data>
   <data name="Cloud_OnlyInCloudHint" xml:space="preserve">
-    <value>rpm 从不删除你的文件。如果你为了腾出空间而删除音乐，云端副本会保留，你可以在右键菜单中重新下载。</value>
+    <value>rpm 从不删除你的文件。如果你为了腾出空间删掉音乐，云端副本仍会保留，你随时可以从右键菜单重新下载。</value>
     <comment>Cloud settings, under Cloud_OnlyInCloud.</comment>
   </data>
   <data name="Cloud_Pending" xml:space="preserve">
@@ -1366,11 +1366,11 @@
     <comment>Settings &gt; Collection: button that runs the tagging pass over every analysed track.</comment>
   </data>
   <data name="Settings_AnalysisTagsHint" xml:space="preserve">
-    <value>rpm 会计算 DJ 模式中所用每首曲目的速度和调性。开启后，分析完成的曲目会把它们写入自身标签，文件管理器和其他音乐软件都能读取。仅填写空白字段：文件中已有的值不会改动。</value>
+    <value>rpm 会为 DJ 模式算出每首曲目的速度和调性。打开后，每首分析完的曲目都会把它们写进自己的标签，你的文件浏览器和其他音乐软件也能读到。只填写空白字段，文件里已有的内容保持不变。</value>
     <comment>Settings &gt; Collection: explanation under the tempo-and-key toggle.</comment>
   </data>
   <data name="Settings_AnalysisTagsNoneWaiting" xml:space="preserve">
-    <value>所有已分析的曲目都已写入速度和调性。</value>
+    <value>全部完成！每首已分析的曲目都写好了速度和调性。</value>
     <comment>Settings &gt; Collection: shown in place of the count when nothing is waiting.</comment>
   </data>
   <data name="Settings_AnalysisTagsOverwrite" xml:space="preserve">
@@ -1386,7 +1386,7 @@
     <comment>Settings &gt; Collection: the backfill button's label while the pass is running.</comment>
   </data>
   <data name="Settings_AnalysisTagsWaiting" xml:space="preserve">
-    <value>有 {0} 首已分析的曲目还在等待写入速度与调性。</value>
+    <value>还有 {0} 首已分析的曲目在等待写入速度和调性。</value>
     <comment>Settings &gt; Collection: how many analysed tracks the backfill would write to.</comment>
   </data>
   <data name="Settings_AnalysisTagsWrite" xml:space="preserve">
@@ -1406,7 +1406,7 @@
     <comment>Settings &gt; Display: toggle for the turning record at the right of the art display.</comment>
   </data>
   <data name="Settings_HeaderRecordHint" xml:space="preserve">
-    <value>在封面展示区右侧显示旋转的唱片。关闭时，图片将铺满整个宽度。</value>
+    <value>在封面展示的右侧显示旋转的唱片。关闭后，封面会铺满整个宽度。</value>
     <comment>Settings &gt; Display: hint under the spinning record toggle.</comment>
   </data>
   <data name="Settings_HeaderArtistPhoto" xml:space="preserve">
@@ -1414,7 +1414,7 @@
     <comment>Settings &gt; Display: toggle for the artist photograph behind the art display.</comment>
   </data>
   <data name="Settings_HeaderArtistPhotoHint" xml:space="preserve">
-    <value>在封面展示区后面显示艺人照片。关闭时不会下载照片，改用专辑配色。</value>
+    <value>在封面展示背后显示艺人照片。关闭后，rpm 不下载任何照片，改用专辑的颜色。</value>
     <comment>Settings &gt; Display: hint under the artist photo toggle.</comment>
   </data>
   <data name="Settings_MultiDisc" xml:space="preserve">
@@ -1422,7 +1422,7 @@
     <comment>Settings &gt; Collection: title of the card choosing how multi-disc releases are handled.</comment>
   </data>
   <data name="Settings_MultiDiscHint" xml:space="preserve">
-    <value>在抓取或导入跨多张碟的发行版时如何处理。</value>
+    <value>翻录或导入多碟发行时，rpm 如何处理。</value>
     <comment>Settings &gt; Collection: hint under the multi-disc mode picker.</comment>
   </data>
   <data name="Settings_MultiDiscMerged" xml:space="preserve">
@@ -1446,11 +1446,11 @@
     <comment>Settings toggle: send anonymous per-song play counts so album pages can mark the most played track.</comment>
   </data>
   <data name="Settings_ShareListeningHint" xml:space="preserve">
-    <value>发送您播放每首歌曲的次数，不含时间和历史记录。用于在专辑页面标记最常播放的歌曲。关闭后不再发送任何内容。</value>
+    <value>发送每首歌的播放次数，不含时间，也不含历史记录。专辑页面就是靠它标出最常播放的歌曲。关闭后就不再发送任何内容。</value>
     <comment>Settings hint under the Share what I play toggle: what leaves the computer and what it is for.</comment>
   </data>
   <data name="Settings_FingerprintHint" xml:space="preserve">
-    <value>rpm 会为每首曲目计算音频指纹并共享给识别服务，从而让所有人的识别效果更好。它在后台运行，且不会修改你的文件。</value>
+    <value>rpm 会为每首曲目生成音频指纹，并分享给识别服务，让大家都能更准确地识别音乐。它在后台安静运行，绝不会改动你的文件。</value>
     <comment>Settings &gt; Collection: hint under the fingerprinting toggle.</comment>
   </data>
   <data name="Settings_Discs" xml:space="preserve">
@@ -1462,7 +1462,7 @@
     <comment>Toggle that registers rpm as the machine's handler for an inserted music CD.</comment>
   </data>
   <data name="Settings_DiscDefaultHint" xml:space="preserve">
-    <value>这台电脑用 rpm 而不是系统自带的音乐应用打开音频光盘。rpm 在抓取前会先询问。这与系统设置中的选项是同一项，两处均可更改。</value>
+    <value>放入音频 CD，它会在 rpm 中打开，而不是电脑自带的音乐应用。别担心，rpm 翻录前一定会先问你。这和系统设置里的是同一个选项，在哪边都能修改。</value>
     <comment>Hint under the disc-handler toggle.</comment>
   </data>
   <data name="Settings_DiscDefaultUnavailable" xml:space="preserve">
@@ -1481,7 +1481,7 @@
     <value>背景</value>
   </data>
   <data name="Settings_BackgroundHint" xml:space="preserve">
-    <value>选择应用自带的背景，或使用你自己的图片。</value>
+    <value>从 rpm 自带的背景里挑一张，或者用你自己的图片。</value>
     <comment>Hint under the Background heading in Display settings, above the row of backdrop tiles.</comment>
   </data>
   <data name="Settings_BackgroundDefault" xml:space="preserve">
@@ -1528,7 +1528,7 @@
     <value>音乐收藏</value>
   </data>
   <data name="Settings_LibraryIntro" xml:space="preserve">
-    <value>音乐存放的位置、文件的命名方式，以及导入新音乐时的处理方式。</value>
+    <value>你的音乐存放在哪里、文件如何命名，以及新音乐加入时会发生什么。</value>
     <comment>Settings &gt; Collection: caption under the page heading.</comment>
   </data>
   <data name="Settings_MusicFolder" xml:space="preserve">
@@ -1557,7 +1557,7 @@
     <value>文件命名</value>
   </data>
   <data name="Settings_NamingHint" xml:space="preserve">
-    <value>抓取、录制和导入的文件如何命名与归档。抓取和黑胶录音会以默认模板进入队列，导入也按同样方式归档。可用下方的标记自定义命名格式。</value>
+    <value>你翻录、录制和导入的文件如何命名和归档。翻录和黑胶录音会套用默认模板进入队列，导入也按同样方式归档。用下面的标记搭出你自己的结构吧！</value>
   </data>
   <data name="Settings_NamingNew" xml:space="preserve">
     <value>新建</value>
@@ -1599,7 +1599,7 @@
     <value>每个模板都需要名称和模板字符串。</value>
   </data>
   <data name="Settings_NamingErrorDuplicate" xml:space="preserve">
-    <value>名称“{0}”被使用了两次。名称必须唯一。</value>
+    <value>名称“{0}”已被使用。每个名称都需要不同。</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>设置</value>
@@ -3433,7 +3433,7 @@
     <comment>Settings, Profile page: what an account gets without supporting rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanFreeAppeal" xml:space="preserve">
-    <value>请考虑支持 rpm。支持者让 rpm 得以运转，并可使用支持者专属功能。</value>
+    <value>喜欢 rpm 吗？欢迎考虑支持它！支持者让 rpm 继续运转，还能获得一些专属福利。</value>
     <comment>Settings, Profile page: second paragraph under 'Not a supporter', asking the account to support rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanSupporter" xml:space="preserve">
@@ -3444,7 +3444,7 @@
     <comment>Settings, Profile page: what supporting rpm gets you.</comment>
   </data>
   <data name="Rpm_Profile_PlanSupporterThanks" xml:space="preserve">
-    <value>感谢你支持 rpm。你帮助 rpm 持续运行，并资助新的开发。你的慷慨让我们深受感动。</value>
+    <value>感谢你支持 rpm！是你让 rpm 继续前进，也帮我们为每一项新功能买单。我们真心感动。</value>
     <comment>Settings, Profile page: second paragraph under 'Supporter', thanking the account for supporting rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanTester" xml:space="preserve">
@@ -3456,7 +3456,7 @@
     <comment>Settings, Profile page: what a closed beta tester gets.</comment>
   </data>
   <data name="Rpm_Profile_PlanTesterThanks" xml:space="preserve">
-    <value>感谢你测试 rpm。你的反馈帮助我们在公开测试前修复问题。</value>
+    <value>感谢你测试 rpm！你的报告帮我们在公开测试前修好问题。</value>
     <comment>Settings, Profile page: second paragraph under 'Closed beta tester', thanking the account for testing.</comment>
   </data>
   <data name="Rpm_Profile_Playback" xml:space="preserve">
@@ -3545,7 +3545,7 @@
     <value>关闭</value>
   </data>
   <data name="Settings_NamingSaveHint" xml:space="preserve">
-    <value>保存后，上方的模板将成为音乐收藏的默认模板。</value>
+    <value>保存后，上面的模板就会成为你收藏的默认模板。</value>
   </data>
   <data name="Naming_ApplyTemplate" xml:space="preserve">
     <value>模板：{0}</value>
@@ -3618,7 +3618,7 @@
     <value>最近的云端活动</value>
   </data>
   <data name="Cloud_HistoryHint" xml:space="preserve">
-    <value>最近 {0} 天的上传、移除和下载记录。</value>
+    <value>最近 {0} 天内上传、移除和下载的全部内容。</value>
   </data>
   <data name="Cloud_HistoryEmpty" xml:space="preserve">
     <value>暂无记录。</value>
@@ -3663,10 +3663,10 @@
     <value>个人资料</value>
   </data>
   <data name="Profile_SignedOut" xml:space="preserve">
-    <value>你尚未登录。云存储、目录服务和你的套餐都需要账户。</value>
+    <value>你还没有登录。有了帐户，就能使用云端存储、目录和你的方案。</value>
   </data>
   <data name="Profile_SignOutDetail" xml:space="preserve">
-    <value>退出登录会停止云端同步。这台电脑上的音乐保持原样。</value>
+    <value>退出登录会停止云同步。别担心，这台电脑上的音乐原封不动。</value>
   </data>
   <data name="Account_Delete" xml:space="preserve">
     <value>删除账户</value>
@@ -3681,7 +3681,7 @@
     <comment>Body of the delete-account confirmation, on both heads.</comment>
   </data>
   <data name="Account_DeleteKeepsFiles" xml:space="preserve">
-    <value>此电脑上的音乐文件不会被删除。</value>
+    <value>这台电脑上的音乐文件不会受到影响。</value>
     <comment>Second line of the delete-account confirmation on the desktop.</comment>
   </data>
   <data name="Account_DeleteCloudOnlyOne" xml:space="preserve">
@@ -3701,11 +3701,11 @@
     <comment>The delete-account confirmation's red button while the request runs.</comment>
   </data>
   <data name="Account_DeleteEmailRefused" xml:space="preserve">
-    <value>此邮箱与你的账户不符。如果邮箱无误，请联系支持。</value>
+    <value>这个邮箱和你的帐户不匹配。如果你确定没错，请联系客服。</value>
     <comment>Shown in the delete-account confirmation when the server refuses the typed address.</comment>
   </data>
   <data name="Account_DeleteFailed" xml:space="preserve">
-    <value>无法删除你的账户。请检查网络连接后重试。</value>
+    <value>无法删除你的帐户。请检查网络连接后再试。</value>
     <comment>Shown in the delete-account confirmation when the request did not get through or the server failed. Nothing was deleted.</comment>
   </data>
   <data name="Account_DeletedTitle" xml:space="preserve">
@@ -3713,7 +3713,7 @@
     <comment>Title of the note shown after the account was deleted.</comment>
   </data>
   <data name="Account_DeletedBody" xml:space="preserve">
-    <value>你的账户已删除，你已退出登录。你的云端音乐库将在两小时内移除。你可以继续在没有账户的情况下使用 rpm。</value>
+    <value>你的帐户已删除，你也已退出登录。云端音乐库会在两小时内移除。当然，你仍然可以不登录继续使用 rpm。</value>
     <comment>Body of the note shown after the account was deleted, on both heads.</comment>
   </data>
   <data name="Community_DeletedUser" xml:space="preserve">
@@ -3724,7 +3724,7 @@
     <value>应用数据</value>
   </data>
   <data name="Profile_DataFolderDetail" xml:space="preserve">
-    <value>设置、封面缓存和登录信息保存在这里。你的音乐不在此处：它保存在你的音乐文件夹中。</value>
+    <value>你的设置、封面缓存和登录信息都在这里。音乐不在这里，它们留在你的音乐文件夹里。</value>
   </data>
   <data name="Profile_ShowFolder" xml:space="preserve">
     <value>显示文件夹</value>
@@ -3734,7 +3734,7 @@
     <comment>Settings, Profile page: title of the card for downloaded lookup data.</comment>
   </data>
   <data name="Profile_CacheDetail" xml:space="preserve">
-    <value>从互联网下载的封面、电台、歌词和专辑信息。保留 30 天，需要时会重新下载。</value>
+    <value>从网上下载的封面、电台、歌词和专辑信息。rpm 会保留 30 天，之后需要时再重新获取。</value>
     <comment>Settings, Profile page: what the cached data card holds.</comment>
   </data>
   <data name="Profile_CacheUsed" xml:space="preserve">
@@ -3750,7 +3750,7 @@
     <comment>Title of the window shown when a new version has been downloaded.</comment>
   </data>
   <data name="Update_Body" xml:space="preserve">
-    <value>rpm {0} 已可安装。可以立即重启，或在下次退出时自动安装。</value>
+    <value>rpm {0} 已准备好安装。现在重启，或者在你下次退出时自动安装。</value>
     <comment>Body of the update window. {0} is a version such as 0.2.0.</comment>
   </data>
   <data name="Update_Restart" xml:space="preserve">
@@ -3766,7 +3766,7 @@
     <comment>Settings, Profile page: title of the updates card.</comment>
   </data>
   <data name="Profile_UpdatesDetail" xml:space="preserve">
-    <value>rpm 会在启动时检查新版本，在后台下载，并在退出时安装。</value>
+    <value>rpm 启动时会检查新版本，在后台悄悄下载，并在你退出时安装。你什么都不用做！</value>
     <comment>Settings, Profile page: what the updates card does.</comment>
   </data>
   <data name="Profile_CheckUpdates" xml:space="preserve">
@@ -3926,7 +3926,7 @@
     <comment>Settings &gt; Profile, updates card: switch for sending crash reports.</comment>
   </data>
   <data name="Settings_CrashReportsDesc" xml:space="preserve">
-    <value>rpm 意外关闭时发送报告，以便修复问题。</value>
+    <value>如果 rpm 意外关闭，它会给我们发送一份报告，方便我们修复问题。</value>
     <comment>Settings &gt; Profile: hint under the crash reports switch.</comment>
   </data>
   <data name="Profile_CacheCleared" xml:space="preserve">
@@ -4174,7 +4174,7 @@
     <comment>Settings rail: the section for how the app looks.</comment>
   </data>
   <data name="Settings_DisplayIntro" xml:space="preserve">
-    <value>rpm 的外观：应用背景图片和封面显示。</value>
+    <value>rpm 的外观：应用背后的图片，以及顶部的封面展示。</value>
     <comment>Settings &gt; Display: caption under the page heading.</comment>
   </data>
   <data name="Settings_Sound" xml:space="preserve">
@@ -4182,7 +4182,7 @@
     <comment>Settings rail: the section for the speakers the music comes out of.</comment>
   </data>
   <data name="Settings_SoundIntro" xml:space="preserve">
-    <value>音乐通过哪些扬声器播放、音量大小，以及音效调节。</value>
+    <value>你的音乐从哪个音箱播放、音量多大，以及音色如何调整。</value>
     <comment>Settings &gt; Sound: caption under the page heading.</comment>
   </data>
   <data name="Settings_Output" xml:space="preserve">
@@ -4190,15 +4190,23 @@
     <comment>Settings, Sound: label above the output-device picker.</comment>
   </data>
   <data name="Settings_OutputHint" xml:space="preserve">
-    <value>音乐的播放位置。使用系统默认设备时，连接扬声器或切换输出后 rpm 会一同切换；选定某个设备后则固定不变。</value>
+    <value>你的音乐在哪里播放。使用系统默认设备时，连接音箱或切换输出，rpm 都会跟着切换；选定一个设备后，rpm 就一直用它。</value>
     <comment>Settings, Sound: hint under the output-device picker.</comment>
   </data>
   <data name="Settings_OutputSystem" xml:space="preserve">
     <value>使用系统默认设备</value>
     <comment>Settings, Sound: first item in the output picker, the default.</comment>
   </data>
+  <data name="Settings_DeviceVolume" xml:space="preserve">
+    <value>控制设备音量</value>
+    <comment>Settings &gt; Sound &gt; Output: switch. On, the volume slider sets a Bluetooth speaker's own volume (the computer's output volume) instead of rpm's own volume.</comment>
+  </data>
+  <data name="Settings_DeviceVolumeHint" xml:space="preserve">
+    <value>连接蓝牙音箱时，滑块可以直接调节音箱本身的音量，保留声音的每一个细节。不过这也是电脑的音量，其他正在播放的声音会一起变大变小。关闭后，滑块只调节 rpm。</value>
+    <comment>Settings &gt; Sound &gt; Output: explains the device volume switch above.</comment>
+  </data>
   <data name="Settings_OutputMissing" xml:space="preserve">
-    <value>当前未连接，音乐将通过系统扬声器播放，直到重新连接。</value>
+    <value>暂时没有连接，在它回来之前，音乐会从系统音箱播放。</value>
     <comment>Settings, Sound: shown when the chosen device is not currently on the machine.</comment>
   </data>
   <data name="Settings_OutputNow" xml:space="preserve">
@@ -4210,7 +4218,7 @@
     <comment>Settings, Sound: heading of the equalizer card.</comment>
   </data>
   <data name="Settings_EqHint" xml:space="preserve">
-    <value>与播放器相同的十个频段，按扬声器分别保存：适合笔记本的曲线并不适合音响，因此各自单独记忆。</value>
+    <value>和播放器相同的十个频段，按每套音箱分别保存。适合笔记本的曲线放到 Hi-Fi 上会不对劲，所以 rpm 会分别记住每一套。</value>
     <comment>Settings, Sound: hint under the equalizer heading, explaining the per-device curves.</comment>
   </data>
   <data name="Settings_EqOn" xml:space="preserve">
@@ -4906,7 +4914,7 @@
     <comment>Cloud settings: title of the card listing what the cloud failed to do.</comment>
   </data>
   <data name="Cloud_ErrorsHint" xml:space="preserve">
-    <value>云端未能完成的操作及原因。发送报告后我们可以进一步排查。</value>
+    <value>云端没能完成的操作及原因。给我们发一份报告，我们会看看是怎么回事。</value>
     <comment>Cloud settings: hint under the errors card title.</comment>
   </data>
   <data name="Cloud_ErrorsEmpty" xml:space="preserve">
@@ -4926,7 +4934,7 @@
     <comment>Cloud settings: the send button once the report has landed.</comment>
   </data>
   <data name="Cloud_ErrorsReportRefused" xml:space="preserve">
-    <value>报告发送失败，请稍后再试。</value>
+    <value>报告没能发出。请稍后再试。</value>
     <comment>Cloud settings: shown when sending the error report was refused.</comment>
   </data>
   <data name="CloudChip_ErrorsHint" xml:space="preserve">
@@ -4957,7 +4965,7 @@
     <value>取回你的文件？</value>
   </data>
   <data name="Cloud_BringBackBody" xml:space="preserve">
-    <value>这台电脑缺少 {0} 首曲目，它们仍在云端。下载它们需要 {1}，本磁盘剩余 {2}。只会下载在这台电脑上删除的曲目，不包括在你其他机器上删除的。</value>
+    <value>这台电脑上少了 {0} 首曲目，但它们还安全地保存在云端。下载需要 {1}，这块磁盘还有 {2} 可用。只会找回在这台电脑上删除的曲目，不包括你在其他电脑上删除的。</value>
   </data>
   <data name="Cloud_BringBackConfirm" xml:space="preserve">
     <value>下载</value>
@@ -4966,13 +4974,13 @@
     <value>保留在云端</value>
   </data>
   <data name="Cloud_BringBackNoSpace" xml:space="preserve">
-    <value>磁盘空间不足：需要 {0}，剩余 {1}。</value>
+    <value>这块磁盘空间不够：需要 {0}，可用 {1}。</value>
   </data>
   <data name="Cloud_BringBackFailed" xml:space="preserve">
     <value>{1} 首中有 {0} 首无法下载。</value>
   </data>
   <data name="Cloud_OffloadState" xml:space="preserve">
-    <value>有 {0} 首曲目仅存于云端，为这台电脑节省 {1}。</value>
+    <value>有 {0} 首曲目只存放在云端，为这台电脑省下了 {1}。</value>
   </data>
   <data name="Cloud_OffloadStateNone" xml:space="preserve">
     <value>这台电脑没有缺少任何曲目。</value>
@@ -5004,7 +5012,7 @@
     <comment>Log book verb: the cloud copy was kept, the file on this computer was deleted.</comment>
   </data>
   <data name="Cloud_OffloadElsewhere" xml:space="preserve">
-    <value>有 {0} 首曲目从未存在于这台电脑。它们由你的其他电脑上传，从云端播放。</value>
+    <value>有 {0} 首曲目从未在这台电脑上出现过。它们由你的其他电脑上传，直接从云端播放。</value>
   </data>
   <data name="Queue_ImportingMove" xml:space="preserve">
     <value>正在将所选文件移动到你的收藏</value>
@@ -5019,7 +5027,7 @@
     <comment>Settings &gt; Collection: title of the card choosing move vs copy on import.</comment>
   </data>
   <data name="Settings_ImportActionHint" xml:space="preserve">
-    <value>导入队列加入收藏时，原始文件会如何处理。</value>
+    <value>导入队列加入收藏时，你的原始文件会怎样处理。</value>
     <comment>Settings &gt; Collection: hint under the import-action picker.</comment>
   </data>
   <data name="Settings_ImportActionMove" xml:space="preserve">
@@ -5230,7 +5238,7 @@
     <comment>Sound settings section heading for ReplayGain-style loudness normalisation.</comment>
   </data>
   <data name="Settings_NormalizeHint" xml:space="preserve">
-    <value>让每张唱片以相同响度播放，专辑之间无需再调音量。每首曲目在后台测量一次。</value>
+    <value>让每张唱片以相同响度播放，换专辑时不用再去调音量。rpm 会在后台悄悄把每首曲目测量一次。</value>
     <comment>Explains what volume levelling does, under the Sound settings heading.</comment>
   </data>
   <data name="Settings_NormalizeOff" xml:space="preserve">
@@ -5250,7 +5258,7 @@
     <comment>Checkbox: whether volume levelling applies to classical records, which are excluded by default.</comment>
   </data>
   <data name="Settings_NormalizeClassicalHint" xml:space="preserve">
-    <value>默认关闭。安静的乐章本就该安静，音量拉平会压掉演奏所依赖的动态。</value>
+    <value>默认关闭。安静的乐章本就该安静，统一响度会抹平演奏所依赖的强弱变化。</value>
     <comment>Explains why classical records are excluded from volume levelling by default.</comment>
   </data>
   <data name="Settings_NormalizeMeasuring" xml:space="preserve">
@@ -5438,7 +5446,7 @@
     <comment>Supporters-only window: shown when DJ mode is started by an account that is not a supporter.</comment>
   </data>
   <data name="Supporters_Backdrop" xml:space="preserve">
-    <value>此背景仅向 rpm 的支持者提供。欢迎支持 rpm。</value>
+    <value>这个背景只给 rpm 支持者使用。喜欢吗？欢迎考虑支持 rpm！</value>
     <comment>Supporters-only window: shown when the gold backdrop is picked by an account that is not a supporter.</comment>
   </data>
   <data name="Supporters_Karaoke" xml:space="preserve">
@@ -5462,11 +5470,11 @@
     <comment>Cloud settings usage line when there is no room left at all.</comment>
   </data>
   <data name="Cloud_AlmostFullHint" xml:space="preserve">
-    <value>剩余不足 {0}。存储已满时，rpm 将停止上传。</value>
+    <value>剩余不到 {0}。空间满了之后，rpm 会停止上传。</value>
     <comment>Cloud settings: the warning shown while the account is almost full.</comment>
   </data>
   <data name="Cloud_SyncAllPaused" xml:space="preserve">
-    <value>因云存储已满，已切换为同步选定的音乐。</value>
+    <value>你的云端空间满了，所以 rpm 改为只同步你选中的音乐。</value>
     <comment>Cloud settings: shown while the sync mode is the one the full store dropped it to.</comment>
   </data>
   <data name="Cloud_SupporterHeading" xml:space="preserve">
@@ -5478,19 +5486,19 @@
     <comment>Cloud settings: the standing of an account that is not a supporter.</comment>
   </data>
   <data name="Cloud_SupporterYes" xml:space="preserve">
-    <value>你是支持者。你的云存储无限。</value>
+    <value>你是支持者，云端空间不限量。谢谢你！</value>
     <comment>Cloud settings: the standing of a supporter.</comment>
   </data>
   <data name="Cloud_SupporterYesUntil" xml:space="preserve">
-    <value>你的支持者身份有效期至 {0}。你的云存储无限。</value>
+    <value>你的支持者身份有效至 {0}，云端空间不限量。谢谢你！</value>
     <comment>Cloud settings: a supporter whose support has an end date.</comment>
   </data>
   <data name="Cloud_SupporterTester" xml:space="preserve">
-    <value>你是封闭测试用户。你可使用支持者功能，并拥有 100 GB 云存储。</value>
+    <value>你是封闭测试成员，可以使用支持者功能和 100 GB 云端空间。谢谢你的帮忙！</value>
     <comment>Cloud settings: the standing of an account marked as a closed beta tester.</comment>
   </data>
   <data name="Cloud_SupporterUnknown" xml:space="preserve">
-    <value>无法获取你的支持者状态。</value>
+    <value>暂时无法查询你的支持者状态。</value>
     <comment>Cloud settings: the server did not answer, which is not the same as 'not a supporter'.</comment>
   </data>
   <data name="CloudFull_PausedAll" xml:space="preserve">
@@ -5678,7 +5686,7 @@
     <comment>First row of the share button's library list on the deck: this computer's own collection.</comment>
   </data>
   <data name="Share_SignInNeeded" xml:space="preserve">
-    <value>共享需要 rpm 账户。登录后即可共享您的音乐收藏，并打开别人共享给您的音乐收藏。</value>
+    <value>共享需要 rpm 帐户。登录后即可共享你的收藏，也能打开别人分享给你的收藏。</value>
     <comment>Strip above the sharing settings when nobody is signed in.</comment>
   </data>
   <data name="Share_Title" xml:space="preserve">
@@ -5718,7 +5726,7 @@
     <comment>Settings toggle: turn local network sharing on or off.</comment>
   </data>
   <data name="Settings_ShareLibraryHint" xml:space="preserve">
-    <value>此网络中运行 rpm 的电脑可以请求共享。由你决定谁可以访问。</value>
+    <value>这个网络里运行 rpm 的电脑可以请求共享。谁能访问由你决定。</value>
     <comment>Settings: hint under the sharing toggle.</comment>
   </data>
   <data name="Settings_ShareName" xml:space="preserve">
@@ -5726,11 +5734,11 @@
     <comment>Settings: label of the text box holding the name other computers see.</comment>
   </data>
   <data name="Settings_ShareNameHint" xml:space="preserve">
-    <value>留空则使用你的显示名称。未登录时使用这台电脑的名称。</value>
+    <value>留空则使用你的显示名称。未登录时，rpm 会使用这台电脑的名称。</value>
     <comment>Settings, Sharing: hint under the "This computer is called" box. Empty falls back to the account display name, then to the machine name.</comment>
   </data>
   <data name="Settings_ShareNobody" xml:space="preserve">
-    <value>尚未共享。在此网络的另一台电脑上打开 rpm，它就会出现在这里。</value>
+    <value>还没有共享任何内容。在同一网络的另一台电脑上打开 rpm，它就会出现在这里。</value>
     <comment>Settings: empty state of the shared computers list.</comment>
   </data>
   <data name="Settings_ShareRemove" xml:space="preserve">
@@ -5906,7 +5914,7 @@
     <comment>Settings section: which tags a queued file must carry.</comment>
   </data>
   <data name="Settings_RequiredTagsHint" xml:space="preserve">
-    <value>队列中的文件如果缺少其中任何一项，就会被标记。这不会阻止导入。</value>
+    <value>队列中的文件缺少其中任何一项时会被标记出来。别担心，照样可以导入。</value>
     <comment>Settings hint under the required tags checkboxes.</comment>
   </data>
   <data name="Settings_CatalogueFill" xml:space="preserve">
@@ -5914,7 +5922,7 @@
     <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue and fills blank genre, subgenre and year in the import queue.</comment>
   </data>
   <data name="Settings_CatalogueFillHint" xml:space="preserve">
-    <value>rpm 会在其目录中查找每张唱片，并在流派、子流派和年份为空或不在 rpm 流派列表中时补全它们。已设置的值会保留。在你导入之前，不会写入任何文件。</value>
+    <value>rpm 会在目录中查找每张唱片，在流派、子流派和年份为空或不在 rpm 流派列表中时补上。你已经填好的内容保持不变，导入之前也不会写入你的文件。</value>
     <comment>Settings hint under the catalogue fill toggle.</comment>
   </data>
   <data name="Queue_ChipDuplicates" xml:space="preserve">
@@ -8122,7 +8130,7 @@
     <comment>Display settings, card heading over the button that replays the coachmarks.</comment>
   </data>
   <data name="Settings_HintsHint" xml:space="preserve">
-    <value>这些箭头会指出音乐从哪里导入、封面横幅如何展开，以及如何切换视图。每个只出现一次。</value>
+    <value>那些小箭头会告诉你音乐从哪里进来、封面顶栏怎么打开、视图怎么切换。每个只出现一次，之后就不再打扰你。</value>
     <comment>Display settings, line under the first-run hints heading.</comment>
   </data>
   <data name="Settings_HintsBack" xml:space="preserve">
@@ -9226,7 +9234,7 @@
     <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
   </data>
   <data name="Settings_MixtapeAfterHint" xml:space="preserve">
-    <value>专辑、播放列表或单曲播完后，继续播放你收藏中与之相似的歌曲。</value>
+    <value>专辑、播放列表或单曲放完后，音乐会接着播放你收藏里相似的歌曲。</value>
     <comment>Line under the "Mixtape when a record ends" heading (Tv_SettingsMixtapeAfter) on the desktop Sound settings page, above its on/off switch.</comment>
   </data>
   <data name="Tv_SettingsMixtapeAfter" xml:space="preserve">
@@ -9466,7 +9474,7 @@
     <comment>Heading for the choice of Pegasus's room animation (setup wizard step 4 and Display settings).</comment>
   </data>
   <data name="Settings_PegasusVisualizerHint" xml:space="preserve">
-    <value>Pegasus 播放时音乐背后流动的光。</value>
+    <value>Pegasus 播放时，音乐背后流动的光影。</value>
     <comment>Line under the Visualizer in Pegasus heading.</comment>
   </data>
   <data name="Settings_SameAsWindows" xml:space="preserve">
@@ -9490,7 +9498,7 @@
     <comment>Switch: make rpm the app Windows opens music files with (setup wizard step 4 and Library settings).</comment>
   </data>
   <data name="Settings_OpenMusicFilesHint" xml:space="preserve">
-    <value>你打开的音乐文件会在 rpm 中播放。Windows 会请你在其设置中确认使用 rpm。</value>
+    <value>你打开的音乐文件会在 rpm 中播放。Windows 会请你在它自己的设置里确认 rpm。</value>
     <comment>Line under the Open rpm when a music file is played switch.</comment>
   </data>
   <data name="Settings_OpenMusicFilesType" xml:space="preserve">
@@ -9502,7 +9510,7 @@
     <comment>Library settings, heading of the choice of the view the library opens in.</comment>
   </data>
   <data name="Settings_LibraryLayoutHint" xml:space="preserve">
-    <value>资料库打开时的视图。资料库顶部的按钮也可以切换。</value>
+    <value>音乐库打开时的视图。你随时可以用音乐库顶部的按钮切换。</value>
     <comment>Line under the Library layout heading.</comment>
   </data>
   <data name="Wizard_HelloSubtitle" xml:space="preserve">

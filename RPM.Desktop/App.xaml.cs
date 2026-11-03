@@ -1056,6 +1056,15 @@ public partial class App : Application
         Host.Services.GetRequiredService<PlaybackService>().Normalization =
             Host.Services.GetRequiredService<NormalizationService>();
 
+        // Whether the slider may take a Bluetooth speaker's own volume, which is the whole desktop's. The
+        // player starts on the app's own gain, and is told here, and again whenever the switch moves.
+        {
+            var playback = Host.Services.GetRequiredService<PlaybackService>();
+            var chosen = Host.Services.GetRequiredService<SettingsService>();
+            playback.TakesDeviceVolume = chosen.DeviceVolume;
+            chosen.Changed += () => playback.TakesDeviceVolume = chosen.DeviceVolume;
+        }
+
         // A Bluetooth speaker's level IS this machine's output volume (see VolumeRouting). That is a
         // control that the whole machine shares: the volume keys, the tray slider, another app, and the
         // buttons on the speaker itself. Each of those changes is reported to us while the app is running.

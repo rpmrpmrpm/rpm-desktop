@@ -437,7 +437,7 @@
     <value>Connect Discogs</value>
   </data>
   <data name="Catalog_DiscogsConnectFailed" xml:space="preserve">
-    <value>Discogs did not finish connecting. Try again.</value>
+    <value>Discogs didn’t finish connecting. Give it another go!</value>
   </data>
   <data name="Catalog_DiscogsConnected" xml:space="preserve">
     <value>connected</value>
@@ -452,7 +452,7 @@
     <value>not connected</value>
   </data>
   <data name="Catalog_DiscogsPending" xml:space="preserve">
-    <value>Finish signing in to Discogs in your browser, then check again.</value>
+    <value>Finish signing in to Discogs in your browser, then come back and check again.</value>
   </data>
   <data name="Catalog_DiscogsSignIn" xml:space="preserve">
     <value>sign in to rpm first</value>
@@ -465,13 +465,13 @@
     <value>not available here</value>
   </data>
   <data name="Catalog_DiscogsWhy" xml:space="preserve">
-    <value>Discogs is catalogued by the people who own the records, so pressings the rpm database does not have are usually there. Connecting your own account means your searches count against your rate limit rather than one shared by every rpm user.</value>
+    <value>Discogs is put together by the people who own the records, so it often has pressings the rpm database doesn’t. Connect your own account and your searches use your own rate limit, instead of one everybody shares.</value>
   </data>
   <data name="Catalog_Heading" xml:space="preserve">
     <value>Catalogues</value>
   </data>
   <data name="Catalog_Intro" xml:space="preserve">
-    <value>Where rpm looks when you look an album up. Searching needs an rpm account; connect a Discogs account to search Discogs too.</value>
+    <value>This is where rpm looks when you look up an album. You’ll need an rpm account to search, and if you connect Discogs, rpm searches there too.</value>
   </data>
   <data name="Catalog_RpmSearched" xml:space="preserve">
     <value>Always searched. Nothing to connect.</value>
@@ -482,7 +482,7 @@
     <comment>RPM catalogue status on the Catalog settings page, signed out.</comment>
   </data>
   <data name="Catalog_FanartWhy" xml:space="preserve">
-    <value>rpm gets artist photos, square artist pictures and logos from fanart.tv. Add your own free fanart.tv personal key to get new images after 2 days instead of 7. The key is saved to your rpm account and used on all your devices.</value>
+    <value>rpm gets artist photos, square pictures and logos from fanart.tv. Add your own free personal key and you’ll get new images after 2 days instead of 7. The key is saved to your rpm account, so it works on all your devices.</value>
     <comment>Catalog settings page, fanart.tv section: what fanart.tv provides and what adding a personal key changes.</comment>
   </data>
   <data name="Catalog_FanartKeyPlaceholder" xml:space="preserve">
@@ -543,7 +543,7 @@
     <value>Cloud storage</value>
   </data>
   <data name="Cloud_Intro" xml:space="preserve">
-    <value>Keep your music in the rpm cloud as well as on this computer. Your files stay on disk unless you ask otherwise.</value>
+    <value>Keep your music safe in the rpm cloud, as well as on this computer. Your files stay right where they are unless you say otherwise.</value>
   </data>
   <data name="Cloud_ModeAll" xml:space="preserve">
     <value>Sync all music</value>
@@ -568,7 +568,7 @@
     <comment>Cloud settings, heading of the card that says what is not on this computer.</comment>
   </data>
   <data name="Cloud_OnlyInCloudHint" xml:space="preserve">
-    <value>rpm never removes your files. If you delete music to free up space, the cloud copy stays, and you can download it again from the right-click menu.</value>
+    <value>rpm never removes your files. If you delete music to free up space, the cloud copy stays, and you can download it again any time from the right-click menu.</value>
     <comment>Cloud settings, under Cloud_OnlyInCloud.</comment>
   </data>
   <data name="Cloud_Pending" xml:space="preserve">
@@ -1366,11 +1366,11 @@
     <comment>Settings &gt; Collection: button that runs the tagging pass over every analysed track.</comment>
   </data>
   <data name="Settings_AnalysisTagsHint" xml:space="preserve">
-    <value>rpm works out the tempo and key of every track used in DJ mode. With this on, each track that finishes analysing has them written into its own tags, where a file browser and any other music program can read them. Only empty fields are filled: a value already in a file is left alone.</value>
+    <value>rpm works out the tempo and key of every track for DJ mode. Turn this on and each analysed track gets them written into its own tags, so your file browser and other music apps can read them too. Only empty fields are filled, so anything already in a file stays as it is.</value>
     <comment>Settings &gt; Collection: explanation under the tempo-and-key toggle.</comment>
   </data>
   <data name="Settings_AnalysisTagsNoneWaiting" xml:space="preserve">
-    <value>Every analysed track has its tempo and key written.</value>
+    <value>All done! Every analysed track has its tempo and key written.</value>
     <comment>Settings &gt; Collection: shown in place of the count when nothing is waiting.</comment>
   </data>
   <data name="Settings_AnalysisTagsOverwrite" xml:space="preserve">
@@ -1386,7 +1386,7 @@
     <comment>Settings &gt; Collection: the backfill button's label while the pass is running.</comment>
   </data>
   <data name="Settings_AnalysisTagsWaiting" xml:space="preserve">
-    <value>{0} analysed tracks are waiting for their tempo and key.</value>
+    <value>{0} analysed tracks are still waiting for their tempo and key.</value>
     <comment>Settings &gt; Collection: how many analysed tracks the backfill would write to.</comment>
   </data>
   <data name="Settings_AnalysisTagsWrite" xml:space="preserve">
@@ -1406,7 +1406,7 @@
     <comment>Settings &gt; Display: toggle for the turning record at the right of the art display.</comment>
   </data>
   <data name="Settings_HeaderRecordHint" xml:space="preserve">
-    <value>Show the turning record at the right of the art display. Off, the artwork fills the full width.</value>
+    <value>Show the spinning record on the right of the art display. Turn it off and the artwork fills the whole width.</value>
     <comment>Settings &gt; Display: hint under the spinning record toggle.</comment>
   </data>
   <data name="Settings_HeaderArtistPhoto" xml:space="preserve">
@@ -1414,7 +1414,7 @@
     <comment>Settings &gt; Display: toggle for the artist photograph behind the art display.</comment>
   </data>
   <data name="Settings_HeaderArtistPhotoHint" xml:space="preserve">
-    <value>Show a photo of the artist behind the art display. Off, no photos are downloaded and the album colours are used instead.</value>
+    <value>Show a photo of the artist behind the art display. Turn it off and rpm downloads no photos, using the album’s colours instead.</value>
     <comment>Settings &gt; Display: hint under the artist photo toggle.</comment>
   </data>
   <data name="Settings_MultiDisc" xml:space="preserve">
@@ -1422,7 +1422,7 @@
     <comment>Settings &gt; Collection: title of the card choosing how multi-disc releases are handled.</comment>
   </data>
   <data name="Settings_MultiDiscHint" xml:space="preserve">
-    <value>How a release that spans several discs is handled when you rip or import it.</value>
+    <value>How rpm handles a release that spans several discs when you rip or import it.</value>
     <comment>Settings &gt; Collection: hint under the multi-disc mode picker.</comment>
   </data>
   <data name="Settings_MultiDiscMerged" xml:space="preserve">
@@ -1446,11 +1446,11 @@
     <comment>Settings toggle: send anonymous per-song play counts so album pages can mark the most played track.</comment>
   </data>
   <data name="Settings_ShareListeningHint" xml:space="preserve">
-    <value>Sends a count of how often you play each song, with no times and no history. It marks the most played song on album pages. Turn it off and nothing more is sent.</value>
+    <value>Sends a count of how often you play each song, with no times and no history. That’s how album pages mark the most played song. Turn it off and nothing more is sent.</value>
     <comment>Settings hint under the Share what I play toggle: what leaves the computer and what it is for.</comment>
   </data>
   <data name="Settings_FingerprintHint" xml:space="preserve">
-    <value>rpm computes an audio fingerprint for each track and shares it with the recognition service, which makes identifying music better for everyone. It runs in the background and never changes your files.</value>
+    <value>rpm makes an audio fingerprint of each track and shares it with the recognition service, which helps everyone identify music better. It runs quietly in the background and never changes your files.</value>
     <comment>Settings &gt; Collection: hint under the fingerprinting toggle.</comment>
   </data>
   <data name="Settings_Discs" xml:space="preserve">
@@ -1462,7 +1462,7 @@
     <comment>Toggle that registers rpm as the machine's handler for an inserted music CD.</comment>
   </data>
   <data name="Settings_DiscDefaultHint" xml:space="preserve">
-    <value>This computer opens audio discs with rpm instead of its own music app. rpm asks before it rips anything. This is the same setting as the one in the system settings, and either place can change it.</value>
+    <value>Pop in an audio CD and it opens in rpm instead of your computer’s own music app. Don’t worry, rpm always asks before it rips anything. It’s the same setting as the one in your system settings, so you can change it in either place.</value>
     <comment>Hint under the disc-handler toggle.</comment>
   </data>
   <data name="Settings_DiscDefaultUnavailable" xml:space="preserve">
@@ -1481,7 +1481,7 @@
     <value>Background</value>
   </data>
   <data name="Settings_BackgroundHint" xml:space="preserve">
-    <value>Pick one of the app’s own backdrops, or use a picture of your own.</value>
+    <value>Pick one of rpm’s own backdrops, or use a picture of your own.</value>
     <comment>Hint under the Background heading in Display settings, above the row of backdrop tiles.</comment>
   </data>
   <data name="Settings_BackgroundDefault" xml:space="preserve">
@@ -1528,7 +1528,7 @@
     <value>Collection</value>
   </data>
   <data name="Settings_LibraryIntro" xml:space="preserve">
-    <value>Where your music is kept, how files are named, and what happens when new music comes in.</value>
+    <value>Where your music lives, how your files are named, and what happens when new music comes in.</value>
     <comment>Settings &gt; Collection: caption under the page heading.</comment>
   </data>
   <data name="Settings_MusicFolder" xml:space="preserve">
@@ -1557,7 +1557,7 @@
     <value>File naming</value>
   </data>
   <data name="Settings_NamingHint" xml:space="preserve">
-    <value>How ripped, recorded and imported files are named and filed. Rips and vinyl recordings enter the queue with the default template, and Import files everything the same way. Build your own layout from the tokens below.</value>
+    <value>How your ripped, recorded and imported files are named and filed. Rips and vinyl recordings join the queue with the default template, and Import files everything the same way. Build your own layout from the tokens below!</value>
   </data>
   <data name="Settings_NamingNew" xml:space="preserve">
     <value>New</value>
@@ -1599,7 +1599,7 @@
     <value>Every template needs a name and a pattern.</value>
   </data>
   <data name="Settings_NamingErrorDuplicate" xml:space="preserve">
-    <value>The name "{0}" is used twice. Names must be unique.</value>
+    <value>The name "{0}" is already taken. Each name needs to be different.</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Settings</value>
@@ -3433,7 +3433,7 @@
     <comment>Settings, Profile page: what an account gets without supporting rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanFreeAppeal" xml:space="preserve">
-    <value>Please consider supporting rpm. Supporters keep the lights on and get access to supporter-exclusive features.</value>
+    <value>Enjoying rpm? Please consider supporting it! Supporters keep the lights on and get some exclusive extras.</value>
     <comment>Settings, Profile page: second paragraph under 'Not a supporter', asking the account to support rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanSupporter" xml:space="preserve">
@@ -3444,7 +3444,7 @@
     <comment>Settings, Profile page: what supporting rpm gets you.</comment>
   </data>
   <data name="Rpm_Profile_PlanSupporterThanks" xml:space="preserve">
-    <value>Thank you for supporting rpm. You help keep rpm going and fund new development. We are humbled by your generosity.</value>
+    <value>Thank you for supporting rpm! You keep rpm going and help pay for everything new. We’re genuinely humbled.</value>
     <comment>Settings, Profile page: second paragraph under 'Supporter', thanking the account for supporting rpm.</comment>
   </data>
   <data name="Rpm_Profile_PlanTester" xml:space="preserve">
@@ -3456,7 +3456,7 @@
     <comment>Settings, Profile page: what a closed beta tester gets.</comment>
   </data>
   <data name="Rpm_Profile_PlanTesterThanks" xml:space="preserve">
-    <value>Thank you for testing rpm. Your reports help us fix problems before the public beta.</value>
+    <value>Thank you for testing rpm! Your reports help us fix problems before the public beta.</value>
     <comment>Settings, Profile page: second paragraph under 'Closed beta tester', thanking the account for testing.</comment>
   </data>
   <data name="Rpm_Profile_Playback" xml:space="preserve">
@@ -3545,7 +3545,7 @@
     <value>Close</value>
   </data>
   <data name="Settings_NamingSaveHint" xml:space="preserve">
-    <value>Saving makes the template above the default for the collection.</value>
+    <value>Save to make the template above the default for your collection.</value>
   </data>
   <data name="Naming_ApplyTemplate" xml:space="preserve">
     <value>Template: {0}</value>
@@ -3618,7 +3618,7 @@
     <value>Recent cloud activity</value>
   </data>
   <data name="Cloud_HistoryHint" xml:space="preserve">
-    <value>Uploads, removals and downloads from the last {0} days.</value>
+    <value>Everything uploaded, removed and downloaded in the last {0} days.</value>
   </data>
   <data name="Cloud_HistoryEmpty" xml:space="preserve">
     <value>Nothing yet.</value>
@@ -3663,10 +3663,10 @@
     <value>Profile</value>
   </data>
   <data name="Profile_SignedOut" xml:space="preserve">
-    <value>You are not signed in. An account is needed for cloud storage, the catalogues and your plan.</value>
+    <value>You’re not signed in. With an account, you get cloud storage, the catalogues and your plan.</value>
   </data>
   <data name="Profile_SignOutDetail" xml:space="preserve">
-    <value>Signing out stops the cloud sync. The music on this computer stays exactly where it is.</value>
+    <value>Signing out stops the cloud sync. Don’t worry, the music on this computer stays exactly where it is.</value>
   </data>
   <data name="Account_Delete" xml:space="preserve">
     <value>Delete account</value>
@@ -3681,7 +3681,7 @@
     <comment>Body of the delete-account confirmation, on both heads.</comment>
   </data>
   <data name="Account_DeleteKeepsFiles" xml:space="preserve">
-    <value>Music files on this computer are not deleted.</value>
+    <value>The music files on this computer won’t be touched.</value>
     <comment>Second line of the delete-account confirmation on the desktop.</comment>
   </data>
   <data name="Account_DeleteCloudOnlyOne" xml:space="preserve">
@@ -3701,11 +3701,11 @@
     <comment>The delete-account confirmation's red button while the request runs.</comment>
   </data>
   <data name="Account_DeleteEmailRefused" xml:space="preserve">
-    <value>This email doesn't match your account. If it is correct, contact support.</value>
+    <value>This email doesn’t match your account. If you’re sure it’s right, please get in touch with support.</value>
     <comment>Shown in the delete-account confirmation when the server refuses the typed address.</comment>
   </data>
   <data name="Account_DeleteFailed" xml:space="preserve">
-    <value>Your account could not be deleted. Check your connection and try again.</value>
+    <value>Your account couldn’t be deleted. Check your connection and try again.</value>
     <comment>Shown in the delete-account confirmation when the request did not get through or the server failed. Nothing was deleted.</comment>
   </data>
   <data name="Account_DeletedTitle" xml:space="preserve">
@@ -3713,7 +3713,7 @@
     <comment>Title of the note shown after the account was deleted.</comment>
   </data>
   <data name="Account_DeletedBody" xml:space="preserve">
-    <value>Your account is deleted and you are signed out. Your cloud library is removed within two hours. You can keep using rpm without an account.</value>
+    <value>Your account is deleted and you’re signed out. Your cloud library is removed within two hours. You can of course keep using rpm without an account.</value>
     <comment>Body of the note shown after the account was deleted, on both heads.</comment>
   </data>
   <data name="Community_DeletedUser" xml:space="preserve">
@@ -3724,7 +3724,7 @@
     <value>App data</value>
   </data>
   <data name="Profile_DataFolderDetail" xml:space="preserve">
-    <value>Settings, the artwork cache and your sign-in are kept here. Your music is not: it lives in your music folder.</value>
+    <value>Your settings, the artwork cache and your sign-in live here. Your music doesn’t: that stays in your music folder.</value>
   </data>
   <data name="Profile_ShowFolder" xml:space="preserve">
     <value>Show folder</value>
@@ -3734,7 +3734,7 @@
     <comment>Settings, Profile page: title of the card for downloaded lookup data.</comment>
   </data>
   <data name="Profile_CacheDetail" xml:space="preserve">
-    <value>Artwork, radio stations, lyrics and album information downloaded from the internet. It is kept for 30 days, then downloaded again when needed.</value>
+    <value>Artwork, radio stations, lyrics and album info downloaded from the internet. rpm keeps it for 30 days, then fetches it again when it’s needed.</value>
     <comment>Settings, Profile page: what the cached data card holds.</comment>
   </data>
   <data name="Profile_CacheUsed" xml:space="preserve">
@@ -3750,7 +3750,7 @@
     <comment>Title of the window shown when a new version has been downloaded.</comment>
   </data>
   <data name="Update_Body" xml:space="preserve">
-    <value>rpm {0} is ready to install. Restart now, or it installs the next time you quit.</value>
+    <value>rpm {0} is ready to install. Restart now, or it installs itself the next time you quit.</value>
     <comment>Body of the update window. {0} is a version such as 0.2.0.</comment>
   </data>
   <data name="Update_Restart" xml:space="preserve">
@@ -3766,7 +3766,7 @@
     <comment>Settings, Profile page: title of the updates card.</comment>
   </data>
   <data name="Profile_UpdatesDetail" xml:space="preserve">
-    <value>rpm checks for a new version when it starts, downloads it in the background and installs it when you quit.</value>
+    <value>rpm checks for a new version when it starts, downloads it quietly in the background and installs it when you quit. You don’t have to do a thing!</value>
     <comment>Settings, Profile page: what the updates card does.</comment>
   </data>
   <data name="Profile_CheckUpdates" xml:space="preserve">
@@ -3926,7 +3926,7 @@
     <comment>Settings &gt; Profile, updates card: switch for sending crash reports.</comment>
   </data>
   <data name="Settings_CrashReportsDesc" xml:space="preserve">
-    <value>When rpm closes unexpectedly, send a report so the problem can be fixed.</value>
+    <value>If rpm ever closes unexpectedly, it sends us a report so we can fix the problem.</value>
     <comment>Settings &gt; Profile: hint under the crash reports switch.</comment>
   </data>
   <data name="Profile_CacheCleared" xml:space="preserve">
@@ -4174,7 +4174,7 @@
     <comment>Settings rail: the section for how the app looks.</comment>
   </data>
   <data name="Settings_DisplayIntro" xml:space="preserve">
-    <value>How rpm looks: the picture behind the app, and the art display.</value>
+    <value>How rpm looks: the picture behind the app, and the art display at the top.</value>
     <comment>Settings &gt; Display: caption under the page heading.</comment>
   </data>
   <data name="Settings_Sound" xml:space="preserve">
@@ -4182,7 +4182,7 @@
     <comment>Settings rail: the section for the speakers the music comes out of.</comment>
   </data>
   <data name="Settings_SoundIntro" xml:space="preserve">
-    <value>Which speakers the music plays through, how loud it is, and how it is tuned.</value>
+    <value>Which speakers your music plays through, how loud it is, and how it’s tuned.</value>
     <comment>Settings &gt; Sound: caption under the page heading.</comment>
   </data>
   <data name="Settings_Output" xml:space="preserve">
@@ -4190,15 +4190,23 @@
     <comment>Settings, Sound: label above the output-device picker.</comment>
   </data>
   <data name="Settings_OutputHint" xml:space="preserve">
-    <value>Where the music plays. With the system default, rpm switches with it when you connect a speaker or change outputs. Pick a device and it stays there.</value>
+    <value>Where your music plays. On the system default, rpm follows along when you connect a speaker or switch outputs. Pick a device and rpm sticks with it.</value>
     <comment>Settings, Sound: hint under the output-device picker.</comment>
   </data>
   <data name="Settings_OutputSystem" xml:space="preserve">
     <value>Use system default</value>
     <comment>Settings, Sound: first item in the output picker, the default.</comment>
   </data>
+  <data name="Settings_DeviceVolume" xml:space="preserve">
+    <value>Control device volume</value>
+    <comment>Settings &gt; Sound &gt; Output: switch. On, the volume slider sets a Bluetooth speaker's own volume (the computer's output volume) instead of rpm's own volume.</comment>
+  </data>
+  <data name="Settings_DeviceVolumeHint" xml:space="preserve">
+    <value>On a Bluetooth speaker, the slider can set the speaker’s own volume, which keeps every bit of the sound. That’s your computer’s volume too, though, so everything else you’re playing goes up and down with it. Turn it off and the slider only changes rpm.</value>
+    <comment>Settings &gt; Sound &gt; Output: explains the device volume switch above.</comment>
+  </data>
   <data name="Settings_OutputMissing" xml:space="preserve">
-    <value>Not connected right now, so the music plays on the system's speakers until it is reconnected.</value>
+    <value>Not connected right now, so your music plays on the system’s speakers until it’s back.</value>
     <comment>Settings, Sound: shown when the chosen device is not currently on the machine.</comment>
   </data>
   <data name="Settings_OutputNow" xml:space="preserve">
@@ -4210,7 +4218,7 @@
     <comment>Settings, Sound: heading of the equalizer card.</comment>
   </data>
   <data name="Settings_EqHint" xml:space="preserve">
-    <value>The same ten bands as the player, saved per set of speakers: a curve that suits a laptop is wrong for a hi-fi, so each one is remembered separately.</value>
+    <value>The same ten bands as the player, saved for each set of speakers. A curve that suits your laptop sounds wrong on a hi-fi, so rpm remembers each one separately.</value>
     <comment>Settings, Sound: hint under the equalizer heading, explaining the per-device curves.</comment>
   </data>
   <data name="Settings_EqOn" xml:space="preserve">
@@ -4906,7 +4914,7 @@
     <comment>Cloud settings: title of the card listing what the cloud failed to do.</comment>
   </data>
   <data name="Cloud_ErrorsHint" xml:space="preserve">
-    <value>What the cloud could not do, and why. Send a report and we can look into it.</value>
+    <value>What the cloud couldn’t do, and why. Send us a report and we’ll take a look.</value>
     <comment>Cloud settings: hint under the errors card title.</comment>
   </data>
   <data name="Cloud_ErrorsEmpty" xml:space="preserve">
@@ -4926,7 +4934,7 @@
     <comment>Cloud settings: the send button once the report has landed.</comment>
   </data>
   <data name="Cloud_ErrorsReportRefused" xml:space="preserve">
-    <value>The report could not be sent. Please try again later.</value>
+    <value>The report couldn’t be sent. Please try again a little later.</value>
     <comment>Cloud settings: shown when sending the error report was refused.</comment>
   </data>
   <data name="CloudChip_ErrorsHint" xml:space="preserve">
@@ -4957,7 +4965,7 @@
     <value>Bring your files back?</value>
   </data>
   <data name="Cloud_BringBackBody" xml:space="preserve">
-    <value>{0} tracks are missing from this computer and are still in the cloud. Downloading them needs {1}, and this disk has {2} free. Only tracks removed on this computer are downloaded, not those removed on your other machines.</value>
+    <value>{0} tracks are missing from this computer but still safe in the cloud. Downloading them takes {1}, and this disk has {2} free. Only tracks removed on this computer come back, not ones you removed on your other machines.</value>
   </data>
   <data name="Cloud_BringBackConfirm" xml:space="preserve">
     <value>Download them</value>
@@ -4966,13 +4974,13 @@
     <value>Leave them in the cloud</value>
   </data>
   <data name="Cloud_BringBackNoSpace" xml:space="preserve">
-    <value>There is not enough room on this disk: {0} needed, {1} free.</value>
+    <value>There’s not enough room on this disk: you need {0}, and {1} is free.</value>
   </data>
   <data name="Cloud_BringBackFailed" xml:space="preserve">
     <value>{0} of {1} tracks could not be downloaded.</value>
   </data>
   <data name="Cloud_OffloadState" xml:space="preserve">
-    <value>{0} tracks are in the cloud only. That frees {1} on this computer.</value>
+    <value>{0} tracks live only in the cloud, which saves {1} on this computer.</value>
   </data>
   <data name="Cloud_OffloadStateNone" xml:space="preserve">
     <value>No tracks are missing from this computer.</value>
@@ -5004,7 +5012,7 @@
     <comment>Log book verb: the cloud copy was kept, the file on this computer was deleted.</comment>
   </data>
   <data name="Cloud_OffloadElsewhere" xml:space="preserve">
-    <value>{0} tracks have never been on this computer. Your other computers uploaded them, and they stream from the cloud.</value>
+    <value>{0} tracks have never been on this computer. Your other computers uploaded them, and they stream straight from the cloud.</value>
   </data>
   <data name="Queue_ImportingMove" xml:space="preserve">
     <value>Moving selected files to your collection</value>
@@ -5019,7 +5027,7 @@
     <comment>Settings &gt; Collection: title of the card choosing move vs copy on import.</comment>
   </data>
   <data name="Settings_ImportActionHint" xml:space="preserve">
-    <value>What happens to the original files when the import queue is added to your collection.</value>
+    <value>What happens to your original files when the import queue is added to your collection.</value>
     <comment>Settings &gt; Collection: hint under the import-action picker.</comment>
   </data>
   <data name="Settings_ImportActionMove" xml:space="preserve">
@@ -5230,7 +5238,7 @@
     <comment>Sound settings section heading for ReplayGain-style loudness normalisation.</comment>
   </data>
   <data name="Settings_NormalizeHint" xml:space="preserve">
-    <value>Plays every record at the same loudness, so you do not have to change the volume between one album and the next. Each track is measured once, in the background.</value>
+    <value>Plays every record at the same loudness, so you don’t have to reach for the volume between one album and the next. rpm measures each track once, quietly in the background.</value>
     <comment>Explains what volume levelling does, under the Sound settings heading.</comment>
   </data>
   <data name="Settings_NormalizeOff" xml:space="preserve">
@@ -5250,7 +5258,7 @@
     <comment>Checkbox: whether volume levelling applies to classical records, which are excluded by default.</comment>
   </data>
   <data name="Settings_NormalizeClassicalHint" xml:space="preserve">
-    <value>Off by default. A quiet movement is meant to be quiet, and levelling flattens the dynamics the performance depends on.</value>
+    <value>Off by default. A quiet movement is meant to be quiet, and levelling would flatten the dynamics the performance depends on.</value>
     <comment>Explains why classical records are excluded from volume levelling by default.</comment>
   </data>
   <data name="Settings_NormalizeMeasuring" xml:space="preserve">
@@ -5438,7 +5446,7 @@
     <comment>Supporters-only window: shown when DJ mode is started by an account that is not a supporter.</comment>
   </data>
   <data name="Supporters_Backdrop" xml:space="preserve">
-    <value>This backdrop is available to supporters of rpm only. Please consider supporting rpm.</value>
+    <value>This backdrop is just for rpm supporters. Fancy it? Please consider supporting rpm!</value>
     <comment>Supporters-only window: shown when the gold backdrop is picked by an account that is not a supporter.</comment>
   </data>
   <data name="Supporters_Karaoke" xml:space="preserve">
@@ -5462,11 +5470,11 @@
     <comment>Cloud settings usage line when there is no room left at all.</comment>
   </data>
   <data name="Cloud_AlmostFullHint" xml:space="preserve">
-    <value>Less than {0} left. When full, rpm will stop uploading.</value>
+    <value>Less than {0} left. Once it’s full, rpm stops uploading.</value>
     <comment>Cloud settings: the warning shown while the account is almost full.</comment>
   </data>
   <data name="Cloud_SyncAllPaused" xml:space="preserve">
-    <value>Switched to selected music because cloud storage was full.</value>
+    <value>Your cloud storage filled up, so rpm switched to syncing only your selected music.</value>
     <comment>Cloud settings: shown while the sync mode is the one the full store dropped it to.</comment>
   </data>
   <data name="Cloud_SupporterHeading" xml:space="preserve">
@@ -5478,19 +5486,19 @@
     <comment>Cloud settings: the standing of an account that is not a supporter.</comment>
   </data>
   <data name="Cloud_SupporterYes" xml:space="preserve">
-    <value>You are a supporter. Your cloud storage is unlimited.</value>
+    <value>You’re a supporter, so your cloud storage is unlimited. Thank you!</value>
     <comment>Cloud settings: the standing of a supporter.</comment>
   </data>
   <data name="Cloud_SupporterYesUntil" xml:space="preserve">
-    <value>You are a supporter until {0}. Your cloud storage is unlimited.</value>
+    <value>You’re a supporter until {0}, so your cloud storage is unlimited. Thank you!</value>
     <comment>Cloud settings: a supporter whose support has an end date.</comment>
   </data>
   <data name="Cloud_SupporterTester" xml:space="preserve">
-    <value>You are a closed beta tester. You get the supporter features and 100 GB of cloud storage.</value>
+    <value>You’re a closed beta tester, so you get the supporter features and 100 GB of cloud storage. Thanks for helping out!</value>
     <comment>Cloud settings: the standing of an account marked as a closed beta tester.</comment>
   </data>
   <data name="Cloud_SupporterUnknown" xml:space="preserve">
-    <value>Your supporter status could not be retrieved.</value>
+    <value>We couldn’t check your supporter status just now.</value>
     <comment>Cloud settings: the server did not answer, which is not the same as 'not a supporter'.</comment>
   </data>
   <data name="CloudFull_PausedAll" xml:space="preserve">
@@ -5678,7 +5686,7 @@
     <comment>First row of the share button's library list on the deck: this computer's own collection.</comment>
   </data>
   <data name="Share_SignInNeeded" xml:space="preserve">
-    <value>Sharing needs an rpm account. Sign in to share your collection and to open the ones shared with you.</value>
+    <value>Sharing needs an rpm account. Sign in to share your collection and open the ones shared with you.</value>
     <comment>Strip above the sharing settings when nobody is signed in.</comment>
   </data>
   <data name="Share_Title" xml:space="preserve">
@@ -5718,7 +5726,7 @@
     <comment>Settings toggle: turn local network sharing on or off.</comment>
   </data>
   <data name="Settings_ShareLibraryHint" xml:space="preserve">
-    <value>Computers running rpm on this network can ask to share. You choose who gets access.</value>
+    <value>Computers running rpm on this network can ask to share. You decide who gets access.</value>
     <comment>Settings: hint under the sharing toggle.</comment>
   </data>
   <data name="Settings_ShareName" xml:space="preserve">
@@ -5726,11 +5734,11 @@
     <comment>Settings: label of the text box holding the name other computers see.</comment>
   </data>
   <data name="Settings_ShareNameHint" xml:space="preserve">
-    <value>Leave this empty to use your display name. When you are not signed in, this computer's name is used.</value>
+    <value>Leave this empty to use your display name. If you’re not signed in, rpm uses this computer’s name.</value>
     <comment>Settings, Sharing: hint under the "This computer is called" box. Empty falls back to the account display name, then to the machine name.</comment>
   </data>
   <data name="Settings_ShareNobody" xml:space="preserve">
-    <value>Nothing shared yet. Open rpm on another computer on this network and it appears here.</value>
+    <value>Nothing shared yet. Open rpm on another computer on this network and it’ll show up here.</value>
     <comment>Settings: empty state of the shared computers list.</comment>
   </data>
   <data name="Settings_ShareRemove" xml:space="preserve">
@@ -5906,7 +5914,7 @@
     <comment>Settings section: which tags a queued file must carry.</comment>
   </data>
   <data name="Settings_RequiredTagsHint" xml:space="preserve">
-    <value>A queued file is marked when it is missing any of these. Import is not blocked by them.</value>
+    <value>A queued file gets a mark when it’s missing any of these. Don’t worry, you can still import it.</value>
     <comment>Settings hint under the required tags checkboxes.</comment>
   </data>
   <data name="Settings_CatalogueFill" xml:space="preserve">
@@ -5914,7 +5922,7 @@
     <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue and fills blank genre, subgenre and year in the import queue.</comment>
   </data>
   <data name="Settings_CatalogueFillHint" xml:space="preserve">
-    <value>rpm looks each record up in its catalogue and fills in the genre, subgenre and year where they are blank or not on rpm's genre list. Values that are already set are kept. Nothing is written to your files until you import.</value>
+    <value>rpm looks each record up in its catalogue and fills in the genre, subgenre and year wherever they’re blank or not on rpm’s genre list. Anything you’ve already set stays put, and nothing is written to your files until you import.</value>
     <comment>Settings hint under the catalogue fill toggle.</comment>
   </data>
   <data name="Queue_ChipDuplicates" xml:space="preserve">
@@ -8122,7 +8130,7 @@
     <comment>Display settings, card heading over the button that replays the coachmarks.</comment>
   </data>
   <data name="Settings_HintsHint" xml:space="preserve">
-    <value>The arrows that point out where music comes in, how the artwork header opens, and how to switch views. They appear once each and then stop.</value>
+    <value>The little arrows that show you where music comes in, how the artwork header opens and how to switch views. Each one pops up once, then leaves you be.</value>
     <comment>Display settings, line under the first-run hints heading.</comment>
   </data>
   <data name="Settings_HintsBack" xml:space="preserve">
@@ -9226,7 +9234,7 @@
     <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
   </data>
   <data name="Settings_MixtapeAfterHint" xml:space="preserve">
-    <value>When an album, a playlist or a single ends, the music carries on with songs like it from your collection.</value>
+    <value>When an album, playlist or single ends, the music keeps going with similar songs from your collection.</value>
     <comment>Line under the "Mixtape when a record ends" heading (Tv_SettingsMixtapeAfter) on the desktop Sound settings page, above its on/off switch.</comment>
   </data>
   <data name="Tv_SettingsMixtapeAfter" xml:space="preserve">
@@ -9466,7 +9474,7 @@
     <comment>Heading for the choice of Pegasus's room animation (setup wizard step 4 and Display settings).</comment>
   </data>
   <data name="Settings_PegasusVisualizerHint" xml:space="preserve">
-    <value>The moving lights behind the music when Pegasus plays.</value>
+    <value>The moving lights behind the music while Pegasus plays.</value>
     <comment>Line under the Visualizer in Pegasus heading.</comment>
   </data>
   <data name="Settings_SameAsWindows" xml:space="preserve">
@@ -9490,7 +9498,7 @@
     <comment>Switch: make rpm the app Windows opens music files with (setup wizard step 4 and Library settings).</comment>
   </data>
   <data name="Settings_OpenMusicFilesHint" xml:space="preserve">
-    <value>Music files you open play in rpm. Windows asks you to confirm rpm in its own settings.</value>
+    <value>Music files you open will play in rpm. Windows will ask you to confirm rpm in its own settings.</value>
     <comment>Line under the Open rpm when a music file is played switch.</comment>
   </data>
   <data name="Settings_OpenMusicFilesType" xml:space="preserve">
@@ -9502,7 +9510,7 @@
     <comment>Library settings, heading of the choice of the view the library opens in.</comment>
   </data>
   <data name="Settings_LibraryLayoutHint" xml:space="preserve">
-    <value>The view your library opens in. The keys at the top of the library switch it too.</value>
+    <value>The view your library opens in. You can switch it any time with the buttons at the top of the library.</value>
     <comment>Line under the Library layout heading.</comment>
   </data>
   <data name="Wizard_HelloSubtitle" xml:space="preserve">

@@ -123,6 +123,13 @@ internal static unsafe class MacSystemVolume
         return ours;
     }
 
+    /// <summary>Lets go of the device held, and stops following it.</summary>
+    internal static void Release()
+    {
+        _held = 0;
+        Follow(0);
+    }
+
     /// <summary>
     /// Describes what was decided about this device, with enough detail to act on it.
     ///
