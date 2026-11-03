@@ -75,9 +75,11 @@ public sealed partial class EncyclopediaLookup(FetchJson web)
         var artistArticle = ArticleAsync(papers.Artist?.WikidataId, artist?.Pages, wikis, ct);
         var albumArticle = ArticleAsync(null, album?.Pages, wikis, ct);
 
-        // The line-up as it stands, with faces, from the same encyclopedia and at the same time. It is part of
-        // the dossier, so it is kept with it and painted once. See LineupAsync.
-        var lineup = LineupAsync(papers.Artist?.WikidataId, artist?.Members, ct);
+        // The line-up when the record was made, with faces, from the same encyclopedia and at the same time.
+        // It is part of the dossier, so it is kept with it and painted once. The year is the record's first
+        // release in any edition, so a reissue shows the band that made it. See LineupAsync.
+        var made = album?.FirstReleased is { Length: >= 4 } first && int.TryParse(first[..4], out var y) ? y : (int?)null;
+        var lineup = LineupAsync(papers.Artist?.WikidataId, artist?.Members, made, ct);
         await Task.WhenAll(artistArticle, albumArticle, lineup);
         if (artist is not null && lineup.Result is { } current)
             artist = artist with { Members = current };

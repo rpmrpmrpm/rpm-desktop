@@ -152,4 +152,53 @@ public class BandLineupTests
 
         Assert.DoesNotContain(current, m => m.Name == "Came Back");
     }
+
+    /// <summary>With the record's year, the card shows the band that made it: in 1961 Pete Best and Chas
+    /// Newby were Beatles, by 1969 they were long gone. Chas Newby's undated duplicate does not make him a
+    /// Beatle in every year, and Tommy Moore's one dated stint is 1960.</summary>
+    [Fact]
+    public void With_a_year_the_line_up_is_the_band_that_made_the_record()
+    {
+        var body = Beatles
+            .Replace("BAND", string.Join(", ",
+                Claim("Q1203", "1970", "1960"), Claim("Q2599", "1970", "1960"), Claim("Q207335", "1962", "1960"),
+                Claim("Q5087041", "1961", "1960"), Claim("Q5992927", "1960", "1960")))
+            .Replace("LENNON", Claim("Q1299", "1969", "1960"))
+            .Replace("NEWBY", Claim("Q1299", "1961", "1960") + ", " + Claim("Q1299"))
+            .Replace("MOORE", Claim("Q1299"));
+        BandMember[] members =
+        [
+            new("John Lennon", "Q1203"), new("Paul McCartney", "Q2599"), new("Pete Best", "Q207335"),
+            new("Chas Newby", "Q5087041"), new("Tommy Moore", "Q5992927"),
+        ];
+
+        Assert.Equal(["John Lennon", "Paul McCartney"],
+            EncyclopediaLookup.CurrentLineup(body, "Q1299", members, year: 1969).Select(m => m.Name));
+        Assert.Equal(["John Lennon", "Paul McCartney", "Pete Best", "Chas Newby"],
+            EncyclopediaLookup.CurrentLineup(body, "Q1299", members, year: 1961).Select(m => m.Name));
+
+        // The band's list ends Lennon in 1970 and his own in 1969: on a 1970 record he is still there.
+        Assert.Contains(EncyclopediaLookup.CurrentLineup(body, "Q1299", members, year: 1970),
+            m => m.Name == "John Lennon");
+    }
+
+    /// <summary>A member who left and came back is on the records from before and after, and not on the
+    /// ones from the gap. One who left for good is on the records from before they did.</summary>
+    [Fact]
+    public void A_member_away_for_some_years_is_missing_only_from_those_years()
+    {
+        string[] Names(int year) =>
+            [.. EncyclopediaLookup.CurrentLineup(Answer(), "Q1", Members, year).Select(m => m.Name)];
+
+        Assert.Contains("Came Back", Names(1985));
+        Assert.DoesNotContain("Came Back", Names(1992));
+        Assert.Contains("Came Back", Names(1997));
+
+        Assert.Contains("Gone 2001", Names(1997));
+        Assert.DoesNotContain("Gone 2001", Names(2005));
+
+        // Nobody wrote any dates for these, so they stay whatever the year.
+        Assert.Contains("Carol Decker", Names(1960));
+        Assert.Contains("Nobody Said", Names(2005));
+    }
 }

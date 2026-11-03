@@ -5,7 +5,16 @@ namespace RPM.Core.Metadata.Providers;
 public sealed partial class EncyclopediaLookup
 {
     /// <summary>
-    /// The band's line-up as it stands, each member with their photograph: who has left is taken off.
+    /// The band's line-up when the record was made, each member with their photograph: who was not in the
+    /// band that year is taken off. Without a year, the line-up as it stands.
+    ///
+    /// <para><b>The record's year.</b> A card under Destiny (1978) is about the band that made Destiny:
+    /// Michael Jackson, who left The Jacksons in 1984, is on it, and Jermaine, who was away from 1975 to
+    /// 1983, is not. A member was in the band in a year where one of their memberships, on either list,
+    /// had started by then and had not yet ended; a membership that ended that year still counts, since
+    /// the record may have come first. An open membership with no start beside a dated one is a gap in
+    /// the data, as below, and a member nobody wrote any dates for stays. The rest of this note is the
+    /// rule for a record with no year.</para>
     ///
     /// <para><b>"Left" is what Wikidata says, and only that.</b> A membership with an end date, on the
     /// band's own list of members (P527) or on the member's list of bands (P463), is one that ended. Where
@@ -30,7 +39,7 @@ public sealed partial class EncyclopediaLookup
     /// read who left from. Where a request fails, the line-up is left as it came.</para>
     /// </summary>
     private async Task<IReadOnlyList<BandMember>?> LineupAsync(
-        string? band, IReadOnlyList<BandMember>? members, CancellationToken ct)
+        string? band, IReadOnlyList<BandMember>? members, int? year, CancellationToken ct)
     {
         if (members is not { Count: > 0 })
             return members;
@@ -53,7 +62,7 @@ public sealed partial class EncyclopediaLookup
 
         var url = $"{WikidataApi}?action=wbgetentities&format=json&props=claims"
                 + $"&ids={Uri.EscapeDataString(string.Join('|', bandId is null ? ids : ids.Prepend(bandId)))}";
-        return (await ReadAsync(url, body => CurrentLineup(body, bandId, members), ct))
+        return (await ReadAsync(url, body => CurrentLineup(body, bandId, members, year), ct))
             .Match(current => current, _ => members);
     }
 
@@ -61,9 +70,11 @@ public sealed partial class EncyclopediaLookup
 
     private static bool IsMbid(string? id) => id is { Length: 36 } && Guid.TryParse(id, out _);
 
-    /// <summary>The members still in the band, with their photographs, read from one entity answer. See
-    /// <see cref="LineupAsync"/> for the rules. <paramref name="band"/> null keeps everybody.</summary>
-    internal static IReadOnlyList<BandMember> CurrentLineup(string body, string? band, IReadOnlyList<BandMember> members)
+    /// <summary>The members in the band in <paramref name="year"/>, or still in it where that is null, with
+    /// their photographs, read from one entity answer. See <see cref="LineupAsync"/> for the rules.
+    /// <paramref name="band"/> null keeps everybody.</summary>
+    internal static IReadOnlyList<BandMember> CurrentLineup(
+        string body, string? band, IReadOnlyList<BandMember> members, int? year = null)
     {
         using var doc = JsonDocument.Parse(body);
         if (!doc.RootElement.TryGetProperty("entities", out var entities) || entities.ValueKind != JsonValueKind.Object)
@@ -80,6 +91,7 @@ public sealed partial class EncyclopediaLookup
         // each open one (null where none is written).
         var ended = new Dictionary<string, int?>(StringComparer.Ordinal);
         var open = new Dictionary<string, List<int?>>(StringComparer.Ordinal);
+        var spans = new Dictionary<string, List<(bool Ended, int? Year, int? Start)>>(StringComparer.Ordinal);
         int? bandEnded = null;
 
         if (band is not null && entities.TryGetProperty(band, out var bandEntity)
@@ -108,8 +120,10 @@ public sealed partial class EncyclopediaLookup
                     : null;
             }
 
-            var left = id is not null && ended.TryGetValue(id, out var year) && !CameBack(id, year)
-                       && !(bandEnded is { } split && year is { } y && y >= split);
+            var left = id is not null && (year is { } then
+                ? !WasIn(id, then)
+                : ended.TryGetValue(id, out var gone) && !CameBack(id, gone)
+                  && !(bandEnded is { } split && gone is { } y && y >= split));
             if (!left)
                 shown.Add(member with { Photo = photo ?? member.Photo });
         }
@@ -117,10 +131,29 @@ public sealed partial class EncyclopediaLookup
 
         void Note(string member, (bool Ended, int? Year, int? Start) end)
         {
+            (spans.TryGetValue(member, out var all) ? all : spans[member] = []).Add(end);
+
             if (!end.Ended)
                 (open.TryGetValue(member, out var starts) ? starts : open[member] = []).Add(end.Start);
             else if (!ended.TryGetValue(member, out var known) || known is null || end.Year > known)
                 ended[member] = end.Year ?? known;
+        }
+
+        // In the band in that year: a membership, on either list, that had started by then and had not
+        // ended before it. An end with no year cannot be placed, so it does not take anybody off. A member
+        // with no membership written anywhere stays.
+        bool WasIn(string member, int then)
+        {
+            if (!spans.TryGetValue(member, out var all))
+                return true;
+
+            // An open membership with no start beside a dated one is a gap in the data, not a span that
+            // covers every year (the Beatles' Chas Newby has one).
+            var dated = all.Where(s => s.Ended || s.Start is not null).ToList();
+            var counted = dated.Count > 0 ? dated : all;
+
+            return counted.Any(s => (s.Start is null || s.Start <= then)
+                                    && (!s.Ended || s.Year is null || s.Year >= then));
         }
 
         // An end with no year cannot be placed, so any open membership with a start counts as a return.

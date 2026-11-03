@@ -558,8 +558,12 @@ public sealed partial class TrackInfoService
     /// <para>v13: where the band's list and the member's own list end a membership in different years, the
     /// later year counts, and an open membership with no start is not a return. Answers kept under v12 can
     /// leave out John Lennon and keep Chas Newby.</para>
+    ///
+    /// <para>v14 (2026-11-03): the line-up is the band that made the record, in the year it first came
+    /// out, where it was the band as it stands. Answers kept under v13 leave Michael Jackson off The
+    /// Jacksons' Destiny.</para>
     /// </summary>
-    private const string CacheVersion = "v13";
+    private const string CacheVersion = "v14";
 
     private static string CacheKey(string artist, string? album) =>
         $"{CacheVersion} {artist.Trim()} {album?.Trim() ?? ""}".ToLowerInvariant();
