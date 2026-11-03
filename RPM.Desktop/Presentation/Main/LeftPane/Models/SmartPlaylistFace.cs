@@ -457,19 +457,21 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Classical => (0, 3),      // Halftone, Gold
 
         // The lists about listening. Each one takes the colour of its own glyph.
+        // Drawn in the soft, rounded families (Halo, Orb, Ripple), so the shelf of them reads as one set;
+        // the hard-edged ones (Prism, Panels) are left to the lists the listener makes.
 
         SmartPlaylistKind.FavoriteTracks => (0, 8),     // Halo, Crimson: the heart's own red
-        SmartPlaylistKind.MostPlayed => (7, 0),         // Prism, Vermilion: the fire's orange
+        SmartPlaylistKind.MostPlayed => (0, 0),         // Halo, Vermilion: the fire's orange
         SmartPlaylistKind.OnRepeat => (2, 1),           // Mesh, Rust
-        SmartPlaylistKind.RecentlyPlayed => (4, 2),     // Panels, Gold
+        SmartPlaylistKind.RecentlyPlayed => (6, 2),     // Ripple, Gold
         SmartPlaylistKind.RecentlyAdded => (3, 3),      // Sweep, Lime: new growth
         SmartPlaylistKind.FirstListens => (0, 4),       // Halo, Forest: new growth
         SmartPlaylistKind.LateNight => (5, 6),          // Bokeh, Indigo: night, as for Sleep
         SmartPlaylistKind.Rediscover => (6, 7),         // Ripple, Magenta
         SmartPlaylistKind.LovedAndForgotten => (1, 8),  // Orb, Crimson: the heart, dimmed
         SmartPlaylistKind.PlayedNotLoved => (2, 9),     // Mesh, Red
-        SmartPlaylistKind.NeverPlayed => (4, 5),        // Panels, Azure: untouched, cool
-        SmartPlaylistKind.KeepSkipping => (7, 1),       // Prism, Rust
+        SmartPlaylistKind.NeverPlayed => (1, 5),        // Orb, Azure: untouched, cool
+        SmartPlaylistKind.KeepSkipping => (1, 1),       // Orb, Rust
 
         // Azure is the one hue left that reads as neither urgent nor sleepy. That suits a list meant for any
         // hour of the day. Ripple is the family that reads as movement without a direction.
