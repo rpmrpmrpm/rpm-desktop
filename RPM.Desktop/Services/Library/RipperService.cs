@@ -49,6 +49,16 @@ public class RipperService
     /// seconds while the app runs.</summary>
     public virtual bool CdPresent() => _reader?.AudioDiscPresent() ?? false;
 
+    /// <summary>One track's audio off the disc: 16-bit stereo at 44.1 kHz, in the byte order
+    /// <see cref="PcmIsBigEndian"/> says. Playing a CD reads it this way, a track ahead of the music (see
+    /// CdPlayService).</summary>
+    public virtual Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination, CancellationToken ct = default)
+        => _reader is null
+            ? throw new InvalidOperationException("reading a disc is not supported on this platform")
+            : Task.Run(() => _reader.ReadTrackPcmAsync(disc, track, destination, ct: ct), ct);
+
+    public virtual bool PcmIsBigEndian => _reader?.PcmIsBigEndian ?? false;
+
     /// <summary>Names the disc through the rpm catalogue. If the exact disc ID is unknown, it falls back
     /// to a fuzzy search on the table of contents. Returns null when no catalogue knows the disc, and an
     /// unanswered result when the catalogue did not reply.</summary>

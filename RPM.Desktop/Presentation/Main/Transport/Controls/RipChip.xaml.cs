@@ -68,7 +68,9 @@ public sealed partial class RipChip : UserControl
 
     private void Sync()
     {
-        bool show = _rips.State != RipJobState.Idle;
+        // A disc that is only being offered is the disc card's (see DiscCard), which asks the question in full.
+        // The chip is for a rip, from the moment one starts.
+        bool show = _rips.State is not (RipJobState.Idle or RipJobState.Offered);
         Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show)
         {

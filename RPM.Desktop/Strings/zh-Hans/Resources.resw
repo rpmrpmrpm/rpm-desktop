@@ -3335,6 +3335,26 @@
     <value>光驱中有一张音频 CD</value>
     <comment>Tooltip on the rip chip while it is asking about a disc rather than showing a rip.</comment>
   </data>
+  <data name="Rip_CardTitle" xml:space="preserve">
+    <value>已放入光盘</value>
+    <comment>Heading of the card that slides up when an audio CD goes into the drive.</comment>
+  </data>
+  <data name="Rip_CardLooking" xml:space="preserve">
+    <value>正在查找你的光盘…</value>
+    <comment>Disc card: shown beside the turning record while the CD is read and looked up.</comment>
+  </data>
+  <data name="Rip_CardUnknown" xml:space="preserve">
+    <value>没有找到这张光盘的信息，不过你仍然可以播放或翻录它。</value>
+    <comment>Disc card: the CD was read but no catalogue knows it.</comment>
+  </data>
+  <data name="Rip_CardPlay" xml:space="preserve">
+    <value>播放 CD</value>
+    <comment>Disc card button: plays the CD straight away without adding it to the collection.</comment>
+  </data>
+  <data name="Rip_CardRip" xml:space="preserve">
+    <value>翻录 CD</value>
+    <comment>Disc card button: opens Import from CD on this disc.</comment>
+  </data>
   <data name="Rip_AutoPlayAction" xml:space="preserve">
     <value>使用 rpm 抓取光盘</value>
     <comment>How rpm names itself in the Windows AutoPlay list of things that can happen when a music CD goes in. Windows shows it, not the app.</comment>

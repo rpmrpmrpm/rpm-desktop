@@ -572,6 +572,9 @@ public partial class App : Application
                         // Notices a disc going into the drive, and asks on the deck whether to rip it. It
                         // is resolved eagerly at startup (below). It has no callers, only a timer.
                         .AddSingleton<DiscWatcher>()
+                        // Plays the CD in the drive without adding it to the collection, a track read ahead
+                        // of the music. The disc card's Play CD button is its one caller.
+                        .AddSingleton<CdPlayService>()
                         // Registers RPM as the app that the machine opens when a music CD goes in. Only the
                         // settings page talks to it.
                         .AddSingleton<DiscAutoPlayService>()

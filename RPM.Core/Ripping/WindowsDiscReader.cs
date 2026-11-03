@@ -64,8 +64,11 @@ public sealed class WindowsDiscReader : IDiscReader
         {
             try
             {
-                if (drive.IsReady &&
-                    Directory.EnumerateFiles(drive.RootDirectory.FullName, "*.cda").Any())
+                if (!drive.IsReady)
+                    continue;
+                if (Directory.EnumerateFiles(drive.RootDirectory.FullName, "*.cda").Any())
+                    return true;
+                if (EnhancedAudio(drive))
                     return true;
             }
             catch
@@ -75,6 +78,35 @@ public sealed class WindowsDiscReader : IDiscReader
         }
 
         return false;
+    }
+
+    /// <summary>What the table of contents said about the disc each drive last held, by the disc's volume.</summary>
+    private readonly Dictionary<string, (string Volume, bool Audio)> _seen = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether a disc that shows no tracks is an Enhanced CD: audio, with a data session after it. Windows mounts
+    /// the data session, so the drive shows that session's files and none of the <c>.cda</c> stubs, and the disc
+    /// went unnoticed (Graduation, 2026-11-03).
+    ///
+    /// <para>The table of contents answers, and it is read once per disc: the answer is kept against the
+    /// volume's label and size, which only change when the disc does, so the watcher's poll every few seconds
+    /// stays a look at the file system.</para>
+    /// </summary>
+    private bool EnhancedAudio(DriveInfo drive)
+    {
+        var letter = drive.Name.TrimEnd('\\');
+        var volume = $"{SafeVolumeLabel(drive)}|{drive.TotalSize}";
+        lock (_seen)
+            if (_seen.TryGetValue(letter, out var known) && known.Volume == volume)
+                return known.Audio;
+
+        bool audio;
+        using (var handle = OpenDrive(letter))
+            audio = !handle.IsInvalid && HasMedia(handle) && ReadToc(handle) is { } toc && toc.AudioTracks.Any();
+
+        lock (_seen)
+            _seen[letter] = (volume, audio);
+        return audio;
     }
 
     public Task<DiscInfo?> ReadDiscAsync(DiscDrive drive, CancellationToken ct = default)

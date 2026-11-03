@@ -8,6 +8,7 @@
       xmlns:viz="using:RPM.Desktop.Presentation.Viz"
       xmlns:peg="using:RPM.Desktop.Presentation.Pegasus"
       xmlns:loc="using:RPM.Desktop.Strings"
+      xmlns:transport="using:RPM.Desktop.Presentation.Main.Transport.Controls"
       Background="#0e1520">
 
   <Page.Resources>
@@ -221,6 +222,11 @@
          drawn disc takes hit tests. The transparent rest of the overlay lets clicks fall through to the
          grids beneath. -->
     <ctl:RecordDisc x:Name="TopRecord" DoubleTapped="Record_DoubleTapped"/>
+
+    <!-- The card that comes up when an audio CD goes into the drive: the disc, looked up, and Play CD or Rip CD.
+         Above the content and the record, over the deck, so it rises out of the bottom of the window and sinks
+         back into it. It shows and hides itself with the offer (see DiscCard). -->
+    <transport:DiscCard HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,104"/>
 
     <!-- The problem screen. It sits over the running library, not in place of it, for a read of the
          open collection that failed. It is over the content, the seek bars and the record, and under the
