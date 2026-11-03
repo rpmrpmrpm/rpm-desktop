@@ -45,7 +45,10 @@ internal static class MusicBrainzRelations
             sort.Append(Str(artist, "sort-name") ?? displayed);
             firstId ??= Str(artist, "id");
 
-            if (Str(credit, "joinphrase") is { } join)
+            // Read as it is, not through Str: the spaces are part of the phrase, and trimming them
+            // ran the names together ("Missy Elliottfeat.Ludacris").
+            if (credit.TryGetProperty("joinphrase", out var j) && j.ValueKind == JsonValueKind.String &&
+                j.GetString() is { Length: > 0 } join)
             {
                 name.Append(join);
                 sort.Append(join);
@@ -76,7 +79,8 @@ internal static class MusicBrainzRelations
             if (Str(relation, "artist", "name") is not { } who)
                 continue;
 
-            switch (Str(relation, "type"))
+            var type = Str(relation, "type");
+            switch (type)
             {
                 case "conductor":
                     conductors.Add(who);
@@ -90,7 +94,14 @@ internal static class MusicBrainzRelations
                     if (attributes.Any(a => a is "orchestra" or "choir vocals" or "choir"))
                         ensembles.Add(who);
                     else
+                    {
+                        // A vocal relation that names no voice still says the person sang. Written as
+                        // "(vocals)", or the editors would list the singer with the players (see
+                        // SoloistCredits, which reads the role and nothing else).
+                        if (type == "vocal" && !attributes.Any(a => a.Contains("vocal", StringComparison.Ordinal)))
+                            attributes.Add("vocals");
                         soloists.Add(Describe(who, attributes));
+                    }
                     break;
             }
         }
