@@ -365,8 +365,19 @@ public sealed partial class RipDiscDialog
         // A pressing that arrives with works has answered the question the switch asks, so it sets the
         // switch. It never clears the switch. A user who said this disc is classical and typed part of
         // its structure in is not overruled by a lookup that returned none.
-        if (_tracks.Any(t => t.Work is not null))
+        //
+        // Only works that are structure count: one holding several tracks, or a track that is a movement.
+        // MusicBrainz links nearly every song to a work of its own name, so a pop album would otherwise
+        // arrive as twelve one-track works and a ticked box. Those works are the songs, and go.
+        var structured = titles.Any(l => Blank(l.MovementName) is not null)
+                         || _tracks.Where(t => t.Work is not null)
+                                   .GroupBy(t => t.Work, StringComparer.OrdinalIgnoreCase)
+                                   .Any(g => g.Count() > 1);
+        if (structured)
             SetClassical(true);
+        else if (!_classical)
+            foreach (var track in _tracks)
+                track.Work = null;
 
         RebuildRows();
     }

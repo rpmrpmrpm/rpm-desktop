@@ -157,6 +157,12 @@ internal static class MusicBrainzRelations
                 break;
             }
 
+            // A work with no parent named as the recording is the song itself: MusicBrainz links nearly
+            // every song to a work of its own name. It is no structure, and a record with a work on every
+            // track reads as classical everywhere downstream. The writers are still read off it.
+            if (movement is null && SameName(workTitle, Str(recording, "title")))
+                workTitle = null;
+
             var (composers, composerSort) = People(work, "composer");
             var (lyricists, _) = People(work, "lyricist", "librettist", "writer");
             var (arrangers, _) = People(work, "arranger", "orchestrator");
@@ -168,8 +174,24 @@ internal static class MusicBrainzRelations
         return default;
     }
 
-    /// <summary>What the composition says about itself. Every member is null when the recording is not
-    /// linked to a work, which is most popular music.</summary>
+    /// <summary>Whether a work's title is only the recording's own: the same letters and digits, the
+    /// recording's bracketed tail ("(feat. Chris Martin)", "[Live]") left off. A recording titled with its
+    /// work AND its movement ("Symphony No. 5: I. Allegro") is not this, and keeps its work.</summary>
+    private static bool SameName(string? work, string? recording)
+    {
+        if (work is null || recording is null)
+            return false;
+        var bare = System.Text.RegularExpressions.Regex.Replace(recording, @"\s*[\(\[][^\)\]]*[\)\]]\s*$", "");
+        var w = Squash(work);
+        return w.Length > 0 && (w == Squash(recording) || w == Squash(bare));
+
+        static string Squash(string text) =>
+            new([.. text.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
+    }
+
+    /// <summary>What the composition says about itself. <see cref="Work"/> is null when the recording is
+    /// not linked to a work, or is linked only to the song of its own name, which is most popular
+    /// music.</summary>
     internal readonly record struct WorkCredits(
         string? Work,
         string? MovementName,

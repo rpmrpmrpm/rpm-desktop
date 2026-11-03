@@ -86,7 +86,9 @@ public sealed partial class RipDiscDialog
 
             // The row's own work and movement. This is what the user has in front of them: the heading
             // over the run, and the name they may have retyped in the box.
-            Work: Blank(t.Work) ?? Blank(t.Catalogue?.Work),
+            // The listing's work only for a classical disc: off, the rows' works were cleared on purpose, and the
+            // listing's would put them back, a song named as its own work on every file.
+            Work: Blank(t.Work) ?? (_classical ? Blank(t.Catalogue?.Work) : null),
             MovementName: t.Work is null ? Blank(t.Catalogue?.MovementName) : Blank(t.Title),
             MovementNumber: t.Catalogue?.MovementNumber ?? 0,
             MovementCount: MovementsOf(t),
