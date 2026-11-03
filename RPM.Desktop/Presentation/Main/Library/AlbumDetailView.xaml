@@ -1176,28 +1176,45 @@
             <TextBlock Text="{loc:Str Key=TrackInfo_AboutAlbum}" Style="{StaticResource SectionHeadingStyle}"/>
             <Border Background="{StaticResource PapersPlate}" CornerRadius="8" Padding="14">
               <StackPanel Spacing="8">
-                <!-- The catalogue's name for the record, rather than the collection's. The two often
-                    differ enough to be worth printing both. The name under the sleeve says what the
-                    tags spell. This says which release group MusicBrainz matched.
+                <!-- The window the page turns in: a page coming in from the side is cut at the card's
+                    edge rather than drawn over the plate's corner. See AlbumDetailView.AlbumPages.
                     -->
-                <TextBlock x:Name="AlbumPapersName" FontSize="14" FontWeight="SemiBold"
-                           Foreground="#FFFFFFFF" TextWrapping="Wrap"/>
-                <TextBlock x:Name="AlbumPapersFacts" FontSize="11" Foreground="#88FFFFFF"
-                           TextWrapping="Wrap"/>
-                <lp:WrapRow x:Name="AlbumPapersGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
-                <TextBlock x:Name="AlbumPapersProse" FontSize="12" Foreground="#DDFFFFFF"
-                           LineHeight="18" TextWrapping="Wrap"/>
-                <StackPanel Orientation="Horizontal" Spacing="14">
-                  <ctl:RpmLink x:Name="AlbumPapersMore"
-                               Click="AlbumPapersMore_Click" FontSize="11"/>
-                  <!-- Wikipedia asks to be named, and a reader deserves to know what they are reading. -->
-                  <ctl:RpmLink x:Name="AlbumPapersSource"
-                               Click="AlbumPapersSource_Click" FontSize="11"/>
-                </StackPanel>
-                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link
-                    is.
+                <Grid SizeChanged="AlbumPapersClip_SizeChanged">
+                  <StackPanel x:Name="AlbumPapersPage" Spacing="8">
+                    <StackPanel.RenderTransform>
+                      <TranslateTransform x:Name="AlbumPapersShift"/>
+                    </StackPanel.RenderTransform>
+                    <!-- The catalogue's name for the record, rather than the collection's. The two often
+                        differ enough to be worth printing both. The name under the sleeve says what the
+                        tags spell. This says which release group MusicBrainz matched.
+                        -->
+                    <TextBlock x:Name="AlbumPapersName" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#FFFFFFFF" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="AlbumPapersFacts" FontSize="11" Foreground="#88FFFFFF"
+                               TextWrapping="Wrap"/>
+                    <lp:WrapRow x:Name="AlbumPapersGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
+                    <TextBlock x:Name="AlbumPapersProse" FontSize="12" Foreground="#DDFFFFFF"
+                               LineHeight="18" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                      <ctl:RpmLink x:Name="AlbumPapersMore"
+                                   Click="AlbumPapersMore_Click" FontSize="11"/>
+                      <!-- Wikipedia asks to be named, and a reader deserves to know what they are reading. -->
+                      <ctl:RpmLink x:Name="AlbumPapersSource"
+                                   Click="AlbumPapersSource_Click" FontSize="11"/>
+                    </StackPanel>
+                    <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link
+                        is.
+                        -->
+                    <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumPapersSource}"/>
+                  </StackPanel>
+                </Grid>
+
+                <!-- One dot per part of a record that is several things under one title: the works of a
+                    classical record, or the two albums of a two-in-one. The track pane's card has the
+                    same row. Filled in code; hidden for a record that is one thing.
                     -->
-                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumPapersSource}"/>
+                <StackPanel x:Name="AlbumPapersDots" Orientation="Horizontal" Spacing="2"
+                            HorizontalAlignment="Center" Margin="0,2,0,0" Visibility="Collapsed"/>
               </StackPanel>
             </Border>
           </StackPanel>

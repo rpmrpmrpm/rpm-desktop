@@ -50,6 +50,13 @@ public sealed partial class AlbumDetailView
     /// are separate entries in the catalogue. The song count tells them apart.</param>
     private async Task PapersAsync(string artist, string album, int tracks, CancellationToken ct)
     {
+        // Another record's pages go with it, so its open page is not carried over to this one.
+        if (artist != _papersArtist || album != _papersTitle)
+            ClearAlbumPages();
+        _papersArtist = artist;
+        _papersTitle = album;
+        _papersRecord = ct;
+
         if (string.IsNullOrWhiteSpace(artist))
         {
             ShowPapers(TrackDossier.Empty, PapersStanding.Answered);
@@ -122,7 +129,16 @@ public sealed partial class AlbumDetailView
         _albumFolded = true;
         _artistFolded = true;
 
-        PaintAlbumPapers(papers.Album);
+        // A record that is several things under one title gets a page for each (see AlbumPages). Not
+        // while the column is still waiting with nothing in hand: it is busy or written, never a lone
+        // part's name over a spinner.
+        var waiting = standing == PapersStanding.Asking && ReferenceEquals(papers, TrackDossier.Empty);
+        if (waiting || !PageAlbumParts(papers))
+        {
+            ClearAlbumPages();
+            PaintAlbumPapers(papers.Album);
+        }
+
         PaintArtistPapers(papers.Artist);
         PaintLinks(papers.Links);
 
@@ -152,11 +168,13 @@ public sealed partial class AlbumDetailView
 
     // ── the record ──
 
-    private void PaintAlbumPapers(AlbumProfile? album)
+    /// <param name="part">The part of the record this page is about, where the card has pages. It is
+    /// the name the card carries until the part's own answer arrives.</param>
+    private void PaintAlbumPapers(AlbumProfile? album, string? part = null)
     {
         var facts = AlbumFactLine(album);
         var tags = album?.Tags ?? [];
-        var worth = facts.Length > 0 || tags.Count > 0 || _albumArticle is not null;
+        var worth = facts.Length > 0 || tags.Count > 0 || _albumArticle is not null || part is not null;
 
         AlbumPapersBlock.Visibility = worth ? Visibility.Visible : Visibility.Collapsed;
         if (!worth)
@@ -164,7 +182,7 @@ public sealed partial class AlbumDetailView
 
         // The catalogue's name is censored in the same way as the name under the sleeve, so the two
         // lines agree about what may be printed.
-        AlbumPapersName.Text = TitleCensor.Shown(album?.Title ?? _albumArticle?.Title) ?? "";
+        AlbumPapersName.Text = TitleCensor.Shown(album?.Title ?? _albumArticle?.Title ?? part) ?? "";
         AlbumPapersName.Visibility = AlbumPapersName.Text.Length > 0
             ? Visibility.Visible : Visibility.Collapsed;
 
