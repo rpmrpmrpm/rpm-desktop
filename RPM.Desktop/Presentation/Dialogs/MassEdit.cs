@@ -318,7 +318,8 @@ internal static class MassEdit
             // RenamePlanner keeps the input order. So suggestion i, and its apply result, line up with
             // plan[i]. That pairing is how a moved file's old library row is found again.
             var suggestions = RenamePlanner.Plan(
-                plan.Select(p => p.Info), template, root, namingView: MergedDiscNaming(library, db, root, template));
+                plan.Select(p => p.Info), template, root,
+                namingView: MergedDiscNaming(library, db, root, template, [.. plan.Select(p => p.Info)]));
             var applied = new List<ApplyResult>(suggestions.Count);
             bool moved = false;
 
@@ -632,9 +633,15 @@ internal static class MassEdit
     /// <para>The whole record is counted, not only the rows being edited. The discs already in the
     /// library are what disc two must continue from. So an edit that touches one disc must not renumber
     /// it as if the other discs did not exist.</para>
+    ///
+    /// <para>The tracks being written are counted as well. A record re-filed under a new name has no
+    /// discs filed there yet, so counting the library alone named disc two 01 to n on the way in, and the
+    /// next edit, finding the record filed, renumbered it.</para>
     /// </summary>
+    /// <param name="writing">Every track this edit writes, as it will be filed.</param>
     private static Func<TrackInfo, TrackInfo>? MergedDiscNaming(
-        LibraryService library, LibraryDatabase db, string root, NamingTemplate template)
+        LibraryService library, LibraryDatabase db, string root, NamingTemplate template,
+        IReadOnlyList<TrackInfo> writing)
     {
         if (template.MentionsDisc)
             return null;
@@ -674,6 +681,12 @@ internal static class MassEdit
                         TrackNumber = shelved.TrackNumber,
                     });
                 }
+
+                // The count takes each disc's highest number, so a track counted twice, filed and being
+                // written, counts once.
+                siblings.AddRange(writing.Where(t =>
+                    string.Equals(t.Album, key.Item1, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(t.AlbumArtist ?? t.Artist ?? "", key.Item2, StringComparison.OrdinalIgnoreCase)));
 
                 albums[key] = siblings;
             }

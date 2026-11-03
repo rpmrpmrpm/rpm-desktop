@@ -293,6 +293,23 @@ public class LibraryRefilerTests : IDisposable
         Assert.True(Exists("The Band/The Record/cover.jpg"));
     }
 
+    /// <summary>An offloaded record keeps its folder for the cover alone, and re-filing it moves no file,
+    /// so nothing makes the new folder. The cover still comes across, and the folder it leaves goes.</summary>
+    [Fact]
+    public void An_offloaded_records_cover_comes_across_to_a_folder_not_made_yet()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "Old", "Record"));
+        File.WriteAllText(Path.Combine(_root, "Old", "Record", "cover.jpg"), "picture");
+
+        LibraryRefiler.FollowFolders(_db, _root, new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Old/Record"] = ["The Band/The Record"],
+        });
+
+        Assert.True(Exists("The Band/The Record/cover.jpg"));
+        Assert.False(Directory.Exists(Path.Combine(_root, "Old")));
+    }
+
     /// <summary>Music still in the old folder means the folder did not belong to this album only.
     /// Nothing moves, and the row stays, because it may describe the music that is still there.</summary>
     [Fact]

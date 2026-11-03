@@ -2276,15 +2276,52 @@ public sealed partial class LibraryDatabase : IDisposable
     public void MoveMany(IEnumerable<(string From, LibraryTrack Track)> moves)
     {
         ArgumentNullException.ThrowIfNull(moves);
+        var batch = moves.ToList();
 
         using (_gate.Take())
         {
             using var tx = _connection.BeginTransaction();
-            foreach (var (from, track) in moves)
+
+            // A batch can hand a path from one of its rows to another: a double album renumbered to run on
+            // from disc one moves disc two's track 6 to the name its track 14 still has, wherever a long
+            // title is cut short and the two names differ only in their number. Moved one by one, the
+            // first move meets a path that is not free yet, and the whole edit is refused. So where any
+            // row arrives at a path another row is leaving, every row that changes path first steps aside
+            // to a name no file can have, and each goes on from there to its own.
+            var leaving = batch.Select(m => m.From).ToHashSet(StringComparer.Ordinal);
+            if (batch.Any(m => m.From != m.Track.RelativePath && leaving.Contains(m.Track.RelativePath)))
+            {
+                for (var i = 0; i < batch.Count; i++)
+                {
+                    var (from, track) = batch[i];
+                    if (from == track.RelativePath)
+                        continue;
+
+                    var aside = $"{from}\u0001moving\u0001{i}";
+                    if (ParkLocked(from, aside))
+                        batch[i] = (aside, track);
+                }
+            }
+
+            foreach (var (from, track) in batch)
                 if (!MoveLocked(from, track))
                     UpsertLocked(track);
             tx.Commit();
         }
+    }
+
+    /// <summary>Puts a row, and its listening log, under a passing name for the length of one batch (see
+    /// <see cref="MoveMany"/>). False where no row has that path.</summary>
+    private bool ParkLocked(string fromRelativePath, string aside)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = """
+            UPDATE tracks SET relative_path = $aside WHERE relative_path = $from;
+            UPDATE listen SET relative_path = $aside WHERE relative_path = $from;
+            """;
+        cmd.Parameters.AddWithValue("$aside", aside);
+        cmd.Parameters.AddWithValue("$from", fromRelativePath);
+        return cmd.ExecuteNonQuery() > 0;
     }
 
     private static void BindTrack(SqliteCommand cmd, LibraryTrack t)

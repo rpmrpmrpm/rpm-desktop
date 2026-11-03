@@ -134,11 +134,11 @@ public static class LibraryRefiler
             var sourceDir = FullPath(root, source);
             var destinationDir = FullPath(root, destination);
 
-            // A record whose bytes are all in the cloud has no folder on this disk to move files from. It
-            // is still re-filed in the mirror, exactly as a local record is. The mirror half must follow
+            // A record whose bytes are all in the cloud may have no folder on this disk to move files from.
+            // It is still re-filed in the mirror, exactly as a local record is. The mirror half must follow
             // anyway. Otherwise the record's rating, review, heart and pressing stay keyed to a folder that
             // none of its tracks is in.
-            if (!Directory.Exists(sourceDir) || !Directory.Exists(destinationDir))
+            if (!Directory.Exists(sourceDir))
             {
                 db.MoveAlbumMeta(source, destination);
                 continue;
@@ -151,7 +151,24 @@ public static class LibraryRefiler
             // Music still in the folder means the folder is not this record's alone. The folder holds
             // something the library does not know about, or a track that refused to move. Leave everything.
             if (leftovers.Any(f => AudioFileScanner.AudioExtensions.Contains(Path.GetExtension(f))))
+            {
+                if (!Directory.Exists(destinationDir))
+                    db.MoveAlbumMeta(source, destination);
                 continue;
+            }
+
+            // An offloaded record keeps its folder for the cover alone, and no file moving made the new
+            // one. Made here, or the cover the wall paints from stays behind in a folder no track is in,
+            // and the record goes blank.
+            if (!Directory.Exists(destinationDir))
+            {
+                try { Directory.CreateDirectory(destinationDir); }
+                catch
+                {
+                    db.MoveAlbumMeta(source, destination);
+                    continue;
+                }
+            }
 
             foreach (var file in leftovers)
             {
@@ -163,6 +180,31 @@ public static class LibraryRefiler
             }
 
             db.MoveAlbumMeta(source, destination);
+            RemoveIfEmpty(root, sourceDir);
+        }
+    }
+
+    /// <summary>Takes away the folder a record has left, and the artist's folder above it when that held
+    /// nothing else. The edit tidies empty folders only after moving music, and a record whose music is in
+    /// the cloud moved none.</summary>
+    private static void RemoveIfEmpty(string root, string folder)
+    {
+        var top = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+        for (var dir = folder; dir is { Length: > 0 }; dir = Path.GetDirectoryName(dir))
+        {
+            if (Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar)
+                    .Equals(top, StringComparison.OrdinalIgnoreCase))
+                return;
+            try
+            {
+                if (Directory.EnumerateFileSystemEntries(dir).Any())
+                    return;
+                Directory.Delete(dir);
+            }
+            catch
+            {
+                return;   // in use, or already gone: the folder is decoration either way
+            }
         }
     }
 

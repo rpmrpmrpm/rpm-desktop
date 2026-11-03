@@ -431,6 +431,28 @@ public class LibraryDatabaseTests : IDisposable
         Assert.Equal(before, after.AddedUtcTicks);
     }
 
+    /// <summary>A double album renumbered to run on from disc one hands disc two's track 14's name to its
+    /// track 6, where a long title is cut short and the names differ only in their number. One batch,
+    /// and every row lands, with its plays.</summary>
+    [Fact]
+    public void A_batch_that_hands_one_rows_path_to_another_lands_whole()
+    {
+        _db.Upsert(Track("a/06 - Variations.flac", title: "Var. 1"));
+        _db.Upsert(Track("a/14 - Variations.flac", title: "Var. 9"));
+        Played("a/14 - Variations.flac", 42);
+
+        _db.MoveMany(
+        [
+            ("a/06 - Variations.flac", Track("a/14 - Variations.flac", title: "Var. 1")),
+            ("a/14 - Variations.flac", Track("a/22 - Variations.flac", title: "Var. 9")),
+        ]);
+
+        var rows = _db.Query().OrderBy(t => t.RelativePath).ToList();
+        Assert.Equal(["a/14 - Variations.flac", "a/22 - Variations.flac"], rows.Select(t => t.RelativePath));
+        Assert.Equal(["Var. 1", "Var. 9"], rows.Select(t => t.Title));
+        Assert.Equal(1, rows[1].Plays);
+    }
+
     /// <summary>The album editor's release type reaches the row through a move, as every edit does, so a
     /// move writes it: set, changed and cleared.</summary>
     [Fact]
