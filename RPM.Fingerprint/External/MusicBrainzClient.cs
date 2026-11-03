@@ -766,15 +766,26 @@ public sealed class MusicBrainzClient
         IReadOnlyList<string>? Genres = null);
 
     /// <summary>
-    /// What a disc-id lookup asks for: the same includes as a release lookup.
+    /// What a disc-id lookup asks for: everything the resource still accepts, which names the release and
+    /// its tracks without the credits.
+    ///
+    /// <para>MusicBrainz refuses the classical chain on this resource (<c>recording-level-rels</c> and
+    /// <c>work-level-rels</c> answer 400, "not a valid inc parameter for the discid resource"), and a
+    /// refused include refuses the whole lookup, so every CD came back unknown. The disc is named here,
+    /// and its release is then read whole (see <see cref="DiscReleaseIncludes"/>).</para>
+    /// </summary>
+    private const string DiscIncludes =
+        "artists+recordings+artist-credits+isrcs+genres+labels+release-groups+artist-rels+work-rels";
+
+    /// <summary>
+    /// What the release a disc names is read with: everything a release lookup asks for, and the disc ids
+    /// of its media, so the disc in the drive is found among them.
     ///
     /// <para>A CD rip uses this lookup, and the rip is the only time this data is fetched: tracks come
     /// off the disc with no tags, and a finished rip is not looked up again. If this asked for less
     /// than a release lookup, the files RPM creates itself would be its worst-tagged files.</para>
     /// </summary>
-    private const string DiscIncludes =
-        "artists+recordings+artist-credits+isrcs+genres+labels+release-groups" +
-        "+artist-rels+recording-level-rels+work-rels+work-level-rels";
+    private const string DiscReleaseIncludes = ReleaseIncludes + "+discids";
 
     /// <summary>
     /// Looks a CD up by its disc ID. When the exact disc ID has never been submitted (common for
@@ -802,12 +813,33 @@ public sealed class MusicBrainzClient
         if (body is null)
             return null;
 
-        using var doc = JsonDocument.Parse(body);
-        if (!doc.RootElement.TryGetProperty("releases", out var releases) ||
+        using var named = JsonDocument.Parse(body);
+        if (!named.RootElement.TryGetProperty("releases", out var releases) ||
             releases.ValueKind != JsonValueKind.Array || releases.GetArrayLength() == 0)
             return null;
 
+        // The disc names the release; the release is then read whole, credits and all. Where that second
+        // read does not answer, the disc's own answer still names the record, its tracks and its pressing.
         var release = releases[0];
+        JsonDocument? read = null;
+        if (release.TryGetProperty("id", out var namedId) && namedId.GetString() is { Length: > 0 } id)
+        {
+            try
+            {
+                if (await GetAsync(
+                        $"https://musicbrainz.org/ws/2/release/{Uri.EscapeDataString(id)}?inc={DiscReleaseIncludes}&fmt=json",
+                        ct) is { } full)
+                    read = JsonDocument.Parse(full);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The disc's own answer stands in.
+            }
+        }
+
+        using var whole = read;
+        if (whole is not null)
+            release = whole.RootElement;
         string releaseId = release.TryGetProperty("id", out var rid) ? rid.GetString() ?? "" : "";
         string title = release.TryGetProperty("title", out var rt) ? rt.GetString() ?? "" : "";
         var credit = MusicBrainzRelations.ArtistCredit(release);
