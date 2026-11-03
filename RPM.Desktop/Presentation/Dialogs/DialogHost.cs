@@ -54,6 +54,11 @@ public static class DialogHost
 
         /// <summary>Completes when the dialog on top has closed and this one may come back.</summary>
         public TaskCompletionSource? Resumed;
+
+        /// <summary>Dialogs that asked to open over this one while it was already out of the way, in the
+        /// order they asked. Each is given its turn as the one before it closes, and this dialog stays
+        /// hidden until none are left.</summary>
+        public readonly Queue<TaskCompletionSource> Waiting = new();
 #endif
     }
 
@@ -102,7 +107,8 @@ public static class DialogHost
         {
             Stack.Remove(frame);
 #if RPM_WINUI
-            below?.Resumed?.TrySetResult();
+            if (below is not null)
+                Release(below);
 #endif
         }
     }
@@ -166,9 +172,20 @@ public static class DialogHost
     private static async Task StandAsideAsync(Frame frame)
     {
         // Already standing aside: two dialogs asked to open over the same one. The second waits for the
-        // first to finish, and then there is nothing left to hide.
-        while (frame.StoodAside)
-            await frame.Resumed!.Task;
+        // first to close, and the one underneath stays hidden for it, so there is nothing to hide.
+        //
+        // It used to wait on Resumed in a loop until StoodAside cleared. But StoodAside is cleared by the
+        // hidden dialog's own continuation of that same task, which may run after this one, and a finished
+        // task awaited again completes at once. The loop then spun on the UI thread for good: a freeze, seen
+        // when signing in from the rip window's lookup set off a second dialog.
+        if (frame.StoodAside)
+        {
+            var turn = new TaskCompletionSource();
+            frame.Waiting.Enqueue(turn);
+            await turn.Task;
+            await NextTurnAsync();
+            return;
+        }
 
         frame.StoodAside = true;
         frame.Hidden = new TaskCompletionSource();
@@ -181,6 +198,16 @@ public static class DialogHost
         // the next dialog in the same dispatcher turn throws the "single ContentDialog" error, so the
         // wait for the next turn is needed.
         await NextTurnAsync();
+    }
+
+    /// <summary>A dialog opened over this one has closed. The next dialog waiting to open over it goes now,
+    /// and this one stays hidden; with none waiting, this one comes back.</summary>
+    private static void Release(Frame frame)
+    {
+        if (frame.Waiting.TryDequeue(out var next))
+            next.TrySetResult();
+        else
+            frame.Resumed?.TrySetResult();
     }
 
     /// <summary>Waits for the next turn of the dispatcher.</summary>
