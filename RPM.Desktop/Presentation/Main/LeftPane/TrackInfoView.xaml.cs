@@ -126,6 +126,15 @@ public sealed partial class TrackInfoView : UserControl
     /// Show the sheet for one audio file. Re-showing the same file is a no-op, which is what keeps the
     /// pane still while playback ticks its position twice a second.
     /// </summary>
+    /// <summary>Builds the pane again for the record it is on: its tags were edited while it played (see
+    /// PendingTagWrites).</summary>
+    public void Reread()
+    {
+        var path = _path;
+        _path = "";
+        Show(path);
+    }
+
     public void Show(string? path)
     {
         if (string.IsNullOrEmpty(path))
@@ -304,7 +313,9 @@ public sealed partial class TrackInfoView : UserControl
         {
             try
             {
-                return TagReader.Read(path);
+                // With any edit held for the file laid over it: the track is playing, so its file is
+                // written only when the player lets go of it (see PendingTagWrites).
+                return Dialogs.PendingTagWrites.Overlay(TagReader.Read(path));
             }
             catch
             {
@@ -361,6 +372,9 @@ public sealed partial class TrackInfoView : UserControl
         // record's own track total, rather than counting the files in the folder.
         // The conductor and the label go with the papers: asked beside them, handed over with them, put up with
         // them.
+        // The work this track is a movement of, so a record of several works opens its album card on this
+        // one (see AlbumPages).
+        _trackWork = tags?.Work;
         await LookUpAsync(build, artist, album, tags?.Artist ?? row?.Artist, (int)(tags?.TrackCount ?? 0),
                           tags?.Conductor, tags?.Publisher);
     }
@@ -1896,6 +1910,7 @@ public sealed partial class TrackInfoView : UserControl
         _artistArticle = null;
         _artistChoice = ArtistChoice.None;
         _albumArticle = null;
+        ClearAlbumPages();
 
 
         // The record's own dossier goes with the record. It is where the Elsewhere box gets the album's
@@ -1910,6 +1925,7 @@ public sealed partial class TrackInfoView : UserControl
         // measuring then reports the last record's height, which reads as a card that never went away.
         _artistArrives = true;
         _albumArrives = true;
+        _membersArrive = true;
 
         // Put away without a fade of their own. The pane does that: the peel takes every layer down in
         // one order before anything is asked for (see TrackInfoView.Build). A card fading itself out at
@@ -1917,6 +1933,7 @@ public sealed partial class TrackInfoView : UserControl
         // to 1, which would put the block straight back up in the middle of the peel.
         HideCard(ArtistMotion);
         HideCard(AlbumMotion);
+        HideCard(MembersMotion);
         HideCard(LinksMotion);
     }
 
@@ -1932,7 +1949,13 @@ public sealed partial class TrackInfoView : UserControl
         _albumArticle = dossier.AlbumArticle;
         _albumExpanded = false;
 
-        PaintAlbumPage(dossier.Album);
+        // A record that is several things under one title gets a page for each (see AlbumPages); one that
+        // is one thing gets the card it always had.
+        if (!PageAlbumParts(dossier))
+        {
+            PaintAlbumDots();
+            PaintAlbumPage(dossier.Album);
+        }
 
         // The whole field is checked first, because the catalogues are the only ones who can settle it.
         // A field holding one of the separators is not proof of two artists. "Simon & Garfunkel",
@@ -2403,13 +2426,13 @@ public sealed partial class TrackInfoView : UserControl
 
     /// <summary>The same for the record's own card, which has no pager and therefore no side to come in
     /// from: it either arrives with the record or grows into what the catalogues sent back.</summary>
-    private void PaintAlbumPage(AlbumProfile? album)
+    private void PaintAlbumPage(AlbumProfile? album, int way = 0)
     {
         var was = _albumArrives ? 0 : AlbumPage.ActualHeight;
         _albumArrives = false;
 
         PaintAlbum(album);
-        AnimateAlbumPage(was);
+        MoveCard(AlbumMotion, AlbumBlock.Visibility == Visibility.Visible, way, was);
     }
 
     private void AnimateArtistPage(int way, double was)
@@ -2564,6 +2587,13 @@ public sealed partial class TrackInfoView : UserControl
 
     private CardMotion? _albumMotion;
     private CardMotion AlbumMotion => _albumMotion ??= new CardMotion(AlbumBlock, AlbumPage, AlbumPageShift);
+
+    private CardMotion? _membersMotion;
+    private CardMotion MembersMotion => _membersMotion ??= new CardMotion(MembersBlock, MembersPage, MembersPageShift);
+
+    /// <summary>Whether the line-up's next fill is a new record's, so the faces rise in like every other
+    /// card rather than appearing at full strength. See <see cref="_artistArrives"/>.</summary>
+    private bool _membersArrive = true;
 
     /// <summary>
     /// Puts a block away: its motion stops, its page resets, and the block itself collapses.
@@ -3425,17 +3455,26 @@ public sealed partial class TrackInfoView : UserControl
         var band = artist?.Kind is { Length: > 0 } kind
                    && kind.Equals("Group", StringComparison.OrdinalIgnoreCase);
 
+        // What the card is now, before the faces change: nought on a new record, which asks for the
+        // arrival every other card makes, and its height otherwise, which asks for the growth.
+        var was = _membersArrive ? 0 : MembersPage.ActualHeight;
+
         MembersList.Children.Clear();
         MembersBlock.Visibility = band && lineup.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        if (MembersBlock.Visibility != Visibility.Visible)
-            return;
+        if (MembersBlock.Visibility == Visibility.Visible)
+        {
+            _membersArrive = false;
 
-        // A face for each, in a row that wraps: four across the pane. The row is painted afresh for every
-        // artist, and a photograph that lands after the reader has moved on is dropped (see MemberFace).
-        var painting = ++_membersPainted;
-        foreach (var member in lineup)
-            MembersList.Children.Add(MemberFace(member, painting));
+            // A face for each, in a row that wraps: four across the pane. The row is painted afresh for
+            // every artist, and a photograph that lands after the reader has moved on is dropped (see
+            // MemberFace).
+            var painting = ++_membersPainted;
+            foreach (var member in lineup)
+                MembersList.Children.Add(MemberFace(member, painting));
+        }
+
+        MoveCard(MembersMotion, MembersBlock.Visibility == Visibility.Visible, way: 0, was);
     }
 
     /// <summary>Counts the line-ups painted, so a photograph fetched for one is not put on the next.</summary>
@@ -3577,13 +3616,15 @@ public sealed partial class TrackInfoView : UserControl
     {
         var facts = AlbumFactLine(album);
         var tags = album?.Tags ?? [];
-        var worth = WorthACard(facts, tags, _albumArticle);
+        // A card being paged stays up on a page with nothing to say yet, as the artist card does: the dots
+        // are the way back to the page the reader was on.
+        var worth = WorthACard(facts, tags, _albumArticle) || _albumParts.Count > 1;
 
         AlbumBlock.Visibility = worth ? Visibility.Visible : Visibility.Collapsed;
         if (!worth)
             return;
 
-        AlbumName.Text = TitleCensor.Shown(album?.Title ?? _albumArticle?.Title) ?? "";
+        AlbumName.Text = TitleCensor.Shown(album?.Title ?? _albumArticle?.Title ?? AlbumPartShowing) ?? "";
         AlbumFacts.Text = facts;
         AlbumFacts.Visibility = facts.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 

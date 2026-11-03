@@ -42,6 +42,8 @@ public static class TextBoxClipboard
             return;
 
         box.RemoveHandler(UIElement.KeyDownEvent, (KeyEventHandler)OnKeyDown);
+        box.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnPointerPressed);
+        box.SelectionChanged -= OnSelectionChanged;
 
         if (e.NewValue is not true)
             return;
@@ -63,8 +65,88 @@ public static class TextBoxClipboard
         // the control is what it shows instead. There is one instance per box, because a FlyoutBase
         // attaches to a single element at a time.
         var menu = new MenuFlyout();
-        menu.Opening += (_, _) => BuildMenu(menu, box);
+        menu.Opening += (_, _) =>
+        {
+            Remembered(box).MenuOpen = true;
+            KeepSelection(box);
+            BuildMenu(menu, box);
+        };
+        menu.Closed += (_, _) => Remembered(box).MenuOpen = false;
         box.ContextFlyout = menu;
+
+        // The selection is what the menu acts on, so it has to survive the right-click that opens it.
+        box.SelectionChanged += OnSelectionChanged;
+        box.AddHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnPointerPressed, handledEventsToo: true);
+
+        // And it stays drawn while the menu has the focus. Without this the highlight vanished the moment
+        // the menu opened, which read as the right-click having thrown the selection away.
+        box.SelectionHighlightColorWhenNotFocused = box.SelectionHighlightColor;
+    }
+
+    // ── the selection the menu acts on ───────────────────────────────────────────────────────────
+
+    /// <summary>What a box last had selected, when it was collapsed, and whether its menu is open.</summary>
+    private sealed class Selection
+    {
+        public int Start;
+        public int Length;
+        public long CollapsedAt;
+        public bool MenuOpen;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<TextBox, Selection> Selections = new();
+
+    private static Selection Remembered(TextBox box) => Selections.GetOrCreateValue(box);
+
+    /// <summary>Whether this box's right-click menu is open. A control that tidies its text when it loses
+    /// the focus asks this first: opening the menu takes the focus, and tidying then would throw away
+    /// the selection the menu is about to cut or copy (see MassEditDialog.SuggestBox).</summary>
+    public static bool MenuOpen(TextBox box) => Selections.TryGetValue(box, out var kept) && kept.MenuOpen;
+
+    /// <summary>How soon after the selection collapsed a right-click counts as having collapsed it. The
+    /// box handles the press before anything outside it hears of it, so the collapse is seen first.</summary>
+    private const long CollapseWindowMs = 300;
+
+    private static void OnSelectionChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox box)
+            return;
+        var kept = Remembered(box);
+        if (kept.MenuOpen)
+            return;
+
+        if (box.SelectionLength > 0)
+        {
+            kept.Start = box.SelectionStart;
+            kept.Length = box.SelectionLength;
+            kept.CollapsedAt = 0;
+        }
+        else
+        {
+            kept.CollapsedAt = Environment.TickCount64;
+        }
+    }
+
+    /// <summary>A right-click puts back the selection it collapsed, as every Windows text box keeps its
+    /// selection under the right mouse button.</summary>
+    private static void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is TextBox box && e.GetCurrentPoint(box).Properties.IsRightButtonPressed)
+            KeepSelection(box);
+    }
+
+    private static void KeepSelection(TextBox box)
+    {
+        var kept = Remembered(box);
+        if (box.SelectionLength > 0 || kept.Length == 0 || kept.CollapsedAt == 0)
+            return;
+        if (Environment.TickCount64 - kept.CollapsedAt > CollapseWindowMs)
+            return;
+        if (kept.Start + kept.Length > box.Text.Length)
+            return;
+
+        box.Select(kept.Start, kept.Length);
+        kept.CollapsedAt = 0;
     }
 
     // ── the menu ─────────────────────────────────────────────────────────────────────────────────

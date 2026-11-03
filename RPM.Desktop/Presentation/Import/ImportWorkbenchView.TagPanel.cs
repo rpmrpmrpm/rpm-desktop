@@ -108,6 +108,7 @@ public sealed partial class ImportWorkbenchView
         // MainModel.AlbumSeriesNames). Read on every refresh, so a series named on one record is offered on
         // the next one ticked.
         QueueTagPanel.KnownSeries = record is null ? [] : m.AlbumSeriesNames();
+        QueueTagPanel.KnownArtists = m.ArtistNames();
 
         // The disc picture is fetched only when there is a place to show it. Asking a catalogue for a
         // picture with nowhere to go is slow and wasted.

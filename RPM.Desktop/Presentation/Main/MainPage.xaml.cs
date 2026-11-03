@@ -22,6 +22,16 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
         // and the panes' conductor decides what that means.
         WirePaneViews();
 
+        // A tag edit held back from the playing track is written when the player moves off it, and may
+        // re-file the record (see PendingTagWrites). Its cards are read again then, as after any edit.
+        Dialogs.PendingTagWrites.Written += OnHeldTagsWritten;
+        Dialogs.PendingTagWrites.HeldFor += OnTagsHeld;
+        Unloaded += (_, _) =>
+        {
+            Dialogs.PendingTagWrites.Written -= OnHeldTagsWritten;
+            Dialogs.PendingTagWrites.HeldFor -= OnTagsHeld;
+        };
+
         // `TableView` does not accept `ItemsSource` through `{Binding}` on Uno. Assign it from the code
         // behind, and only after the control is `Loaded`: an earlier assignment is ignored.
         Loaded += (_, _) => AttachSources();
@@ -860,9 +870,14 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
     {
         if (XamlRoot is null)
             return;
-        var rows = LibraryActionRows();
-        if (WholeAlbumSelected(rows) is not { } folder)
+        var listed = LibraryActionRows();
+        if (WholeAlbumSelected(listed) is not { } folder)
             return;
+
+        // The tags as the files have them, not as the mirror keeps them (see WithFileTags). The grid's own
+        // rows are told afterwards where their files landed, as these are.
+        var rows = (await Task.WhenAll(listed.Select(r => WithStoredTagsAsync(r.Current))))
+            .Select(t => new TrackRow(t)).ToList();
 
         // The editor's lookup can go on to name the tracks. Applying it writes and re-files at once, which is
         // a second write in the same session as this window's own OK. This is safe only because the write
@@ -882,12 +897,18 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             classical: meta.Classical,
             series: meta.InSeries,
             knownSeries: db.AlbumSeriesNames(),
+            knownArtists: db.ArtistChoices(),
             onLibraryFacts: facts =>
             {
                 facts.WriteTo(db, folder);
                 seriesChanged = facts.SeriesChanged;
                 App.Services.GetRequiredService<NormalizationService>().Forget();
             });
+
+        for (var i = 0; i < rows.Count; i++)
+            if (!string.Equals(listed[i].FilePath, rows[i].FilePath, StringComparison.OrdinalIgnoreCase))
+                listed[i].FiledAt(rows[i].FilePath);
+
         foreach (var f in touched.Append(folder).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             AlbumWall.RefreshAlbum(f);
@@ -904,8 +925,12 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
     {
         if (XamlRoot is null)
             return;
-        if (LibraryActionRows() is not [var row])
+        if (LibraryActionRows() is not [var listed])
             return;
+
+        // From the file, not the grid's row: the window writes its whole row back, and a row from the
+        // mirror would clear every tag the mirror does not keep (see WithFileTags).
+        var row = await RowFromFileAsync(listed.Current);
 
         // The library knows which record this file is on, so the editor gets the release lookup. One track is
         // the most common thing to correct, and this editor would otherwise be the only one that could not
@@ -934,6 +959,11 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             picked.FolderArtBytes);
 
         var touched = (await MassEdit.WriteToLibraryAsync([row], edit, _ => info)).ToList();
+
+        // The grid's own row is told where the file landed, as the window's row was (see TrackRow.FiledAt),
+        // so a second edit from the same list finds it.
+        if (!string.Equals(listed.FilePath, row.FilePath, StringComparison.OrdinalIgnoreCase))
+            listed.FiledAt(row.FilePath);
 
         // Anything that the user switched the album marker on for is also applied to the rest of the record.
         // This is its own pass over the sibling tracks, because this window edited one file: the marker means

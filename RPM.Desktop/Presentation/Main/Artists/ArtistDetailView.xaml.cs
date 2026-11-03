@@ -155,6 +155,19 @@ public sealed partial class ArtistDetailView : UserControl
     public Func<IReadOnlyList<TrackInfo>, CancellationToken,
                Task<IReadOnlyList<RPM.Core.Library.PlaylistHolding>>>? PlaylistsLoader { get; set; }
 
+    /// <summary>
+    /// The acts in this collection closest to this one, closest first (see
+    /// <see cref="RPM.Core.Library.RelatedArtists"/>). It is given their songs, as the playlists loader
+    /// is, because the lists that hold those songs are one of the things that make two acts alike.
+    ///
+    /// <para>Null on an app head with no collection to read. The card is then never shown.</para>
+    /// </summary>
+    public Func<ArtistWallItem, IReadOnlyList<TrackInfo>, CancellationToken,
+               Task<IReadOnlyList<ArtistWallItem>>>? RelatedLoader { get; set; }
+
+    /// <summary>Raised when one of the related acts is pressed: open their page.</summary>
+    public event Action<ArtistWallItem>? ArtistRequested;
+
     /// <summary>The drawn cover of one of those playlists: its records laid out as tiles on a
     /// background of their colours. It is the same picture that heads the track list of that playlist,
     /// from the same source, so a playlist has one picture everywhere. Null for a playlist whose records
@@ -385,6 +398,13 @@ public sealed partial class ArtistDetailView : UserControl
         MembersList.Children.Clear();
         PopularBlock.Visibility = Visibility.Collapsed;
         PopularList.Children.Clear();
+        RelatedBlock.Visibility = Visibility.Collapsed;
+        RelatedList.Children.Clear();
+
+        // The column's cards come in together, once the papers have answered (see CardsArrive). The wall
+        // stands on the page from the start, so it is held out of sight until then.
+        _cardsUp = false;
+        Hold(WallBlock);
         _article = null;
         _aboutExpanded = false;
         _aboutGrowth?.Stop();
@@ -416,6 +436,8 @@ public sealed partial class ArtistDetailView : UserControl
         var cached = known is { IsEmpty: false };
         if (cached)
             Papers(known!, artist.Name);
+        else if (shelf || PapersLoader is null)
+            CardsArrive();   // nothing will be asked, so nothing is waited for
 
         // It is never shown for the shelf: its loader answers empty without leaving the computer, so a
         // spinner would suggest a catalogue read that is not made.
@@ -557,8 +579,10 @@ public sealed partial class ArtistDetailView : UserControl
             await SongsAsync(artist, ct);
 
             // Last, and it has to be: it is a question about the songs above, so it cannot be asked
-            // until they are all in. See PlaylistsAsync.
+            // until they are all in. See PlaylistsAsync. The related acts are partly read off the same
+            // lists, so they come after.
             await PlaylistsAsync(ct);
+            await RelatedAsync(artist, ct);
         }
         catch (OperationCanceledException)
         {
@@ -1216,6 +1240,8 @@ public sealed partial class ArtistDetailView : UserControl
         catch
         {
             Waited(ct);
+            if (!ct.IsCancellationRequested)
+                CardsArrive();   // the cards that do not need the papers come in without them
             return;   // offline, or a catalogue is not working
         }
 
@@ -1384,6 +1410,7 @@ public sealed partial class ArtistDetailView : UserControl
         }
 
         PopularBlock.Visibility = Visibility.Visible;
+        CardArrives(PopularBlock);
     }
 
     /// <summary>Puts one dossier on the page: the biography, the links and the members. It is the one
@@ -1396,6 +1423,89 @@ public sealed partial class ArtistDetailView : UserControl
         PaintAbout(papers.Artist, credited);
         PaintLinks(papers.Artist?.Pages ?? []);
         PaintMembers(papers.Artist);
+        CardsArrive();
+    }
+
+    // ── the cards coming in ──
+
+    /// <summary>Whether the column's cards have come in for the artist on screen. Until then, a card that
+    /// is ready waits for the rest.</summary>
+    private bool _cardsUp;
+
+    /// <summary>
+    /// The column's cards come in, all at once: the biography, the band, the links, the related acts and
+    /// the wall, each rising into place as it fades in, as the track pane's cards do.
+    ///
+    /// <para><b>Together, and when the papers answer.</b> Each card is filled on its own clock: the wall
+    /// from the server, the related acts from the collection, the biography from the encyclopedias. Shown as
+    /// each was ready, the quickest stood alone on the page and the rest arrived under it. So the quick ones
+    /// wait, out of sight, for the papers (or for the papers to fail, or for an artist whose papers are
+    /// never asked), and then everything that has something to show comes in on one beat. A card that is
+    /// ready only after that (the most collected records from Discogs, the related acts on a long
+    /// listing) comes in the same way on its own (see <see cref="CardArrives"/>).</para>
+    ///
+    /// <para>Once per artist. The papers are painted twice for an artist already known, once from the
+    /// cache and once from the read that refreshes it, and the second must not make the cards come in
+    /// again.</para>
+    /// </summary>
+    private void CardsArrive()
+    {
+        if (_cardsUp)
+            return;
+        _cardsUp = true;
+
+        foreach (var card in new FrameworkElement[] { AboutBlock, MembersBlock, LinksBlock, PopularBlock, RelatedBlock, WallBlock })
+            if (card.Visibility == Visibility.Visible)
+                Rise(card);
+    }
+
+    /// <summary>A card that is ready: it comes in now if the others have, or waits, out of sight, to come
+    /// in with them.</summary>
+    private void CardArrives(FrameworkElement card)
+    {
+        if (_cardsUp)
+            Rise(card);
+        else
+            Hold(card);
+    }
+
+    /// <summary>How far a card rises as it comes in, and how long it takes: the track pane's own.</summary>
+    private const float CardRise = 14f;
+    private static readonly TimeSpan CardRiseTime = TimeSpan.FromMilliseconds(260);
+
+    /// <summary>Out of sight, keeping its room, until it comes in.</summary>
+    private static void Hold(FrameworkElement card)
+    {
+#if RPM_WINUI
+        var visual = ElementCompositionPreview.GetElementVisual(card);
+        visual.StopAnimation("Opacity");
+        visual.Opacity = 0f;
+#endif
+    }
+
+    /// <summary>Fades the card in as it rises the last few points into place. On the compositor, so a page
+    /// busy laying out its shelves cannot make it stutter.</summary>
+    private static void Rise(FrameworkElement card)
+    {
+#if RPM_WINUI
+        var visual = ElementCompositionPreview.GetElementVisual(card);
+        ElementCompositionPreview.SetIsTranslationEnabled(card, true);
+        var compositor = visual.Compositor;
+        var ease = Main.PaneGlide.Ease(compositor);
+
+        var fade = compositor.CreateScalarKeyFrameAnimation();
+        fade.Duration = CardRiseTime;
+        fade.InsertKeyFrame(0f, 0f);
+        fade.InsertKeyFrame(1f, 1f, ease);
+
+        var rise = compositor.CreateVector3KeyFrameAnimation();
+        rise.Duration = CardRiseTime;
+        rise.InsertKeyFrame(0f, new Vector3(0f, CardRise, 0f));
+        rise.InsertKeyFrame(1f, Vector3.Zero, ease);
+
+        visual.StartAnimation("Opacity", fade);
+        visual.StartAnimation("Translation", rise);
+#endif
     }
 
     /// <summary>The wait is over, however it ended. A cancelled load is left alone, because the
@@ -1735,6 +1845,131 @@ public sealed partial class ArtistDetailView : UserControl
 
     /// <summary>Counts the line-ups painted, so a photograph fetched for one is not put on the next.</summary>
     private int _membersPainted;
+
+    // ── the acts related to them ──
+
+    /// <summary>
+    /// The related acts, under the most popular records: a round photograph over each name, as the band
+    /// members are drawn, at twice their size, in a row that scrolls sideways. Pressing one opens their
+    /// page.
+    ///
+    /// <para>Nothing is shown for an act with none, which in a small collection is most of them: a card
+    /// headed "Related artists" over nobody says only that the collection is small.</para>
+    /// </summary>
+    private async Task RelatedAsync(ArtistWallItem artist, CancellationToken ct)
+    {
+        RelatedList.Children.Clear();
+        RelatedBlock.Visibility = Visibility.Collapsed;
+
+        if (RelatedLoader is not { } load)
+            return;
+
+        IReadOnlyList<ArtistWallItem> related;
+        try
+        {
+            related = await load(artist, [.. _everySong.Select(song => song.Track)], ct);
+        }
+        // As for the playlists: the reader leaving is FillAsync's to handle, and a library that closes under
+        // the page is a card not shown, not a fault.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return;
+        }
+
+        if (ct.IsCancellationRequested || related.Count == 0)
+            return;
+
+        foreach (var act in related)
+            RelatedList.Children.Add(RelatedFace(act, ct));
+        RelatedBlock.Visibility = Visibility.Visible;
+        CardArrives(RelatedBlock);
+    }
+
+    /// <summary>One related act: the band members' face at twice the size, pressable. The photograph is
+    /// the one their box on the wall shows, from the wall's own loader, so nothing is fetched twice; the
+    /// initials stand until it comes, and where there is none.</summary>
+    private Button RelatedFace(ArtistWallItem act, CancellationToken ct)
+    {
+        const double Edge = 128;
+
+        var face = new Grid { Width = Edge, Height = Edge, HorizontalAlignment = HorizontalAlignment.Center };
+        face.Children.Add(new Ellipse { Fill = Ink("InkPlateLit") });
+        face.Children.Add(new TextBlock
+        {
+            Text = Initials(act.Name),
+            FontSize = 36,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = Ink("InkQuiet"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var picture = new ImageBrush { Stretch = Stretch.UniformToFill, AlignmentY = AlignmentY.Top };
+        var photo = new Ellipse { Fill = picture, Opacity = 0 };
+        face.Children.Add(photo);
+
+        var name = new TextBlock
+        {
+            Text = act.Name,
+            FontSize = 12,
+            Foreground = Ink("InkBody"),
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxLines = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        var tile = new StackPanel { Width = 140, Spacing = 8 };
+        tile.Children.Add(face);
+        tile.Children.Add(name);
+
+        var button = new Button
+        {
+            Content = tile,
+            Padding = new Thickness(0),
+            MinWidth = 0,
+            MinHeight = 0,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        button.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        button.Resources["ButtonBackgroundPressed"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        button.Resources["ButtonForegroundPointerOver"] = Ink("InkStrong");
+        ToolTipService.SetToolTip(button, act.Name);
+        button.Click += (_, _) => ArtistRequested?.Invoke(act);
+
+        if (PortraitLoader is { } portrait && !RPM.Core.Metadata.Providers.ArtistCredit.IsVariousArtists(act.Name))
+            _ = DressRelatedAsync(portrait, act, Edge, picture, photo, ct);
+
+        return button;
+    }
+
+    /// <summary>Their photograph in its own colours, cut to the circle's pixels. Dropped if the reader has
+    /// left the page by the time it comes.</summary>
+    private async Task DressRelatedAsync(
+        Func<ArtistWallItem, CancellationToken, Task<ArtistFace>> portrait, ArtistWallItem act, double edge,
+        ImageBrush picture, Ellipse photo, CancellationToken ct)
+    {
+        try
+        {
+            var face = await portrait(act, ct);
+            if (ct.IsCancellationRequested || (face.Original ?? face.Picture) is not { Length: > 0 } bytes)
+                return;
+
+            var scale = XamlRoot?.RasterizationScale ?? 1;
+            var bitmap = await RemoteImage.DecodeAsync(bytes, (int)Math.Ceiling(edge * scale));
+            if (ct.IsCancellationRequested)
+                return;
+
+            picture.ImageSource = bitmap;
+            photo.Opacity = 1;
+        }
+        catch
+        {
+            // No photograph: the initials stay, which is what an act with none shows anyway.
+        }
+    }
 
     /// <summary>One member: a round photograph over their name. Until the photograph comes, and where
     /// there is none, the circle carries their initials. The same face as the track pane's.</summary>

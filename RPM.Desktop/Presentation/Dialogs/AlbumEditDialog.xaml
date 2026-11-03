@@ -135,6 +135,10 @@
 
     <ctl:ResizableDialogShell.Footer>
       <StackPanel Orientation="Horizontal" Spacing="10">
+        <!-- Whether the save reaches the tracks' own fields as well: see Save_Click. Beside the buttons,
+             because it is a choice about what the save does, not about any one box. -->
+        <CheckBox x:Name="ApplyToTracks" Content="{loc:Str Key=AlbumEdit_ApplyToTracks}"
+                  VerticalAlignment="Center" Margin="0,0,8,0"/>
         <Button Click="Cancel_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf00d;" FontSize="11"

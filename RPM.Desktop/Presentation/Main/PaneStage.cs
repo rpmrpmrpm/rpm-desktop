@@ -27,7 +27,6 @@ internal readonly record struct PaneStage(
     bool AtHome,
     bool Chevron,
     LeftTab Tab,
-    bool RightOpen,
     RightTab Reading)
 {
     /// <summary>Whether the selected function's view stands beside the left rail. This is the chevron's
@@ -35,19 +34,29 @@ internal readonly record struct PaneStage(
     /// column.</summary>
     public bool LeftViewUp => Chevron;
 
-    /// <summary>Which tab the left rail is lit for. It is always one of the four. The rail shows which view
-    /// it is showing, or which view it is folded ON, the same way the library's rail does. There is no "lit
-    /// for nothing" state, because home does not take this column's view away.</summary>
-    public LeftTab LeftLit => Tab;
+    /// <summary>Which tab the left rail is lit for: the view standing beside it, and nothing once the view
+    /// is folded away. A glow on a tab whose view is not there reads as a view still open. Home does not
+    /// change it, because home does not take this column's view away.</summary>
+    public LeftTab? LeftLit => Chevron ? Tab : null;
 
-    /// <summary>Which of the library card's four views is on screen. None is shown while the card is folded
-    /// away for the import workbench, and none is shown while home stands over it.</summary>
-    public RightTab? RightShowing => AtHome || !RightOpen ? null : Reading;
+    /// <summary>Whether the import workbench is up. It does not stand in the left column: it is laid over
+    /// the whole row, both cards and the seam, with only the left rail beside it. The columns underneath
+    /// stay as they were, so nothing in the library is laid out again on the way in or out.</summary>
+    public bool ImportOver => Chevron && Tab == LeftTab.Import;
 
-    /// <summary>Which tab the library rail is lit for. This is the same answer as <see
-    /// cref="RightShowing"/>, except with the card folded away. Then the rail is all there is, and it goes
-    /// on saying which view it is folded ON.</summary>
-    public RightTab? RightLit => AtHome ? null : Reading;
+    /// <summary>Which of the library card's four views is in front of the reader. None while home stands
+    /// over the card, and none while the import workbench lies over the whole row.</summary>
+    public RightTab? RightShowing => AtHome || ImportOver ? null : Reading;
+
+    /// <summary>Which of the card's four views is standing in it, seen or not. The import workbench covers
+    /// the card without taking its view down: a view put back up is laid out again, and laying the library
+    /// out is the cost the workbench is laid over it to avoid. Home is different, because it takes the
+    /// card's place.</summary>
+    public RightTab? RightStanding => AtHome ? null : Reading;
+
+    /// <summary>Which tab the library rail is lit for: the view standing in the card, which under the
+    /// import workbench is covered along with its rail.</summary>
+    public RightTab? RightLit => RightStanding;
 
     /// <summary>Whether the deck's home key wears the rails' mark. Home is the only tab that is on neither
     /// rail.</summary>

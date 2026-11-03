@@ -1,5 +1,4 @@
-﻿using RPM.Core.Layout;
-using RPM.Core.Library;
+﻿using RPM.Core.Library;
 using RPM.Desktop.Presentation.Dialogs;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -334,11 +333,10 @@ public sealed partial class MainPage
         // until something else forces a read. That is better than a screen that rebuilds itself under
         // the reader.
 
-        // And the library's own rail, the same two reports. Its playlist model is built here rather than
+        // And the library's own rail, the tab report. Its playlist model is built here rather than
         // on the way in, because the library row menu's "Add to playlist" needs the tree whether or not
         // that view has ever been opened.
         LibraryRail.TabRequested += AskForTab;
-        LibraryRail.CloseRequested += () => Panes.ToggleRightView();
 
         // The deck's own reports: its pill drives the same pane the rail's foot button closes, its
         // hamburger opens the shell's menu at the button, and its view menu asks for one of the app's
@@ -363,12 +361,86 @@ public sealed partial class MainPage
     /// columns and remembers the split as the open width).</summary>
     private void ResizeLeftPane(double leftStars, double rightStars) => Panes.Resize(leftStars, rightStars);
 
+    /// <summary>The import workbench's slide over the row and back. See <see cref="ImportCover"/>.</summary>
+    private readonly ImportCover _importCover = new();
+
+    /// <summary>Whether the left card is stretched over the row, including while it slides back.</summary>
+    private bool _rowCovered;
+
+    /// <summary>Whether it is on its way back into its column.</summary>
+    private bool _uncovering;
+
+    /// <summary>
+    /// Lays the left card over the whole row, across the seam and the library card, and slides it out to
+    /// it. Only the card's extent changes: the columns are not touched, so the library underneath is not
+    /// laid out again either way. See <see cref="PaneStage.ImportOver"/>.
+    ///
+    /// <para>A card on its way back is turned round where it is.</para>
+    /// </summary>
+    private void CoverRow(double ms)
+    {
+        if (_rowCovered && !_uncovering)
+            return;
+
+        var from = LeftCol.ActualWidth;
+        if (!_rowCovered)
+            Stretch(true);
+        _uncovering = false;
+        _importCover.Open(LeftPanel, from, PanelsGrid.ActualWidth, ms);
+    }
+
+    /// <summary>Slides the card back to <paramref name="to"/>, the width its column has, and puts it there;
+    /// <paramref name="landed"/> runs then, unless the workbench was asked for again on the way. A card
+    /// that is not over the row lands at once.</summary>
+    private void UncoverRow(double to, double ms, Action landed)
+    {
+        if (!_rowCovered)
+        {
+            landed();
+            return;
+        }
+
+        _uncovering = true;
+        _importCover.Close(LeftPanel, PanelsGrid.ActualWidth, to, ms, () =>
+        {
+            _uncovering = false;
+            Stretch(false);
+            landed();
+        });
+    }
+
+    /// <summary>Back into its column at once, with no slide: for a pane move, which moves the card with its
+    /// column and cannot do that while it lies over the row.</summary>
+    private void DropCover()
+    {
+        _importCover.Stop();
+        _uncovering = false;
+        if (_rowCovered)
+            Stretch(false);
+    }
+
+    /// <summary>The card's extent: over the row, on top of the seam and the library, or its own column.
+    ///
+    /// <para>The frost is told first. The card changing size would otherwise put it back on live glass
+    /// until the next photograph, and live glass over the library is a blur of the LIBRARY: the grid
+    /// showed through, frosted, for a moment every time Import was pressed. The plate is of the backdrop
+    /// alone, so the card's new slice is cut from it instead.</para></summary>
+    private void Stretch(bool over)
+    {
+        _rowCovered = over;
+        Common.FrostPlate.Current.Reshaping(LeftPanel);
+        Grid.SetColumnSpan(LeftPanel, over ? 3 : 1);
+        Canvas.SetZIndex(LeftPanel, over ? 1 : 0);
+    }
+
+    /// <summary>Whether the left card lies over the row, or is still sliding back from it.</summary>
+    private bool RowCovered => _rowCovered;
+
     /// <summary>Both panes' single source of truth: which function the left pane shows
     /// (<see cref="Tab"/>) and whether it is <see cref="Open"/> or <see cref="Shown"/> at all, which
-    /// way the library pane is <see cref="Reading"/> the collection and whether it is
-    /// <see cref="RightOpen"/>, plus the remembered star split. Every state change funnels through
-    /// <see cref="Apply"/>, the ONLY writer of the column widths, so open/close, tab switches, folds
-    /// and splitter drags can't fight over the width.
+    /// way the library pane is <see cref="Reading"/> the collection, plus the remembered star split.
+    /// Every state change funnels through <see cref="Apply"/>, the ONLY writer of the column widths, so
+    /// open/close, tab switches, folds and splitter drags can't fight over the width.
     /// </summary>
     private sealed class PaneConductor(MainPage p)
     {
@@ -485,14 +557,15 @@ public sealed partial class MainPage
         /// move fades is the difference between these and the state as it now stands, so a re-apply that
         /// changes nothing (a queue count ticking over, a window resize) costs no show.</summary>
         private (LeftTab Tab, bool Open, bool Shown, bool Queue)? _leftShowing;
-        private (RightTab Reading, bool Open, bool Home)? _rightShowing;
+        private (RightTab Reading, bool Home)? _rightShowing;
 
         private (LeftTab, bool, bool, bool) LeftSignature =>
             (Tab, Open, Shown, p.Model?.QueueVisible ?? false);
 
         // Home uses the RIGHT signature, since that is the host it stands in: going home swaps the
-        // library card's content, and the left pane's own change is already told by Open.
-        private (RightTab, bool, bool) RightSignature => (Reading, RightOpen, AtHome);
+        // library card's content, and the left pane's own change is already told by Open. The import
+        // workbench is not in it: it lies over the card and changes nothing in it.
+        private (RightTab, bool) RightSignature => (Reading, AtHome);
 
         /// <summary>
         /// How wide the pane is allowed to get, in px, closed over the star split.
@@ -527,23 +600,15 @@ public sealed partial class MainPage
         /// </summary>
         private const double DrillMinRightWidthPx = 720;
 
-        /// <summary>The ceiling in force right now: Import has none at all, and a playlist open in the
-        /// library lowers whichever one applies.
+        /// <summary>The ceiling in force right now: a playlist open in the library lowers it.
         ///
-        /// <para>Import is the one view that is worked IN rather than read from: a queue of files being
-        /// ticked, retitled and matched, in as many columns as the grid has. The reasoning behind the
-        /// ceiling (a pane that is only an index INTO the library should not take half the window) does
-        /// not hold for a view that IS the work, so it is let out to wherever the user drags it (the
-        /// library's own minimum is the only stop) and stands at its own remembered width.</para>
+        /// <para>Import is not sized by this or by anything else in the column. It is the one view that is
+        /// worked IN rather than read from, a queue of files in as many columns as the grid has, so it
+        /// lies over the whole row instead (see <see cref="PaneStage.ImportOver"/>). It used to take a
+        /// width of its own here, and every trip in and out of it then slid the seam and laid the library
+        /// out again at each step of the slide.</para>
         /// </summary>
-        public double MaxLeftWidth
-        {
-            get
-            {
-                var ceiling = ImportSized ? double.PositiveInfinity : MaxLeftWidthPx;
-                return Drilled ? Math.Min(ceiling, DrilledCeiling) : ceiling;
-            }
-        }
+        public double MaxLeftWidth => Drilled ? Math.Min(MaxLeftWidthPx, DrilledCeiling) : MaxLeftWidthPx;
 
         /// <summary>What the pane may take while the library is showing a playlist: everything the
         /// library does not need for it, and never less than a panel's own minimum. A row too narrow
@@ -555,38 +620,6 @@ public sealed partial class MainPage
         /// <summary>Whether the library has a playlist's tracks open rather than the tree.</summary>
         public bool Drilled { get; private set; }
 
-        /// <summary>Whether the pane's width is Import's own remembered pixel width rather than a share
-        /// of the row under a ceiling. Import only, while the pane is open, and only while the library
-        /// is standing beside it: with the library folded away Import has the whole row and there is no
-        /// remembered width to hold it to.</summary>
-        private bool ImportSized => Open && RightOpen && Tab == LeftTab.Import;
-
-        /// <summary>Import's remembered width in px: negative until read from the settings, zero when the
-        /// settings hold none (never dragged) and the default is standing in for it.</summary>
-        private double _importWidth = -1;
-
-        private static SettingsService Settings => App.Services.GetRequiredService<SettingsService>();
-
-        /// <summary>How wide Import stands: what the user last dragged it to, or the width every other
-        /// view is capped at when they never have, the ceiling is what Import is being let out of, so
-        /// that is where being let out starts from.
-        ///
-        /// <para>Clamped to what the row can actually give: the library keeps its minimum, so a width
-        /// dragged on a wide window does not swallow the library on a narrow one. The clamp is applied to
-        /// the answer only, never to what is remembered, widen the window again and the pane comes back
-        /// to the width it was given.</para>
-        /// </summary>
-        private double ImportWidth
-        {
-            get
-            {
-                if (_importWidth < 0)
-                    _importWidth = Settings.ImportPaneWidth;
-                return LeftPaneWidth.ForImport(
-                    _importWidth, MaxLeftWidthPx, p.PanelsGrid.ActualWidth - Seam(), MinPanelWidth);
-            }
-        }
-
         private static SessionService Session => App.Services.GetRequiredService<SessionService>();
 
         public LeftTab Tab { get; private set; } = LeftTab.TrackInfo;   // Track info is the first function
@@ -597,6 +630,25 @@ public sealed partial class MainPage
         public bool Open => Stage.LeftViewUp;
 
         private bool _open;                                              // closed by default
+
+        /// <summary>Whether the column has a view open beside its rail, which is not always the chevron's
+        /// answer. On Import the workbench lies over the row and the column underneath keeps the width
+        /// the view before it had (<see cref="_openBeneath"/>), so going in and coming out moves nothing.
+        /// Folded on Import, the column is the rail alone.</summary>
+        private bool ColumnOpen => Tab == LeftTab.Import ? _open && _openBeneath : _open;
+
+        /// <summary>Whether the view that was up before Import stood open beside the rail. Taken on the
+        /// way in, and dropped when the workbench is folded by its chevron, because the reader has then
+        /// put the column away and it should not open again under the workbench.</summary>
+        private bool _openBeneath = true;
+
+        /// <summary>Notes what the column was doing before the pane goes over to Import. A press on Import
+        /// while it is already the tab changes nothing about the column.</summary>
+        private void GoingToImport(LeftTab tab)
+        {
+            if (tab == LeftTab.Import && Tab != LeftTab.Import)
+                _openBeneath = Shown && _open;
+        }
 
         /// <summary>
         /// Whether the home screen is the view up.
@@ -613,7 +665,7 @@ public sealed partial class MainPage
         /// <summary>What is on screen, as opposed to what has been asked for: the one place the home
         /// screen's effect on the library card and its rail is written down. See <see
         /// cref="PaneStage"/>.</summary>
-        private PaneStage Stage => new(AtHome, _open, Tab, RightOpen, Reading);
+        private PaneStage Stage => new(AtHome, _open, Tab, Reading);
 
         /// <summary>The same, for a reader outside the conductor: which search field is on screen is
         /// read off it (see <see cref="SearchTarget"/>).</summary>
@@ -629,40 +681,20 @@ public sealed partial class MainPage
         /// </summary>
         public bool Shown { get; private set; } = true;
 
-        /// <summary>The rail on its own, with no view beside it.</summary>
-        private bool RailOnly => Shown && !Open;
+        /// <summary>The rail on its own, with no view beside it in the column. See <see
+        /// cref="ColumnOpen"/> for why that is not the same as the chevron being folded.</summary>
+        private bool RailOnly => Shown && !ColumnOpen;
 
-        /// <summary>What each rail measures. Fixed in the rails' own markup; read from the controls where
-        /// they have been laid out, since a number in two files is a number that will disagree with
+        /// <summary>What the rail measures. Fixed in the rail's own markup; read from the control where it
+        /// has been laid out, since a number in two files is a number that will disagree with
         /// itself.</summary>
         private double RailWidth => p.Rail.ActualWidth > 0 ? p.Rail.ActualWidth : RailWidthFallback;
-
-        private double RightRailWidth =>
-            p.LibraryRail.ActualWidth > 0 ? p.LibraryRail.ActualWidth : RailWidthFallback;
 
         private const double RailWidthFallback = 82;
 
         /// <summary>Which way the library pane is reading the collection.</summary>
         public RightTab Reading { get; private set; } = RightTab.Albums;
 
-        /// <summary>Which of the library card's four views is actually on screen, see
-        /// <see cref="PaneStage.RightShowing"/>, which is where that is decided.</summary>
-        private RightTab? ShownRight => Stage.RightShowing;
-
-        /// <summary>Whether the library pane's view stands beside its rail, or is folded away to leave
-        /// the rail alone. Open, always, except while the import workbench has asked for the
-        /// window.</summary>
-        public bool RightOpen { get; private set; } = true;
-
-        /// <summary>
-        /// Whether the library is allowed to step aside at all.
-        ///
-        /// <para>It steps aside for one thing: the import workbench wanting the width, which is the one
-        /// view in the app that is worked IN. Anywhere else there is nothing on the other side of the
-        /// window that wants the room, and a library folded down to a rail would be the app hiding the
-        /// only thing it is for.</para>
-        /// </summary>
-        public bool CanFoldRight => Shown && Open && Tab == LeftTab.Import;
 
         /// <summary>
         /// The panes as the last session left them: which function the left pane showed, open or shut,
@@ -680,6 +712,7 @@ public sealed partial class MainPage
 
             Tab = tab;
             _open = open;
+            _openBeneath = open;   // what was under a workbench left up last time is not known
             Reading = reading;
             Apply();
         }
@@ -688,9 +721,7 @@ public sealed partial class MainPage
         /// so every path that changes them, either rail, the deck pill, a fresh import, is covered by
         /// the one line rather than by a note at each of them.
         ///
-        /// <para>The library's fold is not written down: it is only ever offered while the import
-        /// workbench is up, and an import queue does not survive the process (see RestoreSession). A
-        /// library that came back folded would be folded for a reason that had gone.</para></summary>
+        /// </summary>
         private void Remember()
         {
             var session = Session;
@@ -712,6 +743,7 @@ public sealed partial class MainPage
         /// </summary>
         public void OpenTab(LeftTab tab)
         {
+            GoingToImport(tab);
             Tab = tab;
             _open = true;
             Shown = true;   // a tab pressed on a hidden column is a column being asked for
@@ -733,7 +765,6 @@ public sealed partial class MainPage
         public void OpenRightTab(RightTab tab)
         {
             Reading = tab;
-            RightOpen = true;
             AtHome = false;
             Apply();
         }
@@ -748,6 +779,11 @@ public sealed partial class MainPage
             // Home is not a special case here. The pane opens beside home, and home stays up, as the
             // chevron says it will. A reader who pressed the chevron to see the track pane keeps the
             // screen they were on.
+            //
+            // Folding the import workbench folds the column under it too: the reader is putting the pane
+            // away, and it should come back as the workbench alone over a rail, not open up beneath it.
+            if (Tab == LeftTab.Import && _open)
+                _openBeneath = false;
             _open = !_open;
             Apply();
         }
@@ -773,46 +809,11 @@ public sealed partial class MainPage
         /// something on screen, and a view that has been switched away from is not making it.</summary>
         public void SetDrilled(bool on)
         {
-            if (!(RightOpen && Reading == RightTab.Playlists))
+            if (Reading != RightTab.Playlists)
                 on = false;
             if (Drilled == on)
                 return;
             Drilled = on;
-            Apply();
-        }
-
-        /// <summary>The same gesture on the library's rail: its view folds away and leaves the tabs, so
-        /// the import workbench beside it has the window. Ignored where the fold is not offered, the
-        /// button is not there to press then, and this is the same answer from the other
-        /// direction.</summary>
-        public void ToggleRightView()
-        {
-            if (!CanFoldRight)
-                return;
-            RightOpen = !RightOpen;
-            _libraryAskedBack = RightOpen;   // brought back by hand: no later scan folds it away again
-            Apply();
-        }
-
-        /// <summary>Whether the user has taken the library back out while an import was running. Set by
-        /// the chevron, cleared when a fresh import starts, because the next import is a new piece of work and
-        /// makes its own decision.</summary>
-        private bool _libraryAskedBack;
-
-        /// <summary>
-        /// The same fold, asked for by a scan that has just landed rows rather than by the chevron: the
-        /// queue is there to be worked through now, so the workbench takes the window and the library
-        /// steps back to its rail.
-        ///
-        /// <para>Only ever a fold, never an unfold: a library the user brought back mid-import stays
-        /// back until the import is over, and then it returns on its own (see ApplyCore, where a pane
-        /// that has left Import takes the library out with it).</para>
-        /// </summary>
-        public void FoldLibraryForImport()
-        {
-            if (!CanFoldRight || !RightOpen || _libraryAskedBack)
-                return;
-            RightOpen = false;
             Apply();
         }
 
@@ -844,9 +845,10 @@ public sealed partial class MainPage
         {
             if (queueVisible && !_queueWasVisible)
             {
+                GoingToImport(LeftTab.Import);
+                Shown = true;
                 _open = true;
                 Tab = LeftTab.Import;
-                _libraryAskedBack = false;
                 AtHome = false;   // the workbench is asking for the window, so home is not what is up
             }
             else if (!queueVisible && _queueHadRows && Tab == LeftTab.Import)
@@ -858,9 +860,7 @@ public sealed partial class MainPage
             Apply();
         }
 
-        /// <summary>Splitter drag: write the columns now, and remember the split as the open width. On
-        /// Import the drag sets that view's own width instead, and the star split the other views share
-        /// is left exactly as it was, which is what they come back to.</summary>
+        /// <summary>Splitter drag: write the columns now, and remember the split as the open width.</summary>
         public void Resize(double leftStars, double rightStars)
         {
             leftStars = Math.Max(1, leftStars);
@@ -879,16 +879,6 @@ public sealed partial class MainPage
 
             _curLeft = leftStars;
             _curRight = rightStars;
-
-            // The drag hands its columns over in pixels (used as stars, which is the same layout). Import
-            // reads them as the pixels they are, and keeps the number.
-            if (ImportSized)
-            {
-                _importWidth = leftStars;
-                Settle();
-                return;
-            }
-
             Settle();
 
             // Not while a playlist is open: the drag is happening inside a ceiling the tracklist put
@@ -901,14 +891,12 @@ public sealed partial class MainPage
             }
         }
 
-        /// <summary>The drag ended: write Import's width to the settings, once. During the drag it is
-        /// only held in the conductor, a settings save is a file write, and doing one per pointer move
-        /// would rewrite settings.json a hundred times crossing the window.</summary>
+        /// <summary>The drag ended: write the split down, once. During the drag it is only held in the
+        /// conductor, and writing it per pointer move would save the session a hundred times crossing the
+        /// window.</summary>
         public void CommitWidth()
         {
-            if (ImportSized && _importWidth > 0)
-                Settings.ImportPaneWidth = _importWidth;
-            else if (!Drilled)
+            if (!Drilled)
                 Session.Split = (_leftStars, _rightStars);   // where the seam was left, for the next run
         }
 
@@ -926,12 +914,6 @@ public sealed partial class MainPage
             if (p.Model is not { } m)
                 return;
 
-            // ── the library pane ── The fold is the import workbench's to ask for, so a left pane that
-            // has left Import takes the library back out with it: a fold nobody can undo is a view held
-            // down by a button that is no longer on the screen.
-            if (!CanFoldRight)
-                RightOpen = true;
-
             // The drill only lives on the Playlists view while it is up. Dropped HERE rather than beside
             // the ExitDetail that follows from it, so the width decision below is made without it and the
             // pane gets its room back on the same move, and so the view's own report of having left the
@@ -940,7 +922,7 @@ public sealed partial class MainPage
             // Home is not such a switch: it stands OVER the card for as long as it is up and the
             // Playlists view is still the one underneath, so a tracklist left open is still open when
             // the reader comes back out of home.
-            if (!AtHome && !(RightOpen && Reading == RightTab.Playlists))
+            if (!AtHome && Reading != RightTab.Playlists)
                 Drilled = false;
 
             ApplyChrome();
@@ -948,12 +930,12 @@ public sealed partial class MainPage
 
             // The single width decision: hidden ⇒ zero the left column (library fills the row); rail
             // only ⇒ the rail's own width, written in pixels by ResolvedLeftWidth; open ⇒ the user's
-            // remembered split, or the whole row less the library's rail while the library is folded
-            // away.
+            // remembered split. The import workbench is not in it: it lies over the row, and the column
+            // keeps what was under it (see ColumnOpen).
             //
             // The VIEWS follow it rather than lead it (see ApplyViews): the room is made first and what
             // goes in it changes once the room is the right size.
-            (double left, double right) = !Shown || !Open ? (0.0, _rightStars) : (_leftStars, _rightStars);
+            (double left, double right) = !Shown || !ColumnOpen ? (0.0, _rightStars) : (_leftStars, _rightStars);
             GlideColumns(left, right);
             RPM.Desktop.Diagnostics.SwitchDiag.Mark("glide");
 
@@ -968,12 +950,13 @@ public sealed partial class MainPage
         {
             var stage = Stage;
 
-            p.Rail.SetActive(stage.LeftLit, importActive: stage.LeftLit == LeftTab.Import);   // always lit: see PaneStage.LeftLit
+            // Lit on the press for a view that is coming up. One that is folding keeps its glow until the
+            // fold has landed, and loses it there (see ApplyLeftViews): it goes when the view has gone.
+            if (stage.LeftLit is { } lit)
+                p.Rail.SetActive(lit, importActive: lit == LeftTab.Import);
             p.Rail.SetFolded(!Open);   // the chevron faces the way it works; see LeftRail.SetFolded
 
             p.LibraryRail.SetActive(stage.RightLit);
-            p.LibraryRail.SetFoldable(CanFoldRight);
-            p.LibraryRail.SetFolded(!RightOpen);
 
             // The seam stands between whatever the two columns hold (two views, a view and a bare rail,
             // or two rails). It is the gutter down the middle of the window and it is always the same
@@ -981,9 +964,10 @@ public sealed partial class MainPage
             // goes only when there is no left column at all and the library has the whole row.
             p.Splitter.Visibility = Vis(Shown);
             // Dragged only where there are two VIEWS to size against each other: a bare rail has no width
-            // of its own to give, and a folded library was folded on purpose.
-            p.Splitter.IsHitTestVisible = Shown && Open && RightOpen;
-            if (Open && RightOpen)
+            // of its own to give, and under the import workbench there is no seam to see.
+            var seam = Shown && ColumnOpen && !stage.ImportOver;
+            p.Splitter.IsHitTestVisible = seam;
+            if (seam)
                 p.DebutSplitterGrip();   // the grip introduces itself the first time there is a seam to drag
 
             // The card itself is the box being resized, not something standing in it, so it comes and
@@ -1068,6 +1052,20 @@ public sealed partial class MainPage
 
             p.LeftViews.Visibility = Vis(Shown && Open);
 
+            // The rail as it stands once the views have: lit for the view beside it, and for nothing once
+            // that view is folded away.
+            var lit = Stage.LeftLit;
+            p.Rail.SetActive(lit, importActive: lit == LeftTab.Import);
+
+            // The import workbench lies over the whole row: the card it stands in is stretched across the
+            // seam and the library and laid on top of them, and the columns underneath stay where they
+            // are. Done here, with the views, so the card changes shape at the same moment as what is in
+            // it, behind the fade where there is one.
+            if (Shown && Stage.ImportOver)
+                p.CoverRow(GlideMs);
+            else
+                p.DropCover();
+
             // Whether the track info pane is really on screen, which is this class's answer and not the
             // view's: the view stays marked visible inside a left column that has been folded away. The
             // album page paints its facing corner in the pane's colour while it is (see PaneCorner).
@@ -1083,26 +1081,31 @@ public sealed partial class MainPage
             // Which of the card's views is the one showing, home is a fifth, off the rail, and it is
             // the ONE answer the four below and the backdrop are all read from, so there is no way for
             // home to be up with one of them still standing behind it.
-            var showing = ShownRight;
+            //
+            // STANDING, not showing: under the import workbench the view stays up, covered, because
+            // taking it down would lay the whole library out again when the workbench goes.
+            var stage = Stage;
+            var showing = stage.RightStanding;
 
             p.LibraryBody.Visibility = Vis(showing == RightTab.Albums);
             p.ArtistsBody.Visibility = Vis(showing == RightTab.Artists);
             p.GenresBody.Visibility = Vis(showing == RightTab.Genres);
             p.PlaylistPanel.Visibility = Vis(showing == RightTab.Playlists);
-            p.Home.Visibility = Vis(Stage.HomeLit);
+            p.Home.Visibility = Vis(stage.HomeLit);
 
             // And the same answer is given to the playlists view, because one of the things it holds is
             // a clock. The room at the head of an open list draws thirty-two frames a second, and an
             // element is told nothing when an ancestor is collapsed. So a pane hidden behind home would
             // keep drawing for the life of the window. Setting a Visibility raises no event that
-            // anything can hook into, so this is a separate line from the one above.
-            p.PlaylistPanel.PaneShown(showing == RightTab.Playlists);
+            // anything can hook into, so this is a separate line from the one above. This one is what the
+            // reader SEES: under the import workbench the list stands but nobody is watching its clock.
+            p.PlaylistPanel.PaneShown(stage.RightShowing == RightTab.Playlists);
 
             // A playlist left open in the tracklist stays open only while the Playlists view is up;
             // anywhere else the view goes back to its tree, so it comes back the way a view should.
             // Home is not "anywhere else": it covers the card rather than replacing what the pane is
             // reading, and the tracklist is still there to come back to (see ApplyCore's Drilled).
-            if (!AtHome && !(RightOpen && Reading == RightTab.Playlists))
+            if (!AtHome && Reading != RightTab.Playlists)
                 p.PlaylistPanel.ExitDetail();
 
             // Which detail page the reader is really looking at, which is this class's answer and not
@@ -1188,20 +1191,15 @@ public sealed partial class MainPage
         /// snap.</para>
         ///
         /// <para>ONE column moves and the other holds the star, so the two always add up to the row and
-        /// nothing is left standing in the middle of it. Which of them moves is <see
-        /// cref="FoldingLibrary"/>: normally the pane, with the library keeping the star; while the
-        /// library is folding away (or coming back) it is the library, with the pane keeping it. Moving
-        /// the pane through a fold is what made the rail snap to the middle of the window on the first
-        /// frame and slide back out to the edge. Its column had been pinned to the rail's width while
-        /// the pane was still narrow, so for the length of the animation the row was not full.</para>
+        /// nothing is left standing in the middle of it. The pane is the one that moves; the library
+        /// keeps the star.</para>
         /// </summary>
         private void GlideColumns(double toLeft, double toRight)
         {
             _curLeft = toLeft;
             _curRight = toRight;
 
-            var fold = FoldingLibrary;
-            var target = fold ? ResolvedRightWidth() : ResolvedLeftWidth();
+            var target = ResolvedLeftWidth();
 
             if (!_primed)
             {
@@ -1221,8 +1219,14 @@ public sealed partial class MainPage
             // Only a pane that had its views UP can switch: a folded or hidden pane shows nothing, so
             // there is nothing to fade out, and a pane opened onto another tab puts the new view up at
             // the start of the move like any other opening (see below).
+            //
+            // Going to or from the import workbench does not fade either. It lies over the whole row and
+            // slides out to it and back (see CoverRow), and that slide is the transition: a fade around
+            // it would be a second one.
             var fadeLeft = _leftShowing is { Open: true, Shown: true } left
-                && (left.Tab != Tab || left.Queue != (p.Model?.QueueVisible ?? false));
+                && (left.Tab != Tab
+                    ? left.Tab != LeftTab.Import && Tab != LeftTab.Import
+                    : left.Queue != (p.Model?.QueueVisible ?? false));
             var fadeRight = _rightShowing is { } right && !right.Equals(RightSignature);
             var fades = fadeLeft || fadeRight;
 
@@ -1239,15 +1243,42 @@ public sealed partial class MainPage
             // once the driver is stopped. See PaneGlide.Stop.
             var wasMoving = Moving;
             DetachWidthTick();
-            var from = _glide.Stop() ?? (fold ? p.RightCol.ActualWidth : p.LeftCol.ActualWidth);
+            var from = _glide.Stop() ?? p.LeftCol.ActualWidth;
 
             var moves = Math.Abs(from - target) >= 0.5;
+
+            // The card moves with its column, so it cannot be lying over the row while it does. The
+            // workbench is put back over the row at the landing (see ApplyLeftViews).
+            // Leaving the import workbench for a view whose column is not the width the one under the
+            // workbench had: the pane under a workbench folded away was the rail alone, and the view being
+            // opened wants its room. The column takes its new width at once, out of sight under the
+            // workbench, and the workbench slides back to it. Moving the column instead would first have to
+            // take the workbench down, which is the card popping off the row before anything slides.
+            if (moves && p.RowCovered && !Stage.ImportOver)
+            {
+                if (wasMoving)
+                    ReleaseScene();
+                SetViewOpacity(left: true, right: true, opacity: 1);
+                Settle();
+
+                var landing = ++_glideGeneration;
+                p.UncoverRow(target, GlideMs, () =>
+                {
+                    if (landing == _glideGeneration)
+                        Land();
+                });
+                return;
+            }
+
+            if (moves)
+                p.DropCover();
 
             // A pane opening on the tab it already had puts its view up now, so the view is laid out
             // live as the column grows, the same as it is when the pane closes. Left to the landing, the
             // pane grew as an empty card and its content appeared in one step at the end. A pane that is
-            // switching tabs still waits: that swap happens behind its fade, at the landing.
-            if (moves && !fadeLeft && Shown && Open)
+            // switching tabs still waits: that swap happens behind its fade, at the landing. So does the
+            // import workbench, which goes over the row only once the column has stopped.
+            if (moves && !fadeLeft && Shown && Open && Tab != LeftTab.Import)
                 ApplyLeftViews();
 
             // A width move that does not switch the library's view is a LIVE RESIZE, not a compositor
@@ -1287,6 +1318,20 @@ public sealed partial class MainPage
                 if (wasMoving)
                     ReleaseScene();
                 SetViewOpacity(left: true, right: true, opacity: 1);
+
+                // Leaving the import workbench: it slides back into its column with what it was
+                // showing, and the view under it is put up once it is there.
+                if (p.RowCovered && !Stage.ImportOver)
+                {
+                    var landing = ++_glideGeneration;
+                    p.UncoverRow(p.LeftCol.ActualWidth, GlideMs, () =>
+                    {
+                        if (landing == _glideGeneration)
+                            Land();
+                    });
+                    return;
+                }
+
                 Land();
                 return;
             }
@@ -1304,7 +1349,7 @@ public sealed partial class MainPage
                 // it overhanging the row. Undo that, and put the column at the width the move has
                 // actually reached, so the first tick carries on from there instead of jumping.
                 Undress();
-                WritePixels(from, fold);
+                WritePixels(from);
             }
 
             // Where the fade-out starts FROM, rather than from 1: a move redirected while an earlier one
@@ -1328,7 +1373,7 @@ public sealed partial class MainPage
             double inEnds = moveEnds + (fades ? FadeMs : 0);
 
             var gesture = new Gesture(
-                fold, moves, from, target,
+                moves, from, target,
                 fadeLeft, fadeRight, fromLeft, fromRight,
                 new PanePhases(outEnds, moveEnds, inEnds));
 
@@ -1358,7 +1403,6 @@ public sealed partial class MainPage
         /// same answer, so the two implementations below cannot disagree about what was asked for.
         /// </summary>
         private readonly record struct Gesture(
-            bool Fold,
             bool Moves,
             double From,
             double Target,
@@ -1388,14 +1432,10 @@ public sealed partial class MainPage
         /// </summary>
         private bool GlideOnCompositor(int generation, in Gesture g)
         {
-            var mover = g.Fold ? p.LibraryPanel : (FrameworkElement)p.LeftPanel;
-            var other = g.Fold ? p.LeftPanel : (FrameworkElement)p.LibraryPanel;
-
             PaneMove? move = g.Moves
                 ? new PaneMove(
-                    mover, other, p.Splitter,
-                    g.Fold ? null : p.RightViews,
-                    g.Fold, g.From, g.Target)
+                    p.LeftPanel, p.LibraryPanel, p.Splitter, p.RightViews,
+                    Fold: false, g.From, g.Target)
                 : (PaneMove?)null;
             PaneFade? left = g.FadeLeft ? new PaneFade(p.LeftViews, g.FromLeft) : (PaneFade?)null;
             PaneFade? right = g.FadeRight ? new PaneFade(p.RightViews, g.FromRight) : (PaneFade?)null;
@@ -1414,13 +1454,11 @@ public sealed partial class MainPage
             // it back at the seam, its far edge never moves, and neither does anything standing on that
             // edge. Nothing on this thread touches either card again until the landing.
             var slack = Math.Abs(g.Target - g.From);
-            WritePixels(Math.Max(g.From, g.Target), g.Fold);
-            other.Margin = g.Fold ? new Thickness(0, 0, -slack, 0) : new Thickness(-slack, 0, 0, 0);
+            WritePixels(Math.Max(g.From, g.Target));
+            p.LibraryPanel.Margin = new Thickness(-slack, 0, 0, 0);
 
-            // ...and the heading's type is held where the overhang is about to put it. Only when the card
-            // that gives way is the LIBRARY, which is every move except the fold: through a fold the
-            // library is the mover and its whole content is crossfading anyway.
-            PinHeading(g.Fold ? 0 : slack);
+            // ...and the heading's type is held where the overhang is about to put it.
+            PinHeading(slack);
             return true;
         }
 
@@ -1438,7 +1476,6 @@ public sealed partial class MainPage
         /// display offers. See <see cref="LiveStepMs"/>.</param>
         private void GlideOnTick(int generation, in Gesture g, double stepMs, bool live)
         {
-            var fold = g.Fold;
             var from = g.From;
             var target = g.Target;
             var fadeLeft = g.FadeLeft;
@@ -1506,7 +1543,7 @@ public sealed partial class MainPage
                 if (at < moveEnds)
                 {
                     SetViewOpacity(fadeLeft, fadeRight, 0);
-                    WritePixels(from + (target - from) * Move((at - outEnds) / GlideMs), fold);
+                    WritePixels(from + (target - from) * Move((at - outEnds) / GlideMs));
                     return;
                 }
 
@@ -2000,48 +2037,17 @@ public sealed partial class MainPage
         }
 
         /// <summary>Where the pane is headed: its share of the row, or the ceiling its content asked for,
-        /// whichever is smaller, or, on Import, that view's own remembered width; or, with the library
-        /// folded away, everything the library's rail does not want. Closed is zero.</summary>
+        /// whichever is smaller. Closed is zero.</summary>
         private double ResolvedLeftWidth() =>
             RailOnly ? RailWidth
           : _curLeft <= 0 ? 0
-          : !RightOpen ? Math.Max(0, p.PanelsGrid.ActualWidth - Seam() - RightRailWidth)
-          : ImportSized ? Math.Min(ImportWidth, MaxLeftWidth)
           : Math.Min(Share(), MaxLeftWidth);
 
-        /// <summary>Where the LIBRARY is headed: its rail's width while it is folded away, else whatever
-        /// the pane beside it is not taking. The two are one answer read from either end, so the fold's
-        /// tween and the pane's cannot disagree about where the seam lands.</summary>
-        private double ResolvedRightWidth() =>
-            !RightOpen
-                ? RightRailWidth
-                : Math.Max(0, p.PanelsGrid.ActualWidth - Seam() - ResolvedLeftWidth());
-
-        /// <summary>
-        /// Whether the tween in flight is the library folding away or coming back, rather than the pane
-        /// opening or closing.
-        ///
-        /// <para>True while the library is folded, and true again on the way back out of it. It is read off
-        /// the column, which is only ever a fixed width while the library is standing at its rail's. The
-        /// return trip has to be recognised for what it is or the rail would slide out of the window's
-        /// edge for the length of it.</para>
-        /// </summary>
-        private bool FoldingLibrary => !RightOpen || p.RightCol.Width.IsAbsolute;
-
-        /// <summary>Mid-tween: one column is a fixed width for the frame and the other keeps the star, so
-        /// the two still fill the row. <paramref name="fold"/> says which is which (see
-        /// <see cref="FoldingLibrary"/>).</summary>
-        private void WritePixels(double px, bool fold)
+        /// <summary>Mid-tween: the pane's column is a fixed width for the frame and the library keeps the
+        /// star, so the two still fill the row.</summary>
+        private void WritePixels(double px)
         {
-            px = Math.Max(0, px);
-            if (fold)
-            {
-                p.LeftCol.Width = new GridLength(_curLeft <= 0 ? 1 : _curLeft, GridUnitType.Star);
-                p.RightCol.Width = new GridLength(px);
-                return;
-            }
-
-            p.LeftCol.Width = new GridLength(px);
+            p.LeftCol.Width = new GridLength(Math.Max(0, px));
             p.RightCol.Width = new GridLength(_curRight, GridUnitType.Star);
         }
 
@@ -2062,30 +2068,11 @@ public sealed partial class MainPage
             _glide.Rest();
             Undress();
 
-            // The library folded away is a width and nothing else (its rail's), and the pane beside it
-            // takes the row: it asked for the room, and the star is how it keeps getting it as the window
-            // changes size.
-            if (!RightOpen)
-            {
-                p.LeftCol.Width = new GridLength(_curLeft <= 0 ? 1 : _curLeft, GridUnitType.Star);
-                p.RightCol.Width = new GridLength(RightRailWidth);
-                return;
-            }
-
             // The rail alone is a width and nothing else: it has no share to keep, and a star here would
             // hand the folded pane a slice of the row to stand in the middle of.
             if (RailOnly)
             {
                 p.LeftCol.Width = new GridLength(RailWidth);
-                p.RightCol.Width = new GridLength(_curRight, GridUnitType.Star);
-                return;
-            }
-
-            // Import is a width, not a share: it stays where it was put while the window changes size
-            // around it, and the library (a star) takes whatever is left.
-            if (ImportSized && _curLeft > 0)
-            {
-                p.LeftCol.Width = new GridLength(Math.Min(ImportWidth, MaxLeftWidth));
                 p.RightCol.Width = new GridLength(_curRight, GridUnitType.Star);
                 return;
             }

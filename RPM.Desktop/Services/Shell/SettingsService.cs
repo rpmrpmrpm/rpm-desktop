@@ -133,7 +133,6 @@ public sealed partial class SettingsService
         bool ArtDrawerParked = false,
         bool HeaderRecord = true,
         bool HeaderArtistPhoto = true,
-        double ImportPaneWidth = 0,
         bool? AlbumSimilarOpen = null,
         bool? AlbumGrooveOpen = null,
         bool ImportTagPanelOpen = false,
@@ -437,23 +436,6 @@ public sealed partial class SettingsService
     {
         get => _model.LockedListsHidden;
         set => Update(_model with { LockedListsHidden = value }, notify: false);
-    }
-
-    /// <summary>
-    /// How wide the left pane is while it shows Import, in pixels. Import is the one view that is worked
-    /// IN, rather than read from. It is a queue of tracks in columns, which are ticked and edited. So it is
-    /// the one view with no width ceiling, and it has a width of its own. The user drags it to whatever the
-    /// job needs, and the width is remembered across runs.
-    ///
-    /// <para>Zero means it was never dragged. The pane then opens Import at the width that every other view
-    /// is capped at. So the setting starts where the user left off, not somewhere new.</para>
-    /// </summary>
-    public double ImportPaneWidth
-    {
-        get => _model.ImportPaneWidth;
-        // Saved quietly, like the cover size. The width is already on screen, because the drag wrote it. A
-        // global Changed would make the shell reload its backdrop on every pointer move of the splitter.
-        set => Update(_model with { ImportPaneWidth = value }, notify: false);
     }
 
     /// <summary>

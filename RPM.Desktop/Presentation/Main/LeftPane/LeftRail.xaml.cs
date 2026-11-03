@@ -68,9 +68,8 @@ internal sealed partial class LeftRail : UserControl
     /// passed separately because Import is also lit while a queue is in progress, not only when it is
     /// the shown view.
     ///
-    /// <para>One of the buttons is always lit, folded or not. When the pane is folded, the lit button
-    /// is the view that the fold button brings back.</para></summary>
-    public void SetActive(LeftTab tab, bool importActive)
+    /// <para>Null lights none of them, which is the rail with its view folded away.</para></summary>
+    public void SetActive(LeftTab? tab, bool importActive)
     {
         SelectedSegment.Paint(RailTrackInfo, tab == LeftTab.TrackInfo);
         SelectedSegment.Paint(RailImport, importActive);

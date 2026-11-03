@@ -118,7 +118,7 @@ public sealed partial class TrackDetailsDialog : ContentDialog
         TagFieldKind.Subgenre,
 
         TagFieldKind.Composers, TagFieldKind.Conductor, TagFieldKind.Ensemble,
-        TagFieldKind.Soloists, TagFieldKind.Lyricist, TagFieldKind.Arranger,
+        TagFieldKind.Performers, TagFieldKind.Vocalists, TagFieldKind.Lyricist, TagFieldKind.Arranger,
 
         TagFieldKind.Work, TagFieldKind.MovementName, TagFieldKind.Movement,
 
@@ -428,11 +428,17 @@ public sealed partial class TrackDetailsDialog : ContentDialog
     /// <summary>Who made it, and who owns it.</summary>
     private void BuildCreditsTab()
     {
+        // The classical credits first, under their own heading: on a classical record they are the
+        // record, and the singers are listed apart from the players, as a programme lists them.
+        var classical = new DenseFormGroup();
+        AddField(classical, TagFieldKind.Composers);
+        AddField(classical, TagFieldKind.Conductor);
+        AddField(classical, TagFieldKind.Ensemble);
+        AddField(classical, TagFieldKind.Performers);
+        AddField(classical, TagFieldKind.Vocalists);
+        classical.AddTo(CreditsLeft, TagFields.Groups.Classical);
+
         var credits = new DenseFormGroup();
-        AddField(credits, TagFieldKind.Composers);
-        AddField(credits, TagFieldKind.Conductor);
-        AddField(credits, TagFieldKind.Ensemble);
-        AddField(credits, TagFieldKind.Soloists);
         AddField(credits, TagFieldKind.Lyricist);
         AddField(credits, TagFieldKind.Arranger);
         AddField(credits, TagFieldKind.RemixedBy);
@@ -827,7 +833,7 @@ public sealed partial class TrackDetailsDialog : ContentDialog
     {
         var tag = TagFields.Get(kind);
         group.Add(null, DenseForm.Label(tag.LabelKey), Box(tag),
-            topAlign: tag.Multiline, trailing: MarkerFor(tag));
+            topAlign: tag.Multiline || tag.Lines, trailing: MarkerFor(tag));
     }
 
     /// <summary>Two numbers that are one fact, such as "Track 3 of 12", on one row. Two rows would use
@@ -905,6 +911,13 @@ public sealed partial class TrackDetailsDialog : ContentDialog
             input = combo;
             read = () => MassEditDialog.ReadSuggest(combo);
             write = v => MassEditDialog.SetSuggestValue(combo, v);
+        }
+        else if (tag.Lines)
+        {
+            var lines = new CreditLines(value);
+            input = lines;
+            read = lines.Read;
+            write = lines.Write;
         }
         else
         {

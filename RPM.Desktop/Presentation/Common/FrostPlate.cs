@@ -165,8 +165,33 @@ public sealed class FrostPlate
 
         // A panel that changes shape reads a different part of the plate. A panel that has just loaded has a
         // place on the plate for the first time.
-        element.SizeChanged += (_, _) => Invalidate(FrostReason.Motion);
+        element.SizeChanged += (_, _) => Resized(element, frosted);
         element.Loaded += (_, _) => Invalidate(FrostReason.Motion);
+    }
+
+    /// <summary>
+    /// The panel is about to change shape over a backdrop that is not moving: its next size change is
+    /// answered from the plate already taken, with no live glass in between.
+    ///
+    /// <para>For a panel laid over ANOTHER panel. Live glass is a blur of whatever is drawn under it, and
+    /// under the import workbench stretched over the row that is the library: the grid showed through,
+    /// frosted, until the next photograph. The plate is of the backdrop alone, so a slice cut from it is
+    /// what the panel should be wearing anyway.</para>
+    /// </summary>
+    public void Reshaping(FrameworkElement element) => _reshaping.Add(element);
+
+    /// <summary>Panels whose next size change is a reshape (see <see cref="Reshaping"/>).</summary>
+    private readonly HashSet<FrameworkElement> _reshaping = new(ReferenceEqualityComparer.Instance);
+
+    private void Resized(FrameworkElement element, Frosted frosted)
+    {
+        // Cut from the plate where there is one standing and nothing is holding it off. Otherwise, or where
+        // the cut fails, the panel goes the ordinary way: live glass, and a new plate once it settles.
+        if (_reshaping.Remove(element) && _showingPlate && _holds.Count == 0 && _source is { } source
+            && CutFor(frosted, element, source))
+            return;
+
+        Invalidate(FrostReason.Motion);
     }
 
     /// <summary> Something behind the glass is moving. Every panel goes back to live glass, and a new plate
@@ -414,32 +439,40 @@ public sealed class FrostPlate
                 continue;
             }
 
-            if (!element.IsLoaded || element.ActualWidth < 1 || element.ActualHeight < 1)
-                continue;
-            if (!_plates.TryGetValue(frosted.Blur, out var plate))
-                continue;
-
-            try
-            {
-                var origin = element.TransformToVisual(source).TransformPoint(default);
-                if (FrostGeometry.CropFor(origin.X, origin.Y, element.ActualWidth, element.ActualHeight, _map)
-                    is not { } crop)
-                    continue;
-
-                Cut(plate, crop, frosted);
-                frosted.Plate ??= new ImageBrush { Stretch = Stretch.Fill };
-                frosted.Plate.ImageSource = frosted.Copy;
-                SetBackground(element, frosted.Plate);
-                painted = true;
-            }
-            catch
-            {
-                // One panel that cannot be cut (it left the tree between the check and the transform)
-                // simply keeps its live glass.
-            }
+            painted |= CutFor(frosted, element, source);
         }
 
         _showingPlate |= painted;
+    }
+
+    /// <summary>Gives one panel its slice of the plate. False where it has none to take: it is not up, the
+    /// plate for its radius is not there, or it cannot be placed on the plate.</summary>
+    private bool CutFor(Frosted frosted, FrameworkElement element, FrameworkElement source)
+    {
+        if (!element.IsLoaded || element.ActualWidth < 1 || element.ActualHeight < 1)
+            return false;
+        if (!_plates.TryGetValue(frosted.Blur, out var plate))
+            return false;
+
+        try
+        {
+            var origin = element.TransformToVisual(source).TransformPoint(default);
+            if (FrostGeometry.CropFor(origin.X, origin.Y, element.ActualWidth, element.ActualHeight, _map)
+                is not { } crop)
+                return false;
+
+            Cut(plate, crop, frosted);
+            frosted.Plate ??= new ImageBrush { Stretch = Stretch.Fill };
+            frosted.Plate.ImageSource = frosted.Copy;
+            SetBackground(element, frosted.Plate);
+            return true;
+        }
+        catch
+        {
+            // One panel that cannot be cut (it left the tree between the check and the transform) simply
+            // keeps its live glass.
+            return false;
+        }
     }
 
     /// <summary>Cuts one panel's slice out of the plate into its own bitmap. The last bitmap is reused when

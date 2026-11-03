@@ -238,6 +238,75 @@ public sealed partial record TagSidecar
         };
     }
 
+    /// <summary>
+    /// The same sidecar with a whole tag set written over it: an edit made in one of the editors to a
+    /// track whose file is not on this machine.
+    ///
+    /// <para><see cref="With"/> carries only what the mirror row holds, because that is all the sync pass
+    /// has. An editor has the whole set, so every tag goes in, emptied ones included: a publisher cleared
+    /// in the editor is cleared here. What is not a tag stays as it was: where the file is filed, its id,
+    /// what the audio is, and the favourite mark. The picture changes only where the edit set or removed
+    /// one.</para>
+    /// </summary>
+    public TagSidecar WithTags(TrackInfo info)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+
+        return this with
+        {
+            Title = info.Title,
+            Artist = info.Artist,
+            AlbumArtist = info.AlbumArtist,
+            Album = info.Album,
+            Genre = info.Genre,
+            Subgenre = info.Subgenre,
+            TrackNumber = info.TrackNumber,
+            TrackCount = info.TrackCount,
+            DiscNumber = info.DiscNumber,
+            DiscCount = info.DiscCount,
+            DiscSubtitle = info.DiscSubtitle,
+            Year = info.Year,
+            Composers = info.Composers,
+            Conductor = info.Conductor,
+            Comment = info.Comment,
+            Lyrics = info.Lyrics,
+            Grouping = info.Grouping,
+            Bpm = info.Bpm,
+            Copyright = info.Copyright,
+            Publisher = info.Publisher,
+            RemixedBy = info.RemixedBy,
+            Isrc = info.Isrc,
+            MusicalKey = info.MusicalKey,
+            ReleaseCountry = info.ReleaseCountry,
+            Advisory = info.Advisory,
+            TitleSort = info.TitleSort,
+            ArtistSort = info.ArtistSort,
+            AlbumArtistSort = info.AlbumArtistSort,
+            ComposerSort = info.ComposerSort,
+            Work = info.Work,
+            MovementName = info.MovementName,
+            MovementNumber = info.MovementNumber,
+            MovementCount = info.MovementCount,
+            Lyricist = info.Lyricist,
+            Arranger = info.Arranger,
+            Ensemble = info.Ensemble,
+            Soloists = info.Soloists,
+            Barcode = info.Barcode,
+            CatalogNumber = info.CatalogNumber,
+            Media = info.Media,
+            ReleaseType = info.ReleaseType is { } releaseType ? Library.ReleaseTypes.ToStored(releaseType) : null,
+            OriginalYear = info.OriginalYear,
+            MusicBrainzRecordingId = info.MusicBrainzRecordingId,
+            MusicBrainzReleaseId = info.MusicBrainzReleaseId,
+            MusicBrainzReleaseGroupId = info.MusicBrainzReleaseGroupId,
+            MusicBrainzArtistId = info.MusicBrainzArtistId,
+            MusicBrainzReleaseArtistId = info.MusicBrainzReleaseArtistId,
+            // An empty pending picture is a removal, as it is for a file (see TagReader.Write).
+            Art = info.PendingArt is { } picture ? (picture.Length == 0 ? null : picture) : Art,
+            ArtMime = info.PendingArt is { } set ? (set.Length == 0 ? null : info.PendingArtMime) : ArtMime,
+        };
+    }
+
     /// <summary>The same sidecar with the library's corrections written over it. This is for a track
     /// whose file is not on this machine.
     ///

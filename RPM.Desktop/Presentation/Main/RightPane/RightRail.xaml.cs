@@ -3,10 +3,9 @@
 namespace RPM.Desktop.Presentation.Main.RightPane;
 
 /// <summary>
-/// The library pane's function rail: the four ways of reading the collection, and the button that folds
-/// the pane away. Like <see cref="LeftPane.LeftRail"/>, it holds no state of its own. It reports what
-/// was clicked and paints whatever <see cref="SetActive"/> says is current. The pane's conductor
-/// decides which view is up.
+/// The library pane's function rail: the four ways of reading the collection. Like
+/// <see cref="LeftPane.LeftRail"/>, it holds no state of its own. It reports what was clicked and paints
+/// whatever <see cref="SetActive"/> says is current. The pane's conductor decides which view is up.
 /// </summary>
 internal sealed partial class RightRail : UserControl
 {
@@ -29,51 +28,11 @@ internal sealed partial class RightRail : UserControl
     /// <summary>A rail button was pressed. Show that view.</summary>
     public event Action<RightTab>? TabRequested;
 
-    /// <summary>The foot button was pressed. Fold the pane away, or ask for it back.</summary>
-    public event Action? CloseRequested;
-
     /// <summary>The height of the tab stack as drawn. The page reads it from here. Before the first layout
     /// it is the height of four tabs.</summary>
     public double TabHeight => TabStack.ActualHeight > 0 ? TabStack.ActualHeight : TabHeightFallback;
 
     private const double TabHeightFallback = 4 * OneTab;
-
-    /// <summary>Turns the fold button to face the way it now works: right while there is a pane to fold,
-    /// left once it is folded, when pressing it brings the pane back. It is turned rather than swapped,
-    /// as the left rail does (see <see cref="LeftPane.LeftRail.SetFolded"/>).</summary>
-    public void SetFolded(bool folded)
-    {
-        if (_folded == folded)
-            return;
-        _folded = folded;
-
-        IconName.Set(FoldButton, Loc.Get(folded ? "Playlists_Reopen" : "Playlists_Close"));
-
-        _spin?.Stop();
-
-        var turn = new DoubleAnimation
-        {
-            From = FoldSpin.Angle,
-            To = folded ? 180 : 0,
-            Duration = new Duration(TimeSpan.FromMilliseconds(220)),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
-        };
-        Storyboard.SetTarget(turn, FoldSpin);
-        Storyboard.SetTargetProperty(turn, "Angle");
-
-        _spin = new Storyboard();
-        _spin.Children.Add(turn);
-        _spin.Begin();
-    }
-
-    private bool _folded;
-    private Storyboard? _spin;
-
-    /// <summary>Whether the fold button is offered. The library steps aside only when the import workbench
-    /// needs the window. Anywhere else the button is hidden, not disabled, because a control that does
-    /// nothing makes a promise the app does not keep.</summary>
-    public void SetFoldable(bool canFold) =>
-        FoldButton.Visibility = canFold ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Paints the rail for the view that is currently up. A null tab lights nothing, which is the
     /// state the home screen shows. See <see cref="LeftPane.LeftRail.SetActive"/>.</summary>
@@ -131,5 +90,4 @@ internal sealed partial class RightRail : UserControl
     private void RailArtists_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(RightTab.Artists);
     private void RailGenres_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(RightTab.Genres);
     private void RailPlaylists_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(RightTab.Playlists);
-    private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke();
 }

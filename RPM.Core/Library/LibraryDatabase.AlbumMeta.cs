@@ -577,6 +577,19 @@ public sealed partial class LibraryDatabase
         insertColumns: "series, series_volume",
         insertValues: "$name, $volume");
 
+    /// <summary>Every artist name the library holds, once each in alphabetical order: what the artist boxes
+    /// offer, so a record is filed under the name the library already has rather than a new spelling of it.
+    /// Where two spellings differ only in case, the one more files carry is offered (see
+    /// <see cref="ArtistNames"/>, which lists them most used first).</summary>
+    public IReadOnlyList<string> ArtistChoices() =>
+    [
+        .. ArtistNames()
+            .Select(a => a.Name.Trim())
+            .Where(n => n.Length > 0)
+            .DistinctBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase),
+    ];
+
     /// <summary>Every series name the library holds, in alphabetical order: what the album editor
     /// offers, so the forty-third volume is filed under the same name as the first.</summary>
     public IReadOnlyList<string> AlbumSeriesNames()

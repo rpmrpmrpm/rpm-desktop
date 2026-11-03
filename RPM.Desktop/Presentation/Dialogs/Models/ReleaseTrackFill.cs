@@ -302,7 +302,9 @@ public sealed class ReleaseTrackFill
         Set(TagFieldKind.ComposerSort, track.ComposerSort);
         Set(TagFieldKind.Conductor, track.Conductor);
         Set(TagFieldKind.Ensemble, track.Ensemble);
-        Set(TagFieldKind.Soloists, track.Soloists);
+        // The soloists, split the way the editors show them: the players, and the singers.
+        Set(TagFieldKind.Performers, string.Join("; ", SoloistCredits.Performers(track.Soloists)));
+        Set(TagFieldKind.Vocalists, string.Join("; ", SoloistCredits.Vocalists(track.Soloists)));
         Set(TagFieldKind.Lyricist, track.Lyricist);
         Set(TagFieldKind.Arranger, track.Arranger);
 

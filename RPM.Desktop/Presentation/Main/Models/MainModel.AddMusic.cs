@@ -234,6 +234,10 @@ public sealed partial class MainModel
             ? _library.Db.QueueAlbumIntentForRows([.. rows.Select(r => r.QueueId)])
             : null;
 
+    /// <summary>Every artist name the library holds, for the artist boxes to offer. Empty while no library
+    /// is open.</summary>
+    public IReadOnlyList<string> ArtistNames() => _library.IsOpen ? _library.Db.ArtistChoices() : [];
+
     /// <summary>The series names to offer: the ones the library already files records under, and the ones
     /// named against records still in the import queue, once each, in alphabetical order. Empty while no
     /// library is open.</summary>

@@ -59,10 +59,19 @@ public sealed partial class ImportTagPanel : UserControl
         TagFieldKind.ReleaseType,
         TagFieldKind.Comment,
         TagFieldKind.AlbumArtist,
-        TagFieldKind.Composers,
-        // A classical record's conductor, which the track info pane's card about them is looked up by.
-        TagFieldKind.Conductor,
         TagFieldKind.Disc,
+    ];
+
+    /// <summary>The classical credits, under their own heading below the rest. A release lookup fills them
+    /// from MusicBrainz and Discogs, the singers apart from the players.</summary>
+    private static readonly TagFieldKind[] ClassicalFields =
+    [
+        TagFieldKind.Composers,
+        // The conductor, which the track info pane's card about them is looked up by.
+        TagFieldKind.Conductor,
+        TagFieldKind.Ensemble,
+        TagFieldKind.Performers,
+        TagFieldKind.Vocalists,
     ];
 
     /// <summary>
@@ -99,6 +108,10 @@ public sealed partial class ImportTagPanel : UserControl
     }
 
     private readonly List<Entry> _entries = [];
+
+    /// <summary>Every artist name the library already holds, offered in the artist and album artist
+    /// boxes so a record is imported under the spelling the library has rather than a new one.</summary>
+    public IReadOnlyList<string> KnownArtists { get; set; } = [];
 
     /// <summary>The genre box, so the style box built after it can follow it. Fields are built in
     /// TagFields.All order and the genre comes before the style, so it is there by the time it is
@@ -189,22 +202,12 @@ public sealed partial class ImportTagPanel : UserControl
             // it, not one of them.
             group.Add(tick: null, new TextBlock(), _lookupButton = BuildLookupButton());
 
-            foreach (var kind in Fields)
-            {
-                if (TagFields.All.FirstOrDefault(f => f.Kind == kind) is not { } field)
-                    continue;
-                var (label, input) = BuildField(field);
-                // The dialogs right-align their labels against a fixed 82 gutter. In a panel this narrow, that
-                // pushes the words away from the edge where they should start. Here the labels start at the same
-                // left edge as every other line of the pane.
-                label.HorizontalAlignment = HorizontalAlignment.Left;
-                // The release type can carry the "(Live)" tick under its box. The label stays level with
-                // the box, as it does beside a comment.
-                group.Add(tick: null, label, input,
-                    topAlign: field.Multiline || field.Kind == TagFieldKind.ReleaseType);
-            }
-
+            AddFields(group, Fields);
             AddSeries(group);
+
+            // In the same grid, under a heading, so its boxes start on the same line as the ones above.
+            group.AddHeading(TagFields.Groups.Classical);
+            AddFields(group, ClassicalFields);
 
             // No heading. The panel's own header already says "Tags", and a group heading would repeat that word.
             if (group.BuildBare() is Grid rows)
@@ -223,6 +226,24 @@ public sealed partial class ImportTagPanel : UserControl
         }
 
         RefreshButtons();
+    }
+
+    private void AddFields(DenseFormGroup group, TagFieldKind[] kinds)
+    {
+        foreach (var kind in kinds)
+        {
+            if (TagFields.All.FirstOrDefault(f => f.Kind == kind) is not { } field)
+                continue;
+            var (label, input) = BuildField(field);
+            // The dialogs right-align their labels against a fixed 82 gutter. In a panel this narrow, that
+            // pushes the words away from the edge where they should start. Here the labels start at the same
+            // left edge as every other line of the pane.
+            label.HorizontalAlignment = HorizontalAlignment.Left;
+            // The release type can carry the "(Live)" tick under its box. The label stays level with
+            // the box, as it does beside a comment, and level with the first line of a list of names.
+            group.Add(tick: null, label, input,
+                topAlign: field.Multiline || field.Lines || field.Kind == TagFieldKind.ReleaseType);
+        }
     }
 
     /// <summary>
@@ -316,6 +337,30 @@ public sealed partial class ImportTagPanel : UserControl
             read = () => MassEditDialog.ReadSuggest(combo);
             shown = () => combo.Text ?? "";
             write = v => MassEditDialog.SetSuggestValue(combo, v);
+        }
+        else if (field.Kind is TagFieldKind.Artist or TagFieldKind.AlbumArtist && KnownArtists.Count > 0)
+        {
+            // The library's artists to pick from, and still a box to type a new one into.
+            var combo = MassEditDialog.SuggestBox(KnownArtists, values.AllSame ? values.CommonValue : null);
+            if (!values.AllSame)
+                combo.PlaceholderText = Loc.Get("MassEdit_Multiple");
+            combo.TextSubmitted += (_, _) => Touch(field);
+            combo.SelectionChanged += (_, _) => Touch(field);
+            control = combo;
+            read = () => MassEditDialog.ReadSuggest(combo);
+            shown = () => combo.Text ?? "";
+            write = v => MassEditDialog.SetSuggestValue(combo, v);
+        }
+        else if (values.AllSame && field.Lines)
+        {
+            // Several people, a line each. Where the rows disagree this falls to the pick-or-type list below,
+            // like any other field: a line per name of one row's credit would say nothing about the others.
+            var lines = new CreditLines(values.CommonValue);
+            lines.Changed += () => Touch(field);
+            control = lines;
+            read = lines.Read;
+            shown = read;
+            write = lines.Write;
         }
         else if (values.AllSame)
         {

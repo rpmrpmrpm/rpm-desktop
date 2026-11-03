@@ -219,7 +219,8 @@ public sealed partial class MassEditDialog : ContentDialog
         // selection, and the readings on that tab belong to one file.
         AddGroup(BasicRight, TagFields.Groups.Measured, g => AddFields(g, TagFields.Groups.Measured));
 
-        // Credits: who played it, and who put it out.
+        // Credits: who played it, and who put it out. The classical credits first, under their own heading.
+        AddGroup(CreditsLeft, TagFields.Groups.Classical, g => AddFields(g, TagFields.Groups.Classical));
         AddGroup(CreditsLeft, TagFields.Groups.Credits, g => AddFields(g, TagFields.Groups.Credits));
         AddGroup(CreditsRight, TagFields.Groups.Publishing, g => AddFields(g, TagFields.Groups.Publishing));
 
@@ -499,8 +500,40 @@ public sealed partial class MassEditDialog : ContentDialog
         // nothing. On a field where the tracks disagree, that is the placeholder. So the one action
         // that means "empty this field" would look like no answer at all.
         combo.DropDownClosed += (_, _) => SetSuggestValue(combo, combo.Text);
-        combo.LostFocus += (_, _) => SetSuggestValue(combo, combo.Text);
+
+        // The box's own text box gets the app's right-click menu, as every other text box does through
+        // the implicit style. The combo's template gives it a style of its own, so it has to be asked for.
+        TextBox? typed = null;
+        combo.Loaded += (_, _) =>
+        {
+            typed ??= TypedPart(combo);
+            if (typed is not null)
+                Common.TextBoxClipboard.SetIsEnabled(typed, true);
+        };
+
+        // Not while its right-click menu has the focus: tidying the text then would throw away the
+        // selection the menu is about to cut or copy.
+        combo.LostFocus += (_, _) =>
+        {
+            if (typed is not null && Common.TextBoxClipboard.MenuOpen(typed))
+                return;
+            SetSuggestValue(combo, combo.Text);
+        };
         return combo;
+    }
+
+    /// <summary>The text box an editable combo is typed into: the template's EditableText part.</summary>
+    private static TextBox? TypedPart(DependencyObject root)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is TextBox { Name: "EditableText" } box)
+                return box;
+            if (TypedPart(child) is { } found)
+                return found;
+        }
+        return null;
     }
 
     /// <summary>

@@ -66,12 +66,14 @@ internal static class AlbumEdit
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
         bool? normalize = null, bool? classical = null,
         Action<AlbumLibraryFacts>? onLibraryFacts = null,
-        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
+        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null,
+        IReadOnlyList<string>? knownArtists = null)
     {
         if (rows.Count == 0)
             return [];
         if (await AlbumEditDialog.ShowAsync(
-                root, folder, rows, lookup, normalize, classical, series: series, knownSeries: knownSeries)
+                root, folder, rows, lookup, normalize, classical, series: series, knownSeries: knownSeries,
+                knownArtists: knownArtists)
             is not { } result)
             return [];
 
@@ -133,12 +135,13 @@ internal static class AlbumEdit
         XamlRoot root, string folder, IReadOnlyList<TrackRow> rows,
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
         bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null,
-        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
+        AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null,
+        IReadOnlyList<string>? knownArtists = null)
     {
         if (rows.Count == 0)
             return null;
         if (await AlbumEditDialog.ShowAsync(
-                root, folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries)
+                root, folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries, knownArtists)
             is not { } result)
             return null;
 

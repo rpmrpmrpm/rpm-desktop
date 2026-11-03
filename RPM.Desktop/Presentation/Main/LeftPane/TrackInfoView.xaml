@@ -565,8 +565,17 @@
              catalogue's business. -->
         <StackPanel x:Name="MembersBlock" Spacing="8" Margin="16,0,16,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=TrackInfo_Members}" Style="{StaticResource BlockHeading}"/>
+          <!-- The same window and page as the other cards, so the faces rise in with the record and the card
+               grows when the line-up changes under it. See CardClip_SizeChanged and MoveCard. -->
           <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
-            <local:WrapRow x:Name="MembersList" HorizontalAlignment="Center" HorizontalSpacing="10" VerticalSpacing="14"/>
+            <Grid x:Name="MembersClip" SizeChanged="CardClip_SizeChanged">
+              <Grid x:Name="MembersPage">
+                <Grid.RenderTransform>
+                  <TranslateTransform x:Name="MembersPageShift"/>
+                </Grid.RenderTransform>
+                <local:WrapRow x:Name="MembersList" HorizontalAlignment="Center" HorizontalSpacing="10" VerticalSpacing="14"/>
+              </Grid>
+            </Grid>
           </Border>
         </StackPanel>
 
@@ -580,26 +589,35 @@
                lands, and again whenever "Show more" is pressed. It arrives fresh on every change of record. See
                CardClip_SizeChanged and MoveCard. -->
           <Border Background="{StaticResource InkPlate}" CornerRadius="8" Padding="14">
-            <Grid x:Name="AlbumClip" SizeChanged="CardClip_SizeChanged">
-              <StackPanel x:Name="AlbumPage" Spacing="8">
-                <StackPanel.RenderTransform>
-                  <TranslateTransform x:Name="AlbumPageShift"/>
-                </StackPanel.RenderTransform>
-                <TextBlock x:Name="AlbumName" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkStrong}"
-                           TextWrapping="Wrap"/>
-                <TextBlock x:Name="AlbumFacts" FontSize="11" Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
-                <local:WrapRow x:Name="AlbumGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
-                <TextBlock x:Name="AlbumProse" Style="{StaticResource Prose}"/>
-                <StackPanel Orientation="Horizontal" Spacing="14">
-                  <ctl:RpmLink x:Name="AlbumMoreButton"
-                               Click="AlbumMore_Click" FontSize="11"/>
-                  <ctl:RpmLink x:Name="AlbumSourceButton"
-                               Click="AlbumSource_Click" FontSize="11"/>
+            <StackPanel Spacing="8">
+              <Grid x:Name="AlbumClip" SizeChanged="CardClip_SizeChanged">
+                <StackPanel x:Name="AlbumPage" Spacing="8">
+                  <StackPanel.RenderTransform>
+                    <TranslateTransform x:Name="AlbumPageShift"/>
+                  </StackPanel.RenderTransform>
+                  <TextBlock x:Name="AlbumName" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource InkStrong}"
+                             TextWrapping="Wrap"/>
+                  <TextBlock x:Name="AlbumFacts" FontSize="11" Foreground="{StaticResource InkFaint}" TextWrapping="Wrap"/>
+                  <local:WrapRow x:Name="AlbumGenres" HorizontalSpacing="6" VerticalSpacing="6"/>
+                  <TextBlock x:Name="AlbumProse" Style="{StaticResource Prose}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="14">
+                    <ctl:RpmLink x:Name="AlbumMoreButton"
+                                 Click="AlbumMore_Click" FontSize="11"/>
+                    <ctl:RpmLink x:Name="AlbumSourceButton"
+                                 Click="AlbumSource_Click" FontSize="11"/>
+                  </StackPanel>
+                  <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
+                  <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumSourceButton}"/>
                 </StackPanel>
-                <!-- The licence of the Wikipedia text above (CC BY-SA 4.0), shown when the source link is. -->
-                <ctl:CcBySaLink Visibility="{Binding Visibility, ElementName=AlbumSourceButton}"/>
-              </StackPanel>
-            </Grid>
+              </Grid>
+
+              <!-- One dot per part of a record that is several things under one title: the works on a classical
+                   record ("Eine kleine Nachtmusik / Divertimento / Ein musikalischer Spaß"), or the two albums of a
+                   two-in-one. Each part has a page of its own, as the artist card has one per credited name. Filled in
+                   code; hidden for a record that is one thing. See TrackInfoView.AlbumPages. -->
+              <StackPanel x:Name="AlbumDots" Orientation="Horizontal" Spacing="2"
+                          HorizontalAlignment="Center" Margin="0,2,0,0" Visibility="Collapsed"/>
+            </StackPanel>
           </Border>
         </StackPanel>
 

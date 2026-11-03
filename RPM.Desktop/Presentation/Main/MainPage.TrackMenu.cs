@@ -225,7 +225,8 @@ public sealed partial class MainPage
         if (XamlRoot is null)
             return;
 
-        var row = new TrackRow(track);
+        // From the file, not the mirror row: the window writes its whole row back (see WithFileTags).
+        var row = await RowFromFileAsync(track);
         var folder = LibraryFolderOf(track);
         if (await Dialogs.TrackDetailsDialog.ShowAsync(
                 XamlRoot, row,

@@ -92,13 +92,7 @@ public sealed partial class MainPage
             ShowPaneWarning(folders.Count == 1
                 ? Loc.Format("Queue_ScanNoMusic", Path.GetFileName(folders[0].TrimEnd(Path.DirectorySeparatorChar)))
                 : Loc.Get("Queue_ScanNoMusicMany"));
-            return;
         }
-
-        // The scan added rows, so there is a queue to work through. The workbench takes the window and
-        // the library folds back to its rail. This happens only when the scan found something. An empty
-        // scan has no room to give, so the library stays as it was.
-        Panes.FoldLibraryForImport();
     }
 
     // ── music dragged onto the window ──

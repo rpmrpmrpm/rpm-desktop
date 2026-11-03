@@ -33,10 +33,6 @@
       <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
     </Border.Resources>
     <Grid>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="*"/>
-        <RowDefinition Height="Auto"/>
-      </Grid.RowDefinitions>
 
       <!-- The tabs have their own translate. The spinning record hangs off the right edge of the window,
            and its lower arc covers this corner and takes the clicks there. So the stack ducks: it
@@ -44,7 +40,7 @@
            corner when the deck is idle (see MainPage.RightPane.DuckRailForRecord). The rail's strip
            itself does not move. It is the pane's edge, and an edge that slid down would make the
            card look broken. -->
-      <StackPanel x:Name="TabStack" Grid.Row="0" Spacing="0" Margin="0" VerticalAlignment="Top">
+      <StackPanel x:Name="TabStack" Spacing="0" Margin="0" VerticalAlignment="Top">
         <StackPanel.RenderTransform>
           <TranslateTransform x:Name="TabDuck"/>
         </StackPanel.RenderTransform>
@@ -83,22 +79,6 @@
           </StackPanel>
         </Button>
       </StackPanel>
-
-      <!-- The fold button, mirrored. It points right, into the pane it folds away, and turns round once
-           folded. It is collapsed unless folding is allowed. The library only steps aside for the
-           import workbench, so anywhere else there is nothing to press. -->
-      <Button x:Name="FoldButton" Grid.Row="1" Click="Close_Click" Background="Transparent"
-              BorderThickness="0" Width="34" Height="30" MinWidth="0" Padding="0"
-              Margin="0,6,0,8" HorizontalAlignment="Center" Visibility="Collapsed"
-              ToolTipService.ToolTip="{loc:Str Key=Playlists_Close}"
-              AutomationProperties.Name="{loc:Str Key=Playlists_Close}">
-        <TextBlock x:Name="FoldChevron" Text="&#xf054;" FontFamily="{StaticResource Fa}" FontSize="12"
-                   Foreground="#AAFFFFFF" RenderTransformOrigin="0.5,0.5">
-          <TextBlock.RenderTransform>
-            <RotateTransform x:Name="FoldSpin"/>
-          </TextBlock.RenderTransform>
-        </TextBlock>
-      </Button>
     </Grid>
   </Border>
 </UserControl>

@@ -590,6 +590,11 @@ public sealed partial class TrackInfoView
         if (build.Dossier is { } dossier)
             ShowDossier(dossier);
 
+        // A record of several works whose whole title got no answer (the server can time out on a title no
+        // catalogue knows) still has pages for its parts, each asked on its own.
+        else if (!string.IsNullOrWhiteSpace(_artistCredit))
+            PageAlbumParts(TrackDossier.Empty);
+
         PaintConductor(build.Conductor, build.ConductorPhoto);
         PaintLabel(build.Label, build.LabelLogo);
     }

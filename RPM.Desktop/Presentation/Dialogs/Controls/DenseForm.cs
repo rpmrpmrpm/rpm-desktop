@@ -246,6 +246,36 @@ internal sealed class DenseFormGroup
         }
     }
 
+    /// <summary>
+    /// A heading across the whole group, between two of its rows: the same name over a thin rule that
+    /// <see cref="Build"/> puts above a group.
+    ///
+    /// <para>For a form that is one grid with sections in it, like the import's tag panel. Two groups
+    /// there would each size their label gutter to their own longest label, and the boxes of the second
+    /// would start on a different line from the boxes of the first.</para>
+    /// </summary>
+    public void AddHeading(string headerKey)
+    {
+        int r = _grid.RowDefinitions.Count;
+        _grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var heading = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        heading.Children.Add(new TextBlock
+        {
+            Text = Loc.Get(headerKey),
+            Style = DenseForm.Res<Style>("DenseGroupHeaderStyle"),
+        });
+        heading.Children.Add(new Border
+        {
+            Height = 1,
+            Background = DenseForm.Res<Brush>("DenseRuleBrush"),
+            Margin = new Thickness(0, 3, 0, 0),
+        });
+        Grid.SetRow(heading, r);
+        Grid.SetColumnSpan(heading, _grid.ColumnDefinitions.Count);
+        _grid.Children.Add(heading);
+    }
+
     /// <summary>The rows alone, with no heading above them. Use this where the surrounding surface
     /// already names these fields. For example, the import workbench's tag panel has its own header. A
     /// group heading would repeat the same word.

@@ -786,9 +786,17 @@
     <value>Ensemble</value>
     <comment>Tag field: the orchestra or choir, on a classical record.</comment>
   </data>
-  <data name="Details_Soloists" xml:space="preserve">
-    <value>Soloists</value>
-    <comment>Tag field: the featured performers, as the sleeve credits them.</comment>
+  <data name="Details_Performers" xml:space="preserve">
+    <value>Performers</value>
+    <comment>Tag field, classical credits: the people who played on the track, one per line, each with their instrument in brackets.</comment>
+  </data>
+  <data name="Details_Vocalists" xml:space="preserve">
+    <value>Vocalists</value>
+    <comment>Tag field, classical credits: the people who sang on the track, one per line, each with their voice in brackets.</comment>
+  </data>
+  <data name="Details_AddLine" xml:space="preserve">
+    <value>Add another name</value>
+    <comment>Tooltip on the + beside a list of performers or vocalists: adds an empty line for one more person.</comment>
   </data>
   <data name="Details_Lyricist" xml:space="preserve">
     <value>Lyricist</value>
@@ -913,6 +921,10 @@
   <data name="MassEdit_GroupReading" xml:space="preserve">
     <value>READING</value>
     <comment>Dense form group heading: what the measurement came out of (grid, confidences, which analyser).</comment>
+  </data>
+  <data name="MassEdit_GroupClassical" xml:space="preserve">
+    <value>CLASSICAL</value>
+    <comment>All-caps group heading over the classical credits: composer, conductor, ensemble, performers and vocalists.</comment>
   </data>
   <data name="MassEdit_GroupWork" xml:space="preserve">
     <value>WORK</value>
@@ -5260,6 +5272,10 @@
   <data name="AlbumEdit_NormalizeOff" xml:space="preserve">
     <value>Never</value>
     <comment>Album editor choice: leave this record at its own level whatever the global setting says.</comment>
+  </data>
+  <data name="AlbumEdit_ApplyToTracks" xml:space="preserve">
+    <value>Apply changes to tracks</value>
+    <comment>Tick beside Cancel in the album editor: on save, every field is written to every track of the record, and the album artist becomes each track's own artist.</comment>
   </data>
   <data name="AlbumEdit_Classical" xml:space="preserve">
     <value>Is classical</value>

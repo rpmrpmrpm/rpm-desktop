@@ -60,6 +60,10 @@ public sealed partial class MainPage
         ArtistDetail.PopularLoader = LoadPopularReleasesAsync;
         ArtistDetail.LogoLoader = LoadArtistLogoAsync;
         ArtistDetail.PlaylistsLoader = LoadArtistPlaylistsAsync;
+        ArtistDetail.RelatedLoader = LoadRelatedArtistsAsync;
+
+        // A related act opens over this one, and Back goes where this page's Back went.
+        ArtistDetail.ArtistRequested += other => NavigateToArtistPage(other, _artistOpenedFrom);
 
         // The card's picture comes from the one place a playlist's cover is ever drawn. So the shelf here and
         // the head of that playlist's own tracklist show the same square. Only the square is used. The wash
@@ -661,6 +665,74 @@ public sealed partial class MainPage
         // mirror is followed by a Changed event that reads the new one.
         return asked && holding is not null
             ? holding.Match(lists => lists, _ => [])
+            : [];
+    }
+
+    /// <summary>
+    /// The acts in the collection on screen closest to one act, for the card on their page: the rule the
+    /// Android TV app and Pegasus use (<see cref="RPM.Core.Library.RelatedArtists"/>), over the artists
+    /// and genres walls and the lists that hold one of their songs, so the row is the same on every screen
+    /// that shows it.
+    ///
+    /// <para>The lists are the playlists that hold a song of theirs and the generated lists of the
+    /// drawer's Made for you that do, each as the records it draws from. A list holding none of their
+    /// songs says nothing about who is close to them, so only these are counted. The songs are matched by
+    /// id and by path, as the playlists shelf matches them (see LoadArtistPlaylistsAsync).</para>
+    /// </summary>
+    private async Task<IReadOnlyList<ArtistWallItem>> LoadRelatedArtistsAsync(
+        ArtistWallItem artist, IReadOnlyList<RPM.Core.Models.TrackInfo> songs, CancellationToken ct)
+    {
+        var library = App.Services.GetRequiredService<LibraryService>();
+        if (Model is not { } model || !library.IsOpen || library.ShelfRoot is not { } root)
+            return [];
+
+        var walls = model.ArtistShelf;
+        var acts = walls.Acts;
+        var albumGenres = walls.AlbumGenres;
+        var shelf = library.Shelf;
+
+        var (asked, answer) = await Cancellable.RunAsync(() =>
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var song in songs)
+            {
+                if (song.RpmId is { Length: > 0 } id)
+                    ids.Add(id);
+                paths.Add(Path.GetRelativePath(root, song.FilePath).Replace(Path.DirectorySeparatorChar, '/'));
+            }
+
+            return library.Read(shelf, "the lists holding an artist's songs, for the acts related to them", mirror =>
+            {
+                bool Holds(RPM.Core.Library.LibraryTrack track) =>
+                    (track.RpmId is { Length: > 0 } id && ids.Contains(id)) || paths.Contains(track.RelativePath);
+
+                var heldBy = new List<IReadOnlyCollection<string>>();
+                foreach (var holding in mirror.PlaylistsHolding(ids, paths))
+                    heldBy.Add(Folders(mirror.FlattenPlaylistTracks(holding.NodeId)));
+
+                var now = DateTime.UtcNow.Ticks;
+                foreach (var kind in RPM.Core.Library.SmartPlaylists.All)
+                {
+                    var id = RPM.Core.Library.SmartPlaylistId.WholeShelf(kind);
+                    var (count, _, _) = mirror.SmartPlaylistTotals(id, now);
+                    if (count < RPM.Core.Library.SmartPlaylists.LeastToShow(id))
+                        continue;
+                    var listed = mirror.QuerySmartPlaylist(id, now, advance: false);
+                    if (listed.Any(Holds))
+                        heldBy.Add(Folders(listed));
+                }
+
+                var genres = RPM.Core.Library.GenreWall.Build(acts, albumGenres);
+                return RPM.Core.Library.RelatedArtists.Of(artist, acts, genres, albumGenres, heldBy);
+            });
+
+            static HashSet<string> Folders(IEnumerable<RPM.Core.Library.LibraryTrack> tracks) =>
+                tracks.Select(t => t.Folder).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }, ct);
+
+        return asked && answer is not null
+            ? answer.Match(related => related, _ => [])
             : [];
     }
 

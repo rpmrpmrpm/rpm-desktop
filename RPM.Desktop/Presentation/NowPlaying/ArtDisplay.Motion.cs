@@ -48,8 +48,9 @@ public sealed partial class ArtDisplay
     ///
     /// <para>Stopping is deferred by the fly-out, because the disc is still visible during that second.
     /// Cutting the tick at once would freeze the disc mid-turn and then shrink the still frame into the
-    /// corner. Stopping because playback stopped is the exception: the record halts where it stands, the
-    /// way a record lifted off a turntable stops.</para>
+    /// corner. Stopping because playback stopped is the exception: it starts at once, and the record winds
+    /// down to a standstill, the way a platter does when the motor is switched off (see
+    /// <see cref="CoastSeconds"/>). Play winds it up again from where it came to rest.</para>
     /// </summary>
     private void SyncMotion()
     {
@@ -111,9 +112,46 @@ public sealed partial class ArtDisplay
     /// </summary>
     private bool _composited;
 
+    /// <summary>How long the record takes to wind down from full speed when playback stops. Longer than
+    /// the spin-up: a platter is quick to get going and slow to come to rest.</summary>
+    private const double CoastSeconds = 1.6;
+
+    /// <summary>Whether the compositor's turn is still on the record, wound down or winding down, so that
+    /// play can wind the same turn up again (see <see cref="Common.Spin.Coast"/>).</summary>
+    private bool _held;
+
+    /// <summary>On the drawing thread's path: whether the record is winding down, and how fast it was
+    /// turning when it started to.</summary>
+    private bool _coasting;
+    private double _coastElapsed;
+    private double _coastFrom;
+
+    /// <summary>On the drawing thread's path: how fast the record turns now, as a share of full speed.
+    /// Kept so a wind-up that starts while it is still winding down picks up from that speed.</summary>
+    private double _speed;
+
     private void StartMotion()
     {
         _running = true;
+
+        // A turn that was wound down rather than stopped is wound up again: the same animation, from the
+        // angle it came to rest at, so the record carries on exactly where it stopped.
+        if (_held && _record is { } held && Common.Spin.Resume(held.Turning, SpinUpSeconds))
+        {
+            _composited = true;
+            ApplyWobble();
+            return;
+        }
+        _held = false;
+
+        // The same on the drawing thread's path: a record still winding down speeds up again from the
+        // speed it had got down to.
+        if (_coasting)
+        {
+            _coasting = false;
+            _rampElapsed = RampAt(_speed) * SpinUpSeconds;
+            return;
+        }
 
         // Start the compositor turn first, and pass the last angle. A needle put back down carries on from
         // where it was lifted, not from the top of the groove.
@@ -166,20 +204,46 @@ public sealed partial class ArtDisplay
 
         _running = false;
 
+        // Playback stopped: the record winds down. Anything else (the drawer parking, the record taken off
+        // the header) stops it where it is, since nobody is watching the disc by then. Either way the turn
+        // is held rather than taken off, and the wobble stays with it: it follows the angle, so it comes to
+        // rest with the disc and moves off with it again.
+        var seconds = _playing ? 0 : CoastSeconds;
+
         if (_composited)
         {
             _composited = false;
+            if (_record is { } disc && Common.Spin.Coast(disc.Turning, seconds))
+            {
+                _held = true;
+                return;
+            }
 
-            // The stop angle is kept. The next Start continues from it.
-            if (_record is { } disc)
-                _angle = Common.Spin.Stop(disc.Turning);
+            // No turn to hold: stopped, and the stop angle is kept for the next Start.
+            if (_record is { } stopped)
+                _angle = Common.Spin.Stop(stopped.Turning);
 
             // Go through the deck, so that a face change after this does not restart the orbit.
             _deck?.Orbit(0);
-
             return;
         }
 
+        if (seconds > 0 && _speed > 0)
+        {
+            _coasting = true;
+            _coastElapsed = 0;
+            _coastFrom = _speed;
+            return;
+        }
+
+        StopTick();
+    }
+
+    /// <summary>The drawing thread's turn, taken off the render tick.</summary>
+    private void StopTick()
+    {
+        _coasting = false;
+        _speed = 0;
         _clock.Stop();
         Services.Shell.FrameTick.Remove("art-motion", OnRendering);
     }
@@ -196,8 +260,23 @@ public sealed partial class ArtDisplay
             return;
         dt = Math.Min(dt, 0.1);
 
-        _rampElapsed += dt;
-        var speed = Ramp(_rampElapsed / SpinUpSeconds);
+        double speed;
+        if (_coasting)
+        {
+            _coastElapsed += dt;
+            speed = _coastFrom * (1 - Ramp(_coastElapsed / CoastSeconds));
+            if (_coastElapsed >= CoastSeconds)
+            {
+                StopTick();
+                return;
+            }
+        }
+        else
+        {
+            _rampElapsed += dt;
+            speed = Ramp(_rampElapsed / SpinUpSeconds);
+        }
+        _speed = speed;
 
         _angle = (_angle + 360.0 / RevolutionSeconds * speed * dt) % 360.0;
         if (_record is { } record)
@@ -238,6 +317,23 @@ public sealed partial class ArtDisplay
     {
         t = Math.Clamp(t, 0, 1);
         return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>Where on the spin-up a speed is: the inverse of <see cref="Ramp"/>, found by halving, so a
+    /// wind-up that takes over from a wind-down starts at the speed the record has.</summary>
+    private static double RampAt(double speed)
+    {
+        speed = Math.Clamp(speed, 0, 1);
+        double low = 0, high = 1;
+        for (var i = 0; i < 20; i++)
+        {
+            var mid = (low + high) / 2;
+            if (Ramp(mid) < speed)
+                low = mid;
+            else
+                high = mid;
+        }
+        return (low + high) / 2;
     }
 
     /// <summary>Whether a track is actually playing. This is not the same as _running, which only says

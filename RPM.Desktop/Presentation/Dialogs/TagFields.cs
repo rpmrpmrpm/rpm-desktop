@@ -31,7 +31,10 @@ public enum TagFieldKind
     TitleSort, ArtistSort, MusicalKey, RecordingId, ArtistId, Advisory,
 
     // ── the classical block: a movement of a work, and who wrote and played it ──
-    Work, MovementName, Movement, MovementCount, ComposerSort, Lyricist, Arranger, Ensemble, Soloists,
+    Work, MovementName, Movement, MovementCount, ComposerSort, Lyricist, Arranger, Ensemble,
+
+    // The soloists tag, as the two lists it is read as: who played, and who sang (see SoloistCredits).
+    Performers, Vocalists,
 
     // ── disc ──
     Disc, TrackCount, DiscSubtitle,
@@ -62,6 +65,9 @@ public enum TagFieldKind
 /// <param name="ParentOf">For a list of suggestions that is a tree read top to bottom: the entry each one
 /// sits under. The list is drawn with each entry indented beneath its main one, the way a shelf as big as
 /// Electronic / Dance is read: Trance, then Goa Trance and Psytrance under it.</param>
+/// <param name="Lines">A credit that names several people, drawn one person a line with a + for another
+/// (see <see cref="CreditLines"/>). Its value is still one string, the lines joined with "; ", so a
+/// window that has no lines to offer shows it in a plain box.</param>
 public sealed record TagField(
     TagFieldKind Kind,
     string LabelKey,
@@ -77,7 +83,8 @@ public sealed record TagField(
     bool Numeric = false,
     IReadOnlyList<string>? Suggestions = null,
     Func<string?, IReadOnlyList<string>>? SuggestionsFor = null,
-    Func<string, string?>? ParentOf = null);
+    Func<string, string?>? ParentOf = null,
+    bool Lines = false);
 
 /// <summary> One entry in a choice field's list: what gets stored, and what the user reads. </summary>
 /// <param name="Value">Stored and compared exactly as written. It is never the label. A file tagged in
@@ -138,16 +145,28 @@ public static class TagFields
             (i, v) => i with { Advisory = AdvisoryValues.Parse(v) },
             Options: AdvisoryValues.Options),
 
-        new(TagFieldKind.Composers, "Details_Composers", TagScope.Track, Groups.Credits,
+        // ── the classical credits: who wrote it, who conducted, and who played and sang ──
+        new(TagFieldKind.Composers, "Details_Composers", TagScope.Track, Groups.Classical,
             r => r.Composers, (r, v) => r.Composers = v, (i, v) => i with { Composers = v }),
-        new(TagFieldKind.Conductor, "Details_Conductor", TagScope.Track, Groups.Credits,
+        new(TagFieldKind.Conductor, "Details_Conductor", TagScope.Track, Groups.Classical,
             r => r.Conductor, (r, v) => r.Conductor = v, (i, v) => i with { Conductor = v }),
         // The orchestra or choir. On a classical record this is almost never the album artist.
         // "Berliner Philharmoniker" belongs here, not in a field for who the record is filed under.
-        new(TagFieldKind.Ensemble, "Details_Ensemble", TagScope.Track, Groups.Credits,
+        new(TagFieldKind.Ensemble, "Details_Ensemble", TagScope.Track, Groups.Classical,
             r => r.Ensemble, (r, v) => r.Ensemble = v, (i, v) => i with { Ensemble = v }),
-        new(TagFieldKind.Soloists, "Details_Soloists", TagScope.Track, Groups.Credits,
-            r => r.Soloists, (r, v) => r.Soloists = v, (i, v) => i with { Soloists = v }),
+        // Two fields over ONE tag. Each replaces its own half of the soloists and keeps the other, so
+        // the two can be written in either order (see SoloistCredits).
+        new(TagFieldKind.Performers, "Details_Performers", TagScope.Track, Groups.Classical,
+            r => string.Join("; ", SoloistCredits.Performers(r.Soloists)),
+            (r, v) => r.Soloists = SoloistCredits.WithPerformers(r.Soloists, v) ?? "",
+            (i, v) => i with { Soloists = SoloistCredits.WithPerformers(i.Soloists, v) },
+            Lines: true),
+        new(TagFieldKind.Vocalists, "Details_Vocalists", TagScope.Track, Groups.Classical,
+            r => string.Join("; ", SoloistCredits.Vocalists(r.Soloists)),
+            (r, v) => r.Soloists = SoloistCredits.WithVocalists(r.Soloists, v) ?? "",
+            (i, v) => i with { Soloists = SoloistCredits.WithVocalists(i.Soloists, v) },
+            Lines: true),
+
         new(TagFieldKind.Lyricist, "Details_Lyricist", TagScope.Track, Groups.Credits,
             r => r.Lyricist, (r, v) => r.Lyricist = v, (i, v) => i with { Lyricist = v }),
         new(TagFieldKind.Arranger, "Details_Arranger", TagScope.Track, Groups.Credits,
@@ -331,6 +350,10 @@ public static class TagFields
         public const string Track = "MassEdit_GroupTrack";
         public const string Release = "MassEdit_GroupRelease";
         public const string Credits = "MassEdit_GroupCredits";
+
+        /// <summary>A classical record's credits: the composer, the conductor, the ensemble, and the
+        /// people who played and sang.</summary>
+        public const string Classical = "MassEdit_GroupClassical";
         public const string Publishing = "MassEdit_GroupPublishing";
 
         /// <summary>The composition a track is a movement of.</summary>

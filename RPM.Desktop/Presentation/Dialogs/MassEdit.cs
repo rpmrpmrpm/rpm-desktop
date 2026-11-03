@@ -209,11 +209,6 @@ internal static class MassEdit
         bool artChanged = result.ArtBytes is { Length: > 0 };
         bool discArtChanged = result.DiscArtBytes is { Length: > 0 };
 
-        // The record being edited is often the one that is playing. For example, the user hears a wrong
-        // spelling and fixes it. The player has the file open, so it is released first. Remember where
-        // the playback position, and resume the track afterwards, wherever it was moved to.
-        var hold = await ReleasePlayerAsync(rows, log);
-
         // Read each file's own tags fresh, so untouched fields are kept. Then the edits are laid on
         // top.
         //
@@ -237,7 +232,11 @@ internal static class MassEdit
             }
             else if (cloud is not null)
             {
-                info = OverlayEdits(cloud.ToTrackInfo(root), result);
+                // From the tags kept in the cloud beside it, not from the row alone: the row holds only the
+                // tags the library is browsed by, and an edit laid over it would write the rest back empty.
+                var mirror = cloud.ToTrackInfo(root);
+                var stored = await Services.Cloud.RemoteTags.ForAsync(cloud, mirror.FilePath);
+                info = OverlayEdits(stored is null ? mirror : KeepMirrorFacts(stored, mirror), result);
                 if (perTrack is not null)
                     info = perTrack(info);
             }
@@ -253,6 +252,35 @@ internal static class MassEdit
         }
         foreach (var bad in unreadable)
             log.LogWarning("[mass-edit] tags unreadable, row skipped — {Detail}", bad);
+
+        // The record being edited is often the one playing: the listener hears a wrong spelling and fixes
+        // it. The player has that file open, and Windows will not let it be rewritten or moved, so it used
+        // to be stopped and started again around the write, which is a gap in the song. Now its edit is
+        // shown at once, in its mirror row, and the file itself is written when the player has moved off
+        // it (see PendingTagWrites). Every other file in the edit is written now.
+        var playback = App.Services.GetService<PlaybackService>();
+        var heldBack = plan.Where(p => p.Cloud is null && playback?.HoldsOpen(p.Row.FilePath) == true).ToList();
+        if (heldBack.Count > 0)
+        {
+            plan.RemoveAll(heldBack.Contains);
+            await Task.Run(() => db.MoveMany(
+                [.. heldBack.Select(p => (p.OldRelative, LibraryDatabase.FromTrackInfo(p.Info, root)))]));
+            foreach (var p in heldBack)
+                PendingTagWrites.Hold(
+                    root, p.Row.FilePath,
+                    // A window that writes its whole row gives no list of fields; every field it offers is
+                    // the edit.
+                    infoFor is not null ? PendingTagWrites.AllFields(p.Info) : result.Fields,
+                    result);
+            log.LogInformation("[mass-edit] {Held} playing file(s) held until the player lets go", heldBack.Count);
+        }
+        var heldFolders = heldBack.Select(p => FolderOf(p.OldRelative)).ToList();
+
+        if (plan.Count == 0 && heldBack.Count > 0)
+        {
+            library.NotifyChanged();
+            return [.. heldFolders.Distinct(StringComparer.OrdinalIgnoreCase)];
+        }
         if (plan.Count == 0)
         {
             log.LogWarning("[mass-edit] nothing to write: all {Rows} rows were unreadable", rows.Count);
@@ -281,6 +309,9 @@ internal static class MassEdit
         // by every later write, and it is skipped silently. That is how a second window over the same
         // rows could save nothing. See TrackRow.FiledAt.
         var landed = new List<(TrackRow Row, string Path)>(plan.Count);
+        // The cloud-only tracks the edit reached, with the tags they now have and where they are now filed:
+        // their sidecars are written after the mirror (see RemoteTags.WriteAsync).
+        var cloudEdits = new List<(LibraryTrack Row, TrackInfo Info, string RelativePath)>();
 
         await Task.Run(() =>
         {
@@ -330,6 +361,7 @@ internal static class MassEdit
                         MovementNumber = (int)s.Track.MovementNumber,
                     };
                     moves.Add((plan[i].OldRelative, refiled));
+                    cloudEdits.Add((cloudRow, s.Track, refiled.RelativePath));
                     landed.Add((plan[i].Row, Path.Combine(
                         root, refiled.RelativePath.Replace('/', Path.DirectorySeparatorChar))));
                     cloudFolders.Add(Path.Combine(
@@ -454,7 +486,12 @@ internal static class MassEdit
             row.FiledAt(path);
 
         library.NotifyChanged();
-        ResumePlayer(hold, root, moves, log);
+
+        // The whole edit into each cloud-only track's sidecar, awaited: an upload left running behind a
+        // closed window was lost with the app, and with it the edit. The kept copy of every track's tags
+        // is replaced first, all at once, so whatever reads them meanwhile reads the edit.
+        if (cloudEdits.Count > 0)
+            await WriteSidecarsAsync(cloudEdits, log);
 
         // Send the record's pictures to every other place where this library is read. A removal is sent
         // too, or it does not hold. A machine that still has the sleeve would read the missing picture
@@ -474,6 +511,7 @@ internal static class MassEdit
         // never drawn. An in-place edit leaves the card where it was, with the cover it cached the
         // first time it was shown. So the caller refreshes both ends.
         return [.. moves.Select(m => FolderOf(m.From)).Concat(moves.Select(m => m.Track.Folder))
+            .Concat(heldFolders)
             .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         static string FolderOf(string relativePath)
@@ -482,6 +520,54 @@ internal static class MassEdit
             return slash < 0 ? "" : relativePath[..slash];
         }
     }
+
+    /// <summary>Several at once: each is a fetch and an upload of about a megabyte, and a record of twenty
+    /// tracks written one after another took long enough for the app to be closed in the middle.</summary>
+    private static async Task WriteSidecarsAsync(
+        IReadOnlyList<(LibraryTrack Row, TrackInfo Info, string RelativePath)> edits, ILogger log)
+    {
+        var due = edits
+            .Select(e => (Id: Services.Cloud.RemoteTags.Remember(e.Row, e.Info), e.Info, e.RelativePath))
+            .Where(e => e.Id is not null)
+            .ToList();
+
+        // Written down before anything is sent, and crossed off as each lands: the app does not wait for
+        // these as it closes (see SidecarsOwed).
+        foreach (var e in due)
+            Services.Cloud.SidecarsOwed.Owe(e.Id!, e.Info, e.RelativePath);
+
+        var written = 0;
+        await Parallel.ForEachAsync(due, new ParallelOptions { MaxDegreeOfParallelism = 6 }, async (e, ct) =>
+        {
+            if (await Services.Cloud.RemoteTags.WriteAsync(e.Id!, e.Info, e.RelativePath, ct))
+            {
+                Services.Cloud.SidecarsOwed.Paid(e.Id!);
+                Interlocked.Increment(ref written);
+            }
+        });
+
+        if (written < edits.Count)
+            log.LogWarning("[mass-edit] {Written} of {Count} cloud-only sidecars written; the rest keep their old tags",
+                written, edits.Count);
+    }
+
+    /// <summary>
+    /// A track's tags, read from its file or from the copy kept in the cloud, with what only the mirror
+    /// knows laid back over them: its path and RPM id, where it stands with the cloud, the heart, the
+    /// measured loudness. What an editor opens on, and what an edit to a cloud-only track starts from.
+    /// </summary>
+    internal static TrackInfo KeepMirrorFacts(TrackInfo tags, TrackInfo mirror) => tags with
+    {
+        FilePath = mirror.FilePath,
+        RpmId = mirror.RpmId ?? tags.RpmId,
+        CloudState = mirror.CloudState,
+        CloudSelected = mirror.CloudSelected,
+        CloudPartialError = mirror.CloudPartialError,
+        CloudAttempts = mirror.CloudAttempts,
+        IsFavorite = mirror.IsFavorite,
+        LoudnessLufs = mirror.LoudnessLufs,
+        TruePeak = mirror.TruePeak,
+    };
 
     /// <summary>Sends what this edit did to the record's pictures to the cloud, one album at a time:
     /// the cover under the album's key, the disc label under its own key, and a removal as a removal.
@@ -594,79 +680,6 @@ internal static class MassEdit
 
             return MultiDiscImport.NamedInMergedAlbum(track, siblings, template);
         };
-    }
-
-    // ── the file the listener is on ───────────────────────────────────────────
-
-    /// <summary>Where the playback was when the edit took the file away. It is made only for a track
-    /// that was actually sounding. See <see cref="ReleasePlayerAsync"/>.</summary>
-    private sealed record PlayerHold(string Path, double Position, double Duration);
-
-    /// <summary>Stops the player on any file this edit is about to write to, and waits for the file
-    /// handle to close.
-    ///
-    /// <para>Stopping is not the same as letting go. The decoder unwinds on the audio thread, so the
-    /// file stays held for a moment after the transport reports that it is not playing. Writing in that
-    /// moment turns "fix the spelling of the song I am listening to" into "file in use". The wait is
-    /// short and bounded. A file still held after it is reported as refused, like any other, and is not
-    /// written to anyway.</para>
-    /// </summary>
-    private static async Task<PlayerHold?> ReleasePlayerAsync(IReadOnlyList<TrackRow> rows, ILogger log)
-    {
-        var playback = App.Services.GetService<PlaybackService>();
-        if (playback is null)
-            return null;
-
-        // Only the files the player has open: the track that is playing, and the one queued behind it
-        // for a gapless hand-over. See PlaybackService.HoldsOpen.
-        var held = rows.Select(r => r.FilePath).Where(playback.HoldsOpen).ToList();
-        if (held.Count == 0)
-            return null;
-
-        // Only a track that is SOUNDING is worth putting back. Two kinds are not:
-        //
-        // A queued-next track, which the queue simply picks again. A PAUSED track. IsPlaying means
-        // "this is the player's current track", not "sound is coming out". So a paused track also
-        // answers yes. It would be recorded as a hold and started again when the write finished, so
-        // editing a selection that contains the paused track would start the music.
-        //
-        // So a paused track is stopped like any other, and it stays stopped. The check is made here,
-        // before the write, because the stop below makes it impossible to answer afterwards.
-        var playing = held.FirstOrDefault(playback.IsPlaying);
-        var hold = playing is null || playback.IsPaused
-            ? null
-            : new PlayerHold(playing, playback.PositionSeconds, playback.DurationSeconds);
-
-        playback.Stop();
-        var stillHeld = await FileHandles.WaitUntilWritableAsync(held);
-        foreach (var path in stillHeld)
-            log.LogWarning("[mass-edit] {Path} is still open after the player let go — it may refuse", path);
-        return hold;
-    }
-
-    /// <summary>Puts the playback back on the record that was playing, wherever the edit moved it. A
-    /// record that is filed again under a corrected album artist has a new path. Playback was stopped
-    /// because the listener was in the middle of it.
-    ///
-    /// <para>Only called with a hold, and a hold is only made for a track that was actually sounding.
-    /// See <see cref="ReleasePlayerAsync"/>. Nothing here can start music that was not already
-    /// playing.</para>
-    /// </summary>
-    private static void ResumePlayer(
-        PlayerHold? hold, string root, IReadOnlyList<(string From, LibraryTrack Track)> moves, ILogger log)
-    {
-        if (hold is null || App.Services.GetService<PlaybackService>() is not { } playback)
-            return;
-
-        var was = Relative(root, hold.Path);
-        var landed = moves.FirstOrDefault(m => string.Equals(m.From, was, StringComparison.OrdinalIgnoreCase));
-        var path = landed.Track is { } track ? Path.Combine(root, track.RelativePath) : hold.Path;
-        if (!File.Exists(path))
-        {
-            log.LogWarning("[mass-edit] the playing track is not where the edit left it — {Path}", path);
-            return;
-        }
-        playback.Play(path, hold.Duration, hold.Position);
     }
 
     /// <summary>Lays the chosen edits over a file's own tags. Each field knows how it is applied (see

@@ -339,6 +339,82 @@ public sealed partial class MainPage
 
     // ── edit the album (the mass-edit window over every track on it) ──
 
+    /// <summary>An edit was held for a file the player has open. Whatever shows the playing track reads it
+    /// again, with the edit laid over the file's own tags, so the new words are on screen while the song
+    /// goes on.</summary>
+    private void OnTagsHeld(string path)
+    {
+        var playing = App.Services.GetRequiredService<PlaybackService>().PlayingRecord;
+        if (!string.Equals(playing, path, StringComparison.OrdinalIgnoreCase))
+            return;
+        TrackInfoPanel?.Reread();
+        _art?.Reread();
+    }
+
+    private void OnHeldTagsWritten(IReadOnlyList<string> folders)
+    {
+        foreach (var folder in folders)
+        {
+            AlbumWall.RefreshAlbum(folder);
+            AlbumList.RefreshAlbum(folder);
+        }
+    }
+
+    /// <summary>
+    /// A track as its FILE has it, for an editor to open on: every tag the file carries, with what only the
+    /// mirror knows laid back over it (its RPM id, where it stands with the cloud, the heart, the measured
+    /// loudness).
+    ///
+    /// <para><b>Why the editors cannot open on the mirror row.</b> The mirror keeps only the tags the
+    /// library is browsed by: the names, the numbers, the genres, the year, the work and the composer. The
+    /// publisher, the copyright, the pressing's numbers, the sort names, the conductor, the ensemble and the
+    /// soloists are not in it. An editor seeded from the row showed all of those empty, so an edit to any
+    /// of them looked lost the next time the window opened. Worse, the per-file editor writes its whole row
+    /// back, so saving one track cleared every one of those tags from its file.</para>
+    ///
+    /// <para>A track with no file here (offloaded, or on another computer) keeps the row as it is, and so
+    /// does one whose tags cannot be read.</para>
+    /// </summary>
+    private static RPM.Core.Models.TrackInfo WithFileTags(RPM.Core.Models.TrackInfo track)
+    {
+        if (!File.Exists(track.FilePath))
+            return track;
+        try
+        {
+            return Dialogs.MassEdit.KeepMirrorFacts(TagReader.Read(track.FilePath), track);
+        }
+        catch
+        {
+            return track;
+        }
+    }
+
+    /// <summary>The same, for a track whose file is not on this disk: its tags from the copy kept in the
+    /// cloud beside it, as the track pane reads them (see RemoteTags). A record that has been offloaded
+    /// opened its editor on the mirror row alone, so the publisher, the conductor and the rest showed
+    /// empty however often they were saved.</summary>
+    private static async Task<RPM.Core.Models.TrackInfo> WithStoredTagsAsync(RPM.Core.Models.TrackInfo track)
+    {
+        if (File.Exists(track.FilePath))
+            return await Task.Run(() => WithFileTags(track));
+
+        var library = App.Services.GetRequiredService<LibraryService>();
+        if (!library.IsOpen || library.ShelfRoot is not { } root)
+            return track;
+        var relative = Path.GetRelativePath(root, track.FilePath).Replace(Path.DirectorySeparatorChar, '/');
+        if (relative.StartsWith("..", StringComparison.Ordinal) || library.Shelf.FindByRelativePath(relative) is not { } row)
+            return track;
+
+        return await Services.Cloud.RemoteTags.ForAsync(row, track.FilePath) is { } stored
+            ? Dialogs.MassEdit.KeepMirrorFacts(stored, track)
+            : track;
+    }
+
+    /// <summary>A fresh row for the per-file editor, read from the file (see <see cref="WithFileTags"/>),
+    /// off the drawing thread.</summary>
+    private static async Task<TrackRow> RowFromFileAsync(RPM.Core.Models.TrackInfo track)
+        => new(await WithStoredTagsAsync(track));
+
     /// <summary>
     /// "Edit album": the record's own editor, over every track on it.
     ///
@@ -362,6 +438,9 @@ public sealed partial class MainPage
             return;
         }
 
+        // The tags as the files have them, not as the mirror keeps them (see WithFileTags).
+        tracks = await Task.WhenAll(tracks.Select(WithStoredTagsAsync));
+
         var rows = tracks.Select(t => new TrackRow(t)).ToList();
         // There are two ends to the edit: the folder the album was in (this one), and any folder it lands
         // in. A changed album artist re-files the record under the naming template. The wall keeps one card
@@ -380,6 +459,7 @@ public sealed partial class MainPage
             classical: meta.Classical,
             series: meta.InSeries,
             knownSeries: db.AlbumSeriesNames(),
+            knownArtists: db.ArtistChoices(),
             onLibraryFacts: facts =>
             {
                 facts.WriteTo(db, folder);
@@ -935,7 +1015,8 @@ public sealed partial class MainPage
             Set(Dialogs.TagFieldKind.ComposerSort, track.ComposerSort);
             Set(Dialogs.TagFieldKind.Conductor, track.Conductor);
             Set(Dialogs.TagFieldKind.Ensemble, track.Ensemble);
-            Set(Dialogs.TagFieldKind.Soloists, track.Soloists);
+            Set(Dialogs.TagFieldKind.Performers, string.Join("; ", SoloistCredits.Performers(track.Soloists)));
+            Set(Dialogs.TagFieldKind.Vocalists, string.Join("; ", SoloistCredits.Vocalists(track.Soloists)));
             Set(Dialogs.TagFieldKind.Lyricist, track.Lyricist);
             Set(Dialogs.TagFieldKind.Arranger, track.Arranger);
         }

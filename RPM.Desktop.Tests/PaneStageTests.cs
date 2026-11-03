@@ -20,7 +20,7 @@ namespace RPM.Desktop.Tests;
 public class PaneStageTests
 {
     private static PaneStage Reading(RightTab tab, bool atHome) =>
-        new(AtHome: atHome, Chevron: true, Tab: LeftTab.TrackInfo, RightOpen: true, Reading: tab);
+        new(AtHome: atHome, Chevron: true, Tab: LeftTab.TrackInfo, Reading: tab);
 
     [Fact]
     public void HomeLightsTheLibraryRailForNothing()
@@ -57,7 +57,7 @@ public class PaneStageTests
     {
         var before = new PaneStage(
             AtHome: false, Chevron: true, Tab: LeftTab.Radio,
-            RightOpen: true, Reading: RightTab.Playlists);
+            Reading: RightTab.Playlists);
 
         var home = before with { AtHome = true };
         var after = home with { AtHome = false };
@@ -76,10 +76,14 @@ public class PaneStageTests
     {
         var folded = new PaneStage(
             AtHome: false, Chevron: false, Tab: LeftTab.Import,
-            RightOpen: true, Reading: RightTab.Albums);
+            Reading: RightTab.Albums);
 
         Assert.False((folded with { AtHome = true }).LeftViewUp);
         Assert.False(folded.LeftViewUp);
+
+        // Folded, the rail lights nothing: a glow on a tab whose view has gone reads as a view still open.
+        Assert.Null(folded.LeftLit);
+        Assert.False(folded.ImportOver);
 
         // And the other way round: opened at home, it is open coming out of home as well.
         var open = folded with { Chevron = true, AtHome = true };
@@ -87,19 +91,23 @@ public class PaneStageTests
         Assert.True((open with { AtHome = false }).LeftViewUp);
     }
 
-    /// <summary>When the library is folded away for the import workbench, it shows nothing. Its rail still
-    /// names the view it is folded on, so the reader knows what pressing it brings back. Home is different:
-    /// it leaves that rail lit for nothing.</summary>
+    /// <summary>The import workbench lies over the library without taking its view down. The reader sees
+    /// none of the card's views, so search goes to the import, but the view stays standing underneath and
+    /// its rail stays lit for it, so nothing has to be laid out again when the workbench goes.</summary>
     [Fact]
-    public void AFoldedLibraryRailStaysLitAndHomeDoesNot()
+    public void TheImportWorkbenchCoversTheLibraryWithoutTakingItDown()
     {
-        var folded = new PaneStage(
-            AtHome: false, Chevron: true, Tab: LeftTab.Import,
-            RightOpen: false, Reading: RightTab.Genres);
+        var import = new PaneStage(
+            AtHome: false, Chevron: true, Tab: LeftTab.Import, Reading: RightTab.Genres);
 
-        Assert.Null(folded.RightShowing);
-        Assert.Equal(RightTab.Genres, folded.RightLit);
+        Assert.True(import.ImportOver);
+        Assert.Null(import.RightShowing);
+        Assert.Equal(RightTab.Genres, import.RightStanding);
+        Assert.Equal(RightTab.Genres, import.RightLit);
 
-        Assert.Null((folded with { AtHome = true }).RightLit);
+        // Folded by its chevron, the workbench is not over anything, and the library is in front again.
+        var folded = import with { Chevron = false };
+        Assert.False(folded.ImportOver);
+        Assert.Equal(RightTab.Genres, folded.RightShowing);
     }
 }

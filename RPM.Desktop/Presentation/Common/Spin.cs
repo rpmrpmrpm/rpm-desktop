@@ -103,6 +103,122 @@ internal static class Spin
 #endif
     }
 
+    /// <summary>
+    /// Lets the record wind down to a standstill, the way a platter does when the motor is switched off,
+    /// and holds it there, still on its animation.
+    ///
+    /// <para><b>Why the turn is not stopped.</b> Stopping it means reading back where it got to, and a
+    /// composition property read on this thread is not reliably the live value: the record came back a
+    /// turn away from where it had stopped. Kept on its animation at a playback rate of nought, it holds
+    /// its angle exactly, and <see cref="Resume"/> winds the same animation up again from that angle, so
+    /// nothing has to be read at all.</para>
+    ///
+    /// <para>Once it has stopped turning the animation is paused, so a record that is not moving costs
+    /// the compositor nothing.</para>
+    /// </summary>
+    /// <param name="seconds">How long the wind-down takes from full speed. Nought stops it where it
+    /// is.</param>
+    /// <returns>False where there is no turn to wind down (it was never started on the compositor). The
+    /// caller then stops it its own way.</returns>
+    public static bool Coast(FrameworkElement element, double seconds)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+
+#if RPM_WINUI
+        try
+        {
+            var visual = ElementCompositionPreview.GetElementVisual(element);
+            if (visual.TryGetAnimationController("RotationAngleInDegrees") is not { } controller)
+                return false;
+
+            var turn = Turns.GetOrCreateValue(element);
+            var mine = ++turn.Value;
+
+            if (seconds <= 0)
+            {
+                controller.StopAnimation("PlaybackRate");
+                controller.PlaybackRate = 0;
+                controller.Pause();
+                return true;
+            }
+
+            var compositor = visual.Compositor;
+            var down = compositor.CreateScalarKeyFrameAnimation();
+            down.InsertExpressionKeyFrame(0f, "this.StartingValue");
+            // Slowing hardest at the start and settling gently, as friction stops a heavy platter: no
+            // jolt as it comes to rest.
+            down.InsertKeyFrame(1f, 0f, compositor.CreateCubicBezierEasingFunction(
+                new Vector2(0.3f, 0.6f), new Vector2(0.6f, 1f)));
+            down.Duration = TimeSpan.FromSeconds(seconds);
+
+            var batch = compositor.CreateScopedBatch(Microsoft.UI.Composition.CompositionBatchTypes.Animation);
+            controller.StartAnimation("PlaybackRate", down);
+            batch.End();
+            batch.Completed += (_, _) =>
+            {
+                // Still at rest and nobody has asked it to turn since: pause it, so it costs nothing.
+                if (turn.Value == mine)
+                    controller.Pause();
+            };
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+#else
+        _ = seconds;
+        return false;
+#endif
+    }
+
+    /// <summary>Winds a record that was let down by <see cref="Coast"/> back up to full speed, from the
+    /// angle it is at: carrying on from exactly where it stopped, or from wherever it had got to if it was
+    /// still slowing.</summary>
+    /// <returns>False where there is no turn to wind up. The caller then starts one.</returns>
+    public static bool Resume(FrameworkElement element, double rampSeconds)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+
+#if RPM_WINUI
+        try
+        {
+            var visual = ElementCompositionPreview.GetElementVisual(element);
+            if (visual.TryGetAnimationController("RotationAngleInDegrees") is not { } controller)
+                return false;
+
+            Turns.GetOrCreateValue(element).Value++;   // a wind-down still landing must not pause this
+            controller.Resume();
+
+            var compositor = visual.Compositor;
+            var up = compositor.CreateScalarKeyFrameAnimation();
+            up.InsertExpressionKeyFrame(0f, "this.StartingValue");
+            up.InsertKeyFrame(1f, 1f, compositor.CreateCubicBezierEasingFunction(
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 1f)));
+            up.Duration = TimeSpan.FromSeconds(Math.Max(0.05, rampSeconds));
+            controller.StartAnimation("PlaybackRate", up);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+#else
+        _ = rampSeconds;
+        return false;
+#endif
+    }
+
+#if RPM_WINUI
+    /// <summary>Which wind-down or wind-up is the current one, per record.</summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, StrongBox> Turns = new();
+
+    private sealed class StrongBox
+    {
+        public int Value;
+    }
+#endif
+
     /// <summary>Stops the turn and says where it stopped.
     /// </summary>
     /// <returns>The angle at which the record stopped. Pass it to <see cref="Start"/> when the needle

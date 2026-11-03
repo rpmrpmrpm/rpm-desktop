@@ -570,7 +570,17 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     /// line.</para>
     /// </summary>
     private void OnLibraryOpened(string root) =>
-        _dispatcher.TryEnqueue(() => _ = StartupLibraryPassAsync());
+        _dispatcher.TryEnqueue(async () =>
+        {
+            await StartupLibraryPassAsync();
+
+            // Tag edits a previous run held for the track that was playing and did not get to write. After
+            // the pass, so the files are written over a mirror that has caught up with the folder.
+            Dialogs.PendingTagWrites.Resume(root);
+
+            // And the cloud-only tracks' sidecars an earlier run was still writing when it closed.
+            _ = Services.Cloud.SidecarsOwed.RepayAsync();
+        });
 
     /// <summary>The pass that the app makes over the collection when it comes up: it reconciles the mirror
     /// with the folder, and then it queues whatever is sitting in the inbox.

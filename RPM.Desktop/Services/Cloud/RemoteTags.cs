@@ -73,8 +73,69 @@ public static class RemoteTags
         if (info is null)
             return null;
 
+        // An edit whose sidecar an earlier run did not get to write is what the track says now.
+        info = SidecarsOwed.Overlay(id, info);
+
         // Held under the id, so a second path to the same track gets its own.
         return info.FilePath == path ? info : info with { FilePath = path };
+    }
+
+    /// <summary>
+    /// Keeps an edit as the tags this run has for a track whose file is not on this disk, and says which
+    /// sidecar to write it into (see <see cref="WriteAsync"/>); null where there is none to write, because
+    /// nobody is signed in or the track has no id in this account's cloud.
+    ///
+    /// <para><b>Why the editors write the sidecar themselves.</b> The sync pass carries an edit to a
+    /// cloud-only track into its sidecar from the mirror row (see TagSidecar.With), and the row holds only
+    /// the tags the library is browsed by. The publisher, the copyright, the conductor, the soloists and
+    /// the rest were written nowhere, so an edit to them was gone the next time the editor opened.</para>
+    ///
+    /// <para>Kept at once, for every track an edit reaches, before any of them is written: the track pane
+    /// and the next editor read the edit from here, and an editor opened while the writes are still going
+    /// would otherwise see some tracks edited and the rest not.</para>
+    /// </summary>
+    public static string? Remember(LibraryTrack row, TrackInfo edited)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        ArgumentNullException.ThrowIfNull(edited);
+
+        if (App.Services.GetService<AuthService>()?.UserId is not { Length: > 0 } user)
+            return null;
+
+        var sharing = App.Services.GetService<SharingService>();
+        var id = sharing is null ? row.RpmId : sharing.OwnCloudId(row.RpmId, row.PeerDeviceId);
+        if (string.IsNullOrWhiteSpace(id))
+            return null;
+
+        lock (Gate)
+        {
+            if (_user != user)
+            {
+                _user = user;
+                Held.Clear();
+            }
+            Held[id] = Task.FromResult<TrackInfo?>(edited with { PendingArt = null, PendingArtMime = null });
+        }
+        return id;
+    }
+
+    /// <summary>Writes an edit into the sidecar <paramref name="id"/> names, filed at
+    /// <paramref name="relativePath"/>. False where nothing was written: no sidecar under the id, or the
+    /// cloud not reachable. The sync pass still carries what the row holds.</summary>
+    public static async Task<bool> WriteAsync(string id, TrackInfo edited, string relativePath, CancellationToken ct = default)
+    {
+        if (App.Services.GetService<RpmCloudClient>() is not { } cloud)
+            return false;
+        try
+        {
+            if (await cloud.GetSidecarAsync(id, ct) is not { } sidecar)
+                return false;
+            return await cloud.RefreshSidecarAsync(id, sidecar.WithTags(edited) with { RelativePath = relativePath }, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     private static async Task<TrackInfo?> FetchAsync(RpmCloudClient cloud, string id, string path)

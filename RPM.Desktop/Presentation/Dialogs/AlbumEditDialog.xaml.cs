@@ -146,6 +146,10 @@ public sealed partial class AlbumEditDialog : ContentDialog
     private readonly RPM.Core.Library.AlbumSeries? _seriesSeed;
     private readonly IReadOnlyList<string> _knownSeries;
 
+    /// <summary>Every artist name the library already holds, offered in the artist boxes so a record is
+    /// filed under the spelling the library has rather than a new one.</summary>
+    private readonly IReadOnlyList<string> _knownArtists;
+
     private ComboBox? _inSeries;
     private ComboBox? _seriesName;
     private TextBox? _seriesVolume;
@@ -174,11 +178,13 @@ public sealed partial class AlbumEditDialog : ContentDialog
     public AlbumEditDialog(
         string folder, IReadOnlyList<TrackRow> rows, Func<ArtAsk, Task<MassEditLookup?>>? lookup = null,
         bool? normalize = null, bool? classical = null, byte[]? discArtHeld = null,
-        RPM.Core.Library.AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null)
+        RPM.Core.Library.AlbumSeries? series = null, IReadOnlyList<string>? knownSeries = null,
+        IReadOnlyList<string>? knownArtists = null)
     {
         InitializeComponent();
         _seriesSeed = series;
         _knownSeries = knownSeries ?? [];
+        _knownArtists = knownArtists ?? [];
         _rows = rows;
         _folder = folder;
         _lookup = lookup;
@@ -203,7 +209,7 @@ public sealed partial class AlbumEditDialog : ContentDialog
         // this window writes to every track of the folder. See AddDiscScope for where those go instead.
         AddGroup(BasicLeft, TagFields.Groups.Release, TagScope.Album);
         AddGroup(BasicRight, TagFields.Groups.Publishing, TagScope.Album);
-        AddConductor(BasicRight);
+        AddClassical(BasicRight);
         AddDiscScope(BasicRight);
 
         // Which pressing this is, how it sorts, and what it is in MusicBrainz. All of these are facts
@@ -244,21 +250,37 @@ public sealed partial class AlbumEditDialog : ContentDialog
     }
 
     /// <summary>
-    /// The conductor, the one credit this window offers.
+    /// The classical credits: the composer, the conductor, the ensemble, and the people who played and
+    /// sang, a line each.
     ///
-    /// <para>The credits are a performance's facts, so they are filed per track and left to the per-file
-    /// editor. The conductor is the exception a classical record makes: an opera or a symphony is conducted
-    /// by one person from its first track to its last, and typing the name sixty times is the editor's job.
-    /// The box shows what most tracks say and marks the rest, like every other field here, and saving writes
-    /// it to all of them. It is also what the track info pane's card about the conductor is looked up by.</para>
+    /// <para>These are a performance's facts, so they are filed per track. A classical record is the
+    /// exception that puts them here as well: an opera or a symphony is conducted by one person, played by
+    /// one orchestra and sung by one cast from its first track to its last, and typing them sixty times is
+    /// the editor's job. Each box shows what most tracks say and marks the rest, like every other field
+    /// here, and saving writes it to all of them. The conductor is also what the track info pane's card
+    /// about them is looked up by.</para>
     /// </summary>
-    private void AddConductor(Panel column)
+    private void AddClassical(Panel column)
     {
         var group = new DenseFormGroup();
-        var conductor = TagFields.Get(TagFieldKind.Conductor);
-        AddField(group, conductor, _rows, DenseForm.Label(conductor.LabelKey));
-        group.AddTo(column, TagFields.Groups.Credits);
+        foreach (var kind in ClassicalFields)
+        {
+            // Only the conductor settles a record whose tracks disagree. A recital's composers and an
+            // opera's singers differ from track to track on purpose, and saving the record for its year
+            // must not give every track the cast of the most common one. The marker still says they
+            // differ; an edit to the box writes it to all of them.
+            var field = TagFields.Get(kind);
+            AddField(group, field, _rows, DenseForm.Label(field.LabelKey),
+                settles: kind == TagFieldKind.Conductor);
+        }
+        group.AddTo(column, TagFields.Groups.Classical);
     }
+
+    private static readonly TagFieldKind[] ClassicalFields =
+    [
+        TagFieldKind.Composers, TagFieldKind.Conductor, TagFieldKind.Ensemble,
+        TagFieldKind.Performers, TagFieldKind.Vocalists,
+    ];
 
     /// <summary>One group's album-level fields, in catalogue order.</summary>
     private void AddGroup(Panel column, string groupKey, params TagScope[] scopes)
@@ -379,9 +401,12 @@ public sealed partial class AlbumEditDialog : ContentDialog
         _ => null,
     };
 
+    /// <param name="settles">Whether a box over tracks that disagree writes its value to all of them on
+    /// save, as every field here does by default. False for a credit that is rightly different per track,
+    /// which is then written only when it is edited.</param>
     private void AddField(
         DenseFormGroup group, TagField tag, IReadOnlyList<TrackRow> over, FrameworkElement label,
-        uint? disc = null)
+        uint? disc = null, bool settles = true)
     {
         var values = over.Select(tag.Get).Select(v => v.Trim()).ToList();
         var seed = Dominant(values);
@@ -427,6 +452,23 @@ public sealed partial class AlbumEditDialog : ContentDialog
             read = () => MassEditDialog.ReadSuggest(combo);
             write = v => MassEditDialog.SetSuggestValue(combo, v);
         }
+        else if (tag.Lines)
+        {
+            // Several people, a line each, with a + for one more.
+            var lines = new CreditLines(seed);
+            input = lines;
+            read = lines.Read;
+            write = lines.Write;
+        }
+        else if (tag.Kind is TagFieldKind.AlbumArtist or TagFieldKind.Artist && _knownArtists.Count > 0)
+        {
+            // The artists the library already has, to pick from or to type past. A record filed under
+            // "Mozart" beside forty under "Wolfgang Amadeus Mozart" is a second artist on the shelf.
+            var combo = MassEditDialog.SuggestBox(_knownArtists, seed);
+            input = combo;
+            read = () => MassEditDialog.ReadSuggest(combo);
+            write = v => MassEditDialog.SetSuggestValue(combo, v);
+        }
         else
         {
             var box = new TextBox { Text = seed };
@@ -441,9 +483,9 @@ public sealed partial class AlbumEditDialog : ContentDialog
             input.Narrow(w);
 
         var disagreement = Disagreement(values);
-        _fields.Add(new Field(tag, input, read, write, seed, disc, disagreement is not null));
+        _fields.Add(new Field(tag, input, read, write, seed, disc, settles && disagreement is not null));
         // A row with a tick under its box keeps its label level with the box, not with the pair.
-        group.Add(null, label, placed ?? input, topAlign: placed is not null,
+        group.Add(null, label, placed ?? input, topAlign: placed is not null || tag.Lines,
             trailing: new AlbumMarker(disagreement, canArm: false));
     }
 
@@ -943,10 +985,26 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        var touched = _fields.Where(f => f.Dirty).ToList();
+        // "Apply changes to tracks": the whole form, onto every track. Every box says what the record is,
+        // so each one that has something to say is written to all of its tracks, including the credits
+        // that are otherwise left alone where the tracks differ (see AddClassical). And the record's fields
+        // that have a track's own field under them go down to it: the album artist becomes every track's
+        // artist, which is otherwise the track's own business (a compilation's tracks each name their
+        // own). Without the tick, only what was changed is written, and only to the record's fields.
+        var everywhere = ApplyToTracks.IsChecked == true;
+
+        var touched = _fields.Where(f => f.Dirty || (everywhere && f.Read().Trim().Length > 0)).ToList();
         var fields = touched
             .Where(f => f.Disc is null)
             .ToDictionary(f => f.Tag.Kind, f => f.Read().Trim());
+
+        if (everywhere)
+        {
+            foreach (var (album, track) in AlbumToTrack)
+                if (_fields.FirstOrDefault(f => f.Tag.Kind == album && f.Disc is null) is { } field
+                    && field.Read().Trim() is { Length: > 0 } value)
+                    fields[track] = value;
+        }
         var discs = touched
             .Where(f => f.Disc is not null)
             .GroupBy(f => f.Disc!.Value)
@@ -978,6 +1036,13 @@ public sealed partial class AlbumEditDialog : ContentDialog
         Hide();
     }
 
+    /// <summary>The record's fields that have a track's own field under them.</summary>
+    private static readonly (TagFieldKind Album, TagFieldKind Track)[] AlbumToTrack =
+    [
+        (TagFieldKind.AlbumArtist, TagFieldKind.Artist),
+        (TagFieldKind.AlbumArtistSort, TagFieldKind.ArtistSort),
+    ];
+
     private void Cancel_Click(object sender, RoutedEventArgs e) => Hide();
 
     /// <summary>Opens the album editor over a record's tracks. Returns what changed, or null when the
@@ -986,9 +1051,10 @@ public sealed partial class AlbumEditDialog : ContentDialog
         XamlRoot xamlRoot, string folder, IReadOnlyList<TrackRow> rows,
         Func<ArtAsk, Task<MassEditLookup?>>? lookup = null, bool? normalize = null, bool? classical = null,
         byte[]? discArtHeld = null, RPM.Core.Library.AlbumSeries? series = null,
-        IReadOnlyList<string>? knownSeries = null)
+        IReadOnlyList<string>? knownSeries = null, IReadOnlyList<string>? knownArtists = null)
     {
-        var dialog = new AlbumEditDialog(folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries)
+        var dialog = new AlbumEditDialog(
+            folder, rows, lookup, normalize, classical, discArtHeld, series, knownSeries, knownArtists)
         {
             XamlRoot = xamlRoot,
         };

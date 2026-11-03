@@ -382,6 +382,14 @@ internal sealed class ArtworkManager : IArtController
     private void StartShow(TrackRef? track, bool forceRefresh)
         => Enqueue((gen, ct) => track is { } t ? RunShowAsync(t, forceRefresh, gen, ct) : ShowIdleAsync(gen));
 
+    /// <summary>Shows the current track again, from its tags: they were edited while it played (see
+    /// PendingTagWrites). The caches stay; only the words changed.</summary>
+    public void Reread()
+    {
+        if (_displayed is { } d)
+            StartShow(d, forceRefresh: false);
+    }
+
     /// <summary>Bypasses the caches for the current track and runs the chooser again. A photo added
     /// upstream appears without waiting for the 30-day cache to expire.</summary>
     public void Refresh()
@@ -464,7 +472,9 @@ internal sealed class ArtworkManager : IArtController
         {
             if (File.Exists(track.Path))
             {
-                var info = await Task.Run(() => RPM.Core.Metadata.TagReader.Read(track.Path!));
+                // With any edit held for the playing file laid over it (see PendingTagWrites).
+                var info = await Task.Run(() =>
+                    Dialogs.PendingTagWrites.Overlay(RPM.Core.Metadata.TagReader.Read(track.Path!)));
                 if (gen != _gen) return;
                 track = track with
                 {
