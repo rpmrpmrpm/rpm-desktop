@@ -322,6 +322,20 @@ public sealed partial class MainPage
             Panes.ToggleView();
             ShellPage.Current?.RefreshCoachmarks();
         };
+
+        // A station has no track info: the tab greys out while one plays, and a pane that was showing it
+        // turns to the stations instead. A library track brings the tab back. The tuner reports off the UI
+        // thread, and again on every title a station announces.
+        var radio = App.Services.GetRequiredService<RadioService>();
+        void OnAir()
+        {
+            var onAir = radio.Current is not null;
+            Rail.SetTrackInfoAvailable(!onAir);
+            if (onAir && Panes.Open && Panes.Tab == LeftTab.TrackInfo)
+                Panes.OpenTab(LeftTab.Radio);
+        }
+        OnAir();
+        radio.Changed += () => DispatcherQueue.TryEnqueue(OnAir);
         VizBody.LaunchRequested += id => ShellPage.Current?.ShowVisualizer(id);
 
         // A play written to the log does not mark the home screen stale. Every row on home is a

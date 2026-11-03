@@ -77,6 +77,14 @@ internal sealed partial class LeftRail : UserControl
         SelectedSegment.Paint(RailRadio, tab == LeftTab.Radio);
     }
 
+    /// <summary>Greys Track info out, and stops it answering, while a station plays: a station sends a line
+    /// of text at most, and there is no record to tell anything about.</summary>
+    public void SetTrackInfoAvailable(bool available)
+    {
+        RailTrackInfo.IsEnabled = available;
+        RailTrackInfo.Opacity = available ? 1 : 0.35;
+    }
+
     private void RailTrackInfo_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.TrackInfo);
     private void RailViz_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Visualization);
     private void RailRadio_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Radio);
