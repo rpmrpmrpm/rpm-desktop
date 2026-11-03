@@ -167,7 +167,8 @@ public sealed partial class ArtDisplay
         AnimateRpmOpacity(RpmPlayOpacity);   // Playing: the mark dims to the muted tone.
         _rpmZoomWait?.Stop();                    // Cancel a park zoom that is still waiting for the drawer.
         AnimateRpmScale(1, RecordFlyDuration);   // Shrink back from any parked zoom.
-        _deck?.Cue();                  // A record is wanted. It drops once it has a face to land in.
+        if (!_onAir)
+            _deck?.Cue();              // A record is wanted. It drops once it has a face to land in.
         IdleChanged?.Invoke(false);    // The shell opens the art drawer and pins the grids.
 
         Animate(IdleChrome, 0);

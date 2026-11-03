@@ -407,12 +407,69 @@ public sealed partial class ArtDisplay : UserControl, IArtStage
     /// </summary>
     public void ShowRecord(bool shown)
     {
+        _recordWanted = shown;
+        SetRecordShown(shown && !_onAir);
+    }
+
+    /// <summary>The listener's setting for the record, apart from whether a station has taken it off for
+    /// now.</summary>
+    private bool _recordWanted = true;
+
+    /// <summary>A station is playing. See <see cref="OnAir"/>.</summary>
+    private bool _onAir;
+
+    /// <summary>Counts the radio's comings and goings, so a lift that a library track overtook does not
+    /// take the record off after it has come back.</summary>
+    private int _airTurn;
+
+    /// <summary>Raised when <see cref="RecordShown"/> changes, so the shell can put its host away or back.
+    /// The radio changes it on its own clock, after the record has flown, not when the shell asks.</summary>
+    public event Action? RecordShownChanged;
+
+    private void SetRecordShown(bool shown)
+    {
         if (RecordShown == shown)
             return;
 
         RecordShown = shown;
         Layout();
         SyncMotion();
+        RecordShownChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// A station is playing, or has stopped. A station is not a record: it has no sleeve of its own and
+    /// no side to turn, so the record leaves the header for as long as one plays.
+    ///
+    /// <para>It goes the way it goes when the music stops: it lifts off to the corner and fades. Only once
+    /// it has gone is the band laid out without it, so the photograph does not slide under a record that
+    /// is still on screen. A library track brings it back, and it drops once it wears that track's sleeve,
+    /// as it does for any record arriving.</para>
+    /// </summary>
+    public void OnAir(bool onAir)
+    {
+        if (_onAir == onAir)
+            return;
+
+        _onAir = onAir;
+        var turn = ++_airTurn;
+        if (!_recordWanted)
+            return;
+
+        if (onAir)
+        {
+            _deck?.Park();
+            Services.Shell.Ticker.Once(DispatcherQueue, RecordDisc.Turntable.FlyDuration, () =>
+            {
+                if (turn == _airTurn && _onAir)
+                    SetRecordShown(false);
+            });
+            return;
+        }
+
+        SetRecordShown(true);
+        if (!_idle)
+            _deck?.Cue();
     }
 
     /// <summary>The shell passes in the record it hosts above the content. This takes it and lays it out at

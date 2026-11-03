@@ -232,6 +232,14 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         // keep their position during the move.
         ShellArt.IdleChanged += OnArtIdleChanged;
 
+        // A station takes the record off the header while it plays, and a library track puts it back (see
+        // ArtDisplay.OnAir). The tuner says so off the UI thread, and it says so again on every title the
+        // station announces, which OnAir lets pass.
+        var radio = App.Services.GetRequiredService<Services.Audio.RadioService>();
+        ShellArt.RecordShownChanged += SyncRecordShown;
+        ShellArt.OnAir(radio.Current is not null);
+        radio.Changed += () => DispatcherQueue.TryEnqueue(() => ShellArt.OnAir(radio.Current is not null));
+
         // A park that the listener chose in an earlier run still applies: the drawer opens parked and
         // the session's first track leaves it parked. This is set before anything can play.
         if (App.Services.GetRequiredService<SettingsService>().ArtDrawerParked)
