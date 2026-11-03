@@ -139,7 +139,13 @@
           </StackPanel>
           <TextBlock Text="{loc:Str Key=Settings_PegasusVisualizerHint}"
                      FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
-          <RadioButtons x:Name="RoomStyleRadios" SelectionChanged="OnRoomStyleChanged"/>
+          <!-- The same four tiles as setup's, each a still of itself (see WizardLookStep). Sideways, as the
+               backdrops above are, so a narrow window scrolls them rather than wrapping. -->
+          <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
+                        Padding="0,4,0,14" BringIntoViewOnFocusChange="False">
+            <StackPanel x:Name="RoomTiles" Orientation="Horizontal" Spacing="14" />
+          </ScrollViewer>
         </StackPanel>
       </Border>
 

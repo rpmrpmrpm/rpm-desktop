@@ -119,10 +119,17 @@ internal sealed class WizardChoices<T>(Panel host, T picked)
         Paint();
     }
 
+    /// <summary>Raised when a tile is picked. The wizard reads <see cref="Picked"/> when Next is pressed; the
+    /// settings page saves the moment one is picked.</summary>
+    public event Action<T>? PickedChanged;
+
     private void Pick(T value)
     {
+        var changed = !EqualityComparer<T>.Default.Equals(value, Picked);
         Picked = value;
         Paint();
+        if (changed)
+            PickedChanged?.Invoke(value);
     }
 
     private void Paint()

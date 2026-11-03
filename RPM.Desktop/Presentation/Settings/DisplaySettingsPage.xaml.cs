@@ -130,27 +130,16 @@ public sealed partial class DisplaySettingsPage : Page
 
     // Pegasus's visualizer
 
+    /// <summary>The four rooms as setup shows them: a still of each, taken off Pegasus with the gallery's
+    /// shoot, its name and a line about it. A pick is saved at once.</summary>
     private void FillRoomStyles()
     {
-        var current = RPM.Core.Viz.RoomStyles.Named(_settings.PegasusRoomStyle);
+        var rooms = new Setup.Steps.WizardChoices<RPM.Core.Viz.RoomStyle>(
+            RoomTiles, RPM.Core.Viz.RoomStyles.Named(_settings.PegasusRoomStyle));
         foreach (var style in Enum.GetValues<RPM.Core.Viz.RoomStyle>())
-        {
-            RoomStyleRadios.Items.Add(new RadioButton
-            {
-                Content = $"{Loc.Get($"Tv_RoomStyle{style}")} · {Loc.Get($"Wizard_Room{style}Desc")}",
-                Tag = style,
-            });
-            if (style == current)
-                RoomStyleRadios.SelectedIndex = RoomStyleRadios.Items.Count - 1;
-        }
-    }
-
-    private void OnRoomStyleChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_loaded || RoomStyleRadios.SelectedItem is not RadioButton { Tag: RPM.Core.Viz.RoomStyle style })
-            return;
-
-        _settings.PegasusRoomStyle = style.ToString();
+            rooms.Add(style, Loc.Get($"Tv_RoomStyle{style}"), Loc.Get($"Wizard_Room{style}Desc"),
+                $"ms-appx:///Assets/Setup/room-{style.ToString().ToLowerInvariant()}.jpg", 190, 112);
+        rooms.PickedChanged += style => _settings.PegasusRoomStyle = style.ToString();
     }
 
     /// <summary>May arrive on any thread, because the standing is read from the network.</summary>
