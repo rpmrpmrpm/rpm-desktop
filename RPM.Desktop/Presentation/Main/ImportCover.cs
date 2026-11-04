@@ -37,15 +37,20 @@ internal sealed class ImportCover
     /// <paramref name="from"/>, the width its column gave it.</summary>
     /// <param name="to">The row's width, which the card is being stretched to. Passed in rather than read off
     /// the card, which has not been laid out at that width yet.</param>
-    public void Open(FrameworkElement card, double from, double to, double ms)
+    /// <param name="landed">Runs once the card covers the row, unless another move has started since.</param>
+    public void Open(FrameworkElement card, double from, double to, double ms, Action? landed = null)
     {
         var turn = ++_turn;
 #if RPM_WINUI
         Move(card, from, to, ms, () =>
         {
-            if (turn == _turn)
-                Unclip();
+            if (turn != _turn)
+                return;
+            Unclip();
+            landed?.Invoke();
         });
+#else
+        landed?.Invoke();
 #endif
     }
 

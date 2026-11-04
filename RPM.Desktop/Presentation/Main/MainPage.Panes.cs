@@ -400,7 +400,26 @@ public sealed partial class MainPage
         if (!_rowCovered)
             Stretch(true);
         _uncovering = false;
-        _importCover.Open(LeftPanel, from, PanelsGrid.ActualWidth, ms);
+        _importCover.Open(LeftPanel, from, PanelsGrid.ActualWidth, ms, landed: () => FrameLibrary(false));
+    }
+
+    /// <summary>
+    /// Shows or hides the library card's frame, for while the import card lies over the whole row.
+    /// </summary>
+    /// <remarks>
+    /// The two cards' edges run along the same pixels at the top, the right and the foot, and each is a faint,
+    /// see-through line, so where the library lies under the workbench its edge showed through the
+    /// workbench's and the two added up: the foot was one line under the rail and twice as bright from where
+    /// the library starts (Chivan, 2026-11-04). The library is wholly covered then, so its frame goes once the
+    /// card has landed and comes back before the card moves off it, and is never seen missing. Cleared rather
+    /// than set back, so the card style's brush is what returns.
+    /// </remarks>
+    private void FrameLibrary(bool framed)
+    {
+        if (framed)
+            LibraryPanel.ClearValue(Border.BorderBrushProperty);
+        else
+            LibraryPanel.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
 
     /// <summary>Slides the card back to <paramref name="to"/>, the width its column has, and puts it there;
@@ -415,6 +434,7 @@ public sealed partial class MainPage
         }
 
         _uncovering = true;
+        FrameLibrary(true);
         _importCover.Close(LeftPanel, PanelsGrid.ActualWidth, to, ms, () =>
         {
             _uncovering = false;
@@ -428,6 +448,7 @@ public sealed partial class MainPage
     private void DropCover()
     {
         _importCover.Stop();
+        FrameLibrary(true);
         _uncovering = false;
         if (_rowCovered)
             Stretch(false);
