@@ -61,9 +61,11 @@
     </ScrollViewer>
 
     <!-- Apply shows how many rows it changes, because that is the one thing worth checking before pressing
-         it. The buttons sit at the right-hand end. Revert comes first, then Apply. -->
+         it. The buttons sit at the right-hand end. Revert comes first, then Apply. The band is the queue's
+         status bar's height (its padding, around 30-pixel buttons), because it stands beside that bar at the
+         foot of the pane and the two share one rule along their top. -->
     <Border Grid.Row="2" BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,0,0"
-            Padding="14,10">
+            Padding="14,7">
       <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
         <Button x:Name="RevertButton" Style="{StaticResource ToolKeyStyle}" IsEnabled="False"
                 Content="{loc:Str Key=Queue_TagPanelRevert}" Click="Revert_Click"/>

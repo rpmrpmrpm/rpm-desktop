@@ -108,7 +108,9 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <import:ImportTagPanel x:Name="QueueTagPanel" Grid.Row="3" Grid.Column="0"
+      <!-- Down to the foot of the pane, past the grid's row and through the status bar's: its Revert / Apply band
+           stands in the status bar's band, the same height, so the two share one rule along their top. -->
+      <import:ImportTagPanel x:Name="QueueTagPanel" Grid.Row="3" Grid.RowSpan="2" Grid.Column="0"
                              Visibility="Collapsed"/>
 
     <!-- The source folder being imported, with its path below it. This is the same name and path style the
@@ -193,16 +195,10 @@
            The ticks open it. Select All and Select None act on the whole queue, not on the rows in hand. That is
            what the foot of a pane is for. The clean-ups, the legend and the tag panel are on the toolbar, with
            the other tools. -->
-      <!-- Under the tag panel: the band's background and its top rule run across, and the panel's right-hand hairline
-           runs down. There is no content here. The text of the bottom bar starts where the grid starts, so
-           "Select All / None" and the file count read as facts about the LIST, not about the pane. The line
-           between the panel and the list runs from the toolbar to the bottom. No code is needed. The column is
-           0 wide when the panel is hidden, so this part is also 0 wide. -->
-      <Border x:Name="QueueChinGutter" Grid.Row="4" Grid.Column="0"
-              Background="{StaticResource BenchSurfaceBrush}"
-              BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,1,0"
-              Visibility="{Binding QueueActionsVisibility}"/>
-
+      <!-- Under the grid only. The tag panel runs down beside it to the foot of the pane, and its own Revert / Apply
+           band takes this band's place there (Chivan, 2026-11-04: an empty strip under the panel, framed by its
+           own rules, read as two frames drawn over each other). The text of the bottom bar starts where the grid
+           starts, so "Select All / None" and the file count read as facts about the LIST, not about the pane. -->
       <Border x:Name="QueueChin" Grid.Row="4" Grid.Column="1"
               Background="{StaticResource BenchSurfaceBrush}"
               BorderBrush="{StaticResource BenchRuleBrush}" BorderThickness="0,1,0,0"
