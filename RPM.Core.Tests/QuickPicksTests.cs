@@ -17,6 +17,26 @@ public class QuickPicksTests
     private static readonly string[] Lists = ["l1", "l2"];
     private static readonly string[] Stations = ["r1"];
 
+    /// <summary>Each record is offered once: a song a radio is on, or one from the same record, and the record
+    /// itself, are stepped past, and the next of their kind takes the place. The same album filed twice, its name
+    /// once in quotes, is one record.</summary>
+    [Fact]
+    public void Each_record_is_offered_once()
+    {
+        var recordOf = new Dictionary<string, string>
+        {
+            ["riot"] = "\"Awaken, My Love!\"", ["redbone"] = "Awaken, My Love!", ["x"] = "X", ["y"] = "Y",
+            ["Awaken"] = "Awaken, My Love!", ["X"] = "X", ["Z"] = "Z",
+        };
+        string? RecordOf(QuickPick p) => QuickPicks.RecordName("Childish Gambino", recordOf.GetValueOrDefault(p.Key));
+
+        var picks = QuickPicks.Choose(
+            songs: ["redbone", "x", "y"], albums: ["Awaken", "X", "Z"], playlists: [], stations: [], count: 16,
+            radios: ["riot"], recordOf: RecordOf);
+
+        Assert.Equal(["riot", "x", "Z", "y"], picks.Select(p => p.Key));
+    }
+
     [Fact]
     public void One_of_each_kind_before_a_second_of_any()
     {

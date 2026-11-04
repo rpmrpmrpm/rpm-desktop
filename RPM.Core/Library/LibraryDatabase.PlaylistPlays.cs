@@ -82,9 +82,9 @@ public sealed partial class LibraryDatabase
 
     /// <summary>The lists played most, most first. Ties go to the most recent play, so two lists with
     /// one play each are offered newest first, not in whatever order the table holds them.</summary>
-    /// <param name="playedSinceUtcTicks">When above zero, the lists last played at or after it come first,
-    /// each part in that order: the quick selection's rule (<see cref="QuickPicks.RecentDays"/>).</param>
-    public IReadOnlyList<PlaylistPlayRow> QueryMostPlayedPlaylists(int count, long playedSinceUtcTicks = 0)
+    /// <param name="newestFirst">The lists played last first instead: the quick selection's order (Chivan,
+    /// 2026-11-04: ranked by plays it was the same favourites month after month).</param>
+    public IReadOnlyList<PlaylistPlayRow> QueryMostPlayedPlaylists(int count, bool newestFirst = false)
     {
         if (count <= 0)
             return [];
@@ -97,11 +97,11 @@ public sealed partial class LibraryDatabase
                 SELECT kind, key, plays, last_played_utc_ticks
                 FROM playlist_play
                 WHERE plays > 0
-                ORDER BY (last_played_utc_ticks >= $since) DESC, plays DESC, last_played_utc_ticks DESC
+                ORDER BY CASE WHEN $newest THEN last_played_utc_ticks ELSE plays END DESC, last_played_utc_ticks DESC
                 LIMIT $n
                 """;
             cmd.Parameters.AddWithValue("$n", count);
-            cmd.Parameters.AddWithValue("$since", Math.Max(0, playedSinceUtcTicks));
+            cmd.Parameters.AddWithValue("$newest", newestFirst);
 
             using var reader = cmd.ExecuteReader();
             var rows = new List<PlaylistPlayRow>();
@@ -123,9 +123,9 @@ public sealed partial class LibraryDatabase
     /// reach term, like every other read of this table. So a borrowed shelf does not offer a song from
     /// a computer that is switched off.
     /// </remarks>
-    /// <param name="playedSinceUtcTicks">When above zero, the tracks last played at or after it come first,
-    /// each part most played first: the quick selection's rule (<see cref="QuickPicks.RecentDays"/>).</param>
-    public IReadOnlyList<LibraryTrack> QueryMostPlayedTracks(int count, long playedSinceUtcTicks = 0)
+    /// <param name="newestFirst">The tracks played last first instead: the quick selection's order (Chivan,
+    /// 2026-11-04: ranked by plays it was the same favourites month after month).</param>
+    public IReadOnlyList<LibraryTrack> QueryMostPlayedTracks(int count, bool newestFirst = false)
     {
         if (count <= 0)
             return [];
@@ -136,9 +136,10 @@ public sealed partial class LibraryDatabase
             cmd.CommandText =
                 "SELECT * FROM tracks WHERE plays > 0"
                 + (ReachTerm("cloud_state") is { Length: > 0 } reach ? $" AND {reach}" : "")
-                + " ORDER BY (last_played_utc_ticks >= $since) DESC, plays DESC, last_played_utc_ticks DESC LIMIT $n";
+                + (newestFirst
+                    ? " ORDER BY last_played_utc_ticks DESC, plays DESC LIMIT $n"
+                    : " ORDER BY plays DESC, last_played_utc_ticks DESC LIMIT $n");
             cmd.Parameters.AddWithValue("$n", count);
-            cmd.Parameters.AddWithValue("$since", Math.Max(0, playedSinceUtcTicks));
 
             using var reader = cmd.ExecuteReader();
             var tracks = new List<LibraryTrack>();

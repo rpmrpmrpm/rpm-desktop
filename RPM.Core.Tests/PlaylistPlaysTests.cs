@@ -46,16 +46,16 @@ public class PlaylistPlaysTests : IDisposable
         Assert.Equal(["2", "1"], _db.QueryMostPlayedPlaylists(10).Select(r => r.Key));
     }
 
-    /// <summary>For the quick selection, the lists played since a moment lead, each part most played
-    /// first (<see cref="QuickPicks.RecentDays"/>).</summary>
+    /// <summary>For the quick selection, the lists played last come first, however often each was
+    /// played.</summary>
     [Fact]
-    public void The_lists_played_lately_come_first_when_asked()
+    public void The_lists_played_last_come_first_when_asked()
     {
         for (var i = 0; i < 5; i++)
             _db.NotePlaylistPlayed(PlaylistPlayKind.Kept, "old", At(1));
         _db.NotePlaylistPlayed(PlaylistPlayKind.Kept, "new", At(20));
 
-        Assert.Equal(["new", "old"], _db.QueryMostPlayedPlaylists(10, playedSinceUtcTicks: At(10)).Select(r => r.Key));
+        Assert.Equal(["new", "old"], _db.QueryMostPlayedPlaylists(10, newestFirst: true).Select(r => r.Key));
         Assert.Equal(["old", "new"], _db.QueryMostPlayedPlaylists(10).Select(r => r.Key));
     }
 

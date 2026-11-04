@@ -51,19 +51,6 @@ public static class QuickPicks
     /// <summary>How many panels stand side by side.</summary>
     public const int Panels = Count / Tall;
 
-    /// <summary>
-    /// How far back the selection looks first: what was played in the last thirty days leads it, most played
-    /// first, and the rest follows in the same order to fill what that leaves (Chivan, 2026-11-04).
-    /// </summary>
-    /// <remarks>
-    /// Ranked by all-time plays alone, the selection was the same records month after month, whatever was
-    /// played that month. The counts are running totals merged from every device, with the time of the last
-    /// play; no device reports when its other plays were. So "lately" is when a thing was last played, not
-    /// how often it was played lately. The iPhone's <c>HomeShelf.recentDays</c> and the Android app's
-    /// <c>HomeShelf.QUICK_RECENT_SECONDS</c> keep the same rule.
-    /// </remarks>
-    public const int RecentDays = 30;
-
     /// <summary>How many song radios the selection offers at most. Two: one is a suggestion, and more would push
     /// out the things the listener actually plays.</summary>
     public const int MostRadios = 2;
@@ -121,13 +108,18 @@ public static class QuickPicks
     /// <param name="radios">The songs to offer a radio on (<see cref="RadioSeeds"/>). They come first, ahead of the
     /// deal: they are a suggestion made from the rest, not one more kind competing with it, and the top of the first
     /// panel is where a suggestion is seen. At most <see cref="MostRadios"/>.</param>
+    /// <param name="recordOf">Which record an entry stands for (<see cref="RecordName"/>), or null for one that is
+    /// no record's (a list, a station). When given, each record is offered once: a record a radio is on, or a song
+    /// from it, or the record itself, and the next entry of that kind takes the place of one that would repeat it
+    /// (Chivan, 2026-11-04: "a lot of duplicate images from the same album").</param>
     public static IReadOnlyList<QuickPick> Choose(
         IReadOnlyList<string> songs,
         IReadOnlyList<string> albums,
         IReadOnlyList<string> playlists,
         IReadOnlyList<string> stations,
         int count,
-        IReadOnlyList<string>? radios = null)
+        IReadOnlyList<string>? radios = null,
+        Func<QuickPick, string?>? recordOf = null)
     {
         if (count <= 0)
             return [];
@@ -141,10 +133,16 @@ public static class QuickPicks
         ];
 
         var picked = new List<QuickPick>(count);
+        var records = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var song in (radios ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).Take(MostRadios))
             if (picked.Count < count)
-                picked.Add(new QuickPick(QuickPickKind.Radio, song));
+            {
+                var radio = new QuickPick(QuickPickKind.Radio, song);
+                if (recordOf?.Invoke(radio) is { Length: > 0 } record)
+                    records.Add(record);
+                picked.Add(radio);
+            }
 
         // How far each source has been read. Each source has its own position, so a short source is
         // skipped once it runs out.
@@ -161,13 +159,20 @@ public static class QuickPicks
                 // An entry with no key is stepped past. It loses only its own turn, not the whole turn of
                 // its source. If this were a continue, a single empty key at the front of a list would
                 // end the whole deal, because no source dealt anything in that round.
-                while (cursor[i] < keys.Count && string.IsNullOrWhiteSpace(keys[cursor[i]]))
+                // An entry whose record is offered already is stepped past the same way.
+                while (cursor[i] < keys.Count
+                       && (string.IsNullOrWhiteSpace(keys[cursor[i]])
+                           || recordOf?.Invoke(new QuickPick(kind, keys[cursor[i]])) is { Length: > 0 } seen
+                              && records.Contains(seen)))
                     cursor[i]++;
 
                 if (cursor[i] >= keys.Count)
                     continue;
 
-                picked.Add(new QuickPick(kind, keys[cursor[i]++]));
+                var pick = new QuickPick(kind, keys[cursor[i]++]);
+                if (recordOf?.Invoke(pick) is { Length: > 0 } record)
+                    records.Add(record);
+                picked.Add(pick);
                 dealt = true;
             }
 
@@ -178,6 +183,17 @@ public static class QuickPicks
         }
 
         return picked;
+    }
+
+    /// <summary>
+    /// A record by its artist and its name, folded and without a disc suffix, for <see cref="Choose"/>'s
+    /// <c>recordOf</c>: the same album filed in two folders is two keys and one cover. Null when the name is blank,
+    /// which matches nothing.
+    /// </summary>
+    public static string? RecordName(string? artist, string? album)
+    {
+        var name = Metadata.SimilarAlbums.Fold(Analysis.AlbumResolver.NormalizeAlbum(album ?? ""));
+        return name.Length == 0 ? null : Metadata.SimilarAlbums.Fold(artist) + "|" + name;
     }
 
     /// <summary>

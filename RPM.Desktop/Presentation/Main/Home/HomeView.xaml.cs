@@ -3684,15 +3684,18 @@ public sealed partial class HomeView : UserControl
         // Each kind is asked for the whole selection's worth, not a quarter of it. A collection with
         // no stations and no lists fills all sixteen from songs and records, and a source asked for
         // four could not.
-        // What was played in the last thirty days first, each kind in its own most-played order
-        // (QuickPicks.RecentDays).
-        var since = DateTime.UtcNow.AddDays(-QuickPicks.RecentDays).Ticks;
-        var songs = db.QueryMostPlayedTracks(QuickPicks.Count, since);
-        var played = db.QueryMostPlayedPlaylists(QuickPicks.Count, since);
+        // What was played last, newest first, of every kind (Chivan, 2026-11-04). Ranked by plays, even with
+        // the last thirty days first, it was the same favourites month after month, because they were also
+        // what was played that month; the listener wants what they are listening to now. The iPhone's and the
+        // Android app's selection keep the same rule. Most played stays a row of its own.
+        // Three selections' worth of songs and records, because each record is offered once and the songs played
+        // last are often several from one record.
+        var songs = db.QueryMostPlayedTracks(QuickPicks.Count * 3, newestFirst: true);
+        var played = db.QueryMostPlayedPlaylists(QuickPicks.Count, newestFirst: true);
 
         // The records come from the same reading of the shelf the rows are drawn from, so the quick
-        // selection and the Most played row count a record's plays alike.
-        var albums = HomeShelf.PlayedLately([.. names.Values], since, QuickPicks.Count);
+        // selection and the Recently listened row agree about when a record was played.
+        var albums = HomeShelf.Listened([.. names.Values], QuickPicks.Count * 3);
 
         var byKey = new Dictionary<string, HomeListCard>(StringComparer.Ordinal);
         foreach (var list in lists)
@@ -3704,9 +3707,21 @@ public sealed partial class HomeView : UserControl
         // was played has none of them.
         var playlists = played.Select(r => r.Key).Where(byKey.ContainsKey).ToList();
 
-        // A radio on the song played most, and on the next one by somebody else. See QuickPicks.RadioSeeds.
+        // A radio on the song played last, and on the next one by somebody else. See QuickPicks.RadioSeeds.
         var radios = QuickPicks.RadioSeeds(
             [.. songs.Select(t => (t.RelativePath, RecommendRefusals.CreditOf(t.AlbumArtist, t.Artist)))]);
+
+        var byPath = songs.ToDictionary(t => t.RelativePath, t => t, StringComparer.OrdinalIgnoreCase);
+
+        // Each record once: a song and a radio stand for the record they are on, by its name, so the same album
+        // filed twice is still one record.
+        string? RecordOf(QuickPick pick) => pick.Kind switch
+        {
+            QuickPickKind.Song or QuickPickKind.Radio when byPath.TryGetValue(pick.Key, out var t)
+                => QuickPicks.RecordName(string.IsNullOrWhiteSpace(t.AlbumArtist) ? t.Artist : t.AlbumArtist, t.Album),
+            QuickPickKind.Album when names.TryGetValue(pick.Key, out var a) => QuickPicks.RecordName(a.AlbumArtist, a.Album),
+            _ => null,
+        };
 
         var picks = QuickPicks.Choose(
             [.. songs.Select(t => t.RelativePath)],
@@ -3714,9 +3729,8 @@ public sealed partial class HomeView : UserControl
             playlists,
             [.. stations.Select(l => l.Station.Uuid)],
             QuickPicks.Count,
-            radios);
-
-        var byPath = songs.ToDictionary(t => t.RelativePath, t => t, StringComparer.OrdinalIgnoreCase);
+            radios,
+            RecordOf);
 
         return QuickCards(picks, byPath, names, byKey, stations, root, tiles);
     }
