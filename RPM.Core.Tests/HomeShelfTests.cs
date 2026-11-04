@@ -19,6 +19,25 @@ public class HomeShelfTests
     private static AlbumTraits Traits(string folder, string artist, string? genre = null, int year = 0) =>
         new(folder, folder, artist, genre is null ? [] : [genre], year);
 
+    // ── the quick selection's records ──
+
+    /// <summary>The records played lately lead, most played first, and the rest follow to fill the
+    /// selection: an old favourite not played for two months no longer holds the top. The Most played
+    /// row keeps its all-time order.</summary>
+    [Fact]
+    public void The_quick_selection_puts_records_played_lately_first()
+    {
+        var shelf = new[]
+        {
+            Album("old", plays: 500, lastPlayed: 10),
+            Album("new", plays: 3, lastPlayed: 900),
+            Album("newer", plays: 7, lastPlayed: 500),
+        };
+
+        Assert.Equal(["newer", "new", "old"], HomeShelf.PlayedLately(shelf, sinceUtcTicks: 100, count: 16));
+        Assert.Equal(["old", "newer", "new"], HomeShelf.Played(shelf, 16));
+    }
+
     // ── what has been played recently ──
 
     [Fact]

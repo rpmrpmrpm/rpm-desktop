@@ -3684,12 +3684,15 @@ public sealed partial class HomeView : UserControl
         // Each kind is asked for the whole selection's worth, not a quarter of it. A collection with
         // no stations and no lists fills all sixteen from songs and records, and a source asked for
         // four could not.
-        var songs = db.QueryMostPlayedTracks(QuickPicks.Count);
-        var played = db.QueryMostPlayedPlaylists(QuickPicks.Count);
+        // What was played in the last thirty days first, each kind in its own most-played order
+        // (QuickPicks.RecentDays).
+        var since = DateTime.UtcNow.AddDays(-QuickPicks.RecentDays).Ticks;
+        var songs = db.QueryMostPlayedTracks(QuickPicks.Count, since);
+        var played = db.QueryMostPlayedPlaylists(QuickPicks.Count, since);
 
         // The records come from the same reading of the shelf the rows are drawn from, so the quick
-        // selection and the Most played row cannot disagree about which record that is.
-        var albums = HomeShelf.Played([.. names.Values], QuickPicks.Count);
+        // selection and the Most played row count a record's plays alike.
+        var albums = HomeShelf.PlayedLately([.. names.Values], since, QuickPicks.Count);
 
         var byKey = new Dictionary<string, HomeListCard>(StringComparer.Ordinal);
         foreach (var list in lists)

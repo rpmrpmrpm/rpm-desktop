@@ -99,6 +99,23 @@ public static class HomeShelf
                  .Take(Math.Max(0, count))
                  .Select(a => a.Folder)];
 
+    /// <summary><see cref="Played"/> with the records last played at or after <paramref name="sinceUtcTicks"/>
+    /// first, each part most played first. For the quick selection (<see cref="QuickPicks.RecentDays"/>); the
+    /// Most played row keeps its all-time order.</summary>
+    public static IReadOnlyList<string> PlayedLately(
+        IReadOnlyList<LibraryDatabase.AlbumFactsRow> shelf, long sinceUtcTicks, int count)
+    {
+        var ranked = shelf.Where(a => a.Plays > 0)
+                          .OrderByDescending(a => a.Plays)
+                          .ThenByDescending(a => a.LastPlayedAt)
+                          .ThenBy(a => a.Folder, StringComparer.OrdinalIgnoreCase)
+                          .ToList();
+        return [.. ranked.Where(a => a.LastPlayedAt >= sinceUtcTicks)
+                         .Concat(ranked.Where(a => a.LastPlayedAt < sinceUtcTicks))
+                         .Take(Math.Max(0, count))
+                         .Select(a => a.Folder)];
+    }
+
     /// <summary>How far down a ranked row the banner may reach for the card it holds up.
     /// </summary>
     /// <remarks>Eight. It is a claim about what the row's heading still means. "Most played" is true of

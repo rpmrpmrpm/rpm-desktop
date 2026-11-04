@@ -51,6 +51,19 @@ public static class QuickPicks
     /// <summary>How many panels stand side by side.</summary>
     public const int Panels = Count / Tall;
 
+    /// <summary>
+    /// How far back the selection looks first: what was played in the last thirty days leads it, most played
+    /// first, and the rest follows in the same order to fill what that leaves (Chivan, 2026-11-04).
+    /// </summary>
+    /// <remarks>
+    /// Ranked by all-time plays alone, the selection was the same records month after month, whatever was
+    /// played that month. The counts are running totals merged from every device, with the time of the last
+    /// play; no device reports when its other plays were. So "lately" is when a thing was last played, not
+    /// how often it was played lately. The iPhone's <c>HomeShelf.recentDays</c> and the Android app's
+    /// <c>HomeShelf.QUICK_RECENT_SECONDS</c> keep the same rule.
+    /// </remarks>
+    public const int RecentDays = 30;
+
     /// <summary>How many song radios the selection offers at most. Two: one is a suggestion, and more would push
     /// out the things the listener actually plays.</summary>
     public const int MostRadios = 2;
