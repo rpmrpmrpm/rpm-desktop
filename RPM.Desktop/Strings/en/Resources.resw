@@ -7433,6 +7433,10 @@
     <value>Photographs</value>
     <comment>Credits section: the genre photographs and the generated playlists' photographs.</comment>
   </data>
+  <data name="Credits_Section_Music" xml:space="preserve">
+    <value>Music</value>
+    <comment>Credits section: recordings that ship with the app.</comment>
+  </data>
   <data name="Credits_Section_Words" xml:space="preserve">
     <value>Word lists</value>
     <comment>Credits section: the lexicons the app reads.</comment>
@@ -7733,6 +7737,10 @@
     <value>Photographs for generated covers and the genre pages.</value>
     <comment>About screen: what Pexels is asked for.</comment>
   </data>
+  <data name="Credits_Musopen_Use" xml:space="preserve">
+    <value>The recording of the Moonlight Sonata in the tracks you can try during setup.</value>
+    <comment>Credits entry: what the Musopen recording is used for.</comment>
+  </data>
   <data name="Credits_RadioBrowser_Use" xml:space="preserve">
     <value>The directory of internet radio stations.</value>
     <comment>About screen: what Radio Browser is asked for.</comment>
@@ -7992,6 +8000,18 @@
   <data name="Wizard_ChooseFolder" xml:space="preserve">
     <value>Choose a folder</value>
     <comment>Setup wizard step 2: the one source. Onboarding imports a folder of files and nothing else.</comment>
+  </data>
+  <data name="Wizard_TryStarter" xml:space="preserve">
+    <value>Try our tracks</value>
+    <comment>Setup wizard step 2: the tile beside Choose a folder. It imports three tracks that ship with the app.</comment>
+  </data>
+  <data name="Wizard_TryStarterHint" xml:space="preserve">
+    <value>No music to hand? No problem! Start with three tracks from us and see what rpm can do.</value>
+    <comment>Setup wizard step 2: the line under Try our tracks.</comment>
+  </data>
+  <data name="Wizard_StarterSource" xml:space="preserve">
+    <value>Three tracks from rpm</value>
+    <comment>Setup wizard step 2, review: shown where a chosen folder's path goes, when the source is the tracks that ship with the app.</comment>
   </data>
   <data name="Wizard_PlanFolder" xml:space="preserve">
     <value>Folder</value>

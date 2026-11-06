@@ -76,21 +76,35 @@
                  Foreground="#A3FFFFFF" TextWrapping="Wrap" TextAlignment="Center"
                  HorizontalAlignment="Center" MaxWidth="520"/>
 
-      <!-- ONE SOURCE, AND IT IS A FOLDER. The library page's Add music also offers a disc and a
-           turntable. Neither belongs here. A rip is a drive, a job and its own failures. A first import
-           is someone pointing at the music they already have. Both options are on the library page once
-           setup is done. -->
-      <Button x:Name="FolderCard" Style="{StaticResource SourceTileStyle}" Click="Folder_Click"
-              HorizontalAlignment="Center" Padding="40,30">
-        <StackPanel Spacing="14" Width="300">
-          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF07C;" FontSize="38"
-                    Foreground="{StaticResource RpmCyanBrush}"/>
-          <TextBlock Text="{loc:Str Key=Wizard_ChooseFolder}" FontSize="16" FontWeight="SemiBold"
-                     Foreground="White" HorizontalAlignment="Center"/>
-          <TextBlock Text="{loc:Str Key=AddMusic_FolderHint}" FontSize="12.5" Foreground="#8CFFFFFF"
-                     TextWrapping="Wrap" TextAlignment="Center"/>
-        </StackPanel>
-      </Button>
+      <!-- A FOLDER, OR OUR TRACKS. The library page's Add music also offers a disc and a turntable.
+           Neither belongs here. A rip is a drive, a job and its own failures. A first import is someone
+           pointing at the music they already have. Both options are on the library page once setup is
+           done. The second tile is for someone who has none to hand: see StarterMusic. It is collapsed
+           in a build without the files, and the folder tile then stands alone in the middle. -->
+      <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+        <Button x:Name="FolderCard" Style="{StaticResource SourceTileStyle}" Click="Folder_Click"
+                VerticalAlignment="Stretch" Padding="40,30">
+          <StackPanel Spacing="14" Width="260">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF07C;" FontSize="38"
+                      Foreground="{StaticResource RpmCyanBrush}"/>
+            <TextBlock Text="{loc:Str Key=Wizard_ChooseFolder}" FontSize="16" FontWeight="SemiBold"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=AddMusic_FolderHint}" FontSize="12.5" Foreground="#8CFFFFFF"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="StarterCard" Style="{StaticResource SourceTileStyle}" Click="Starter_Click"
+                VerticalAlignment="Stretch" Padding="40,30">
+          <StackPanel Spacing="14" Width="260">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xF001;" FontSize="38"
+                      Foreground="{StaticResource RpmCyanBrush}"/>
+            <TextBlock Text="{loc:Str Key=Wizard_TryStarter}" FontSize="16" FontWeight="SemiBold"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=Wizard_TryStarterHint}" FontSize="12.5" Foreground="#8CFFFFFF"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
     </StackPanel>
 
     <!-- ═══ scanning ═══ -->

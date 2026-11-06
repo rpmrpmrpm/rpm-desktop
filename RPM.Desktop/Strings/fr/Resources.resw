@@ -7433,6 +7433,10 @@
     <value>Photographies</value>
     <comment>Credits section: the genre photographs and the generated playlists' photographs.</comment>
   </data>
+  <data name="Credits_Section_Music" xml:space="preserve">
+    <value>Musique</value>
+    <comment>Credits section: recordings that ship with the app.</comment>
+  </data>
   <data name="Credits_Section_Words" xml:space="preserve">
     <value>Listes de mots</value>
     <comment>Credits section: the lexicons the app reads.</comment>
@@ -7733,6 +7737,10 @@
     <value>Photographies pour les pochettes générées et les pages de genres.</value>
     <comment>About screen: what Pexels is asked for.</comment>
   </data>
+  <data name="Credits_Musopen_Use" xml:space="preserve">
+    <value>L'enregistrement de la Sonate au clair de lune parmi les morceaux à essayer pendant la configuration.</value>
+    <comment>Credits entry: what the Musopen recording is used for.</comment>
+  </data>
   <data name="Credits_RadioBrowser_Use" xml:space="preserve">
     <value>L'annuaire des radios en ligne.</value>
     <comment>About screen: what Radio Browser is asked for.</comment>
@@ -7992,6 +8000,18 @@
   <data name="Wizard_ChooseFolder" xml:space="preserve">
     <value>Choisir un dossier</value>
     <comment>Setup wizard step 2: the one source. Onboarding imports a folder of files and nothing else.</comment>
+  </data>
+  <data name="Wizard_TryStarter" xml:space="preserve">
+    <value>Essayer nos morceaux</value>
+    <comment>Setup wizard step 2: the tile beside Choose a folder. It imports three tracks that ship with the app.</comment>
+  </data>
+  <data name="Wizard_TryStarterHint" xml:space="preserve">
+    <value>Pas de musique sous la main ? Pas de souci ! Commencez avec trois morceaux de notre part et découvrez ce que rpm sait faire.</value>
+    <comment>Setup wizard step 2: the line under Try our tracks.</comment>
+  </data>
+  <data name="Wizard_StarterSource" xml:space="preserve">
+    <value>Trois morceaux de rpm</value>
+    <comment>Setup wizard step 2, review: shown where a chosen folder's path goes, when the source is the tracks that ship with the app.</comment>
   </data>
   <data name="Wizard_PlanFolder" xml:space="preserve">
     <value>Dossier</value>

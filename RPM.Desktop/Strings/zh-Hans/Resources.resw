@@ -7433,6 +7433,10 @@
     <value>摄影</value>
     <comment>Credits section: the genre photographs and the generated playlists' photographs.</comment>
   </data>
+  <data name="Credits_Section_Music" xml:space="preserve">
+    <value>音乐</value>
+    <comment>Credits section: recordings that ship with the app.</comment>
+  </data>
   <data name="Credits_Section_Words" xml:space="preserve">
     <value>词表</value>
     <comment>Credits section: the lexicons the app reads.</comment>
@@ -7733,6 +7737,10 @@
     <value>用于生成封面和流派页面的照片。</value>
     <comment>About screen: what Pexels is asked for.</comment>
   </data>
+  <data name="Credits_Musopen_Use" xml:space="preserve">
+    <value>设置时可试听曲目中的《月光奏鸣曲》录音。</value>
+    <comment>Credits entry: what the Musopen recording is used for.</comment>
+  </data>
   <data name="Credits_RadioBrowser_Use" xml:space="preserve">
     <value>网络电台目录。</value>
     <comment>About screen: what Radio Browser is asked for.</comment>
@@ -7992,6 +8000,18 @@
   <data name="Wizard_ChooseFolder" xml:space="preserve">
     <value>选择文件夹</value>
     <comment>Setup wizard step 2: the one source. Onboarding imports a folder of files and nothing else.</comment>
+  </data>
+  <data name="Wizard_TryStarter" xml:space="preserve">
+    <value>试试我们的曲目</value>
+    <comment>Setup wizard step 2: the tile beside Choose a folder. It imports three tracks that ship with the app.</comment>
+  </data>
+  <data name="Wizard_TryStarterHint" xml:space="preserve">
+    <value>手边没有音乐？没问题！先用我们准备的三首曲目，看看 rpm 能做什么。</value>
+    <comment>Setup wizard step 2: the line under Try our tracks.</comment>
+  </data>
+  <data name="Wizard_StarterSource" xml:space="preserve">
+    <value>rpm 准备的三首曲目</value>
+    <comment>Setup wizard step 2, review: shown where a chosen folder's path goes, when the source is the tracks that ship with the app.</comment>
   </data>
   <data name="Wizard_PlanFolder" xml:space="preserve">
     <value>文件夹</value>

@@ -72,10 +72,18 @@ public sealed partial class WizardImportStep : UserControl
     private string? _sourcePath;
     private NamingTemplate _template = NamingTemplate.ArtistAlbumNumberedTitle;
 
+    /// <summary>Where the starter tracks are unpacked for the import: see <see cref="StarterMusic"/>.</summary>
+    private static readonly string StarterFolder = Path.Combine(Path.GetTempPath(), "rpm-starter");
+
+    private bool StarterChosen => _sourcePath == StarterFolder;
+
     public WizardImportStep()
     {
         InitializeComponent();
         Kicker.Text = WizardSteps.Kicker(4);
+        StarterCard.Visibility = StarterMusic.IsShipped(AppPayload.BaseDirectory)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         PlanGrid.Art = Cover;
         PlanGrid.Columns = PlanColumns();
@@ -129,6 +137,16 @@ public sealed partial class WizardImportStep : UserControl
         }
 
         await ScanAsync(path);
+    }
+
+    /// <summary>
+    /// Our own tracks, for someone with no music to hand. From here on they are a folder like any other:
+    /// the same scan, the same review and the same press.
+    /// </summary>
+    private async void Starter_Click(object sender, RoutedEventArgs e)
+    {
+        await Task.Run(() => StarterMusic.Unpack(AppPayload.BaseDirectory, StarterFolder));
+        await ScanAsync(StarterFolder);
     }
 
     private void ChangeSource_Click(object sender, RoutedEventArgs e) => ShowFace(Face.Source);
@@ -269,7 +287,8 @@ public sealed partial class WizardImportStep : UserControl
                     ? Loc.Get("Queue_StatusInCloudOne")
                     : Loc.Format("Queue_StatusInCloud", counts.InCloud), Cyan));
 
-        SourceText.Text = _sourcePath ?? "";
+        // A temporary folder would mean nothing to anybody, so the starter tracks are named instead.
+        SourceText.Text = StarterChosen ? Loc.Get("Wizard_StarterSource") : _sourcePath ?? "";
         SourceChrome.Visibility = Visibility.Visible;
 
         RefreshPlan();
@@ -585,6 +604,9 @@ public sealed partial class WizardImportStep : UserControl
             slow.Set(0);
             PressRunningChanged?.Invoke(this, false);
         }
+
+        if (StarterChosen)
+            StarterMusic.Clear(StarterFolder);
 
         // OnThisComputer, because this screen reports what the press just did. Counting Anywhere would
         // also read the cloud catalogue. An account with records in the cloud would then make step

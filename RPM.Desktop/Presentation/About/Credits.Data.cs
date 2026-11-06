@@ -29,6 +29,7 @@ public static partial class Credits
             ["OFL-1.1"] = new("SIL Open Font License 1.1", "OFL-1.1.txt", "https://openfontlicense.org", false),
             ["OnnxNotices"] = new("ONNX Runtime third-party notices", "OnnxRuntime-THIRD-PARTY-NOTICES.txt", "https://rpmrpmrpm.com/licenses/OnnxRuntime-THIRD-PARTY-NOTICES.txt", true),
             ["Pexels"] = new("Pexels License", null, "https://www.pexels.com/license/", false),
+            ["PublicDomain"] = new("Public domain", null, "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_sonata_no._14_in_c_sharp_minor_%27moonlight%27,_op._27_no._2_-_i._adagio_sostenuto.ogg", false),
             ["SkiaNotices"] = new("Skia third-party notices", "SkiaSharp-THIRD-PARTY-NOTICES.txt", "https://rpmrpmrpm.com/licenses/SkiaSharp-THIRD-PARTY-NOTICES.txt", true),
             ["Terms"] = new("Terms of use", null, null, false),
             ["Unicode-3.0"] = new("Unicode License v3", "Unicode-3.0.txt", "https://spdx.org/licenses/Unicode-3.0.html", false),
@@ -270,6 +271,10 @@ public static partial class Credits
             new("Ndumiso Mvelase", null, "Wall of Sound (Metal)", null, "https://www.pexels.com/photo/intense-thunderstorm-with-dramatic-lightning-31130767/", null, null, null, ["Pexels"]),
             new("Maor Attias", null, "Warehouse (House)", null, "https://www.pexels.com/photo/silhouette-of-a-woman-dancing-5191722/", null, null, null, ["Pexels"]),
             new("Safari  Consoler", null, "World", null, "https://www.pexels.com/photo/traditional-african-drum-dance-performance-28928758/", null, null, null, ["Pexels"]),
+        ]),
+        new("Credits_Section_Music", null,
+        [
+            new("Musopen", null, null, "Piano Sonata No. 14, first movement, performed by Paul Pitman for Musopen", "https://musopen.org", null, "Credits_Musopen_Use", null, ["PublicDomain"]),
         ]),
         new("Credits_Section_Words", null,
         [
