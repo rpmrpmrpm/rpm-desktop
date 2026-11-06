@@ -266,8 +266,11 @@ public sealed partial class PlaybackService : IDisposable
     public double DurationSeconds => _engine.DurationSeconds;
 
     /// <summary>Play position reported by the sink: the sound device locally, or the receiver when casting.
-    /// Either way it is the position of what is actually coming out, not a wall clock.</summary>
-    public double PositionSeconds => _engine.PositionSeconds;
+    /// Either way it is the position of what is actually coming out, not a wall clock. While a jump waits
+    /// for its audio (see <see cref="BeforeSeek"/>) it is where the jump will land, so the seek bar stays where
+    /// the listener put it.</summary>
+    public double PositionSeconds =>
+        Volatile.Read(ref _seekingTo) is >= 0 and var seeking ? seeking : _engine.PositionSeconds;
 
     /// <summary>How much of the current track has actually been played out in this stretch of it. See <see
     /// cref="AudioEngine.HeardSeconds"/>. The play counter adds up a listen from this value.</summary>
@@ -1292,11 +1295,48 @@ public sealed partial class PlaybackService : IDisposable
 
     public void Resume() => _engine.Resume();
 
-    /// <summary>Jumps to the given second (restarts the decoder there, flushes the sink).</summary>
+    /// <summary>
+    /// Asked before a jump, with the file and the second. It exists for a file that is still being written
+    /// while it plays, where the audio at that second may not have arrived (see
+    /// <see cref="RPM.Core.Ripping.CdWav"/>). It returns a task that completes when the audio is there, and it
+    /// must not fail. Null means the jump can happen now.
+    /// </summary>
+    public Func<string, double, Task?>? BeforeSeek { get; set; }
+
+    /// <summary>Which jump is the latest. A jump that has waited for its audio checks this before it lands, so
+    /// dragging along the bar ends where the listener let go.</summary>
+    private int _seekTurn;
+
+    /// <summary>Where a waiting jump will land, or -1. See <see cref="PositionSeconds"/>.</summary>
+    private double _seekingTo = -1;
+
+    /// <summary>Jumps to the given second (restarts the decoder there, flushes the sink). When
+    /// <see cref="BeforeSeek"/> has to wait, what is playing goes on until the audio has arrived.</summary>
     public void SeekTo(double seconds)
     {
-        if (PlayingPath is null) return;
+        if (PlayingPath is not { } path) return;
+
+        var turn = Interlocked.Increment(ref _seekTurn);
+        if (BeforeSeek?.Invoke(path, seconds) is { IsCompleted: false } ready)
+        {
+            Volatile.Write(ref _seekingTo, seconds);
+            _ = SeekWhenReadyAsync(path, seconds, ready, turn);
+            return;
+        }
+
+        Volatile.Write(ref _seekingTo, -1);
         _engine.SeekTo(seconds);
+    }
+
+    private async Task SeekWhenReadyAsync(string path, double seconds, Task ready, int turn)
+    {
+        await ready;
+        if (turn != Volatile.Read(ref _seekTurn))
+            return;
+
+        Volatile.Write(ref _seekingTo, -1);
+        if (PlayingPath == path)
+            _engine.SeekTo(seconds);
     }
 
     public void Stop()

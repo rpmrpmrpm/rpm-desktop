@@ -50,12 +50,18 @@ public class RipperService
     public virtual bool CdPresent() => _reader?.AudioDiscPresent() ?? false;
 
     /// <summary>One track's audio off the disc: 16-bit stereo at 44.1 kHz, in the byte order
-    /// <see cref="PcmIsBigEndian"/> says. Playing a CD reads it this way, a track ahead of the music (see
+    /// <see cref="PcmIsBigEndian"/> says. Playing a CD reads it this way, ahead of the music (see
     /// CdPlayService).</summary>
-    public virtual Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination, CancellationToken ct = default)
+    /// <param name="progress">Told how much of what was asked for has been written, from 0 to 1, after each
+    /// block.</param>
+    /// <param name="firstSector">Where in the track to start.</param>
+    /// <param name="sectors">How many sectors to read. Null reads to the end of the track.</param>
+    public virtual Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination,
+        IProgress<double>? progress = null, CancellationToken ct = default, int firstSector = 0, int? sectors = null)
         => _reader is null
             ? throw new InvalidOperationException("reading a disc is not supported on this platform")
-            : Task.Run(() => _reader.ReadTrackPcmAsync(disc, track, destination, ct: ct), ct);
+            : Task.Run(() => _reader.ReadTrackPcmAsync(disc, track, destination, progress, ct,
+                firstSector: firstSector, sectors: sectors), ct);
 
     public virtual bool PcmIsBigEndian => _reader?.PcmIsBigEndian ?? false;
 

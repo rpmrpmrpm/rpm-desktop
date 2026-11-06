@@ -62,7 +62,8 @@ public class CdRipperTests : IDisposable
         public Task EjectAsync(DiscDrive drive, CancellationToken ct = default) => Task.CompletedTask;
 
         public async Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination,
-            IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null)
+            IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null,
+            int firstSector = 0, int? sectorCount = null)
         {
             if (track.Number == FailingTrack)
                 throw new DiscReadException($"track {track.Number} is unreadable");

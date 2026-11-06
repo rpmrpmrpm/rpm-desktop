@@ -25,6 +25,29 @@ public static class TagReader
         => !File.Exists(path) || Files.CloudFile.IsDataless(path);
 
     /// <summary>
+    /// Opens a file to read its tags, and only to read them.
+    ///
+    /// <para>TagLib's own opening shares the file for reading only. Windows refuses that while another
+    /// handle has the file open for writing, and the panes that show a track then come up empty. A CD track
+    /// plays while it is still being read off the disc, so this is the normal case for one (see
+    /// <see cref="Ripping.CdWav"/>).</para>
+    /// </summary>
+    private static TagLib.File OpenToRead(string path) => TagLib.File.Create(new SharedRead(path));
+
+    /// <summary>A file TagLib may read while something else writes to it. It cannot save through this.</summary>
+    private sealed class SharedRead(string path) : TagLib.File.IFileAbstraction
+    {
+        public string Name => path;
+
+        public Stream ReadStream =>
+            new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+        public Stream WriteStream => throw new NotSupportedException("this file was opened to read its tags");
+
+        public void CloseStream(Stream stream) => stream.Dispose();
+    }
+
+    /// <summary>
     /// Reads the file's tags into a TrackInfo. This never throws. An unreadable or untagged file comes back
     /// with Source=Unknown, and only FilePath and Extension are filled in. Cover-art bytes are not loaded
     /// here, only a flag is set. Use <see cref="LoadArt"/> to load them when they are needed.
@@ -51,7 +74,7 @@ public static class TagReader
 
         try
         {
-            using var file = TagLib.File.Create(path);
+            using var file = OpenToRead(path);
             var tag = file.Tag;
 
             string? artist = Clean(Join(tag.Performers)) ?? Clean(Join(tag.AlbumArtists));
@@ -476,7 +499,7 @@ public static class TagReader
 
         try
         {
-            using var file = TagLib.File.Create(path);
+            using var file = OpenToRead(path);
             var pics = file.Tag.Pictures;
             if (pics is not { Length: > 0 })
                 return null;

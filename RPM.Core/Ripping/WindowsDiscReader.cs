@@ -125,7 +125,8 @@ public sealed class WindowsDiscReader : IDiscReader
     }
 
     public async Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination,
-        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null)
+        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null,
+        int firstSector = 0, int? sectors = null)
     {
         var handle = OpenDrive(disc.Drive.Id);
         if (handle.IsInvalid)
@@ -138,8 +139,8 @@ public sealed class WindowsDiscReader : IDiscReader
         var abandoned = false;
         try
         {
-            var startLba = track.Lba;
-            var totalSectors = disc.Toc.SectorCountOf(track);
+            var startLba = track.Lba + firstSector;
+            var totalSectors = sectors ?? disc.Toc.SectorCountOf(track) - firstSector;
             var buffer = new byte[SectorsPerRead * SectorBytes];
             var done = 0;
 

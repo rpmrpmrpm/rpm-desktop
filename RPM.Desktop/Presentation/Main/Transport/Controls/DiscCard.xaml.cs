@@ -217,7 +217,7 @@ public sealed partial class DiscCard : Microsoft.UI.Xaml.Controls.UserControl
 
     private void Close_Click(object sender, RoutedEventArgs e) => _rips.CloseOffer();
 
-    /// <summary>Plays the disc as it is: the first track starts once it is read, the rest follow it into the
+    /// <summary>Plays the disc as it is: the first track starts a few seconds into its read, the rest follow it into the
     /// queue (see <see cref="CdPlayService"/>).</summary>
     private void Play_Click(object sender, RoutedEventArgs e)
     {

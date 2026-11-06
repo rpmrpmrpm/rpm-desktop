@@ -72,7 +72,8 @@ public sealed class MacDiscReader : IDiscReader
     }
 
     public async Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination,
-        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null)
+        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null,
+        int firstSector = 0, int? sectors = null)
     {
         if (disc.MountPath is null)
             throw new DiscReadException("the audio CD is not mounted");
@@ -95,12 +96,16 @@ public sealed class MacDiscReader : IDiscReader
             var audio = ReadAiffDataChunk(file, aiff);
 
             var buffer = new byte[64 * 1024];
-            long copied = 0;
+            var first = (long)firstSector * CdWav.BytesPerSector;
+            var end = sectors is { } count
+                ? Math.Min(audio.Length, first + (long)count * CdWav.BytesPerSector)
+                : audio.Length;
+            var copied = first;
 
-            while (copied < audio.Length)
+            while (copied < end)
             {
                 ct.ThrowIfCancellationRequested();
-                var want = (int)Math.Min(buffer.Length, audio.Length - copied);
+                var want = (int)Math.Min(buffer.Length, end - copied);
                 var at = audio.Offset + copied;
 
                 // A stall or a skip leaves the read running. It still owns this handle and this buffer. So the
@@ -121,7 +126,7 @@ public sealed class MacDiscReader : IDiscReader
                     // instead of sliding forward by the missing block.
                     await WriteSilenceAsync(destination, want, ct);
                     copied += want;
-                    progress?.Report((double)copied / audio.Length);
+                    progress?.Report((double)(copied - first) / (end - first));
                     continue;
                 }
 
@@ -135,7 +140,7 @@ public sealed class MacDiscReader : IDiscReader
 
                 await destination.WriteAsync(buffer.AsMemory(0, read), ct);
                 copied += read;
-                progress?.Report((double)copied / audio.Length);
+                progress?.Report((double)(copied - first) / (end - first));
             }
 
             progress?.Report(1);

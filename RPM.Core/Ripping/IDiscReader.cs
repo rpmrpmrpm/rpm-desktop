@@ -28,7 +28,7 @@ public interface IDiscReader
     bool AudioDiscPresent();
 
     /// <summary>Streams one track's audio as 16-bit stereo 44.1 kHz PCM into <paramref name="destination"/>.
-    /// <paramref name="progress"/> reports 0..1 through the track.
+    /// <paramref name="progress"/> reports 0..1 through what was asked for.
     ///
     /// Implementations must say what byte order they use, through <see cref="PcmIsBigEndian"/>. macOS
     /// gives CDDA as big-endian AIFF. Windows' raw reads come back little-endian.</summary>
@@ -36,8 +36,12 @@ public interface IDiscReader
     /// hard to try for them. A block that is written off is filled with silence, so the track keeps its
     /// length. A track past its budget throws <see cref="DiscTrackUnreadableException"/>. Null means no
     /// tolerance at all: the first block that will not read fails the track.</param>
+    /// <param name="firstSector">Where in the track to start, counted from the track's first sector. Playing a
+    /// CD uses this to follow a listener who jumps ahead of the read.</param>
+    /// <param name="sectors">How many sectors to read. Null reads to the end of the track.</param>
     Task ReadTrackPcmAsync(DiscInfo disc, DiscTrack track, Stream destination,
-        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null);
+        IProgress<double>? progress = null, CancellationToken ct = default, RipReadLog? log = null,
+        int firstSector = 0, int? sectors = null);
 
     /// <summary>Byte order of the PCM <see cref="ReadTrackPcmAsync"/> writes.</summary>
     bool PcmIsBigEndian { get; }
