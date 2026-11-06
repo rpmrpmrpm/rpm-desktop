@@ -744,7 +744,7 @@ public sealed partial class PlaylistModel
                 foreach (var child in node.Children)
                     Walk(child, depth + 1);
         }
-        foreach (var root in _roots.Where(r => r.Kind != PlaylistRowKind.NowPlaying))
+        foreach (var root in _roots)
             Walk(root, 0);
         return list;
     }
@@ -851,6 +851,9 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
             OnChanged(nameof(Glyph));
             OnChanged(nameof(TileGlyphSize));
             OnChanged(nameof(GlyphBrush));
+            OnChanged(nameof(MarkImage));
+            OnChanged(nameof(GlyphVisibility));
+            OnChanged(nameof(TileGlyphVisibility));
         }
     }
 
@@ -870,6 +873,19 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     /// builds XAML objects and cannot be made in a test host.</summary>
     internal static bool AppFolder(PlaylistRowKind kind, bool holdsGeneratedListsOnly) =>
         kind == PlaylistRowKind.SmartFolder || (kind == PlaylistRowKind.Folder && holdsGeneratedListsOnly);
+
+    /// <summary>The moods folder, on either shelf. It is the one row that wears a picture of its own in
+    /// place of the app folders' wand (see <see cref="MarkImage"/>).</summary>
+    public bool IsMoodsFolder =>
+        MoodsFolder(Kind, HoldsGeneratedListsOnly, Parent is null, Name, SmartPlaylistFace.MoodsFolderName);
+
+    /// <summary>The rule behind <see cref="IsMoodsFolder"/>, separate so that it can be tested. It goes by
+    /// the name because nothing else tells the moods apart from the decades on a borrowed shelf, where both
+    /// are folders of the owner's generated lists. An owner's folder in another language keeps the wand.
+    /// </summary>
+    internal static bool MoodsFolder(
+        PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, string moodsName) =>
+        AppFolder(kind, holdsGeneratedListsOnly) && topLevel && name == moodsName;
 
     /// <summary>
     /// The generated list that this row is drawn as, or null if it is drawn as itself.
@@ -1191,7 +1207,17 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     /// <summary>The plain folder glyph is shown until a picture is loaded, and hidden after that. They
     /// are never shown together, or a folder with a picture would show the folder icon under it.</summary>
     public Microsoft.UI.Xaml.Visibility GlyphVisibility =>
-        _coverImage is null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        _coverImage is null && !IsMoodsFolder
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    private ImageSource? _markImage;
+
+    /// <summary>The picture that stands where the glyph would, at the glyph's size. Only the moods folder
+    /// has one, and it is null on every other row. It is the same mark in the tree and on the grid. A chosen
+    /// picture is drawn in front of it.</summary>
+    public ImageSource? MarkImage =>
+        IsMoodsFolder ? _markImage ??= new BitmapImage(new Uri(SmartPlaylistFace.MoodsFolderMark)) : null;
 
     /// <summary>
     /// Starts loading the master of this folder, once. Call it from the <c>DataContextChanged</c> of the
@@ -1291,7 +1317,9 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     /// <summary>The plain glyph is shown until a picture is loaded, and hidden after that. They are
     /// never shown together, or a tile with a cover would show its glyph under it.</summary>
     public Microsoft.UI.Xaml.Visibility TileGlyphVisibility =>
-        _tileImage is null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        _tileImage is null && !IsMoodsFolder
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     /// <summary>
     /// Starts the tile picture of this row, once. It is called when the repeater creates a tile for this

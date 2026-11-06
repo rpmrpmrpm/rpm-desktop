@@ -114,7 +114,8 @@
              switch is the library's list, wall and table switch with two keys instead of three. It has the
              same box, the same 26 inside a hairline, the same square inner edges and the same lit wash
              (SelectedSegment). Covers come first, then the list, as in the library. The slider is shown
-             only over the tiles, because on the list there is nothing for it to size. -->
+             only over the tiles, because on the list there is nothing for it to size. It keeps its room
+             on the list, so the switch stays where it is, clear of the record at the pane's top right. -->
         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
                     VerticalAlignment="Center">
           <Border x:Name="PlaylistViewToggle" CornerRadius="6" Padding="0"
@@ -156,13 +157,13 @@
                edge. The grid snaps it to the nearest size that fills the row, as the wall does. The
                arithmetic is in AlbumGridLayout and is not copied here. -->
           <StackPanel x:Name="TileSizeCluster" Orientation="Horizontal" Spacing="7"
-                      VerticalAlignment="Center" Visibility="Collapsed"
+                      VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False"
                       ToolTipService.ToolTip="{loc:Str Key=AlbumGrid_CoverSize}">
             <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="7" Foreground="#88FFFFFF"
                       VerticalAlignment="Center"/>
             <Slider x:Name="TileSizeSlider" Style="{StaticResource SeekSizeSliderStyle}"
                     Width="96" VerticalAlignment="Center" Minimum="96" Maximum="260"
-                    StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False"/>
+                    StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False" IsEnabled="False"/>
             <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#88FFFFFF"
                       VerticalAlignment="Center"/>
           </StackPanel>
@@ -309,6 +310,7 @@
                   <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}" FontSize="12"
                             Foreground="{x:Bind GlyphBrush}"
                             Visibility="{x:Bind GlyphVisibility, Mode=OneWay}"/>
+                  <Image Source="{x:Bind MarkImage, Mode=OneWay}"/>
                   <Border CornerRadius="2">
                     <Image Source="{x:Bind CoverImage, Mode=OneWay}" Stretch="UniformToFill"
                            Visibility="{x:Bind CoverVisibility, Mode=OneWay}"/>
@@ -446,6 +448,9 @@
                           <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}"
                                     FontSize="{x:Bind TileGlyphSize}" Foreground="#3AFFFFFF"
                                     Visibility="{x:Bind TileGlyphVisibility, Mode=OneWay}"/>
+                          <!-- The moods folder's mark, as faint as the glyphs beside it and in the square
+                               that they are measured to (PlaylistIcons.GlyphBox). -->
+                          <Image Source="{x:Bind MarkImage, Mode=OneWay}" Width="34" Height="34" Opacity="0.4"/>
                         </Grid>
                       </Viewbox>
                       <Border CornerRadius="6">

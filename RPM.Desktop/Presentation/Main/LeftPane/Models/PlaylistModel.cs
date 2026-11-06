@@ -23,7 +23,7 @@ public enum PlaylistRowKind
     Ref,
 
     /// <summary>A playlist that the library writes for itself. See <see cref="SmartPlaylistKind"/>. It is
-    /// pinned under Now playing, and nobody can rename, refile or fill it.</summary>
+    /// pinned at the top, and nobody can rename, refile or fill it.</summary>
     Smart,
 
     /// <summary>The one pinned folder that the generated playlists live in. It is the only row in the tree
@@ -38,7 +38,7 @@ public enum PlaylistRowKind
 /// which folders are expanded, for the list view. It also holds the operations that the panel and the
 /// context menus call. A playlist resolves to a play order when it is needed. Nested playlists are
 /// expanded, cycles are guarded, and missing files are skipped. That order feeds RPaMp, which is the
-/// "Now playing" queue. "Now playing" is pinned at the top, and it mirrors the live player queue.
+/// "Now playing" queue. That queue is not a row of this tree: the queue key in the bottom bar shows it.
 /// </summary>
 [RpmBindable]
 public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
@@ -116,8 +116,8 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
     public Common.PlaylistTreeList Visible { get; } = new();
 
     /// <summary>
-    /// The top of the tree: Now playing, the generated lists' folder, and the folders and playlists that
-    /// nobody has filed inside another one.
+    /// The top of the tree: the generated lists' folder, and the folders and playlists that nobody has
+    /// filed inside another one.
     ///
     /// <para>This is not <see cref="Visible"/>, and the difference is the reason it exists. Visible is the
     /// tree flattened by expansion. It holds every row the list view is showing, at every depth. The icon
@@ -161,7 +161,6 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
         {
             _itemsByNode.Clear();
             _rootNodeOrder.Clear();
-            _nowPlayingNode = null;
             _smartTotals.Clear();
             _offeredIds = [];
             // Nothing in flight may land on this. A read that was started against the shelf that has just
@@ -257,7 +256,6 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
         _rootNodeOrder.Clear();
         foreach (var n in nodes.Where(n => n.ParentId is null && !n.IsNowPlaying))
             _rootNodeOrder.Add(n.Id);
-        _nowPlayingNode = nodes.FirstOrDefault(n => n.IsNowPlaying)?.Id;
 
         BuildRoots();
         RefreshCloudState();
@@ -305,15 +303,13 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
     /// again.</summary>
     private readonly List<long> _rootNodeOrder = new();
 
-    /// <summary>The now-playing node, which is pinned above everything else.</summary>
-    private long? _nowPlayingNode;
-
     /// <summary>
     /// The top level of the tree, built from the rows already in hand.
     ///
-    /// <para>Now playing is pinned first. Then come the folders that the generated playlists live in. Then
-    /// the user's own top-level nodes, in their sort order. The app's own rows sit above what somebody
-    /// made, because they are always there, whatever the tree holds.</para>
+    /// <para>The folders that the generated playlists live in come first. Then the user's own top-level
+    /// nodes, in their sort order. The app's own rows sit above what somebody made, because they are always
+    /// there, whatever the tree holds. Now playing is left out: the queue key in the bottom bar shows the
+    /// queue, so a row for it here would only be a second way to the same list.</para>
     ///
     /// <para>This runs twice per reload and reads no database. It runs once with whatever totals are in
     /// hand, and again when the worker's totals are applied. Whether a generated list is worth a row
@@ -323,10 +319,6 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
     private void BuildRoots()
     {
         _roots.Clear();
-
-        // A leaf like every other playlist. Its queue is shown in the detail (BuildDetail).
-        if (_nowPlayingNode is { } queue && _itemsByNode.TryGetValue(queue, out var nowRow))
-            _roots.Add(nowRow);
 
         // On a borrowed shelf this is one row, not twelve. See SmartPlaylists.OnABorrowedShelf, which says
         // why each of the others is left out. The one that stays is the favourites: the songs the listener

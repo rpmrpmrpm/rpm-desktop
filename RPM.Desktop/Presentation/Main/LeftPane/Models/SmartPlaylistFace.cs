@@ -521,4 +521,8 @@ internal static class SmartPlaylistFace
     /// <summary>The pinned folder's glyph: a wand. It is the one folder in the tree that a person did not
     /// make.</summary>
     public const string FolderGlyph = "\uf72b";   // wand-sparkles
+
+    /// <summary>The moods folder's mark. It is a picture and not a glyph, because it is shaded and a font
+    /// draws one colour.</summary>
+    public const string MoodsFolderMark = "ms-appx:///Assets/moods-folder.png";
 }

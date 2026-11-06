@@ -88,9 +88,11 @@ public sealed partial class PlaylistView
         IconsSide.Visibility = icons ? Visibility.Visible : Visibility.Collapsed;
 
         // The size slider belongs to the grid, so it goes with the grid. On the list there is nothing for
-        // it to size. The library's header follows the same rule, where the slider's whole slot slides away
-        // when the wall does.
-        TileSizeCluster.Visibility = icons ? Visibility.Visible : Visibility.Collapsed;
+        // it to size. It is hidden and not collapsed: its slot is what holds the view switch clear of the
+        // record that overlaps the pane's top right corner, where the switch could not be pressed.
+        TileSizeCluster.Opacity = icons ? 1 : 0;
+        TileSizeCluster.IsHitTestVisible = icons;
+        TileSizeSlider.IsEnabled = icons;
 
         // Whatever a half-finished drag was aiming at is not on screen any more. The list's own pointer
         // handlers cannot fire while it is collapsed, so nothing else would clear this.

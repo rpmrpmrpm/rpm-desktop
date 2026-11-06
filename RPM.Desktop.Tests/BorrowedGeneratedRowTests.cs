@@ -128,6 +128,18 @@ public class BorrowedGeneratedRowTests
         PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool appFolder)
         => Assert.Equal(appFolder, PlaylistTreeItem.AppFolder(kind, holdsGeneratedListsOnly));
 
+    /// <summary>The moods folder wears its own mark on both shelves. The decades, a folder somebody happens
+    /// to have called Moods, and a folder of that name further down all keep what they had.</summary>
+    [Theory]
+    [InlineData(PlaylistRowKind.SmartFolder, false, true, "Moods", true)]
+    [InlineData(PlaylistRowKind.Folder, true, true, "Moods", true)]
+    [InlineData(PlaylistRowKind.SmartFolder, false, true, "Decades", false)]
+    [InlineData(PlaylistRowKind.Folder, false, true, "Moods", false)]
+    [InlineData(PlaylistRowKind.Folder, true, false, "Moods", false)]
+    public void Only_the_moods_folder_wears_the_mark(
+        PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, bool wearsIt)
+        => Assert.Equal(wearsIt, PlaylistTreeItem.MoodsFolder(kind, holdsGeneratedListsOnly, topLevel, name, "Moods"));
+
     /// <summary>An empty folder says nothing about who made it, so it is drawn as a folder, and so is
     /// one that holds nothing but empty folders.</summary>
     [Fact]
