@@ -76,7 +76,9 @@ public class OutputHelpTests
         if (desk == OutputHelp.Desk.Windows && wanted)
             Assert.StartsWith("ms-settings:", advice.SettingsUri);
         if (desk == OutputHelp.Desk.Mac && wanted)
-            Assert.StartsWith("x-apple.systempreferences:", advice.SettingsUri);
+            Assert.Equal("x-apple.systempreferences:com.apple.Sound-Settings.extension", advice.SettingsUri);
+        if (desk == OutputHelp.Desk.MacPreferences && wanted)
+            Assert.Equal("x-apple.systempreferences:com.apple.preference.sound", advice.SettingsUri);
     }
 
     [Fact]
@@ -92,6 +94,7 @@ public class OutputHelpTests
         var none = new OutputTrouble.NoDevice();
         Assert.Contains("AudioOut_StepWindowsSound", OutputHelp.For(none, OutputHelp.Desk.Windows).Steps);
         Assert.Contains("AudioOut_StepMacSound", OutputHelp.For(none, OutputHelp.Desk.Mac).Steps);
+        Assert.Contains("AudioOut_StepMacSoundPreferences", OutputHelp.For(none, OutputHelp.Desk.MacPreferences).Steps);
         Assert.Contains("AudioOut_StepOtherSound", OutputHelp.For(none, OutputHelp.Desk.Other).Steps);
     }
 

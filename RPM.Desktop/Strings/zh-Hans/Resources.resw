@@ -4309,6 +4309,10 @@
     <value>打开系统设置中的声音，在输出下选择一个设备。</value>
     <comment>Sound output message, a numbered step on macOS. Names macOS's own System Settings, Sound, Output, as macOS words them in each language.</comment>
   </data>
+  <data name="AudioOut_StepMacSoundPreferences" xml:space="preserve">
+    <value>打开系统偏好设置中的声音，在输出下选择一个设备。</value>
+    <comment>Sound output message, a numbered step on macOS 12. Names System Preferences, Sound, Output, as macOS 12 words them in each language: macOS 13 renamed System Preferences to System Settings.</comment>
+  </data>
   <data name="AudioOut_StepOtherSound" xml:space="preserve">
     <value>打开系统的声音设置，确认已选择输出设备。</value>
     <comment>Sound output message, a numbered step on a system other than Windows or macOS.</comment>

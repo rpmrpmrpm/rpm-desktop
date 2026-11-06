@@ -4309,6 +4309,10 @@
     <value>Open System Settings, then Sound, and choose a device under Output.</value>
     <comment>Sound output message, a numbered step on macOS. Names macOS's own System Settings, Sound, Output, as macOS words them in each language.</comment>
   </data>
+  <data name="AudioOut_StepMacSoundPreferences" xml:space="preserve">
+    <value>Open System Preferences, then Sound, and choose a device under Output.</value>
+    <comment>Sound output message, a numbered step on macOS 12. Names System Preferences, Sound, Output, as macOS 12 words them in each language: macOS 13 renamed System Preferences to System Settings.</comment>
+  </data>
   <data name="AudioOut_StepOtherSound" xml:space="preserve">
     <value>Open your system's sound settings and check that an output device is selected.</value>
     <comment>Sound output message, a numbered step on a system other than Windows or macOS.</comment>

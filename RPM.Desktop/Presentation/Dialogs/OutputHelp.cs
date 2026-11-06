@@ -15,6 +15,10 @@ public static class OutputHelp
         Windows,
         Mac,
 
+        /// <summary>macOS 12, whose settings app is System Preferences. macOS 13 renamed it System
+        /// Settings and gave the Sound page another address.</summary>
+        MacPreferences,
+
         /// <summary>Linux and other systems. The steps stay general, and there is no settings page to
         /// open.</summary>
         Other,
@@ -31,7 +35,8 @@ public static class OutputHelp
     /// <summary>The desk this process is running on.</summary>
     public static Desk Here =>
         OperatingSystem.IsWindows() ? Desk.Windows :
-        OperatingSystem.IsMacOS() ? Desk.Mac :
+        OperatingSystem.IsMacOSVersionAtLeast(13) ? Desk.Mac :
+        OperatingSystem.IsMacOS() ? Desk.MacPreferences :
         Desk.Other;
 
     public static Advice For(OutputTrouble trouble, Desk desk) => trouble switch
@@ -61,15 +66,17 @@ public static class OutputHelp
     {
         Desk.Windows => "AudioOut_StepWindowsSound",
         Desk.Mac => "AudioOut_StepMacSound",
+        Desk.MacPreferences => "AudioOut_StepMacSoundPreferences",
         _ => "AudioOut_StepOtherSound",
     };
 
     /// <summary>The system's own sound page: Settings, System, Sound on Windows; System Settings,
-    /// Sound on macOS 13 and later.</summary>
+    /// Sound on macOS 13 and later; System Preferences, Sound on macOS 12.</summary>
     private static string? SettingsUri(Desk desk) => desk switch
     {
         Desk.Windows => "ms-settings:sound",
         Desk.Mac => "x-apple.systempreferences:com.apple.Sound-Settings.extension",
+        Desk.MacPreferences => "x-apple.systempreferences:com.apple.preference.sound",
         _ => null,
     };
 }
