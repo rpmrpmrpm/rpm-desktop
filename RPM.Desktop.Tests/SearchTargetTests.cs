@@ -11,8 +11,8 @@ namespace RPM.Desktop.Tests;
 public class SearchTargetTests
 {
     private static PaneStage Stage(
-        RightTab reading, bool atHome = false, bool rightOpen = true, bool sideOpen = false, LeftTab tab = LeftTab.TrackInfo)
-        => new(atHome, sideOpen, tab, rightOpen, reading);
+        RightTab reading, bool atHome = false, bool sideOpen = false, LeftTab tab = LeftTab.TrackInfo)
+        => new(atHome, sideOpen, tab, reading);
 
     [Fact]
     public void The_collection_searches_the_collection()
@@ -51,17 +51,18 @@ public class SearchTargetTests
     [Fact]
     public void The_card_first_unless_the_keyboard_is_in_the_side_pane()
     {
-        var both = Stage(RightTab.Albums, sideOpen: true, tab: LeftTab.Import);
+        var both = Stage(RightTab.Albums, sideOpen: true, tab: LeftTab.Radio);
 
         Assert.Equal(SearchField.Albums, SearchTarget.OnScreen(both, true, false, false, keyboardInSide: false));
-        Assert.Equal(SearchField.Import, SearchTarget.OnScreen(both, true, false, false, keyboardInSide: true));
+        Assert.Equal(SearchField.Radio, SearchTarget.OnScreen(both, true, false, false, keyboardInSide: true));
     }
 
-    /// <summary>The library folded for an import leaves the workbench's field.</summary>
+    /// <summary>The import workbench lies over the library card, so the card's field is not on screen and
+    /// the workbench's field is the one.</summary>
     [Fact]
-    public void A_folded_library_leaves_the_import()
+    public void The_import_workbench_covers_the_cards_field()
         => Assert.Equal(SearchField.Import, SearchTarget.OnScreen(
-            Stage(RightTab.Albums, rightOpen: false, sideOpen: true, tab: LeftTab.Import), true, false, false, false));
+            Stage(RightTab.Albums, sideOpen: true, tab: LeftTab.Import), true, false, false, keyboardInSide: false));
 
     /// <summary>A side pane taken off the screen with the deck's pill, or folded by its chevron, has no
     /// field on screen whatever its tab says.</summary>
