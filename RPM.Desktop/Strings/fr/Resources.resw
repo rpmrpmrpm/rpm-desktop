@@ -9726,11 +9726,67 @@
     <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
   <data name="Web_BetaClosed" xml:space="preserve">
-    <value>rpm est en bêta fermée. Connectez-vous si vous avez un compte, ou demandez à rejoindre la bêta.</value>
+    <value>rpm est en bêta fermée. Il vous faut le code de votre e-mail de bienvenue.</value>
     <comment>Web app sign-in card, in place of the sign-up link while sign-up is closed.</comment>
   </data>
   <data name="Web_BetaApply" xml:space="preserve">
     <value>Demander à rejoindre la bêta</value>
     <comment>Web app sign-in card, a link to the beta form on the website.</comment>
+  </data>
+  <data name="Web_LibraryEmpty" xml:space="preserve">
+    <value>Rien pour l'instant. Importez votre musique et elle apparaîtra ici.</value>
+    <comment>Web app library pane, when the account has no tracks yet.</comment>
+  </data>
+  <data name="Web_ImportCannotStore" xml:space="preserve">
+    <value>Ce type de fichier ne peut pas être stocké dans le cloud.</value>
+    <comment>Web app import queue, on a file in a format the store cannot hold.</comment>
+  </data>
+  <data name="Web_ImportStagePreparing" xml:space="preserve">
+    <value>Préparation</value>
+    <comment>Web app import queue, status of a track while its audio is prepared for upload.</comment>
+  </data>
+  <data name="Web_ImportStageUploading" xml:space="preserve">
+    <value>Envoi</value>
+    <comment>Web app import queue, status of a track while it uploads.</comment>
+  </data>
+  <data name="Web_ImportAlreadyThere" xml:space="preserve">
+    <value>Déjà dans votre collection</value>
+    <comment>Web app import queue, on a track whose audio the account already holds.</comment>
+  </data>
+  <data name="Web_ImportDone" xml:space="preserve">
+    <value>Importé</value>
+    <comment>Web app import queue, on a track that has reached the cloud.</comment>
+  </data>
+  <data name="Web_ImportEmptyHint" xml:space="preserve">
+    <value>Ajoutez des fichiers ou un dossier. Ils apparaissent ici pour que vous puissiez les vérifier avant de les ajouter à votre collection.</value>
+    <comment>Web app import pane, when the queue is empty.</comment>
+  </data>
+  <data name="Web_ImportAddFiles" xml:space="preserve">
+    <value>Ajouter des fichiers</value>
+    <comment>Web app import pane, button that opens the file picker.</comment>
+  </data>
+  <data name="Web_ImportAddFolder" xml:space="preserve">
+    <value>Ajouter un dossier</value>
+    <comment>Web app import pane, button that opens the folder picker.</comment>
+  </data>
+  <data name="Web_ImportKeepOpen" xml:space="preserve">
+    <value>Gardez cette page ouverte jusqu'à la fin de l'importation.</value>
+    <comment>Web app import pane, while an import is running.</comment>
+  </data>
+  <data name="Web_ImportMixed" xml:space="preserve">
+    <value>Valeurs différentes</value>
+    <comment>Web app tag panel, placeholder of a field whose value differs between the ticked tracks.</comment>
+  </data>
+  <data name="Web_CodeTitle" xml:space="preserve">
+    <value>Votre code</value>
+  </data>
+  <data name="Web_CodeRefused" xml:space="preserve">
+    <value>Ce code ne fonctionne pas. S'il correspond à votre e-mail de bienvenue, répondez à cet e-mail et nous vous aiderons.</value>
+  </data>
+  <data name="Web_CodeFailed" xml:space="preserve">
+    <value>Votre code n'a pas pu être vérifié. Veuillez réessayer.</value>
+  </data>
+  <data name="Web_ImportClearDone" xml:space="preserve">
+    <value>Effacer les terminés</value>
   </data>
 </root>

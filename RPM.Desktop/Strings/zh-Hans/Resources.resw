@@ -9726,11 +9726,67 @@
     <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
   <data name="Web_BetaClosed" xml:space="preserve">
-    <value>rpm 正处于封闭测试阶段。已有账户可直接登录，也可以申请加入测试。</value>
+    <value>rpm 正处于封闭测试阶段。你需要欢迎邮件中的代码。</value>
     <comment>Web app sign-in card, in place of the sign-up link while sign-up is closed.</comment>
   </data>
   <data name="Web_BetaApply" xml:space="preserve">
     <value>申请加入测试</value>
     <comment>Web app sign-in card, a link to the beta form on the website.</comment>
+  </data>
+  <data name="Web_LibraryEmpty" xml:space="preserve">
+    <value>这里还没有内容。导入你的音乐后就会显示在这里。</value>
+    <comment>Web app library pane, when the account has no tracks yet.</comment>
+  </data>
+  <data name="Web_ImportCannotStore" xml:space="preserve">
+    <value>此文件类型无法存储到云端。</value>
+    <comment>Web app import queue, on a file in a format the store cannot hold.</comment>
+  </data>
+  <data name="Web_ImportStagePreparing" xml:space="preserve">
+    <value>正在准备</value>
+    <comment>Web app import queue, status of a track while its audio is prepared for upload.</comment>
+  </data>
+  <data name="Web_ImportStageUploading" xml:space="preserve">
+    <value>正在上传</value>
+    <comment>Web app import queue, status of a track while it uploads.</comment>
+  </data>
+  <data name="Web_ImportAlreadyThere" xml:space="preserve">
+    <value>已在你的收藏中</value>
+    <comment>Web app import queue, on a track whose audio the account already holds.</comment>
+  </data>
+  <data name="Web_ImportDone" xml:space="preserve">
+    <value>已导入</value>
+    <comment>Web app import queue, on a track that has reached the cloud.</comment>
+  </data>
+  <data name="Web_ImportEmptyHint" xml:space="preserve">
+    <value>添加文件或文件夹。它们会显示在这里，方便你在加入收藏前检查。</value>
+    <comment>Web app import pane, when the queue is empty.</comment>
+  </data>
+  <data name="Web_ImportAddFiles" xml:space="preserve">
+    <value>添加文件</value>
+    <comment>Web app import pane, button that opens the file picker.</comment>
+  </data>
+  <data name="Web_ImportAddFolder" xml:space="preserve">
+    <value>添加文件夹</value>
+    <comment>Web app import pane, button that opens the folder picker.</comment>
+  </data>
+  <data name="Web_ImportKeepOpen" xml:space="preserve">
+    <value>请在导入完成前保持此页面打开。</value>
+    <comment>Web app import pane, while an import is running.</comment>
+  </data>
+  <data name="Web_ImportMixed" xml:space="preserve">
+    <value>多个不同的值</value>
+    <comment>Web app tag panel, placeholder of a field whose value differs between the ticked tracks.</comment>
+  </data>
+  <data name="Web_CodeTitle" xml:space="preserve">
+    <value>你的代码</value>
+  </data>
+  <data name="Web_CodeRefused" xml:space="preserve">
+    <value>此代码无效。如果它与欢迎邮件中的一致，请回复该邮件，我们会帮你解决。</value>
+  </data>
+  <data name="Web_CodeFailed" xml:space="preserve">
+    <value>无法验证你的代码，请重试。</value>
+  </data>
+  <data name="Web_ImportClearDone" xml:space="preserve">
+    <value>清除已完成</value>
   </data>
 </root>
