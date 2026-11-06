@@ -9,7 +9,8 @@
 #   scripts/release-mac.sh --older-macs           checks the bundle against the macOS 12.3 SDK
 #   scripts/gen_credits.py                        writes these versions into the About screen
 # The rpm-android repo keeps a copy of FFMPEG_VERSION and FFMPEG_SHA256 in its own
-# scripts/tool-versions.txt, for its FFmpeg decoders. Change both.
+# scripts/tool-versions.txt, for its FFmpeg decoders, and so does the rpm-web repo, for its
+# WebAssembly build. Change all three.
 # Plain KEY=VALUE lines so bash can source it and PowerShell can split it.
 
 # ffmpeg, built by scripts/build-ffmpeg.sh. One version on every platform and in the transcoder.

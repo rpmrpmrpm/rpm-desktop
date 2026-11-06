@@ -9725,4 +9725,12 @@
     <value>请稍候！大型收藏的导入可能需要一些时间，不妨去喝杯咖啡，让 rpm 慢慢整理。</value>
     <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
+  <data name="Web_BetaClosed" xml:space="preserve">
+    <value>rpm 正处于封闭测试阶段。已有账户可直接登录，也可以申请加入测试。</value>
+    <comment>Web app sign-in card, in place of the sign-up link while sign-up is closed.</comment>
+  </data>
+  <data name="Web_BetaApply" xml:space="preserve">
+    <value>申请加入测试</value>
+    <comment>Web app sign-in card, a link to the beta form on the website.</comment>
+  </data>
 </root>

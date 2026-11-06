@@ -9725,4 +9725,12 @@
     <value>Patience ! Une grande collection peut prendre un moment à importer, alors prenez un café pendant que rpm range tout.</value>
     <comment>Setup wizard step 4, over the import's progress bar after ten seconds of importing.</comment>
   </data>
+  <data name="Web_BetaClosed" xml:space="preserve">
+    <value>rpm est en bêta fermée. Connectez-vous si vous avez un compte, ou demandez à rejoindre la bêta.</value>
+    <comment>Web app sign-in card, in place of the sign-up link while sign-up is closed.</comment>
+  </data>
+  <data name="Web_BetaApply" xml:space="preserve">
+    <value>Demander à rejoindre la bêta</value>
+    <comment>Web app sign-in card, a link to the beta form on the website.</comment>
+  </data>
 </root>
