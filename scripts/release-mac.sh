@@ -38,8 +38,14 @@
 #      as a bundle that registers nothing, and harder to see.
 #
 # Usage:
-#   ./scripts/release-mac.sh [--arch arm64|x64] [--sign] [--version X.Y.Z]
+#   ./scripts/release-mac.sh [--arch arm64|x64] [--older-macs] [--sign] [--version X.Y.Z]
 #                            [--dmg] [--skip-notarize] [--publish] [--first-release | --no-delta]
+#
+#   --older-macs  The Intel build for macOS 12 to 14 (with --arch x64 only). The
+#            other builds need macOS 15. This one has the same files, with
+#            LSMinimumSystemVersion 12.0, its own update channel (osx-x64-macos12)
+#            and its own .dmg (rpm-x64-macos12.dmg). Step 3d checks that no binary
+#            in it needs something that macOS 12 does not have.
 #
 #   --sign   Codesign with the Developer ID identity and the hardened runtime.
 #            Without it the bundle is unsigned: fine to run locally, but it
@@ -98,11 +104,13 @@ NOTARIZE=true
 PUBLISH=false
 FIRST_RELEASE=false
 NO_DELTA=false
+OLDER_MACS=false
 VERSION=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --arch)    ARCH="$2"; shift 2 ;;
+        --older-macs) OLDER_MACS=true; shift ;;
         --sign)    SIGN=true; shift ;;
         --dmg)     DMG=true; SIGN=true; shift ;;
         --skip-notarize) NOTARIZE=false; shift ;;
@@ -147,12 +155,26 @@ case "${ARCH}" in
     *) echo "FATAL: --arch must be arm64 or x64 (got '${ARCH}')"; exit 2 ;;
 esac
 
+# The oldest macOS the build is made for, and the name that its build folder, update channel
+# and .dmg carry. Every Apple silicon Mac can run macOS 15, so only Intel has a build for
+# older Macs.
+MACOS_MIN="15.0"
+BUILD_NAME="${ARCH}"
+if [ "${OLDER_MACS}" = true ]; then
+    if [ "${ARCH}" != "x64" ]; then
+        echo "FATAL: --older-macs is an Intel build. Use it with --arch x64."
+        exit 2
+    fi
+    MACOS_MIN="12.0"
+    BUILD_NAME="x64-macos12"
+fi
+
 CSPROJ="${REPO_DIR}/RPM.Desktop/RPM.Desktop.csproj"
 ENTITLEMENTS="${REPO_DIR}/RPM.Desktop/RPM.Desktop.entitlements"
 MACWEBAUTH="${REPO_DIR}/RPM.Desktop/Services/Account/MacWebAuth.cs"
 UPDATECHANNEL="${REPO_DIR}/RPM.Desktop/Services/Updates/UpdateChannel.cs"
 RELEASE_DELTA="${SCRIPT_DIR}/release_delta.py"
-PUBLISH_DIR="/private/tmp/rpm-build-${VERSION}-${ARCH}"
+PUBLISH_DIR="/private/tmp/rpm-build-${VERSION}-${BUILD_NAME}"
 APP_NAME="rpm.app"
 APP_PATH="${PUBLISH_DIR}/${APP_NAME}"
 # The App ID that the iPhone app also has. The Developer ID provisioning profile below
@@ -192,10 +214,10 @@ PROFILE="${RPM_PROVISION_PROFILE:-${REPO_DIR}/RPM.Desktop/RPM.Desktop.provisionp
 # feed, so it must not change when the bundle id changes.
 PACK_ID="com.rpm.desktop"
 PACK_TITLE="rpm"
-CHANNEL="osx-${ARCH}"
+CHANNEL="osx-${BUILD_NAME}"
 NUPKG_NAME="${PACK_ID}-${VERSION}-${CHANNEL}-full.nupkg"
 DELTA_NAME="${PACK_ID}-${VERSION}-${CHANNEL}-delta.nupkg"
-DMG_NAME="rpm-${ARCH}.dmg"
+DMG_NAME="rpm-${BUILD_NAME}.dmg"
 ARTIFACTS_DIR="${PUBLISH_DIR}/artifacts"
 
 # Where the feed is served from. The bucket is private and CloudFront reads it
@@ -294,7 +316,8 @@ PAYLOAD_DIR="${PUBLISH_DIR}/payload"
 # Version and ApplicationDisplayVersion, the same pair that the Windows workflow passes:
 # Uno's SDK sets Version from ApplicationDisplayVersion, so passing only one of them
 # leaves the other at the value in the csproj. RpmUpdates turns on in-place updates, which
-# a copy built from source does not have (UpdateChannel.Released).
+# a copy built from source does not have (UpdateChannel.Released). RpmOlderMacs makes the
+# app read the feed of the build for older Macs (UpdateChannel.OlderMacs), the CHANNEL above.
 #
 # A release build needs the official API key (RpmAppKeySource in RPM.Core.csproj). The
 # AWS credentials that publish the release can read it, so it is not kept on this Mac.
@@ -309,6 +332,7 @@ dotnet publish "${CSPROJ}" \
     -c Release -f net10.0-desktop -r "${RID}" \
     -p:SelfContained=true \
     -p:RpmUpdates=true \
+    -p:RpmOlderMacs="${OLDER_MACS}" \
     -p:Version="${VERSION}" \
     -p:ApplicationDisplayVersion="${VERSION}" \
     -o "${PAYLOAD_DIR}" 2>&1 | tail -15
@@ -326,8 +350,10 @@ fi
 # symbols would be shipped to every user. Kept here, it turns the offsets in a
 # native crash report (rpm.Admin, Errors, Crashes) back into function names:
 # atos -o rpm.dSYM/Contents/Resources/DWARF/rpm -arch arm64 -l <load address> <address>.
+# The file is named by channel, not by RID: the two Intel builds have the same RID and
+# different binaries, so one would overwrite the other's symbols.
 mkdir -p "${ARTIFACTS_DIR}"
-SYMBOLS_ZIP="${ARTIFACTS_DIR}/rpm-${VERSION}-${RID}.dSYM.zip"
+SYMBOLS_ZIP="${ARTIFACTS_DIR}/rpm-${VERSION}-${CHANNEL}.dSYM.zip"
 if [ -d "${PAYLOAD_DIR}/rpm.dSYM" ]; then
     ditto -c -k --keepParent "${PAYLOAD_DIR}/rpm.dSYM" "${SYMBOLS_ZIP}"
     rm -rf "${PAYLOAD_DIR}/rpm.dSYM"
@@ -421,7 +447,8 @@ mkdir -p "${APP_PATH}/Contents/MacOS/Resources"
       ln -sfn "../${d}" "Resources/${d}"
   done )
 
-# LSMinimumSystemVersion 15.0 is needed by the local network prompt in step 2b.
+# LSMinimumSystemVersion is MACOS_MIN above: macOS does not open the app on an older
+# version. Step 3d checks the binaries of a build for older Macs against that version.
 # CFBundleIconFile names the file that step 2a writes into Resources.
 # NSMicrophoneUsageDescription is for vinyl recording
 # (Services/Audio/OpenAlCapture.cs): without it, macOS ends the process the first
@@ -451,7 +478,7 @@ cat > "${APP_PATH}/Contents/Info.plist" <<PLIST_EOF
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
-    <key>LSMinimumSystemVersion</key><string>15.0</string>
+    <key>LSMinimumSystemVersion</key><string>${MACOS_MIN}</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSMicrophoneUsageDescription</key><string>${MICROPHONE_LINE}</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -768,6 +795,44 @@ verify_keychain_entitlement() {
     done
     echo "      ✓ keychain entitlement on the app only"
 }
+
+# Step 3d: a build for older Macs needs nothing that macOS 12 does not have.
+#
+# Several binaries in the bundle are built for a newer macOS than 12 (LC_BUILD_VERSION says
+# which). macOS does not refuse a binary for that. It refuses one that links a system library,
+# or imports a function, variable or Objective-C class, that the system does not have.
+# check_macos_imports.py looks up every import of every binary in the export lists of the
+# macOS 12.3 SDK (MACOS12_SDK_* in tool-versions.txt). It cannot see Objective-C messages, and
+# it counts what macOS 12.1 to 12.3 added as present, so the build is still tried on a Mac
+# with macOS 12 before it is given to people.
+if [ "${OLDER_MACS}" = true ]; then
+    echo "[3d] check the binaries against macOS ${MACOS_MIN}"
+    SDK_URL="$(. "${SCRIPT_DIR}/tool-versions.txt"; printf '%s' "${MACOS12_SDK_URL}")"
+    SDK_SHA256="$(. "${SCRIPT_DIR}/tool-versions.txt"; printf '%s' "${MACOS12_SDK_SHA256}")"
+    SDK_CACHE="${HOME}/Library/Caches/rpm-release/macos-sdk"
+    SDK_ARCHIVE="${SDK_CACHE}/$(basename "${SDK_URL}")"
+    mkdir -p "${SDK_CACHE}"
+    if [ ! -f "${SDK_ARCHIVE}" ] || [ "$(shasum -a 256 "${SDK_ARCHIVE}" | cut -d' ' -f1)" != "${SDK_SHA256}" ]; then
+        curl -fsSL --retry 3 -o "${SDK_ARCHIVE}.part" "${SDK_URL}"
+        mv "${SDK_ARCHIVE}.part" "${SDK_ARCHIVE}"
+    fi
+    if [ "$(shasum -a 256 "${SDK_ARCHIVE}" | cut -d' ' -f1)" != "${SDK_SHA256}" ]; then
+        echo "FATAL: ${SDK_ARCHIVE} is not the file that tool-versions.txt pins (MACOS12_SDK_SHA256)."
+        exit 1
+    fi
+    # Only the export lists (.tbd) are unpacked, into a folder named by the archive's hash.
+    SDK_DIR="${SDK_CACHE}/${SDK_SHA256}"
+    if [ ! -d "${SDK_DIR}" ]; then
+        mkdir -p "${SDK_DIR}.part"
+        tar -xJf "${SDK_ARCHIVE}" -C "${SDK_DIR}.part" --include='*.tbd'
+        mv "${SDK_DIR}.part" "${SDK_DIR}"
+    fi
+    SDK_ROOT="$(find "${SDK_DIR}" -maxdepth 1 -name '*.sdk' -type d | head -1)"
+    if ! python3 -I "${SCRIPT_DIR}/check_macos_imports.py" --sdk "${SDK_ROOT}" --arch x86_64 "${APP_PATH}"; then
+        echo "FATAL: a binary in the bundle needs something that macOS ${MACOS_MIN} does not have (listed above)."
+        exit 1
+    fi
+fi
 
 # Step 4: sign.
 if [ "${SIGN}" = true ]; then

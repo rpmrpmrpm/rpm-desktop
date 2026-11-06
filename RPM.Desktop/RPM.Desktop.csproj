@@ -111,6 +111,13 @@
     <DefineConstants>$(DefineConstants);RPM_UPDATES</DefineConstants>
   </PropertyGroup>
 
+  <!-- The Intel build for macOS 12 to 14: the older-macs option of release-mac.sh passes
+       -p:RpmOlderMacs=true. It reads a feed of its own (UpdateChannel.OlderMacs), because the other
+       Intel build needs macOS 15. -->
+  <PropertyGroup Condition="'$(RpmOlderMacs)' == 'true'">
+    <DefineConstants>$(DefineConstants);RPM_OLDER_MACS</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$(TargetFramework.EndsWith('-desktop'))">
     <DefineConstants>$(DefineConstants);RPM_SKIA</DefineConstants>
   </PropertyGroup>

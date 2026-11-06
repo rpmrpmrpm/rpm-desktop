@@ -34,14 +34,26 @@ public static class UpdateChannel
     public const string Host = "https://updates.rpmrpmrpm.com";
 
     /// <summary>The channel for a head and an architecture, or null where nothing is published for that
-    /// pair.</summary>
-    public static string? Name(UpdateHead head, Architecture arch) => (head, arch) switch
+    /// pair. <paramref name="olderMacs"/> is the Intel build for macOS 12 to 14 (release-mac.sh
+    /// --older-macs). It has a feed of its own, because the other Intel build needs macOS 15: an update to
+    /// it would not start on the Mac that installed it.</summary>
+    public static string? Name(UpdateHead head, Architecture arch, bool olderMacs = false) => (head, arch, olderMacs) switch
     {
-        (UpdateHead.MacOS, Architecture.Arm64) => "osx-arm64",
-        (UpdateHead.MacOS, Architecture.X64) => "osx-x64",
-        (UpdateHead.Windows, Architecture.X64) => "win-x64",
+        (UpdateHead.MacOS, Architecture.Arm64, false) => "osx-arm64",
+        (UpdateHead.MacOS, Architecture.X64, false) => "osx-x64",
+        (UpdateHead.MacOS, Architecture.X64, true) => "osx-x64-macos12",
+        (UpdateHead.Windows, Architecture.X64, false) => "win-x64",
         _ => null,
     };
+
+    /// <summary>Whether this copy is the Intel build for older Macs (<c>-p:RpmOlderMacs=true</c>, see
+    /// RPM.Desktop.csproj).</summary>
+    public static bool OlderMacs =>
+#if RPM_OLDER_MACS
+        true;
+#else
+        false;
+#endif
 
     /// <summary>Whether this copy was built by the release (<c>-p:RpmUpdates=true</c>, see RPM.Desktop.csproj).
     /// Only those copies read a feed. A copy built from source is not one of the published builds, so an
@@ -59,7 +71,8 @@ public static class UpdateChannel
         OperatingSystem.IsMacOS() ? UpdateHead.MacOS
         : OperatingSystem.IsWindows() ? UpdateHead.Windows
         : UpdateHead.Other,
-        RuntimeInformation.ProcessArchitecture);
+        RuntimeInformation.ProcessArchitecture,
+        OlderMacs);
 
     /// <summary>The feed that a channel is read from. It ends in a slash, because what Velopack adds after
     /// it is a file name.</summary>

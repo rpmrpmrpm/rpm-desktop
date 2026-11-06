@@ -6,6 +6,7 @@
 #   RPM.Desktop/RPM.Desktop.csproj                checks the binaries a build or publish ships
 #   .github/workflows/build-ffmpeg.yml            builds every RID and publishes the release
 #   the release scripts and the transcoder deploy, which are not in this repo
+#   scripts/release-mac.sh --older-macs           checks the bundle against the macOS 12.3 SDK
 #   scripts/gen_credits.py                        writes these versions into the About screen
 # The rpm-android repo keeps a copy of FFMPEG_VERSION and FFMPEG_SHA256 in its own
 # scripts/tool-versions.txt, for its FFmpeg decoders. Change both.
@@ -68,3 +69,9 @@ ANGLE_LIBEGL_SHA256_OSX_ARM64=30b79fc13ba4540c9d33ae47f4500f61980b3f862af4944cca
 ANGLE_LIBGLESV2_SHA256_OSX_ARM64=07277138dd46df585a5dbbfcf922420b5cb8186f872be342f641b0c0ff7373dc
 ANGLE_LIBEGL_SHA256_OSX_X64=9bf12364e6f344986eb9c8a41813033c066516930b0bd9e71c87205fb0961edd
 ANGLE_LIBGLESV2_SHA256_OSX_X64=a0105d98d9f2550e251e2f814515cb4cc68fbf8311d3bbed12ea57bde1a1a4c4
+
+# The macOS 12.3 SDK. release-mac.sh --older-macs reads the export lists of macOS 12's own
+# libraries from it (step 3d), and nothing is built with it. It comes from the archives at
+# github.com/joseluisq/macosx-sdks, because Apple publishes it only inside an old Xcode.
+MACOS12_SDK_URL=https://github.com/joseluisq/macosx-sdks/releases/download/12.3/MacOSX12.3.sdk.tar.xz
+MACOS12_SDK_SHA256=3abd261ceb483c44295a6623fdffe5d44fc4ac2c872526576ec5ab5ad0f6e26c

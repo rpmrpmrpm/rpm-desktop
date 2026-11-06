@@ -31,8 +31,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=tool-versions.txt
 source "$SCRIPT_DIR/tool-versions.txt"
 
-# The Mac app's own minimum (its LSMinimumSystemVersion). A lower value costs
-# nothing; a higher one would stop ffmpeg loading on a Mac that the app supports.
+# The minimum of the Mac builds (LSMinimumSystemVersion in release-mac.sh). The Intel build for
+# older Macs (release-mac.sh --older-macs) ships this same ffmpeg, and its step 3d checks that
+# ffmpeg needs nothing that macOS 12 does not have.
 MACOS_MIN=15.0
 
 RID=""

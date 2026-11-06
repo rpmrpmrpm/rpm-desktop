@@ -21,6 +21,20 @@ public class UpdateChannelTests
     public void A_mac_on_intel_reads_the_intel_feed()
         => Assert.Equal("osx-x64", UpdateChannel.Name(UpdateHead.MacOS, Architecture.X64));
 
+    /// <summary>The Intel build for macOS 12 to 14 reads its own feed. The other Intel build needs macOS 15,
+    /// so an update to it would not start on the Mac that installed the older one.</summary>
+    [Fact]
+    public void The_intel_build_for_older_macs_reads_its_own_feed()
+        => Assert.Equal("osx-x64-macos12", UpdateChannel.Name(UpdateHead.MacOS, Architecture.X64, olderMacs: true));
+
+    /// <summary>There is a build for older Macs on Intel only. No other pair has one.</summary>
+    [Fact]
+    public void Only_intel_macs_have_a_build_for_older_macs()
+    {
+        Assert.Null(UpdateChannel.Name(UpdateHead.MacOS, Architecture.Arm64, olderMacs: true));
+        Assert.Null(UpdateChannel.Name(UpdateHead.Windows, Architecture.X64, olderMacs: true));
+    }
+
     [Fact]
     public void Windows_reads_the_x64_feed()
         => Assert.Equal("win-x64", UpdateChannel.Name(UpdateHead.Windows, Architecture.X64));
