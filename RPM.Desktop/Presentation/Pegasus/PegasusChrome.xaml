@@ -451,16 +451,18 @@
                    ShowLyricKey dresses it with the key in the row under the record.
                    The same drawings as LyricViewHollow and LyricViewFilled. Change both. -->
               <Button x:Name="LyricViewFootButton" Click="LyricView_Click"
-                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                      Style="{StaticResource PegasusTransportButton}"
                       VerticalAlignment="Center"
                       ToolTipService.ToolTip="{loc:Str Key=Viz_LyricsBack}"
                       AutomationProperties.Name="{loc:Str Key=Viz_LyricsBack}">
-                <Grid>
-                  <PathIcon x:Name="LyricFootHollow" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                  <PathIcon x:Name="LyricFootFilled" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Grid>
+                <Viewbox Width="16" Height="16">
+                  <Grid>
+                    <PathIcon x:Name="LyricFootHollow" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <PathIcon x:Name="LyricFootFilled" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Grid>
+                </Viewbox>
               </Button>
 
               <Button x:Name="LyricLayoutButton" Click="Layout_Click"
@@ -698,23 +700,24 @@
                    The mark is a path, not a glyph: a speech box with two quotes. It is a PathIcon so that
                    it takes the key's foreground, including the white on hover, as the glyphs beside it
                    do. Each quote is one outline, dot and tail together, so that the filled version can
-                   cut them out of a solid box under the even-odd rule. The same two drawings are also in
-                   LyricViewFootButton below. Change both. -->
-              <!-- Corner 8 instead of the style's round 18: the mark is a square, and a round wash under
-                   it would cut its corners. -->
+                   cut them out of a solid box under the even-odd rule. A PathIcon draws at the size of its
+                   path, 30 here, so the Viewbox brings it down to the 16 of the cast key beside it. The
+                   same two drawings are also in LyricViewFootButton below. Change both. -->
               <Button x:Name="LyricViewButton" Click="LyricView_Click" Visibility="Collapsed"
-                      Style="{StaticResource PegasusTransportButton}" CornerRadius="8"
+                      Style="{StaticResource PegasusTransportButton}"
                       VerticalAlignment="Center"
                       ToolTipService.ToolTip="{loc:Str Key=Viz_Lyrics}"
                       AutomationProperties.Name="{loc:Str Key=Viz_Lyrics}">
                 <!-- Hollow while the lyric is off, filled while it is on: the heart shows its state in
                      the same way. ShowLyricKey sets which one is shown. -->
-                <Grid>
-                  <PathIcon x:Name="LyricViewHollow" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                  <PathIcon x:Name="LyricViewFilled" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Grid>
+                <Viewbox Width="16" Height="16">
+                  <Grid>
+                    <PathIcon x:Name="LyricViewHollow" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M3.21,2.14 A1.07,1.07 0 0 0 2.14,3.21 V26.52 A1.07,1.07 0 0 0 3.21,27.59 H26.79 A1.07,1.07 0 0 0 27.86,26.52 V3.21 A1.07,1.07 0 0 0 26.79,2.14 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <PathIcon x:Name="LyricViewFilled" Visibility="Collapsed" Data="F0 M2.95,0 H27.05 A2.95,2.95 0 0 1 30,2.95 V26.79 A2.95,2.95 0 0 1 27.05,29.73 H2.95 A2.95,2.95 0 0 1 0,26.79 V2.95 A2.95,2.95 0 0 1 2.95,0 Z M12.58,14.82 A3.35,3.35 0 1 0 9.78,16.34 C9.78,17.95 8.97,19.42 7.9,20.3 C11.12,19.02 12.19,16.88 12.58,14.82 Z M23.03,14.82 A3.35,3.35 0 1 0 20.22,16.34 C20.22,17.95 19.42,19.42 18.35,20.3 C21.56,19.02 22.63,16.88 23.03,14.82 Z"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Grid>
+                </Viewbox>
               </Button>
 
               <!-- The layout key: Full, Compact, and back again (see
