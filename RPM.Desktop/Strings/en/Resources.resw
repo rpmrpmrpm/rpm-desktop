@@ -911,11 +911,11 @@
     <comment>Track editor tab: the work, sorting, pressing and identifiers.</comment>
   </data>
   <data name="MassEdit_GroupLevel" xml:space="preserve">
-    <value>Level</value>
+    <value>LEVEL</value>
     <comment>Dense form group heading: how loud the record is (loudness, true peak).</comment>
   </data>
   <data name="MassEdit_GroupMeasured" xml:space="preserve">
-    <value>Measured</value>
+    <value>MEASURED</value>
     <comment>Dense form group heading: the tempo and key fields, which the app measures itself.</comment>
   </data>
   <data name="MassEdit_GroupReading" xml:space="preserve">
@@ -9853,13 +9853,25 @@
     <value>This looks like a whole album in one file. The desktop app can split it into tracks.</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
-  <data name="Web_EditDesktopNote" xml:space="preserve">
-    <value>If rpm on a computer also holds these tracks, its tags replace these the next time it syncs.</value>
-    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
-  </data>
   <data name="Web_EditFailed" xml:space="preserve">
     <value>The changes could not be saved. Try again.</value>
     <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_EditReading" xml:space="preserve">
+    <value>Reading the tags…</value>
+    <comment>Web app, edit windows: shown while the tags of the tracks are read from the cloud.</comment>
+  </data>
+  <data name="Web_EditReadFailed" xml:space="preserve">
+    <value>The tags could not be read. Close the window and try again.</value>
+    <comment>Web app, edit windows: the tags could not be read from the cloud, so nothing can be edited.</comment>
+  </data>
+  <data name="Web_EditSaving" xml:space="preserve">
+    <value>Saving…</value>
+    <comment>Web app, track metadata from a release: shown while the filled-in tags are saved.</comment>
+  </data>
+  <data name="Web_ArtHint" xml:space="preserve">
+    <value>The picture is saved as the album cover in your cloud, and added to the file when the track is downloaded.</value>
+    <comment>Web app, track details, Artwork tab: where a picture chosen here is saved.</comment>
   </data>
   <data name="Web_PlaylistFolderHint" xml:space="preserve">
     <value>Folder name. Use / for a folder inside a folder. Leave it empty for no folder.</value>

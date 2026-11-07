@@ -9853,13 +9853,25 @@
     <value>这看起来是整张专辑的单个文件。桌面版可以将其拆分为曲目。</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
-  <data name="Web_EditDesktopNote" xml:space="preserve">
-    <value>如果电脑上的 rpm 也保存了这些曲目，下次同步时其标签将替换这里的内容。</value>
-    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
-  </data>
   <data name="Web_EditFailed" xml:space="preserve">
     <value>无法保存更改。请重试。</value>
     <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_EditReading" xml:space="preserve">
+    <value>正在读取标签…</value>
+    <comment>Web app, edit windows: shown while the tags of the tracks are read from the cloud.</comment>
+  </data>
+  <data name="Web_EditReadFailed" xml:space="preserve">
+    <value>无法读取标签。请关闭窗口后重试。</value>
+    <comment>Web app, edit windows: the tags could not be read from the cloud, so nothing can be edited.</comment>
+  </data>
+  <data name="Web_EditSaving" xml:space="preserve">
+    <value>正在保存…</value>
+    <comment>Web app, track metadata from a release: shown while the filled-in tags are saved.</comment>
+  </data>
+  <data name="Web_ArtHint" xml:space="preserve">
+    <value>图片会作为专辑封面保存在你的云端，并在下载曲目时加入文件。</value>
+    <comment>Web app, track details, Artwork tab: where a picture chosen here is saved.</comment>
   </data>
   <data name="Web_PlaylistFolderHint" xml:space="preserve">
     <value>文件夹名称。用 / 表示文件夹中的文件夹。留空表示不放入文件夹。</value>

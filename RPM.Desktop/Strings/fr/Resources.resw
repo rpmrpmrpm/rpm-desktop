@@ -911,11 +911,11 @@
     <comment>Track editor tab: the work, sorting, pressing and identifiers.</comment>
   </data>
   <data name="MassEdit_GroupLevel" xml:space="preserve">
-    <value>Niveau</value>
+    <value>NIVEAU</value>
     <comment>Dense form group heading: how loud the record is (loudness, true peak).</comment>
   </data>
   <data name="MassEdit_GroupMeasured" xml:space="preserve">
-    <value>Mesuré</value>
+    <value>MESURÉ</value>
     <comment>Dense form group heading: the tempo and key fields, which the app measures itself.</comment>
   </data>
   <data name="MassEdit_GroupReading" xml:space="preserve">
@@ -9853,13 +9853,25 @@
     <value>Ce fichier ressemble à un album entier. L'application de bureau peut le découper en morceaux.</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
-  <data name="Web_EditDesktopNote" xml:space="preserve">
-    <value>Si rpm sur un ordinateur contient aussi ces morceaux, ses tags remplaceront ceux-ci à sa prochaine synchronisation.</value>
-    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
-  </data>
   <data name="Web_EditFailed" xml:space="preserve">
     <value>Les modifications n'ont pas pu être enregistrées. Réessayez.</value>
     <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_EditReading" xml:space="preserve">
+    <value>Lecture des tags…</value>
+    <comment>Web app, edit windows: shown while the tags of the tracks are read from the cloud.</comment>
+  </data>
+  <data name="Web_EditReadFailed" xml:space="preserve">
+    <value>Les tags n'ont pas pu être lus. Fermez la fenêtre et réessayez.</value>
+    <comment>Web app, edit windows: the tags could not be read from the cloud, so nothing can be edited.</comment>
+  </data>
+  <data name="Web_EditSaving" xml:space="preserve">
+    <value>Enregistrement…</value>
+    <comment>Web app, track metadata from a release: shown while the filled-in tags are saved.</comment>
+  </data>
+  <data name="Web_ArtHint" xml:space="preserve">
+    <value>L'image est enregistrée comme pochette de l'album dans votre cloud, et ajoutée au fichier quand le morceau est téléchargé.</value>
+    <comment>Web app, track details, Artwork tab: where a picture chosen here is saved.</comment>
   </data>
   <data name="Web_PlaylistFolderHint" xml:space="preserve">
     <value>Nom du dossier. Utilisez / pour un dossier dans un dossier. Laissez vide pour aucun dossier.</value>
