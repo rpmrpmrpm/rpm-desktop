@@ -10,7 +10,7 @@
              this is the same form, and its inputs have to shrink the same way. -->
         <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
       </ResourceDictionary.MergedDictionaries>
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     </ResourceDictionary>
   </UserControl.Resources>
 

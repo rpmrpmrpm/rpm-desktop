@@ -4,7 +4,7 @@
              xmlns:loc="using:RPM.Desktop.Strings">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <!-- The Visualizations pane: a card for each visualizer, each one a still of it. Nothing renders

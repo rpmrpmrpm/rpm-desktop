@@ -11,7 +11,7 @@
 
         <!-- The icon font is declared here, not inherited from the page. This control is used on more
              than one page, and it cannot know which page's Resources it is placed in. -->
-        <FontFamily x:Key="FaSolid">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+        <FontFamily x:Key="FaSolid">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
         <Storyboard x:Key="MagnifySearchAnimation"
                     RepeatBehavior="Forever">

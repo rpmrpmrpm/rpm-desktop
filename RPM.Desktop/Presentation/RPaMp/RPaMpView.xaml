@@ -33,7 +33,7 @@
          gives the plain colour. -->
     <conv:BoolToBrushConverter x:Key="VolumeBrush"
                                TrueBrush="#B0FFFFFF" FalseBrush="#04C8FF"/>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <FontFamily x:Key="Mono">Consolas</FontFamily>
     <!-- The dot-matrix font for the scrolling ticker. It is a static instance that is built ahead of time.
          See the note in the project file. -->

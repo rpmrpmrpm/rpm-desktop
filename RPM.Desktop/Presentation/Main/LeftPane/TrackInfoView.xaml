@@ -12,10 +12,10 @@
        built in code, not bound to a view model. Which facts are worth a line is a rule (see RPM.Core's TrackFacts),
        and a template cannot hold that rule without a converter for each field. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <!-- The same icon font, drawn as an outline. Only the heart uses it here. Filled means the record is marked as
          a favourite. An outline means the mark can be set. See PaintFavorite. -->
-    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
 
     <!-- The ink: four brushes. Everything in the pane that carries text uses one of them.
 

@@ -385,7 +385,7 @@ public sealed class CoachmarkPainter
         row.Children.Add(new TextBlock
         {
             Text = "",   // Font Awesome's chevron-right
-            FontFamily = new FontFamily("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid"),
+            FontFamily = new FontFamily("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro"),
             FontSize = 10,
             Foreground = Accent,
             VerticalAlignment = VerticalAlignment.Center,
@@ -464,7 +464,7 @@ public sealed class CoachmarkPainter
                 {
                     Text = "\uf00d",   // Font Awesome's times
                     FontFamily = new FontFamily(
-                        "ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid"),
+                        "ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro"),
                     FontSize = 11,
                     Foreground = Accent,
                     HorizontalAlignment = HorizontalAlignment.Center,

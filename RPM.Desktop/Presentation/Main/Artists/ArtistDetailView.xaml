@@ -11,9 +11,9 @@
              RequestedTheme="Dark">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <!-- The regular face, for the outline heart in the record's menu (an unfavourited heart). -->
-    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <conv:TitleCensorConverter x:Key="Censor"/>
     <conv:SleeveFigureConverter x:Key="SleeveFigure"/>

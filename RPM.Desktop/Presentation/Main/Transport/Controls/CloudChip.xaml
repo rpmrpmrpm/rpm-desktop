@@ -13,7 +13,7 @@
        progress. The flyout names every track and its stage. The chip is shown only while there is
        work to show. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <Button x:Name="ChipButton" VerticalAlignment="Stretch"

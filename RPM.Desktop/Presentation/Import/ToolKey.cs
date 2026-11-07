@@ -31,7 +31,7 @@ public sealed partial class ToolKey : UserControl
     private const double KeyChrome = 20;
 
     private static readonly FontFamily Fa =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     public static readonly DependencyProperty GlyphProperty = DependencyProperty.Register(
         nameof(Glyph), typeof(string), typeof(ToolKey),

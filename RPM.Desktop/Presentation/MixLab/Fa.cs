@@ -21,7 +21,7 @@ namespace RPM.Desktop.Presentation.MixLab;
 internal static class Fa
 {
     public static readonly FontFamily Face =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     // ── transport ──
     public const string Play = "\uF04B";

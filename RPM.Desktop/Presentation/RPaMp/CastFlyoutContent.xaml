@@ -19,7 +19,7 @@
       <!-- The speaker icon beside the destination that is playing. It has the same blue as the folder
            colour in the library grid. -->
       <conv:BoolToBrushConverter x:Key="CastTickBrush" TrueBrush="#B004C8FF" FalseBrush="Transparent"/>
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     </ResourceDictionary>
   </UserControl.Resources>
 

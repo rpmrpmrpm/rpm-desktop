@@ -13,7 +13,7 @@
 
        DataContext is the one RPaMpModel, inherited from the button that opens it. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <!-- The playing row is lit the way the cast picker lights the speaker that is playing: the app's cyan on
          the mark, white on the words. The others are a step dimmer. -->

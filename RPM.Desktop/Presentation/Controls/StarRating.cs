@@ -199,9 +199,9 @@ public sealed partial class StarRating : Control
     }
 
     private static FontFamily Solid { get; } =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     private static FontFamily Outline { get; } =
-        new("ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular");
+        new("ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro");
 
 }

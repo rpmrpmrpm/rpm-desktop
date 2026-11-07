@@ -19,7 +19,7 @@
     <!-- The switch keys are lettered in the icon font directly (Content, not a FontIcon), as the library's
          own switch letters its three. Each file names the icon face itself. Generic.xaml only has the
          FaIcon style, which sets a FontIcon and not a Button. -->
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
     <!-- One tile in the icon view. It is a button rather than a bordered panel, so the pointer wash and the
          press use the framework's own states. The grid recycles its containers. A hover painted by hand

@@ -155,7 +155,7 @@ public sealed partial class WizardDoneStep : UserControl
     /// <summary>The bundled Font Awesome face. It is named here, not taken from the FaIcon style,
     /// because these icons are built in code and a Style is applied in markup.</summary>
     private static readonly FontFamily FaSolid =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     private void Support_Click(object sender, RoutedEventArgs e)
     {

@@ -5,7 +5,7 @@
              Loaded="Row_Loaded">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <!-- A row of cards that scrolls sideways only by its two keys. This is the home screen's row as one

@@ -35,7 +35,7 @@
         <ResourceDictionary Source="ms-appx:///Themes/GridSelection.xaml"/>
       </ResourceDictionary.MergedDictionaries>
 
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
       <!-- Every other row, over the surface. GridRowBandBrush, which is what the painter lays down. -->
       <conv:BoolToBrushConverter x:Key="RowBandBrush"

@@ -11,8 +11,8 @@
        column, not the side-by-side hero of the full page. Used by the Now Playing pane (fed from playback)
        and by the full-screen AlbumPage. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
-    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <conv:TitleCensorConverter x:Key="Censor"/>
   </UserControl.Resources>

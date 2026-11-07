@@ -185,7 +185,7 @@ internal sealed partial class PegasusMenuCard : Grid
         _focusLost = focusLost;
         _fa = resources.TryGetValue("PegasusFa", out var fa) && fa is FontFamily family
             ? family
-            : new FontFamily("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+            : new FontFamily("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
         Visibility = Visibility.Collapsed;
         IsHitTestVisible = false;

@@ -8,7 +8,7 @@
              xmlns:loc="using:RPM.Desktop.Strings">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <!-- The cast pill lights cyan while audio is being sent to another speaker. Otherwise it uses the rest colour of the deck pills. -->
     <conv:BoolToBrushConverter x:Key="CastBrush" TrueBrush="#04C8FF" FalseBrush="#DDFFFFFF"/>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>

@@ -8,7 +8,7 @@
              mc:Ignorable="d">
 
   <UserControl.Resources>
-    <FontFamily x:Key="ArtFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="ArtFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <!-- Clipped: the backdrop fills the display and must not paint over the grid below it. -->

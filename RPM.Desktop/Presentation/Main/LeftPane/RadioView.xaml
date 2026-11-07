@@ -11,8 +11,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
-    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
 
     <!-- Plain text on the frosted slot. It looks the same as the text field in the library header and the

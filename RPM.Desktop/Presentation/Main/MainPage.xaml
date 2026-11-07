@@ -96,10 +96,10 @@
       <MenuFlyoutSubItem x:Name="CtxLibDelete" FontSize="12"/>
     </MenuFlyout>
 
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <!-- The outline face, for the one glyph on this page that has two states: the favourites heart in
          the library's header, empty until the filter is switched on. -->
-    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="FaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <!-- A song's name and a record's, masked the way the lyric sheet is, see TitleCensor. -->
     <conv:TitleCensorConverter x:Key="Censor"/>

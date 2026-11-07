@@ -8,7 +8,7 @@
              mc:Ignorable="d">
 
   <UserControl.Resources>
-    <FontFamily x:Key="PegasusPlayerFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="PegasusPlayerFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <!-- Pegasus: the full-screen player. It is one of the app's three views (see ViewModeService).

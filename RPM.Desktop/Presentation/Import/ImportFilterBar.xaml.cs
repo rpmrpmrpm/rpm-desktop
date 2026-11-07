@@ -27,7 +27,7 @@ public sealed partial class ImportFilterBar : UserControl
         ToggleButton Button, string LabelKey, Func<QueueChipCounts, int> Count, string Glyph, string MarkKey);
 
     private static readonly FontFamily Fa =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     private readonly List<Chip> _chips;
 

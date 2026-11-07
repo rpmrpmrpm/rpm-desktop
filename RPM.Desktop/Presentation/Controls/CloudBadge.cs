@@ -21,12 +21,12 @@ namespace RPM.Desktop.Presentation.Controls;
 public sealed partial class CloudBadge : Grid
 {
     private static readonly FontFamily Solid =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     /// <summary>The outline face. It is used for the one hollow cloud: a track chosen for the cloud that is
     /// not uploaded yet.</summary>
     private static readonly FontFamily Outline =
-        new("ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular");
+        new("ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro");
 
     /// <summary>The soft white that every settled mark uses. It is visible, but not strong enough to
     /// compete with the title beside it.</summary>

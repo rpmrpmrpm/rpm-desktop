@@ -93,7 +93,7 @@
 
   <!-- FontAwesome icon style for menu items and similar. -->
   <Style x:Key="FaIcon" TargetType="FontIcon">
-    <Setter Property="FontFamily" Value="ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid"/>
+    <Setter Property="FontFamily" Value="ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro"/>
   </Style>
 
   <!-- The icon on a menu row. Use this style for every menu icon. A MenuFlyoutItem's template puts
@@ -116,7 +116,7 @@
        Set this on a TextBlock, not a FontIcon. Several brand glyphs are taller than the em box
        (Apple's leaf, Google's tail), and a FontIcon clips them to its own bounds. A TextBlock lays
        them out on a normal line, so they keep their full height. -->
-  <FontFamily x:Key="FaBrandFont">ms-appx:///Assets/Fonts/fa-brands-400.ttf#Font Awesome 5 Brands Regular</FontFamily>
+  <FontFamily x:Key="FaBrandFont">ms-appx:///Assets/Fonts/fa-brands-400.ttf#Font Awesome 5 Brands</FontFamily>
 
   <!-- The artist mark: a head and shoulders with a microphone in front. Font Awesome has no such
        glyph, so it is built from two glyphs it does have: the body of user-music, whose right shoulder

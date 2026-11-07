@@ -9,7 +9,7 @@
              RequestedTheme="Dark">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <conv:TitleCensorConverter x:Key="Censor"/>
     <conv:SleeveFigureConverter x:Key="SleeveFigure"/>

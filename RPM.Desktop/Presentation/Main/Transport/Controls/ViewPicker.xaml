@@ -21,7 +21,7 @@
        so it takes the width. -->
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
     <!-- The card. Transparent at rest, so the flyout's own dark shows through. A faint white under the
          pointer, and a little more when pressed. No border: three bordered boxes would look like a table,

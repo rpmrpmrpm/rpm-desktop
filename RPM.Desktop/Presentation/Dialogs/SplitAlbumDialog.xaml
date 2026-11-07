@@ -47,7 +47,7 @@
           <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
       <!-- The waveform's tools: small square glass keys, all the same size. The strip then reads as one
            instrument, not as a row of words.

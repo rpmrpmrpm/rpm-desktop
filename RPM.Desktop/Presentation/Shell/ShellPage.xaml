@@ -12,7 +12,7 @@
       Background="#0e1520">
 
   <Page.Resources>
-    <FontFamily x:Key="ShellFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="ShellFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <!-- The hamburger uses the artwork's own chrome-button look: the round dark disc that the backdrop
          refresh and navigation buttons use. It sits on the artwork, at the record's edge. -->
     <Style x:Key="ArtChromeButton" TargetType="Button">

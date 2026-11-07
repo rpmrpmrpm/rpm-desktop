@@ -52,7 +52,7 @@
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
       <!-- Labels are left-aligned. The metadata editors right-align theirs, which works there because
            their columns are long. This window has two short groups. Right-aligned labels here would

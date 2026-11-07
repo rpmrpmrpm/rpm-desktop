@@ -15,7 +15,7 @@ namespace RPM.Desktop.Presentation.Controls;
 public sealed partial class StepBadge : Grid
 {
     private static readonly FontFamily Solid =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     private static readonly Brush Ring = new SolidColorBrush(Color.FromArgb(0x73, 0xFF, 0xFF, 0xFF));
     private static readonly Brush Number = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));

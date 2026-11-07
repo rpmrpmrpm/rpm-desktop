@@ -12,7 +12,7 @@
        version of the popup's rip step: the same status line, bar and list of tracks as they land. Each
        track can still be played. The chip is shown only while there is a rip. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <Button x:Name="ChipButton" VerticalAlignment="Stretch"

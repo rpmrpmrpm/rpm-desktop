@@ -12,13 +12,13 @@
              mc:Ignorable="d">
 
   <UserControl.Resources>
-    <FontFamily x:Key="PegasusFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="PegasusFa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
 
     <!-- The same pair of glyphs that the album views use for their heart: the mark is FILLED when the
          song is loved and hollow when it is not. It is written as two weights of one glyph, not as two
          colours, so this key says the same thing here as it does on a track line in the library. -->
-    <FontFamily x:Key="PegasusFaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro Regular</FontFamily>
+    <FontFamily x:Key="PegasusFaRegular">ms-appx:///Assets/Fonts/fa-regular-400.ttf#Font Awesome 5 Pro</FontFamily>
 
     <!-- The app's smoked glass in a light version: the card that the main window's panes are made of
          (DmCardBrush, a fifth of black, under the rim of DmCardBorderBrush, lit at the top and the

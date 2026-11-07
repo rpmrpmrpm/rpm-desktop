@@ -47,7 +47,7 @@
           <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+      <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
       <!-- Labels are left-aligned, as in the disc window. The metadata editors right-align theirs,
            because their long lists of fields read as one block. This window has six boxes above a list

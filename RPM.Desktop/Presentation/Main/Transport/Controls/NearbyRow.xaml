@@ -9,7 +9,7 @@
        two things that can be done about it. Everything here is set by NearbyRow.Apply from a fresh
        read of the board; the row keeps no state about the pairing except the digits being typed. -->
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
 
   <Border CornerRadius="8" Background="#0AFFFFFF" Padding="10,9">

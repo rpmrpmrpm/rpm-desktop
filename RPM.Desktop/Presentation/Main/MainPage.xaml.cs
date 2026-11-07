@@ -783,7 +783,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
     /// <summary>The Font Awesome solid face used for the table's own menu icons. The markup gets it from the
     /// `FaMenuIcon` style. The submenu built in code must name it.</summary>
     private static readonly FontFamily MenuFa =
-        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid");
+        new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
     /// <summary>
     /// Which of the three Delete entries the table offers for the rows in hand.

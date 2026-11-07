@@ -21,7 +21,7 @@
          resources this view binds through are declared here, as every other view in this app does.
          RpmPaneHeading and OnGlassBrush are not among them: those belong to the app, in
          Themes/Generic.xaml. -->
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
     <conv:TitleCensorConverter x:Key="Censor"/>
     <conv:SleeveFigureConverter x:Key="SleeveFigure"/>

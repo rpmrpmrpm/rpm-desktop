@@ -4,7 +4,7 @@
              xmlns:loc="using:RPM.Desktop.Strings">
 
   <UserControl.Resources>
-    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro Solid</FontFamily>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
     <!-- The two lists, styled like the key chips. The system ComboBox draws a border and a rim at rest,
          and lights them again on hover. Beside the flat chips that looks like a form field. These use the
