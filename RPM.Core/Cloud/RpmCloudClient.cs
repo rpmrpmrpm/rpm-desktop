@@ -172,7 +172,14 @@ public sealed record CloudTrack(
     /// since it was uploaded".
     /// </para>
     /// </summary>
-    [property: JsonPropertyName("updatedAt")] long UpdatedAt = 0)
+    [property: JsonPropertyName("updatedAt")] long UpdatedAt = 0,
+    /// <summary>
+    /// When a client last said it rewrote this track's sidecar, by the store's own clock (unix seconds), or
+    /// zero when none has. A sidecar holds the tags the row does not (the conductor, the lyrics, the
+    /// publisher). A machine that holds the file reads the sidecar again when this is newer than the stamp
+    /// it last accepted for the row. See <see cref="CloudSyncPlan.SidecarChangedThere"/>.
+    /// </summary>
+    [property: JsonPropertyName("sidecarAt")] long SidecarAt = 0)
 {
     /// <summary>Track length, or zero when the row has not been backfilled. The player still learns the
     /// real length after it has parsed the stream. This value lets a track list show the length before
@@ -1308,6 +1315,14 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     /// recorded. So every scroll would ask the network again.</para>
     /// </summary>
     public async Task<TagSidecar?> GetSidecarAsync(string rpmId, CancellationToken ct = default)
+        => (await GetSidecarStatementAsync(rpmId, ct))?.Sidecar;
+
+    /// <summary>
+    /// The sidecar with the names of the fields it states (see <see cref="SidecarStatement"/>). Null when
+    /// this account keeps no sidecar for the track, or when the one it keeps cannot be read. Throws when
+    /// the service or the storage cannot be reached, so a caller can try again later.
+    /// </summary>
+    public async Task<SidecarStatement?> GetSidecarStatementAsync(string rpmId, CancellationToken ct = default)
     {
         UrlResponse res;
         try
@@ -1319,8 +1334,17 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
             return null;
         }
 
-        var json = await http.GetStringAsync(res.Url, ct);
-        return TagSidecar.FromJson(json);
+        string json;
+        try
+        {
+            json = await http.GetStringAsync(res.Url, ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+        {
+            // The row exists and the object does not: storage answers a missing object with 403 or 404.
+            return null;
+        }
+        return SidecarStatement.Read(json);
     }
 
     /// <summary>Where a download is written while it is still arriving: beside its destination. Moving

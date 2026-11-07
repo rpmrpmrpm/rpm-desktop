@@ -1,4 +1,5 @@
 using RPM.Core.Library;
+using RPM.Core.Models;
 
 namespace RPM.Core.Cloud;
 
@@ -6,7 +7,9 @@ namespace RPM.Core.Cloud;
 /// A correction made somewhere else that this library does not have yet: the catalogue row as it now
 /// stands, and this machine's row as it still stands.
 /// </summary>
-public sealed record CloudPull(CloudTrack Cloud, LibraryTrack Row)
+/// <param name="Sidecar">Whether the sidecar was rewritten since this machine last accepted the row, so
+/// it must be read and its fields taken too. See <see cref="CloudSyncPlan.SidecarChangedThere"/>.</param>
+public sealed record CloudPull(CloudTrack Cloud, LibraryTrack Row, bool Sidecar)
 {
     public string RpmId => Cloud.RpmId;
 }
@@ -100,12 +103,18 @@ public static class CloudSyncPlan
             if (!known.TryGetValue(id, out var theirs)) continue;   // not in the cloud: not this job
 
             // Somebody else's correction, and nothing of this machine's standing against it. This is the
-            // only case that is pulled; everything else is this library's word.
-            if (!ChangedHere(row) && ChangedThere(row, theirs) && Differs(row, theirs))
+            // only case that is pulled; everything else is this library's word. A rewritten sidecar is a
+            // correction even when the row reads the same: the fields it changed are ones the row does not
+            // hold, or ones it emptied, which the row cannot show (a blank there is "not known").
+            if (!ChangedHere(row) && ChangedThere(row, theirs))
             {
-                if (pull.Count < limit)
-                    pull.Add(new CloudPull(theirs, row));
-                continue;
+                var sidecar = SidecarChangedThere(row, theirs);
+                if (sidecar || Differs(row, theirs))
+                {
+                    if (pull.Count < limit)
+                        pull.Add(new CloudPull(theirs, row, sidecar));
+                    continue;
+                }
             }
 
             AlbumMeta? album = null;
@@ -189,6 +198,21 @@ public static class CloudSyncPlan
         return cloud.UpdatedAt > 0 && cloud.UpdatedAt > row.CloudUpdatedAt;
     }
 
+    /// <summary>
+    /// Whether another machine, or the web app, rewrote the track's sidecar since this machine last
+    /// accepted the row. Both stamps are the server's clock.
+    ///
+    /// <para>The sidecar is read only then. It holds the cover inline, so reading every sidecar on every
+    /// run would cost a megabyte per track.</para>
+    /// </summary>
+    public static bool SidecarChangedThere(LibraryTrack row, CloudTrack cloud)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        ArgumentNullException.ThrowIfNull(cloud);
+
+        return cloud.SidecarAt > 0 && cloud.SidecarAt > row.CloudUpdatedAt;
+    }
+
     /// <summary>Whether taking the cloud's word would actually change anything here. A blank on the
     /// cloud side is "not known there" and is never a reason to clear a field that this library has.</summary>
     public static bool Differs(LibraryTrack row, CloudTrack cloud)
@@ -270,6 +294,35 @@ public static class CloudSyncPlan
                 ? marked.Favorite ? marked.FavoritedAt : 0
                 : row.FavoritedUtcTicks,
             CloudUpdatedAt = cloud.UpdatedAt,
+        };
+    }
+
+    /// <summary>
+    /// A tag set with the catalogue row's values written over it, where the row has them: the same fields
+    /// and the same rule as <see cref="Apply"/>. A pull that read the sidecar writes the sidecar's fields
+    /// first and this over them, because the row can have been written again after the sidecar.
+    /// </summary>
+    public static TrackInfo Over(TrackInfo info, CloudTrack cloud)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        ArgumentNullException.ThrowIfNull(cloud);
+
+        return info with
+        {
+            Title = Text(cloud.Title, info.Title),
+            Artist = Text(cloud.Artist, info.Artist),
+            Album = Text(cloud.Album, info.Album),
+            AlbumArtist = Text(cloud.Tags?.AlbumArtist, info.AlbumArtist),
+            Genre = Text(cloud.Tags?.Genre, info.Genre),
+            TrackNumber = Position(cloud.Tags?.TrackNumber, info.TrackNumber),
+            DiscNumber = Position(cloud.Tags?.DiscNumber, info.DiscNumber),
+            DiscCount = Position(cloud.Tags?.DiscCount, info.DiscCount),
+            Year = Position(cloud.Tags?.Year, info.Year),
+            Work = Text(cloud.Tags?.Work, info.Work),
+            MovementName = Text(cloud.Tags?.MovementName, info.MovementName),
+            MovementNumber = Position(cloud.Tags?.MovementNumber, info.MovementNumber),
+            Composers = Text(cloud.Tags?.Composer, info.Composers),
+            Advisory = cloud.Tags?.StatedAdvisory ?? info.Advisory,
         };
     }
 

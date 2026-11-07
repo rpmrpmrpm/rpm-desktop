@@ -1,6 +1,5 @@
 using RPM.Core.Cloud;
 using RPM.Core.Library;
-using RPM.Core.Metadata;
 
 namespace RPM.Desktop.Services.Cloud;
 
@@ -33,7 +32,7 @@ public sealed partial class CloudSyncService
     {
         if (pulls.Count == 0) return 0;
 
-        var applier = new CloudPullApplier(db, root, TagReader.Write);
+        var applier = new CloudPullApplier(db, root, PullFiles.OnDisk);
         var applied = 0;
 
         foreach (var pull in pulls.Take(PullsPerRun))
@@ -42,7 +41,13 @@ public sealed partial class CloudSyncService
 
             try
             {
-                var outcome = await Task.Run(() => applier.Apply(pull));
+                // A rewritten sidecar is read before anything is written. If it cannot be read, the whole
+                // correction waits for the next run: taking the row alone and stamping it would mark the
+                // sidecar as taken, and its fields would never arrive. A track the store keeps no sidecar
+                // for is a row-only correction.
+                var sidecar = pull.Sidecar ? await _cloud.GetSidecarStatementAsync(pull.RpmId, ct) : null;
+
+                var outcome = await Task.Run(() => applier.Apply(pull, sidecar));
 
                 if (outcome == PullOutcome.Applied)
                     applied++;

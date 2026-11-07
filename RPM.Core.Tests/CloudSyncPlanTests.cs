@@ -342,4 +342,69 @@ public class CloudSyncPlanTests
         Assert.Empty(plan.Pull);
         Assert.Empty(plan.Sidecars);
     }
+
+    // ── a sidecar rewritten somewhere else ──
+
+    private static CloudTrack WithSidecar(CloudTrack theirs, long sidecarAt) => theirs with { SidecarAt = sidecarAt };
+
+    [Fact]
+    public void A_sidecar_rewritten_elsewhere_is_pulled_even_when_the_row_reads_the_same()
+    {
+        // The web app changed the conductor: a field the row does not hold. The row reads the same, and
+        // only its sidecar stamp says that something changed.
+        var plan = CloudSyncPlan.Make([Mine()], [WithSidecar(Theirs(updatedAt: 600), 600)]);
+
+        var pull = Assert.Single(plan.Pull);
+        Assert.True(pull.Sidecar);
+        Assert.Empty(plan.Push);
+    }
+
+    [Fact]
+    public void A_row_correction_with_no_new_sidecar_does_not_read_the_sidecar()
+    {
+        var plan = CloudSyncPlan.Make([Mine()], [WithSidecar(Theirs(title: "Brimful of Asha (Remix)", updatedAt: 600), 400)]);
+
+        Assert.False(Assert.Single(plan.Pull).Sidecar);
+    }
+
+    [Fact]
+    public void A_sidecar_this_machine_has_already_taken_is_not_read_again()
+    {
+        var plan = CloudSyncPlan.Make([Mine(accepted: 600)], [WithSidecar(Theirs(updatedAt: 600), 600)]);
+
+        Assert.Empty(plan.Pull);
+    }
+
+    [Fact]
+    public void An_edit_made_here_wins_over_a_sidecar_rewritten_elsewhere()
+    {
+        // Both sides changed: the machine in front of the user wins, as it does for the row.
+        var plan = CloudSyncPlan.Make([Mine(modified: 900)], [WithSidecar(Theirs(updatedAt: 600), 600)]);
+
+        Assert.Empty(plan.Pull);
+    }
+
+    [Fact]
+    public void A_field_emptied_elsewhere_is_pulled_and_not_pushed_back()
+    {
+        // The genre was emptied in the web app: the row has none, which alone reads as "not known", and
+        // this machine would send its own genre back up. The rewritten sidecar makes it a pull.
+        var mine = Mine() with { Genre = "Britpop" };
+        var plan = CloudSyncPlan.Make([mine], [WithSidecar(Theirs(updatedAt: 600), 600)]);
+
+        Assert.Single(plan.Pull);
+        Assert.Empty(plan.Push);
+    }
+
+    [Fact]
+    public void The_rows_values_go_over_a_tag_set_only_where_the_row_has_them()
+    {
+        var info = new Models.TrackInfo { FilePath = "x.flac", Extension = ".flac", Title = "Old", Genre = "Rock", Year = 1990 };
+
+        var over = CloudSyncPlan.Over(info, Theirs(title: "New"));
+
+        Assert.Equal("New", over.Title);
+        Assert.Equal("Rock", over.Genre);     // the row has no genre: not known there
+        Assert.Equal(1997u, over.Year);
+    }
 }

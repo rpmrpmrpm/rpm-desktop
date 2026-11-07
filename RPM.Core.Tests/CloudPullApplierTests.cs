@@ -39,7 +39,30 @@ public class CloudPullApplierTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private CloudPullApplier Applier() => new(_db, _root, WriteTags);
+    private CloudPullApplier Applier() => new(_db, _root, new PullFiles(WriteTags, ReadTags, LoadArt, WriteAllTags));
+
+    /// <summary>What each file's tags say, as a read of it gives them. A test writes the tags a file starts
+    /// with here, and a write with every field as stated replaces them.</summary>
+    private readonly Dictionary<string, TrackInfo> _tags = new(StringComparer.Ordinal);
+
+    /// <summary>Each file's embedded front cover.</summary>
+    private readonly Dictionary<string, byte[]> _art = new(StringComparer.Ordinal);
+
+    /// <summary>What was written into a file with every field as stated, in order.</summary>
+    private readonly List<(string Path, TrackInfo Info)> _writtenWhole = [];
+
+    private TrackInfo ReadTags(string path)
+        => _tags.TryGetValue(path, out var info) ? info : new TrackInfo { FilePath = path, Extension = Path.GetExtension(path) };
+
+    private byte[]? LoadArt(string path) => _art.GetValueOrDefault(path);
+
+    private void WriteAllTags(string path, TrackInfo info)
+    {
+        if (_tagWriteFails) throw new IOException("the file is open in something else");
+        _writtenWhole.Add((path, info));
+        _tags[path] = info with { PendingArt = null, PendingArtMime = null };
+        File.AppendAllText(path, "tags");
+    }
 
     private void WriteTags(string path, TrackInfo info)
     {
@@ -122,7 +145,7 @@ public class CloudPullApplierTests : IDisposable
     {
         var row = Row("Band/Record/01 - Song.flac", "id-1");
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row, false), null);
 
         Assert.Equal(PullOutcome.Applied, outcome);
         Assert.Equal("New Title", Assert.Single(_written).Info.Title);
@@ -137,7 +160,7 @@ public class CloudPullApplierTests : IDisposable
         var row = Row("Band/Record/01 - Song.flac", "id-1");
         _tagWriteFails = true;
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row, false), null);
 
         Assert.Equal(PullOutcome.TagsRefused, outcome);
         Assert.Equal("Old Title", Reread(row.RelativePath).Title);
@@ -150,7 +173,7 @@ public class CloudPullApplierTests : IDisposable
     {
         var row = CloudOnlyRow("Band/Record/02 - Elsewhere.flac", "id-2");
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-2", "Band/Record/02 - Renamed.flac"), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-2", "Band/Record/02 - Renamed.flac"), row, false), null);
 
         Assert.Equal(PullOutcome.Applied, outcome);
         Assert.Empty(_written);
@@ -171,7 +194,7 @@ public class CloudPullApplierTests : IDisposable
     {
         var row = Row("Band/Record/01 - Song.flac", "id-1");
 
-        Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row));
+        Applier().Apply(new CloudPull(Cloud("id-1", row.RelativePath), row, false), null);
 
         var full = Path.Combine(_root, row.RelativePath.Replace('/', Path.DirectorySeparatorChar));
         var back = Reread(row.RelativePath);
@@ -190,7 +213,7 @@ public class CloudPullApplierTests : IDisposable
         var row = Row("Band/Record/01 - Song.flac", "id-1");
         var cloud = Cloud("id-1", row.RelativePath, updatedAt: 9_876);
 
-        Applier().Apply(new CloudPull(cloud, row));
+        Applier().Apply(new CloudPull(cloud, row, false), null);
 
         var back = Reread(row.RelativePath);
         Assert.Equal(9_876, back.CloudUpdatedAt);
@@ -220,7 +243,7 @@ public class CloudPullApplierTests : IDisposable
             Title = "Old Title",
         };
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", "Band/New Record/01 - Song.flac"), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", "Band/New Record/01 - Song.flac"), row, false), null);
 
         Assert.Equal(PullOutcome.RowRefused, outcome);
         Assert.True(File.Exists(full));
@@ -241,7 +264,7 @@ public class CloudPullApplierTests : IDisposable
         var row = Row("Band/Old Record/01 - Song.flac", "id-1");
         const string theirs = "Band/New Record/01 - Song.flac";
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", theirs), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", theirs), row, false), null);
 
         Assert.Equal(PullOutcome.Applied, outcome);
 
@@ -263,9 +286,200 @@ public class CloudPullApplierTests : IDisposable
     {
         var row = Row("Band/Record/01 - Song.flac", "id-1");
 
-        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", relativePath: null), row));
+        var outcome = Applier().Apply(new CloudPull(Cloud("id-1", relativePath: null), row, false), null);
 
         Assert.Equal(PullOutcome.Applied, outcome);
         Assert.Equal(row.RelativePath, Reread(row.RelativePath).RelativePath);
+    }
+
+    // ── a pull that read the track's sidecar ──
+
+    private string FullPathOf(LibraryTrack row) => Path.Combine(_root, row.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    private static SidecarStatement Said(string json) => SidecarStatement.Read(json)!;
+
+    private TrackInfo FileSays(LibraryTrack row, Func<TrackInfo, TrackInfo> tags)
+    {
+        var path = FullPathOf(row);
+        var info = tags(new TrackInfo { FilePath = path, Extension = ".flac", Title = "Old Title", Artist = "Band", Album = "Record" });
+        _tags[path] = info;
+        return info;
+    }
+
+    /// <summary>The web app's editors write the fields the row does not hold into the sidecar alone. A
+    /// computer holding the file takes them from there.</summary>
+    [Fact]
+    public void A_field_the_row_does_not_hold_reaches_the_file_from_the_sidecar()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info with { Conductor = "Böhm", Publisher = "DG" });
+
+        var outcome = Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath, title: "Old Title"), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Title":"Old Title","Conductor":"Karajan","Lyrics":"La la"}"""));
+
+        Assert.Equal(PullOutcome.Applied, outcome);
+        var (_, written) = Assert.Single(_writtenWhole);
+        Assert.Equal("Karajan", written.Conductor);
+        Assert.Equal("La la", written.Lyrics);
+        Assert.Equal("DG", written.Publisher);     // not stated in the sidecar: the file keeps it
+        Assert.Empty(_written);
+    }
+
+    /// <summary>A field emptied in the web app is stated as empty in the sidecar, and is emptied in the
+    /// file and on the row. A blank on the catalogue row alone could not say this: there it is "not
+    /// known".</summary>
+    [Fact]
+    public void A_field_the_sidecar_states_as_empty_is_cleared_in_the_file_and_the_row()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        _db.Upsert(Reread(row.RelativePath) with { Genre = "Rock", Year = 1997 });
+        row = Reread(row.RelativePath);
+        FileSays(row, info => info with { Genre = "Rock", Year = 1997, Conductor = "Karajan" });
+
+        var outcome = Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath, title: "Old Title"), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Genre":null,"Year":0,"Conductor":null}"""));
+
+        Assert.Equal(PullOutcome.Applied, outcome);
+        var (_, written) = Assert.Single(_writtenWhole);
+        Assert.Null(written.Genre);
+        Assert.Equal(0u, written.Year);
+        Assert.Null(written.Conductor);
+
+        var back = Reread(row.RelativePath);
+        Assert.Null(back.Genre);
+        Assert.Equal(0u, back.Year);
+    }
+
+    /// <summary>A sidecar written by an older app leaves out fields it did not know. That is "not known
+    /// there", and the file keeps them.</summary>
+    [Fact]
+    public void A_field_the_sidecar_leaves_out_is_kept()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info with { ReleaseCountry = "GB", Conductor = "Karajan" });
+
+        Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Title":"New Title"}"""));
+
+        var (_, written) = Assert.Single(_writtenWhole);
+        Assert.Equal("GB", written.ReleaseCountry);
+        Assert.Equal("Karajan", written.Conductor);
+        Assert.Equal("New Title", written.Title);
+    }
+
+    /// <summary>The catalogue row can be written again after the sidecar, so its values go over the
+    /// sidecar's.</summary>
+    [Fact]
+    public void The_catalogue_rows_values_go_over_the_sidecars()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info);
+
+        Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath, title: "Row Title"), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Title":"Sidecar Title","Conductor":"Karajan"}"""));
+
+        var (_, written) = Assert.Single(_writtenWhole);
+        Assert.Equal("Row Title", written.Title);
+        Assert.Equal("Karajan", written.Conductor);
+        Assert.Equal("Row Title", Reread(row.RelativePath).Title);
+    }
+
+    /// <summary>A sidecar that says what the file already says changes nothing on the disk, and the row is
+    /// still stamped, so the same pull is not offered again.</summary>
+    [Fact]
+    public void A_sidecar_that_agrees_with_the_file_writes_nothing_and_is_stamped()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info with { Title = "New Title", Conductor = "Karajan", AlbumArtist = "Band", TrackNumber = 1 });
+
+        var outcome = Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath, updatedAt: 7_000), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Title":"New Title","Conductor":"Karajan"}"""));
+
+        Assert.Equal(PullOutcome.Applied, outcome);
+        Assert.Empty(_writtenWhole);
+        Assert.Equal(7_000, Reread(row.RelativePath).CloudUpdatedAt);
+    }
+
+    [Fact]
+    public void The_sidecars_picture_replaces_the_files_and_a_stated_none_removes_it()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info with { Title = "New Title", HasArt = true });
+        _art[FullPathOf(row)] = [1, 2, 3];
+
+        Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Art":"CQ==","ArtMime":"image/png"}"""));
+        var (_, replaced) = Assert.Single(_writtenWhole);
+        Assert.Equal(new byte[] { 9 }, replaced.PendingArt);
+        Assert.Equal("image/png", replaced.PendingArtMime);
+
+        _writtenWhole.Clear();
+        row = Reread(row.RelativePath);
+        Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Art":null}"""));
+        var (_, removed) = Assert.Single(_writtenWhole);
+        Assert.Equal([], removed.PendingArt!);
+    }
+
+    [Fact]
+    public void A_file_that_cannot_be_written_from_the_sidecar_keeps_its_row_and_stamps()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info);
+        _tagWriteFails = true;
+
+        var outcome = Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath, updatedAt: 7_000), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Conductor":"Karajan"}"""));
+
+        Assert.Equal(PullOutcome.TagsRefused, outcome);
+        var back = Reread(row.RelativePath);
+        Assert.Equal("Old Title", back.Title);
+        Assert.NotEqual(7_000, back.CloudUpdatedAt);
+    }
+
+    [Fact]
+    public void A_cloud_only_track_takes_the_sidecars_fields_into_its_row()
+    {
+        var row = CloudOnlyRow("Band/Record/02 - Elsewhere.flac", "id-2");
+        _db.Upsert(Reread(row.RelativePath) with { Genre = "Rock", Composer = "Somebody" });
+        row = Reread(row.RelativePath);
+
+        var outcome = Applier().Apply(
+            new CloudPull(Cloud("id-2", row.RelativePath), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","Genre":null,"Composers":"Verdi"}"""));
+
+        Assert.Equal(PullOutcome.Applied, outcome);
+        Assert.Empty(_writtenWhole);
+        var back = Reread(row.RelativePath);
+        Assert.Null(back.Genre);
+        Assert.Equal("Verdi", back.Composer);
+        Assert.Equal("New Title", back.Title);
+    }
+
+    /// <summary>The catalogue push sends the album's pressing when the store has none. A catalogue number
+    /// emptied in the web app is taken onto the album's row, so it is not sent back up.</summary>
+    [Fact]
+    public void A_pressing_the_sidecar_states_is_taken_onto_the_album()
+    {
+        var row = Row("Band/Record/01 - Song.flac", "id-1");
+        FileSays(row, info => info with { CatalogNumber = "CAT 1" });
+        _db.SetAlbumRelease("Band/Record", "CAT 1", "1997", "5012345678900");
+
+        Applier().Apply(
+            new CloudPull(Cloud("id-1", row.RelativePath), row, true),
+            Said("""{"RelativePath":"x","Extension":".flac","CatalogNumber":null}"""));
+
+        var album = _db.GetAlbumMeta("Band/Record");
+        Assert.Null(album.Catno);
+        Assert.Equal("5012345678900", album.Barcode);
+        Assert.Equal("1997", album.Released);
     }
 }
