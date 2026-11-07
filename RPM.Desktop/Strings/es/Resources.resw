@@ -4136,6 +4136,10 @@
   <data name="Profile_NameTaken" xml:space="preserve">
     <value>Ese nombre ya está en uso.</value>
   </data>
+  <data name="Profile_NameInvalid" xml:space="preserve">
+    <value>Un nombre visible tiene entre 2 y 40 caracteres.</value>
+    <comment>Settings, profile: the display name typed is too short or too long.</comment>
+  </data>
   <data name="Profile_NameSaved" xml:space="preserve">
     <value>Guardado.</value>
   </data>

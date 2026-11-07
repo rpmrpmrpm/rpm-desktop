@@ -4136,6 +4136,10 @@
   <data name="Profile_NameTaken" xml:space="preserve">
     <value>Ce nom est déjà pris.</value>
   </data>
+  <data name="Profile_NameInvalid" xml:space="preserve">
+    <value>Un nom d'affichage compte de 2 à 40 caractères.</value>
+    <comment>Settings, profile: the display name typed is too short or too long.</comment>
+  </data>
   <data name="Profile_NameSaved" xml:space="preserve">
     <value>Enregistré.</value>
   </data>

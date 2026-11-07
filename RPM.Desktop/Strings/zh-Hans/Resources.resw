@@ -4136,6 +4136,10 @@
   <data name="Profile_NameTaken" xml:space="preserve">
     <value>该名称已被占用。</value>
   </data>
+  <data name="Profile_NameInvalid" xml:space="preserve">
+    <value>显示名称需为 2 到 40 个字符。</value>
+    <comment>Settings, profile: the display name typed is too short or too long.</comment>
+  </data>
   <data name="Profile_NameSaved" xml:space="preserve">
     <value>已保存。</value>
   </data>
