@@ -95,7 +95,7 @@ public static class TagReader
                 DiscCount = tag.DiscCount,
                 DiscSubtitle = ExtendedTags.DiscSubtitle.Read(file),
                 Year = tag.Year,
-                Genre = Clean(tag.Genres is { Length: > 0 } ? tag.Genres[0] : null),
+                Genre = Clean(Genres.FromTag(tag.Genres)),
                 Subgenre = Clean(ExtendedTags.ReadSubgenre(file)),
                 Composers = Clean(Join(tag.Composers)),
                 Conductor = Clean(tag.Conductor),

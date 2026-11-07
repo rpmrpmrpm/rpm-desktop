@@ -363,6 +363,25 @@ public static class Genres
         return Pick(genres, styles) is { } written ? new GenreChoice(written, null) : GenreChoice.None;
     }
 
+    /// <summary>
+    /// The one genre a file's genre field holds, given the values its tag library read out of it.
+    ///
+    /// <para><b>A slash in a shelf's label is not a separator.</b> ID3v2.3 uses a slash between the values of a
+    /// genre frame, so an MP3 tagged "Hip-Hop / Rap" reads back as "Hip-Hop" and "Rap". Taking the first value
+    /// would file it correctly but show an old name, and the next save would write that name into the file. So
+    /// the first two values are put back together where that gives one of the shelves. "Rock/Pop" gives no
+    /// shelf and stays two genres, of which the first is the answer.</para>
+    /// </summary>
+    public static string? FromTag(IReadOnlyList<string>? values)
+    {
+        if (values is not { Count: > 0 })
+            return null;
+
+        return values.Count > 1 && Listed($"{values[0].Trim()} / {values[1].Trim()}") is { } shelf
+            ? shelf
+            : values[0];
+    }
+
     /// <summary>Whether this is one of the shelves exactly as the list spells it, ignoring case. "Hip hop" is
     /// not: it LEADS to a shelf (see <see cref="Read"/>), but it is not one, and a page that groups records by
     /// their genre tag would give it a shelf of its own.</summary>
