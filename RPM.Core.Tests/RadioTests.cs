@@ -122,6 +122,18 @@ public class RadioDirectoryTests
     /// <summary>A tag asked for the way the directory's tags HOLD it. This is the only way one term
     /// reaches the three spellings the directory carries for the same thing.</summary>
     [Fact]
+    public async Task A_page_on_https_asks_only_for_stations_it_can_play()
+    {
+        var directory = new FakeDirectory((HttpStatusCode.OK, "[]"), (HttpStatusCode.OK, "[]"));
+
+        await Client(directory).SearchAsync(new RadioQuery { HttpsOnly = true });
+        await Client(directory).SearchAsync(new RadioQuery());
+
+        Assert.Contains("is_https=true", directory.Requests[0]);
+        Assert.DoesNotContain("is_https", directory.Requests[1]);
+    }
+
+    [Fact]
     public async Task A_Tag_Can_Be_Asked_For_As_Something_A_Stations_Tags_Hold()
     {
         var directory = new FakeDirectory((HttpStatusCode.OK, "[]"));

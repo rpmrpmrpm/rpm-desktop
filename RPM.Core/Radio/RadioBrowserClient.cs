@@ -42,6 +42,9 @@ public sealed record RadioQuery
     /// <summary>Language name as the directory spells it ("english", "dutch").</summary>
     public string? Language { get; init; }
 
+    /// <summary>Only stations whose stream is on https. A web page on https cannot play any other.</summary>
+    public bool HttpsOnly { get; init; }
+
     public int Limit { get; init; } = 120;
 
     public int Offset { get; init; }
@@ -107,6 +110,7 @@ public sealed partial class RadioBrowserClient
         }
         Append(path, "countrycode", query.CountryCode);
         Append(path, "language", query.Language);
+        if (query.HttpsOnly) Append(path, "is_https", "true");
         Append(path, "limit", Math.Clamp(query.Limit, 1, 1000).ToString());
         if (query.Offset > 0) Append(path, "offset", query.Offset.ToString());
 
