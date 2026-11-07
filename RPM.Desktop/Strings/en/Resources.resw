@@ -6561,6 +6561,10 @@
     <value>Advanced recognition is for supporters. The rest of the run used basic recognition only.</value>
     <comment>Recognize dialog, and the split window's status line after Recognize selected: the server refused the advanced layer mid-run, so the run carried on without it.</comment>
   </data>
+  <data name="Recognize_AdvancedDown" xml:space="preserve">
+    <value>Advanced recognition is not available right now. The rest of the run used basic recognition only.</value>
+    <comment>Recognize window: the advanced layer failed mid-run, so the run carried on without it.</comment>
+  </data>
   <data name="Recognize_ColStatus" xml:space="preserve">
     <value>Status</value>
     <comment>Recognize dialog, column header over each target track’s state.</comment>
@@ -9808,5 +9812,66 @@
   </data>
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Clear finished</value>
+  </data>
+  <data name="Web_DesktopPitch" xml:space="preserve">
+    <value>The desktop app adds your local library, recording and ripping.</value>
+  </data>
+  <data name="Web_DesktopDownload" xml:space="preserve">
+    <value>Download rpm for {0}</value>
+  </data>
+  <data name="Web_DesktopMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="Web_DesktopWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Web_DesktopOpen" xml:space="preserve">
+    <value>Open rpm</value>
+  </data>
+  <data name="Web_DesktopHere" xml:space="preserve">
+    <value>rpm is installed on this computer.</value>
+  </data>
+  <data name="Web_DesktopDidNotOpen" xml:space="preserve">
+    <value>rpm did not open. It may not be installed yet.</value>
+  </data>
+  <data name="Web_DesktopFailed" xml:space="preserve">
+    <value>The download could not start. Please try again.</value>
+  </data>
+  <data name="Web_DesktopAppleSilicon" xml:space="preserve">
+    <value>Mac with Apple silicon</value>
+  </data>
+  <data name="Web_DesktopIntel" xml:space="preserve">
+    <value>Mac with an Intel processor</value>
+  </data>
+  <data name="Web_DesktopIntelOld" xml:space="preserve">
+    <value>Intel Mac with macOS 12 to 14</value>
+  </data>
+  <data name="Web_DeleteAsk" xml:space="preserve">
+    <value>Delete {0} from your cloud library? This cannot be undone.</value>
+  </data>
+  <data name="Web_ImportAlbumFileTip" xml:space="preserve">
+    <value>This looks like a whole album in one file. The desktop app can split it into tracks.</value>
+    <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
+  </data>
+  <data name="Web_ImportRipNote" xml:space="preserve">
+    <value>To rip your CDs and record your vinyl, download the desktop app.</value>
+  </data>
+  <data name="Web_ImportSavedNote" xml:space="preserve">
+    <value>{0} track(s) from your last visit are waiting. Add the same folder or files and your changes come back.</value>
+    <comment>Import pane of the web app: tracks were being prepared when the page was last closed. The browser cannot reopen files by itself.</comment>
+  </data>
+  <data name="Web_ImportSavedReopen" xml:space="preserve">
+    <value>Open the folder again</value>
+    <comment>Import pane of the web app: button that reopens the folder picked on the last visit, in browsers that can.</comment>
+  </data>
+  <data name="Web_ImportSavedForget" xml:space="preserve">
+    <value>Forget them</value>
+    <comment>Import pane of the web app: button that drops the tracks kept from the last visit.</comment>
+  </data>
+  <data name="Web_PlaylistsDesktopNote" xml:space="preserve">
+    <value>Auto playlists, mood lists and smart playlists are made in the desktop app.</value>
+  </data>
+  <data name="Web_DeleteAccountFailed" xml:space="preserve">
+    <value>The account could not be deleted. Please try again.</value>
   </data>
 </root>

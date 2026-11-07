@@ -6561,6 +6561,10 @@
     <value>高级识别仅限支持者使用。本次其余曲目仅使用基础识别。</value>
     <comment>Recognize dialog, and the split window's status line after Recognize selected: the server refused the advanced layer mid-run, so the run carried on without it.</comment>
   </data>
+  <data name="Recognize_AdvancedDown" xml:space="preserve">
+    <value>高级识别暂时不可用。本次其余曲目仅使用基础识别。</value>
+    <comment>Recognize window: the advanced layer failed mid-run, so the run carried on without it.</comment>
+  </data>
   <data name="Recognize_ColStatus" xml:space="preserve">
     <value>状态</value>
     <comment>Recognize dialog, column header over each target track’s state.</comment>
@@ -9808,5 +9812,66 @@
   </data>
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>清除已完成</value>
+  </data>
+  <data name="Web_DesktopPitch" xml:space="preserve">
+    <value>桌面版还提供本地音乐库、录音和 CD 抓轨。</value>
+  </data>
+  <data name="Web_DesktopDownload" xml:space="preserve">
+    <value>下载 {0} 版 rpm</value>
+  </data>
+  <data name="Web_DesktopMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="Web_DesktopWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Web_DesktopOpen" xml:space="preserve">
+    <value>打开 rpm</value>
+  </data>
+  <data name="Web_DesktopHere" xml:space="preserve">
+    <value>这台电脑已安装 rpm。</value>
+  </data>
+  <data name="Web_DesktopDidNotOpen" xml:space="preserve">
+    <value>rpm 未能打开，可能尚未安装。</value>
+  </data>
+  <data name="Web_DesktopFailed" xml:space="preserve">
+    <value>无法开始下载，请重试。</value>
+  </data>
+  <data name="Web_DesktopAppleSilicon" xml:space="preserve">
+    <value>搭载 Apple 芯片的 Mac</value>
+  </data>
+  <data name="Web_DesktopIntel" xml:space="preserve">
+    <value>搭载 Intel 处理器的 Mac</value>
+  </data>
+  <data name="Web_DesktopIntelOld" xml:space="preserve">
+    <value>macOS 12 至 14 的 Intel Mac</value>
+  </data>
+  <data name="Web_DeleteAsk" xml:space="preserve">
+    <value>要从云端音乐库删除“{0}”吗？此操作无法撤销。</value>
+  </data>
+  <data name="Web_ImportAlbumFileTip" xml:space="preserve">
+    <value>这看起来是整张专辑的单个文件。桌面版可以将其拆分为曲目。</value>
+    <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
+  </data>
+  <data name="Web_ImportRipNote" xml:space="preserve">
+    <value>如需抓取 CD 和录制黑胶唱片，请下载桌面版。</value>
+  </data>
+  <data name="Web_ImportSavedNote" xml:space="preserve">
+    <value>上次访问留下的 {0} 首曲目正在等待。添加相同的文件夹或文件，你的更改就会恢复。</value>
+    <comment>Import pane of the web app: tracks were being prepared when the page was last closed. The browser cannot reopen files by itself.</comment>
+  </data>
+  <data name="Web_ImportSavedReopen" xml:space="preserve">
+    <value>重新打开文件夹</value>
+    <comment>Import pane of the web app: button that reopens the folder picked on the last visit, in browsers that can.</comment>
+  </data>
+  <data name="Web_ImportSavedForget" xml:space="preserve">
+    <value>不再保留</value>
+    <comment>Import pane of the web app: button that drops the tracks kept from the last visit.</comment>
+  </data>
+  <data name="Web_PlaylistsDesktopNote" xml:space="preserve">
+    <value>自动播放列表、心情列表和智能播放列表由桌面版生成。</value>
+  </data>
+  <data name="Web_DeleteAccountFailed" xml:space="preserve">
+    <value>无法删除账户，请重试。</value>
   </data>
 </root>

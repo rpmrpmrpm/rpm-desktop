@@ -59,6 +59,49 @@ public sealed class TrackIdentifier(IIdentificationBackend backend)
         return Outcome(Merge(info, query, result), result, AudDOutcome.NotAsked);
     }
 
+    /// <summary>What a run lost on the way up the ladder.</summary>
+    public enum LostLayer
+    {
+        None,
+
+        /// <summary>The server refused the advanced layer: the account does not support rpm.</summary>
+        Refused,
+
+        /// <summary>The advanced layer could not be reached or could not work. The basic layers are
+        /// separate services, so this says nothing about them.</summary>
+        Down,
+    }
+
+    /// <summary>
+    /// One track up the ladder: the basic layers always, then the advanced layer for what they could not
+    /// name. A track that the rpm database or AcoustID can name must never go out to AudD.
+    ///
+    /// <para>Losing the advanced layer is not a failure of the track. The answer the basic layers gave
+    /// stands, and <see cref="LostLayer"/> tells the run to carry on without it. An AudD outage or a dead
+    /// AudD key used to end the whole run at the first track the basic layers could not name, which left
+    /// the rest of the list unasked of layers that were working.</para>
+    /// </summary>
+    public async Task<(IdentifyOutcome Outcome, LostLayer Lost)> ClimbAsync(
+        TrackInfo info, bool advanced, CancellationToken ct = default)
+    {
+        var basic = await IdentifyDetailedAsync(info, ct);
+        if (!advanced || basic.Matched)
+            return (basic, LostLayer.None);
+
+        try
+        {
+            return (await IdentifyPremiumDetailedAsync(info, ct), LostLayer.None);
+        }
+        catch (LambdaIdentificationBackend.SupportersOnlyException)
+        {
+            return (basic, LostLayer.Refused);
+        }
+        catch (LambdaIdentificationBackend.IdentificationUnavailableException)
+        {
+            return (basic, LostLayer.Down);
+        }
+    }
+
     /// <summary>
     /// The advanced layer, reporting what it found. Supporters only, and the server is what says so.
     /// A lookup by anyone else throws rather than coming back empty, so "not for you" is never

@@ -113,4 +113,103 @@ public class AudDOutcomeTests
         Assert.Equal((false, AudDOutcome.NotIdentified), (notIdentified.Matched, notIdentified.AudD));
         Assert.Equal((true, AudDOutcome.NotAsked), (ownDb.Matched, ownDb.AudD));
     }
+
+    // ── one track up the ladder ──
+
+    private const string Unknown = "{\"status\":\"unknown\",\"source\":null,\"track\":null}";
+
+    /// <summary>The fingerprint lookup and the clip lookup, answered apart, with a count of the clips.</summary>
+    private sealed class Ladder(HttpResponseMessage identify, Func<HttpResponseMessage> clip) : HttpMessageHandler
+    {
+        public int Clips { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            if (!request.RequestUri!.AbsolutePath.EndsWith("identify-clip", StringComparison.Ordinal))
+                return Task.FromResult(identify);
+            Clips++;
+            return Task.FromResult(clip());
+        }
+    }
+
+    private static HttpResponseMessage Said(HttpStatusCode status, string json) =>
+        new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
+    private static TrackIdentifier Climbing(Ladder ladder) =>
+        Identifier(new LambdaIdentificationBackend(
+            new HttpClient(ladder) { BaseAddress = new Uri("https://identify.test/") },
+            _ => Task.FromResult<string?>("token")));
+
+    private static HttpResponseMessage Named =>
+        Said(HttpStatusCode.OK, $"{{\"status\":\"matched\",\"source\":\"acoustid\",\"track\":{Track}}}");
+
+    [Fact]
+    public async Task A_track_the_basic_layers_name_never_reaches_the_advanced_layer()
+    {
+        var ladder = new Ladder(Named, () => throw new InvalidOperationException("the clip was sent"));
+
+        var (outcome, lost) = await Climbing(ladder).ClimbAsync(File, advanced: true);
+
+        Assert.True(outcome.Matched);
+        Assert.Equal(TrackIdentifier.LostLayer.None, lost);
+        Assert.Equal(0, ladder.Clips);
+    }
+
+    [Fact]
+    public async Task An_account_without_the_advanced_layer_sends_no_clip()
+    {
+        var ladder = new Ladder(Said(HttpStatusCode.OK, Unknown), () => throw new InvalidOperationException("the clip was sent"));
+
+        var (outcome, lost) = await Climbing(ladder).ClimbAsync(File, advanced: false);
+
+        Assert.False(outcome.Matched);
+        Assert.Equal(TrackIdentifier.LostLayer.None, lost);
+        Assert.Equal(0, ladder.Clips);
+    }
+
+    [Fact]
+    public async Task What_the_basic_layers_miss_goes_to_the_advanced_layer()
+    {
+        var ladder = new Ladder(Said(HttpStatusCode.OK, Unknown),
+            () => Said(HttpStatusCode.OK, $"{{\"status\":\"matched\",\"source\":\"audd\",\"track\":{Track}}}"));
+
+        var (outcome, lost) = await Climbing(ladder).ClimbAsync(File, advanced: true);
+
+        Assert.True(outcome.Matched);
+        Assert.Equal(AudDOutcome.Identified, outcome.AudD);
+        Assert.Equal(TrackIdentifier.LostLayer.None, lost);
+    }
+
+    [Fact]
+    public async Task Being_refused_the_advanced_layer_is_not_a_failure_of_the_track()
+    {
+        var ladder = new Ladder(Said(HttpStatusCode.OK, Unknown), () => Said(HttpStatusCode.Forbidden, "{}"));
+
+        var (outcome, lost) = await Climbing(ladder).ClimbAsync(File, advanced: true);
+
+        Assert.False(outcome.Matched);
+        Assert.Equal(TrackIdentifier.LostLayer.Refused, lost);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task The_advanced_layer_being_down_leaves_the_run_on_the_basic_layers(HttpStatusCode status)
+    {
+        var ladder = new Ladder(Said(HttpStatusCode.OK, Unknown), () => Said(status, "{\"error\":\"premium recognition unavailable\"}"));
+
+        var (outcome, lost) = await Climbing(ladder).ClimbAsync(File, advanced: true);
+
+        Assert.False(outcome.Matched);
+        Assert.Equal(TrackIdentifier.LostLayer.Down, lost);
+    }
+
+    [Fact]
+    public async Task The_basic_layers_being_down_still_stops_the_run()
+    {
+        var ladder = new Ladder(Said(HttpStatusCode.ServiceUnavailable, "{}"), () => throw new InvalidOperationException("the clip was sent"));
+
+        await Assert.ThrowsAsync<LambdaIdentificationBackend.IdentificationUnavailableException>(() =>
+            Climbing(ladder).ClimbAsync(File, advanced: true));
+    }
 }

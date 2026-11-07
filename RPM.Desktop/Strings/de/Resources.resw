@@ -6561,6 +6561,10 @@
     <value>Die erweiterte Erkennung ist Unterstützern vorbehalten. Der Rest des Durchlaufs nutzte nur die einfache Erkennung.</value>
     <comment>Recognize dialog, and the split window's status line after Recognize selected: the server refused the advanced layer mid-run, so the run carried on without it.</comment>
   </data>
+  <data name="Recognize_AdvancedDown" xml:space="preserve">
+    <value>Die erweiterte Erkennung ist gerade nicht verfügbar. Der Rest des Durchlaufs nutzte nur die einfache Erkennung.</value>
+    <comment>Recognize window: the advanced layer failed mid-run, so the run carried on without it.</comment>
+  </data>
   <data name="Recognize_ColStatus" xml:space="preserve">
     <value>Status</value>
     <comment>Recognize dialog, column header over each target track’s state.</comment>
@@ -9808,5 +9812,66 @@
   </data>
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Erledigte entfernen</value>
+  </data>
+  <data name="Web_DesktopPitch" xml:space="preserve">
+    <value>Die Desktop-App bietet zusätzlich deine lokale Bibliothek, Aufnahme und CD-Rippen.</value>
+  </data>
+  <data name="Web_DesktopDownload" xml:space="preserve">
+    <value>rpm für {0} laden</value>
+  </data>
+  <data name="Web_DesktopMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="Web_DesktopWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Web_DesktopOpen" xml:space="preserve">
+    <value>rpm öffnen</value>
+  </data>
+  <data name="Web_DesktopHere" xml:space="preserve">
+    <value>rpm ist auf diesem Computer installiert.</value>
+  </data>
+  <data name="Web_DesktopDidNotOpen" xml:space="preserve">
+    <value>rpm wurde nicht geöffnet. Vielleicht ist es noch nicht installiert.</value>
+  </data>
+  <data name="Web_DesktopFailed" xml:space="preserve">
+    <value>Der Download konnte nicht gestartet werden. Bitte versuche es noch einmal.</value>
+  </data>
+  <data name="Web_DesktopAppleSilicon" xml:space="preserve">
+    <value>Mac mit Apple-Chip</value>
+  </data>
+  <data name="Web_DesktopIntel" xml:space="preserve">
+    <value>Mac mit Intel-Prozessor</value>
+  </data>
+  <data name="Web_DesktopIntelOld" xml:space="preserve">
+    <value>Intel-Mac mit macOS 12 bis 14</value>
+  </data>
+  <data name="Web_DeleteAsk" xml:space="preserve">
+    <value>{0} aus deiner Cloud-Bibliothek löschen? Das lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="Web_ImportAlbumFileTip" xml:space="preserve">
+    <value>Das sieht nach einem ganzen Album in einer Datei aus. Die Desktop-App kann es in Titel aufteilen.</value>
+    <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
+  </data>
+  <data name="Web_ImportRipNote" xml:space="preserve">
+    <value>Um CDs zu rippen und Schallplatten aufzunehmen, lade die Desktop-App herunter.</value>
+  </data>
+  <data name="Web_ImportSavedNote" xml:space="preserve">
+    <value>{0} Titel von deinem letzten Besuch warten noch. Füge denselben Ordner oder dieselben Dateien hinzu, dann sind deine Änderungen wieder da.</value>
+    <comment>Import pane of the web app: tracks were being prepared when the page was last closed. The browser cannot reopen files by itself.</comment>
+  </data>
+  <data name="Web_ImportSavedReopen" xml:space="preserve">
+    <value>Ordner wieder öffnen</value>
+    <comment>Import pane of the web app: button that reopens the folder picked on the last visit, in browsers that can.</comment>
+  </data>
+  <data name="Web_ImportSavedForget" xml:space="preserve">
+    <value>Verwerfen</value>
+    <comment>Import pane of the web app: button that drops the tracks kept from the last visit.</comment>
+  </data>
+  <data name="Web_PlaylistsDesktopNote" xml:space="preserve">
+    <value>Automatische Playlists, Stimmungslisten und intelligente Playlists entstehen in der Desktop-App.</value>
+  </data>
+  <data name="Web_DeleteAccountFailed" xml:space="preserve">
+    <value>Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal.</value>
   </data>
 </root>

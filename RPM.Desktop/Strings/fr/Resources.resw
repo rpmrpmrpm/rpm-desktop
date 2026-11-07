@@ -6561,6 +6561,10 @@
     <value>La reconnaissance avancée est réservée aux soutiens. Le reste de l’analyse a utilisé la reconnaissance de base.</value>
     <comment>Recognize dialog, and the split window's status line after Recognize selected: the server refused the advanced layer mid-run, so the run carried on without it.</comment>
   </data>
+  <data name="Recognize_AdvancedDown" xml:space="preserve">
+    <value>La reconnaissance avancée n’est pas disponible pour le moment. Le reste de l’analyse a utilisé la reconnaissance de base.</value>
+    <comment>Recognize window: the advanced layer failed mid-run, so the run carried on without it.</comment>
+  </data>
   <data name="Recognize_ColStatus" xml:space="preserve">
     <value>Statut</value>
     <comment>Recognize dialog, column header over each target track’s state.</comment>
@@ -9808,5 +9812,66 @@
   </data>
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Effacer les terminés</value>
+  </data>
+  <data name="Web_DesktopPitch" xml:space="preserve">
+    <value>L'application de bureau ajoute votre bibliothèque locale, l'enregistrement et l'extraction de CD.</value>
+  </data>
+  <data name="Web_DesktopDownload" xml:space="preserve">
+    <value>Télécharger rpm pour {0}</value>
+  </data>
+  <data name="Web_DesktopMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="Web_DesktopWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Web_DesktopOpen" xml:space="preserve">
+    <value>Ouvrir rpm</value>
+  </data>
+  <data name="Web_DesktopHere" xml:space="preserve">
+    <value>rpm est installé sur cet ordinateur.</value>
+  </data>
+  <data name="Web_DesktopDidNotOpen" xml:space="preserve">
+    <value>rpm ne s'est pas ouvert. Il n'est peut-être pas encore installé.</value>
+  </data>
+  <data name="Web_DesktopFailed" xml:space="preserve">
+    <value>Le téléchargement n'a pas pu démarrer. Veuillez réessayer.</value>
+  </data>
+  <data name="Web_DesktopAppleSilicon" xml:space="preserve">
+    <value>Mac avec puce Apple</value>
+  </data>
+  <data name="Web_DesktopIntel" xml:space="preserve">
+    <value>Mac avec processeur Intel</value>
+  </data>
+  <data name="Web_DesktopIntelOld" xml:space="preserve">
+    <value>Mac Intel avec macOS 12 à 14</value>
+  </data>
+  <data name="Web_DeleteAsk" xml:space="preserve">
+    <value>Supprimer {0} de votre bibliothèque cloud ? Cette action est irréversible.</value>
+  </data>
+  <data name="Web_ImportAlbumFileTip" xml:space="preserve">
+    <value>Ce fichier ressemble à un album entier. L'application de bureau peut le découper en morceaux.</value>
+    <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
+  </data>
+  <data name="Web_ImportRipNote" xml:space="preserve">
+    <value>Pour extraire vos CD et enregistrer vos vinyles, téléchargez l'application de bureau.</value>
+  </data>
+  <data name="Web_ImportSavedNote" xml:space="preserve">
+    <value>{0} morceau(x) de votre dernière visite sont en attente. Ajoutez le même dossier ou les mêmes fichiers pour retrouver vos modifications.</value>
+    <comment>Import pane of the web app: tracks were being prepared when the page was last closed. The browser cannot reopen files by itself.</comment>
+  </data>
+  <data name="Web_ImportSavedReopen" xml:space="preserve">
+    <value>Rouvrir le dossier</value>
+    <comment>Import pane of the web app: button that reopens the folder picked on the last visit, in browsers that can.</comment>
+  </data>
+  <data name="Web_ImportSavedForget" xml:space="preserve">
+    <value>Les oublier</value>
+    <comment>Import pane of the web app: button that drops the tracks kept from the last visit.</comment>
+  </data>
+  <data name="Web_PlaylistsDesktopNote" xml:space="preserve">
+    <value>Les playlists automatiques, les listes d'ambiance et les playlists intelligentes sont créées dans l'application de bureau.</value>
+  </data>
+  <data name="Web_DeleteAccountFailed" xml:space="preserve">
+    <value>Le compte n'a pas pu être supprimé. Veuillez réessayer.</value>
   </data>
 </root>

@@ -6561,6 +6561,10 @@
     <value>El reconocimiento avanzado es para patrocinadores. El resto del proceso usó solo el reconocimiento básico.</value>
     <comment>Recognize dialog, and the split window's status line after Recognize selected: the server refused the advanced layer mid-run, so the run carried on without it.</comment>
   </data>
+  <data name="Recognize_AdvancedDown" xml:space="preserve">
+    <value>El reconocimiento avanzado no está disponible en este momento. El resto del proceso usó solo el reconocimiento básico.</value>
+    <comment>Recognize window: the advanced layer failed mid-run, so the run carried on without it.</comment>
+  </data>
   <data name="Recognize_ColStatus" xml:space="preserve">
     <value>Estado</value>
     <comment>Recognize dialog, column header over each target track’s state.</comment>
@@ -9808,5 +9812,66 @@
   </data>
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Quitar los terminados</value>
+  </data>
+  <data name="Web_DesktopPitch" xml:space="preserve">
+    <value>La aplicación de escritorio añade tu biblioteca local, la grabación y la copia de CD.</value>
+  </data>
+  <data name="Web_DesktopDownload" xml:space="preserve">
+    <value>Descargar rpm para {0}</value>
+  </data>
+  <data name="Web_DesktopMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="Web_DesktopWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Web_DesktopOpen" xml:space="preserve">
+    <value>Abrir rpm</value>
+  </data>
+  <data name="Web_DesktopHere" xml:space="preserve">
+    <value>rpm está instalado en este ordenador.</value>
+  </data>
+  <data name="Web_DesktopDidNotOpen" xml:space="preserve">
+    <value>rpm no se ha abierto. Puede que aún no esté instalado.</value>
+  </data>
+  <data name="Web_DesktopFailed" xml:space="preserve">
+    <value>No se pudo iniciar la descarga. Inténtalo de nuevo.</value>
+  </data>
+  <data name="Web_DesktopAppleSilicon" xml:space="preserve">
+    <value>Mac con chip de Apple</value>
+  </data>
+  <data name="Web_DesktopIntel" xml:space="preserve">
+    <value>Mac con procesador Intel</value>
+  </data>
+  <data name="Web_DesktopIntelOld" xml:space="preserve">
+    <value>Mac Intel con macOS 12 a 14</value>
+  </data>
+  <data name="Web_DeleteAsk" xml:space="preserve">
+    <value>¿Eliminar {0} de tu biblioteca en la nube? No se puede deshacer.</value>
+  </data>
+  <data name="Web_ImportAlbumFileTip" xml:space="preserve">
+    <value>Parece un álbum completo en un solo archivo. La aplicación de escritorio puede dividirlo en pistas.</value>
+    <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
+  </data>
+  <data name="Web_ImportRipNote" xml:space="preserve">
+    <value>Para copiar tus CD y grabar tus vinilos, descarga la aplicación de escritorio.</value>
+  </data>
+  <data name="Web_ImportSavedNote" xml:space="preserve">
+    <value>{0} pista(s) de tu última visita están esperando. Añade la misma carpeta o los mismos archivos y tus cambios volverán.</value>
+    <comment>Import pane of the web app: tracks were being prepared when the page was last closed. The browser cannot reopen files by itself.</comment>
+  </data>
+  <data name="Web_ImportSavedReopen" xml:space="preserve">
+    <value>Volver a abrir la carpeta</value>
+    <comment>Import pane of the web app: button that reopens the folder picked on the last visit, in browsers that can.</comment>
+  </data>
+  <data name="Web_ImportSavedForget" xml:space="preserve">
+    <value>Olvidarlas</value>
+    <comment>Import pane of the web app: button that drops the tracks kept from the last visit.</comment>
+  </data>
+  <data name="Web_PlaylistsDesktopNote" xml:space="preserve">
+    <value>Las listas automáticas, las listas de ambiente y las listas inteligentes se crean en la aplicación de escritorio.</value>
+  </data>
+  <data name="Web_DeleteAccountFailed" xml:space="preserve">
+    <value>No se pudo eliminar la cuenta. Inténtalo de nuevo.</value>
   </data>
 </root>

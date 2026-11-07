@@ -223,24 +223,17 @@ public sealed partial class MainModel
 
                 try
                 {
-                    // The basic ladder always runs first, however far this run may reach. A track that the
-                    // rpm database or AcoustID can name must never go out to AudD.
-                    var outcome = await identifier.IdentifyDetailedAsync(row.ToWantedTrackInfo(), ct);
+                    var (outcome, lost) = await identifier.ClimbAsync(row.ToWantedTrackInfo(), advanced, ct);
 
-                    // Advanced is not a mode the user picked. So being refused it is not a failure of the
-                    // run. The basic answer that this track already has stands, and the rest of the list is
-                    // looked up without it.
-                    if (advanced && !outcome.Matched)
+                    // Advanced is not a mode the user picked. So losing it is not a failure of the run. The
+                    // basic answer that this track already has stands, and the rest of the list is looked up
+                    // without it.
+                    if (lost is not TrackIdentifier.LostLayer.None)
                     {
-                        try
-                        {
-                            outcome = await identifier.IdentifyPremiumDetailedAsync(row.ToWantedTrackInfo(), ct);
-                        }
-                        catch (LambdaIdentificationBackend.SupportersOnlyException)
-                        {
-                            advanced = false;
-                            note = Loc.Get("Recognize_AdvancedRefused");
-                        }
+                        advanced = false;
+                        note = Loc.Get(lost is TrackIdentifier.LostLayer.Refused
+                            ? "Recognize_AdvancedRefused"
+                            : "Recognize_AdvancedDown");
                     }
 
                     if (outcome.Matched)
