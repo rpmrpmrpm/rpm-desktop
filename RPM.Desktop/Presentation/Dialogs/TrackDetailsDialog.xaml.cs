@@ -1068,6 +1068,15 @@ public sealed partial class TrackDetailsDialog : ContentDialog
                 _artBytes = art.Bytes;
                 _artMime = art.Mime;
             }
+            // A track whose file is not on this disk keeps its cover in the cloud. It is shown so the tab says
+            // what the file would carry when it is downloaded. Showing it changes nothing: only a new or a
+            // removed picture is written.
+            else if (_mirror is { } mirror && !File.Exists(_row.FilePath)
+                     && await Services.Art.RemoteSleeve.ForAsync(mirror) is { Length: > 0 } remote)
+            {
+                _artBytes = remote;
+                _artMime = RPM.Core.Cloud.AlbumArt.SniffMime(remote);
+            }
         }
         await ShowArtAsync();
     }
