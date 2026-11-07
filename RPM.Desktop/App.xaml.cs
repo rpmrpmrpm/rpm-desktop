@@ -544,6 +544,7 @@ public partial class App : Application
                         .AddSingleton<PopularityService>()
                         .AddSingleton<Services.Catalog.PopularitySweepService>()
                         .AddSingleton<Services.Catalog.DiscogsStyleSweepService>()
+                        .AddSingleton<Services.Catalog.RpmStyleSweepService>()
                         .AddSingleton<Services.Catalog.DiscogsLinkDryRunService>()
                         .AddSingleton<Services.Cloud.MoodListPushService>()
                         .AddSingleton<PlayReportService>()
@@ -979,6 +980,8 @@ public partial class App : Application
         // The pass that reads the styles from albums already linked to a Discogs release works the same
         // way. The styles are the words that MoodFlavour narrows a list with.
         Host.Services.GetRequiredService<Services.Catalog.DiscogsStyleSweepService>();
+        // The same pass for the albums linked through the app's own catalogue, which needs no Discogs account.
+        Host.Services.GetRequiredService<Services.Catalog.RpmStyleSweepService>();
         // The dry run of linking the rest of the albums to Discogs. It does nothing unless its development switch
         // names a folder for the report (see DiscogsLinkDryRunService).
         Host.Services.GetRequiredService<Services.Catalog.DiscogsLinkDryRunService>();
