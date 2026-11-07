@@ -120,14 +120,85 @@ public sealed partial class CloudSyncService
         }
 
         var (classicalTaken, classicalSent) = await SyncClassicalMarksAsync(db, theirs, folderOf, keyOf, known, ct);
+        var (settingsTaken, settingsSent) = await SyncAlbumSettingsAsync(db, theirs, folderOf, keyOf, known, ct);
 
-        if (taken > 0 || sent > 0 || classicalTaken > 0 || classicalSent > 0)
+        if (taken > 0 || sent > 0 || classicalTaken > 0 || classicalSent > 0 || settingsTaken > 0 || settingsSent > 0)
             _log.LogInformation(
-                "[Cloud] Album marks: {Taken} taken in, {Sent} sent; classical: {ClassicalTaken} taken in, {ClassicalSent} sent",
-                taken, sent, classicalTaken, classicalSent);
+                "[Cloud] Album marks: {Taken} taken in, {Sent} sent; classical: {ClassicalTaken} taken in, {ClassicalSent} sent; "
+                + "levelling and series: {SettingsTaken} taken in, {SettingsSent} sent",
+                taken, sent, classicalTaken, classicalSent, settingsTaken, settingsSent);
 
-        if (taken > 0 || classicalTaken > 0)
+        if (taken > 0 || classicalTaken > 0 || settingsTaken > 0)
             AlbumMarksChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The levelling and series half of the pass: the same pull, then push, as the classical mark, for the
+    /// three settings that the album editor sets together. See <see cref="AlbumSettingsPlan"/>.
+    /// </summary>
+    private async Task<(int Taken, int Sent)> SyncAlbumSettingsAsync(
+        LibraryDatabase db, IReadOnlyList<CloudAlbumMark> theirs,
+        Dictionary<string, string> folderOf, Dictionary<string, string> keyOf,
+        Dictionary<string, CloudAlbumMark> known, CancellationToken ct)
+    {
+        var states = db.AlbumSettingsSyncStates()
+            .ToDictionary(s => s.Folder, StringComparer.OrdinalIgnoreCase);
+
+        // ── in ──
+        var taken = 0;
+        foreach (var mark in theirs)
+        {
+            if (mark.SettingsAt <= 0 || !folderOf.TryGetValue(mark.AlbumKey, out var folder))
+                continue;
+
+            var state = states.TryGetValue(folder, out var standing)
+                ? standing
+                : new AlbumSettingsSync(folder, null, null, 0, 0, 0);
+
+            if (!AlbumSettingsPlan.Takes(state, mark))
+                continue;
+
+            // False means the settings were changed in the editor after the states were read. That edit
+            // stands, and it goes out on the next pass.
+            if (db.AcceptAlbumSettings(state, mark.Normalize, mark.InSeries, mark.UpdatedAt))
+                taken++;
+        }
+
+        // ── out ──
+        var sent = 0;
+        foreach (var state in states.Values)
+        {
+            if (ct.IsCancellationRequested || sent >= AlbumMarksPerRun)
+                break;
+            if (!keyOf.TryGetValue(state.Folder, out var key))
+                continue;
+
+            var stored = known.GetValueOrDefault(key);
+
+            switch (AlbumSettingsPlan.Out(state, stored))
+            {
+                case AlbumClassicalPlan.Outbound.Leave:
+                    continue;
+                case AlbumClassicalPlan.Outbound.Agreed:
+                    db.NoteAlbumSettingsSent(state, stored?.UpdatedAt ?? state.CloudUpdatedAt);
+                    continue;
+            }
+
+            try
+            {
+                var stamp = await _cloud.PutAlbumSettingsAsync(key, state.Normalize, state.Series, ct);
+                db.NoteAlbumSettingsSent(state, stamp);
+                sent++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Stop at the first refusal, for the reason given in SyncClassicalMarksAsync.
+                _log.LogDebug(ex, "[Cloud] Could not send the levelling and series of {Folder}", state.Folder);
+                break;
+            }
+        }
+
+        return (taken, sent);
     }
 
     /// <summary>
@@ -209,7 +280,7 @@ public sealed partial class CloudSyncService
         return (taken, sent);
     }
 
-    /// <summary>Raised when a record's favourite or classical mark came in from another machine, so the
-    /// shelf on screen can redraw without waiting for anything else to change.</summary>
+    /// <summary>Raised when a record's favourite, classical mark, levelling or series came in from another
+    /// machine, so the shelf on screen can redraw without waiting for anything else to change.</summary>
     public event Action? AlbumMarksChanged;
 }

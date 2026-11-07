@@ -1865,6 +1865,15 @@ public sealed partial class LibraryDatabase : IDisposable
         AddColumnIfMissing("album_meta", "series", "TEXT");
         AddColumnIfMissing("album_meta", "series_volume", "TEXT");
 
+        // The stamps that a record's levelling and series travel to the cloud on, the same three that the
+        // classical mark has (v68), shared by the three settings because the album editor sets them as one
+        // answer. Added on every open and not behind a version step, for the same reason as release_type
+        // above. Zero on every existing row: settings made before these existed are still sent, because
+        // the sync sends any record that says something here and has no answer in the store.
+        AddColumnIfMissing("album_meta", "settings_edited_utc_ticks", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing("album_meta", "settings_synced_utc_ticks", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing("album_meta", "settings_cloud_updated_at", "INTEGER NOT NULL DEFAULT 0");
+
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into
         // a walk of the index.

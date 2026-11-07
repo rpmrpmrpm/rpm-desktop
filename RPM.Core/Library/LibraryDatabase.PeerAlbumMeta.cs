@@ -172,6 +172,9 @@ public sealed partial class LibraryDatabase
                         -- would otherwise read as already sent. Only on the listener's own machines,
                         -- like the heart: a borrowed shelf's mirror is never synced to the store.
                         {(heart ? "classical_edited_utc_ticks = CASE WHEN album_meta.classical IS NOT excluded.classical THEN $now ELSE album_meta.classical_edited_utc_ticks END," : "")}
+                        -- The same for the levelling and the series, which travel to the store together.
+                        -- A series that did not arrive (an older build) is not a change.
+                        {(heart ? "settings_edited_utc_ticks = CASE WHEN album_meta.normalize IS NOT excluded.normalize OR ($series IS NOT NULL AND (album_meta.series IS NOT excluded.series OR album_meta.series_volume IS NOT excluded.series_volume)) THEN $now ELSE album_meta.settings_edited_utc_ticks END," : "")}
                         -- Last in the list, so the heart's line below can carry its own comma and be
                         -- absent without leaving a dangling one.
                         edited_utc_ticks = $edited

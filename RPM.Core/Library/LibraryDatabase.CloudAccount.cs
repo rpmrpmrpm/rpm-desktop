@@ -85,6 +85,7 @@ public sealed partial class LibraryDatabase
 
             Run("UPDATE album_meta SET favorite_synced_utc_ticks = 0, favorite_cloud_updated_at = 0");
             Run("UPDATE album_meta SET classical_synced_utc_ticks = 0, classical_cloud_updated_at = 0");
+            Run("UPDATE album_meta SET settings_synced_utc_ticks = 0, settings_cloud_updated_at = 0");
 
             // The counts stay, merged as they are: they are this library's listening history. What was
             // sent, and where the listing was read up to, belong to the deleted account.

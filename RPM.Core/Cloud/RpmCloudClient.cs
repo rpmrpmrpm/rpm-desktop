@@ -1658,6 +1658,17 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
                     new AlbumClassicalRequest(classical),
                     RpmCloudJson.Default.AlbumClassicalRequest), ct)).UpdatedAt;
 
+    /// <summary>Writes how one record is levelled and which series it belongs to, all three together, and
+    /// returns the store's stamp. Each null is an answer: levelling left to the listener's setting, and a
+    /// record that stands alone.</summary>
+    public async Task<long> PutAlbumSettingsAsync(
+        string albumKey, bool? normalize, Library.AlbumSeries? series, CancellationToken ct = default)
+        => (await SendAsync<CloudAlbumMarkResponse>(
+                HttpMethod.Put, $"cloud/album-mark/{albumKey}/settings",
+                JsonContent.Create(
+                    new AlbumSettingsRequest(normalize, series?.Name, series?.Volume),
+                    RpmCloudJson.Default.AlbumSettingsRequest), ct)).UpdatedAt;
+
     /// <summary>Every record that this user has marked, in one call. A client with two thousand albums must
     /// not ask two thousand times which eleven of them are favourites.</summary>
     public async Task<IReadOnlyList<CloudAlbumMark>> ListAlbumMarksAsync(CancellationToken ct = default)
@@ -1977,6 +1988,8 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
 
     private sealed record AlbumClassicalRequest(bool Classical);
 
+    private sealed record AlbumSettingsRequest(bool? Normalize, string? Series, string? SeriesVolume);
+
     private sealed record TrackPlaysEntry(string RpmId, long Plays, long LastPlayedAt);
 
     private sealed record TrackPlaysRequest(string DeviceId, IReadOnlyList<TrackPlaysEntry> Tracks);
@@ -2029,6 +2042,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(LyricTimingAnswerBody))]
     [JsonSerializable(typeof(LyricSheetAnswerBody))]
     [JsonSerializable(typeof(AlbumClassicalRequest))]
+    [JsonSerializable(typeof(AlbumSettingsRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(FeedbackReport))]
     [JsonSerializable(typeof(MoodListsPayload))]
@@ -2164,12 +2178,28 @@ public sealed record LyricTimingLineBody(
 /// agreeing about the time. The stamp moves when either mark is written.</param>
 /// <param name="Classical">Whether the record is classical. Null when no machine has said so, and on a
 /// server that is older than this field.</param>
+/// <param name="Normalize">Whether the record is levelled with the rest of the collection, or null when the
+/// listener's own setting decides. An answer only when <paramref name="SettingsAt"/> is set.</param>
+/// <param name="Series">The series the record is one volume of, or null when it stands alone. An answer
+/// only when <paramref name="SettingsAt"/> is set.</param>
+/// <param name="SeriesVolume">Which volume it is, or null.</param>
+/// <param name="SettingsAt">When a machine last set the three settings, or zero when none has, and on a
+/// server that is older than these fields.</param>
 public sealed record CloudAlbumMark(
     [property: JsonPropertyName("albumKey")] string AlbumKey,
     [property: JsonPropertyName("favorite")] bool Favorite,
     [property: JsonPropertyName("favoritedAt")] long FavoritedAt,
     [property: JsonPropertyName("updatedAt")] long UpdatedAt,
-    [property: JsonPropertyName("classical")] bool? Classical = null);
+    [property: JsonPropertyName("classical")] bool? Classical = null,
+    [property: JsonPropertyName("normalize")] bool? Normalize = null,
+    [property: JsonPropertyName("series")] string? Series = null,
+    [property: JsonPropertyName("seriesVolume")] string? SeriesVolume = null,
+    [property: JsonPropertyName("settingsAt")] long SettingsAt = 0)
+{
+    /// <summary>The series as the store holds it, or null when the record stands alone.</summary>
+    [JsonIgnore]
+    public Library.AlbumSeries? InSeries => Library.AlbumSeries.Of(Series, SeriesVolume);
+}
 
 /// <summary>One device's radio totals for one station, as the store holds them.</summary>
 /// <param name="DeviceId">Which log heard it. This log's own rows also come back in the listing. This is

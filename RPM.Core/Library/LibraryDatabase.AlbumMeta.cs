@@ -105,6 +105,20 @@ public sealed record AlbumMarkSync(
 /// </summary>
 /// <param name="Classical">The mark as this library holds it. Null and false both draw an ordinary
 /// record. Null means nobody has answered for the record here.</param>
+/// <summary>Where one record's levelling and series stand against the store: the values here, when they
+/// were last set here, when this machine last agreed with the store about them, and the store's stamp it
+/// agreed with. The three settings travel together.</summary>
+public sealed record AlbumSettingsSync(
+    string Folder, bool? Normalize, AlbumSeries? Series,
+    long EditedUtcTicks, long SyncedUtcTicks, long CloudUpdatedAt)
+{
+    /// <summary>This machine has changed the settings since it last agreed with the store.</summary>
+    public bool ChangedHere => EditedUtcTicks > SyncedUtcTicks;
+
+    /// <summary>Whether the listener has set anything: levelling one way or the other, or a series.</summary>
+    public bool SaysAnything => Normalize is not null || Series is not null;
+}
+
 public sealed record AlbumClassicalSync(
     string Folder, bool? Classical, long EditedUtcTicks, long SyncedUtcTicks, long CloudUpdatedAt)
 {
@@ -571,11 +585,13 @@ public sealed partial class LibraryDatabase
     public void SetAlbumSeries(string folder, AlbumSeries? series) => UpsertAlbumMeta(
         AlbumWrite.Said,
         folder,
-        "series = $name, series_volume = $volume",
+        // Stamped as changed here, which puts the record in front of the next sync of its settings.
+        "series = $name, series_volume = $volume, settings_edited_utc_ticks = $now",
         ("$name", (object?)series?.Name ?? DBNull.Value),
         ("$volume", (object?)series?.Volume ?? DBNull.Value),
-        insertColumns: "series, series_volume",
-        insertValues: "$name, $volume");
+        ("$now", DateTime.UtcNow.Ticks),
+        insertColumns: "series, series_volume, settings_edited_utc_ticks",
+        insertValues: "$name, $volume, $now");
 
     /// <summary>Every artist name the library holds, once each in alphabetical order: what the artist boxes
     /// offer, so a record is filed under the name the library already has rather than a new spelling of it.
@@ -741,10 +757,96 @@ public sealed partial class LibraryDatabase
     public void SetAlbumNormalize(string folder, bool? normalize) => UpsertAlbumMeta(
         AlbumWrite.Said,
         folder,
-        "normalize = $v",
+        // Stamped as changed here, which puts the record in front of the next sync of its settings.
+        "normalize = $v, settings_edited_utc_ticks = $now",
         ("$v", normalize is { } n ? n ? 1 : 0 : (object)DBNull.Value),
-        insertColumns: "normalize",
-        insertValues: "$v");
+        ("$now", DateTime.UtcNow.Ticks),
+        insertColumns: "normalize, settings_edited_utc_ticks",
+        insertValues: "$v, $now");
+
+    // ── the levelling and series half of the sync ──
+
+    /// <summary>Every record this library has a row for, with where its levelling and series stand. One
+    /// sync pass walks this list.</summary>
+    public IReadOnlyList<AlbumSettingsSync> AlbumSettingsSyncStates()
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                "SELECT folder, normalize, series, series_volume, settings_edited_utc_ticks, " +
+                "settings_synced_utc_ticks, settings_cloud_updated_at FROM album_meta";
+            using var reader = cmd.ExecuteReader();
+            var states = new List<AlbumSettingsSync>();
+            while (reader.Read())
+                states.Add(new AlbumSettingsSync(
+                    reader.GetString(0),
+                    reader.IsDBNull(1) ? null : reader.GetInt64(1) != 0,
+                    AlbumSeries.Of(reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)),
+                    reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6)));
+            return states;
+        }
+    }
+
+    /// <summary>
+    /// Takes the store's word for a record's levelling and series, with the stamp it came with. Returns
+    /// false and writes nothing when the settings were changed here after <paramref name="read"/> was
+    /// taken. The same rules as <see cref="AcceptAlbumClassical"/>, and edited_utc_ticks is not moved for
+    /// the same reason.
+    /// </summary>
+    public bool AcceptAlbumSettings(AlbumSettingsSync read, bool? normalize, AlbumSeries? series, long cloudUpdatedAt)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+
+        using (_gate.Take())
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText =
+                """
+                INSERT INTO album_meta (folder, normalize, series, series_volume, settings_cloud_updated_at,
+                                        settings_synced_utc_ticks, edited_utc_ticks)
+                VALUES ($folder, $n, $s, $v, $at, $now, 0)
+                ON CONFLICT(folder) DO UPDATE SET
+                    normalize = $n,
+                    series = $s,
+                    series_volume = $v,
+                    settings_cloud_updated_at = $at,
+                    settings_synced_utc_ticks = MAX(album_meta.settings_edited_utc_ticks, $now)
+                WHERE album_meta.settings_edited_utc_ticks = $readEdited
+                """;
+            cmd.Parameters.AddWithValue("$folder", read.Folder);
+            cmd.Parameters.AddWithValue("$n", normalize is { } level ? level ? 1 : 0 : DBNull.Value);
+            cmd.Parameters.AddWithValue("$s", (object?)series?.Name ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$v", (object?)series?.Volume ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$at", cloudUpdatedAt);
+            cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.Ticks);
+            cmd.Parameters.AddWithValue("$readEdited", read.EditedUtcTicks);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+    }
+
+    /// <summary>The store has taken this machine's levelling and series, or already held the same answer.
+    /// The same rules as <see cref="NoteAlbumClassicalSent"/>.</summary>
+    public void NoteAlbumSettingsSent(AlbumSettingsSync sent, long cloudUpdatedAt)
+    {
+        ArgumentNullException.ThrowIfNull(sent);
+
+        using (_gate.Take())
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText =
+                """
+                UPDATE album_meta
+                SET settings_cloud_updated_at = $at,
+                    settings_synced_utc_ticks = MAX(settings_synced_utc_ticks, $sentEdited)
+                WHERE folder = $folder
+                """;
+            cmd.Parameters.AddWithValue("$folder", sent.Folder);
+            cmd.Parameters.AddWithValue("$at", cloudUpdatedAt);
+            cmd.Parameters.AddWithValue("$sentEdited", sent.EditedUtcTicks);
+            cmd.ExecuteNonQuery();
+        }
+    }
 
     /// <summary>One upsert shape: INSERT the row with just the touched column(s), or UPDATE them if the
     /// album already has a row. The other columns keep their table defaults on insert.</summary>
