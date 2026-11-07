@@ -9853,6 +9853,22 @@
     <value>Ce fichier ressemble à un album entier. L'application de bureau peut le découper en morceaux.</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
+  <data name="Web_EditDesktopNote" xml:space="preserve">
+    <value>Si rpm sur un ordinateur contient aussi ces morceaux, ses tags remplaceront ceux-ci à sa prochaine synchronisation.</value>
+    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
+  </data>
+  <data name="Web_EditFailed" xml:space="preserve">
+    <value>Les modifications n'ont pas pu être enregistrées. Réessayez.</value>
+    <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_PlaylistFolderHint" xml:space="preserve">
+    <value>Nom du dossier. Utilisez / pour un dossier dans un dossier. Laissez vide pour aucun dossier.</value>
+    <comment>Web app, playlists: under the field that files a playlist in a folder.</comment>
+  </data>
+  <data name="Web_RadioNotHere" xml:space="preserve">
+    <value>Un navigateur ne peut pas lire le flux de cette station. Elle fonctionne dans l'application de bureau.</value>
+    <comment>Web app, radio: on the play key of a saved station whose stream is not https, or is a format the browser has no player for.</comment>
+  </data>
   <data name="Web_ImportRipNote" xml:space="preserve">
     <value>Pour extraire vos CD et enregistrer vos vinyles, téléchargez l'application de bureau.</value>
   </data>

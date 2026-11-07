@@ -9853,6 +9853,22 @@
     <value>这看起来是整张专辑的单个文件。桌面版可以将其拆分为曲目。</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
+  <data name="Web_EditDesktopNote" xml:space="preserve">
+    <value>如果电脑上的 rpm 也保存了这些曲目，下次同步时其标签将替换这里的内容。</value>
+    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
+  </data>
+  <data name="Web_EditFailed" xml:space="preserve">
+    <value>无法保存更改。请重试。</value>
+    <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_PlaylistFolderHint" xml:space="preserve">
+    <value>文件夹名称。用 / 表示文件夹中的文件夹。留空表示不放入文件夹。</value>
+    <comment>Web app, playlists: under the field that files a playlist in a folder.</comment>
+  </data>
+  <data name="Web_RadioNotHere" xml:space="preserve">
+    <value>浏览器无法播放此电台的音频流。可在桌面应用中播放。</value>
+    <comment>Web app, radio: on the play key of a saved station whose stream is not https, or is a format the browser has no player for.</comment>
+  </data>
   <data name="Web_ImportRipNote" xml:space="preserve">
     <value>如需抓取 CD 和录制黑胶唱片，请下载桌面版。</value>
   </data>

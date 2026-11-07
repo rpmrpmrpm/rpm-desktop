@@ -9853,6 +9853,22 @@
     <value>Das sieht nach einem ganzen Album in einer Datei aus. Die Desktop-App kann es in Titel aufteilen.</value>
     <comment>Import pane of the web app: tooltip on the mark beside a file that looks like a whole album. The web app does not split files.</comment>
   </data>
+  <data name="Web_EditDesktopNote" xml:space="preserve">
+    <value>Wenn rpm auf einem Computer diese Titel ebenfalls hat, ersetzen dessen Tags diese bei der nächsten Synchronisierung.</value>
+    <comment>Web app, track and album editor: the desktop pushes its own tags to the cloud when it syncs.</comment>
+  </data>
+  <data name="Web_EditFailed" xml:space="preserve">
+    <value>Die Änderungen konnten nicht gespeichert werden. Versuche es erneut.</value>
+    <comment>Web app, track and album editor: the save failed.</comment>
+  </data>
+  <data name="Web_PlaylistFolderHint" xml:space="preserve">
+    <value>Ordnername. Mit / legst du einen Ordner in einem Ordner an. Leer lassen für keinen Ordner.</value>
+    <comment>Web app, playlists: under the field that files a playlist in a folder.</comment>
+  </data>
+  <data name="Web_RadioNotHere" xml:space="preserve">
+    <value>Ein Browser kann den Stream dieses Senders nicht abspielen. In der Desktop-App funktioniert er.</value>
+    <comment>Web app, radio: on the play key of a saved station whose stream is not https, or is a format the browser has no player for.</comment>
+  </data>
   <data name="Web_ImportRipNote" xml:space="preserve">
     <value>Um CDs zu rippen und Schallplatten aufzunehmen, lade die Desktop-App herunter.</value>
   </data>
