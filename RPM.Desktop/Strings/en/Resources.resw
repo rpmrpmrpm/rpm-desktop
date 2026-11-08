@@ -9817,6 +9817,26 @@
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Clear finished</value>
   </data>
+  <data name="Web_ImportingUpload" xml:space="preserve">
+    <value>Uploading selected files to your collection</value>
+    <comment>Web app import pane: caption under the animation while an import is running. The web app uploads the files to the cloud.</comment>
+  </data>
+  <data name="Web_ImportAllDoneTitle" xml:space="preserve">
+    <value>Import finished</value>
+    <comment>Web app: title of the dialog shown when an import has finished and every track in the import list is imported.</comment>
+  </data>
+  <data name="Web_ImportAllDoneBody" xml:space="preserve">
+    <value>All tracks are imported. Do you want to close the import pane?</value>
+    <comment>Web app: body of the dialog shown when an import has finished and every track in the import list is imported.</comment>
+  </data>
+  <data name="Web_ImportAllDoneClose" xml:space="preserve">
+    <value>Close</value>
+    <comment>Web app, import finished dialog: primary button. Closes the import pane.</comment>
+  </data>
+  <data name="Web_ImportAllDoneStay" xml:space="preserve">
+    <value>Stay</value>
+    <comment>Web app, import finished dialog: secondary button. Keeps the import pane open.</comment>
+  </data>
   <data name="Web_DesktopPitch" xml:space="preserve">
     <value>The desktop app adds your local library, recording and ripping.</value>
   </data>

@@ -9817,6 +9817,26 @@
   <data name="Web_ImportClearDone" xml:space="preserve">
     <value>Quitar los terminados</value>
   </data>
+  <data name="Web_ImportingUpload" xml:space="preserve">
+    <value>Subiendo los archivos seleccionados a tu colección</value>
+    <comment>Web app import pane: caption under the animation while an import is running. The web app uploads the files to the cloud.</comment>
+  </data>
+  <data name="Web_ImportAllDoneTitle" xml:space="preserve">
+    <value>Importación terminada</value>
+    <comment>Web app: title of the dialog shown when an import has finished and every track in the import list is imported.</comment>
+  </data>
+  <data name="Web_ImportAllDoneBody" xml:space="preserve">
+    <value>Todas las pistas se han importado. ¿Quieres cerrar el panel de importación?</value>
+    <comment>Web app: body of the dialog shown when an import has finished and every track in the import list is imported.</comment>
+  </data>
+  <data name="Web_ImportAllDoneClose" xml:space="preserve">
+    <value>Cerrar</value>
+    <comment>Web app, import finished dialog: primary button. Closes the import pane.</comment>
+  </data>
+  <data name="Web_ImportAllDoneStay" xml:space="preserve">
+    <value>Quedarse</value>
+    <comment>Web app, import finished dialog: secondary button. Keeps the import pane open.</comment>
+  </data>
   <data name="Web_DesktopPitch" xml:space="preserve">
     <value>La aplicación de escritorio añade tu biblioteca local, la grabación y la copia de CD.</value>
   </data>
