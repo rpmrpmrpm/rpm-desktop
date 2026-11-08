@@ -9914,4 +9914,8 @@
     <value>无法下载我们的曲目。请重试。</value>
     <comment>Web app, Import pane and setup: shown under Try our tracks when the three tracks that ship with the app could not be fetched.</comment>
   </data>
+  <data name="Web_QualityDetail" xml:space="preserve">
+    <value>原始文件与上传时完全相同。较低的比特率使用更少的数据。</value>
+    <comment>Web app, Settings, Sound: under Streaming quality, what the choices do.</comment>
+  </data>
 </root>

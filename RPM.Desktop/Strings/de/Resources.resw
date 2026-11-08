@@ -9914,4 +9914,8 @@
     <value>Unsere Titel konnten nicht heruntergeladen werden. Versuche es noch einmal.</value>
     <comment>Web app, Import pane and setup: shown under Try our tracks when the three tracks that ship with the app could not be fetched.</comment>
   </data>
+  <data name="Web_QualityDetail" xml:space="preserve">
+    <value>Das Original ist genau so, wie es hochgeladen wurde. Eine niedrigere Bitrate braucht weniger Daten.</value>
+    <comment>Web app, Settings, Sound: under Streaming quality, what the choices do.</comment>
+  </data>
 </root>

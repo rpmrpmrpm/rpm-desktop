@@ -9914,4 +9914,8 @@
     <value>Nos morceaux n’ont pas pu être téléchargés. Réessayez.</value>
     <comment>Web app, Import pane and setup: shown under Try our tracks when the three tracks that ship with the app could not be fetched.</comment>
   </data>
+  <data name="Web_QualityDetail" xml:space="preserve">
+    <value>L’original est exactement tel qu’il a été envoyé. Un débit plus faible consomme moins de données.</value>
+    <comment>Web app, Settings, Sound: under Streaming quality, what the choices do.</comment>
+  </data>
 </root>
