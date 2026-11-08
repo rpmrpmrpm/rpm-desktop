@@ -77,4 +77,58 @@ public class SidecarStatementTests
         var silent = SidecarStatement.Read("""{"RelativePath":"a","Extension":".flac"}""")!;
         Assert.Null(silent.ArtOver([1, 2]));
     }
+
+    [Fact]
+    public void An_empty_tempo_or_key_never_clears_a_measured_one_but_a_value_is_taken()
+    {
+        var empty = SidecarStatement.Read("""{"RelativePath":"a","Extension":".flac","Bpm":0,"MusicalKey":null}""")!;
+        Assert.Equal(120u, empty.Over(File()).Bpm);
+
+        var measured = SidecarStatement.Read("""{"RelativePath":"a","Extension":".flac","Bpm":98}""")!;
+        Assert.Equal(98u, measured.Over(File()).Bpm);
+    }
+
+    [Fact]
+    public void A_sidecar_from_an_edited_file_states_its_empty_fields_but_not_a_missing_picture()
+    {
+        var json = new TagSidecar { RelativePath = "a.flac", Extension = ".flac", Title = "Song" }.ToStatedJson();
+
+        var said = SidecarStatement.Read(json)!;
+
+        Assert.Contains("Conductor", said.Stated);
+        Assert.DoesNotContain("Art", said.Stated);
+        Assert.Null(said.Over(File()).Conductor);
+        Assert.Null(said.ArtOver([1, 2]));
+    }
+
+    [Fact]
+    public void A_sidecar_written_back_keeps_unstated_fields_out_and_states_what_was_emptied()
+    {
+        // Read from a sidecar that stated the title and the conductor, and never carried the release
+        // country or the movement count.
+        var read = SidecarStatement.Read("""{"RelativePath":"a","Extension":".flac","Title":"Song","Conductor":"Karajan"}""")!;
+        var changed = read.Sidecar with { Conductor = null, Publisher = "DG" };
+
+        var written = SidecarStatement.Read(changed.ToJsonOver(read.Stated))!;
+
+        Assert.Contains("Conductor", written.Stated);       // emptied: stated as empty
+        Assert.Contains("Publisher", written.Stated);       // new value: stated
+        Assert.DoesNotContain("ReleaseCountry", written.Stated);
+        Assert.DoesNotContain("MovementCount", written.Stated);
+        var over = written.Over(File() with { ReleaseCountry = "GB", MovementCount = 4 });
+        Assert.Null(over.Conductor);
+        Assert.Equal("DG", over.Publisher);
+        Assert.Equal("GB", over.ReleaseCountry);
+        Assert.Equal(4u, over.MovementCount);
+    }
+
+    [Fact]
+    public void Every_form_of_the_sidecar_reads_back_as_the_same_sidecar()
+    {
+        var sidecar = new TagSidecar { RelativePath = "a.flac", Extension = ".flac", Title = "Song", Year = 1977, Art = [1, 2], ArtMime = "image/png" };
+
+        Assert.Equal(sidecar.Title, TagSidecar.FromJson(sidecar.ToStatedJson())!.Title);
+        Assert.Equal(sidecar.Art, TagSidecar.FromJson(sidecar.ToStatedJson())!.Art);
+        Assert.Equal(1977u, TagSidecar.FromJson(sidecar.ToJsonOver(new HashSet<string>()))!.Year);
+    }
 }

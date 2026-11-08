@@ -76,19 +76,16 @@ internal static class SidecarsOwed
         {
             try
             {
-                if (await cloud.GetSidecarAsync(due.Id) is not { } sidecar)
+                // Null: nothing under this id any more, so nothing to write. Either way the edit is paid.
+                await cloud.RewriteSidecarAsync(due.Id, sidecar =>
                 {
-                    Paid(due.Id);   // nothing under this id any more: nothing to write
-                    continue;
-                }
-
-                var info = sidecar.ToTrackInfo(due.RelativePath);
-                foreach (var (name, value) in due.Fields)
-                    if (Enum.TryParse<TagFieldKind>(name, out var kind))
-                        info = TagFields.Get(kind).Apply(info, value);
-
-                if (await cloud.RefreshSidecarAsync(due.Id, sidecar.WithTags(info) with { RelativePath = due.RelativePath }))
-                    Paid(due.Id);
+                    var info = sidecar.ToTrackInfo(due.RelativePath);
+                    foreach (var (name, value) in due.Fields)
+                        if (Enum.TryParse<TagFieldKind>(name, out var kind))
+                            info = TagFields.Get(kind).Apply(info, value);
+                    return sidecar.WithTags(info) with { RelativePath = due.RelativePath };
+                });
+                Paid(due.Id);
             }
             catch
             {

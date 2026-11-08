@@ -408,15 +408,14 @@ internal static class MassEdit
             }
             LibraryRefiler.FollowFolders(db, root, folderMoves);
 
-            // A row whose audio is in the cloud has no file whose modified time shows the edit. So the
-            // row records the edit itself. Otherwise the next catalogue read would write the old values
-            // back over the correction before it was sent. See MetadataEditedUtcTicks.
-            var edited = plan.Where(p => p.Cloud is not null).Select(p => p.OldRelative).ToList();
-            if (edited.Count > 0)
-                db.NoteMetadataEdited(
-                    moves.Where(m => edited.Contains(m.From, StringComparer.OrdinalIgnoreCase))
-                         .Select(m => m.Track.RelativePath),
-                    DateTime.UtcNow.Ticks);
+            // Every row the edit wrote records that a person edited it. A row whose audio is in the cloud
+            // has no file whose modified time shows the edit, and the next catalogue read would otherwise
+            // write the old values back over the correction before it was sent. A row with a file needs it
+            // too: its next sidecar is then said to be rewritten, so the listener's other computers take the
+            // edit into their files, which a file written by the app on its own does not ask of them. See
+            // MetadataEditedUtcTicks.
+            if (moves.Count > 0)
+                db.NoteMetadataEdited(moves.Select(m => m.Track.RelativePath), DateTime.UtcNow.Ticks);
 
             if (moved)
                 OrganizeApplier.CleanupEmptyFolders(root);

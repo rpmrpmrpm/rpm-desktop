@@ -128,9 +128,10 @@ public static class RemoteTags
             return false;
         try
         {
-            if (await cloud.GetSidecarAsync(id, ct) is not { } sidecar)
-                return false;
-            return await cloud.RefreshSidecarAsync(id, sidecar.WithTags(edited) with { RelativePath = relativePath }, ct);
+            // Written with the fields the sidecar did not state still left out, and said to be rewritten, so
+            // a computer that holds the file takes the edit.
+            return await cloud.RewriteSidecarAsync(
+                id, sidecar => sidecar.WithTags(edited) with { RelativePath = relativePath }, ct) is not null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

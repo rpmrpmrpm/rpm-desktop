@@ -141,8 +141,13 @@ public sealed partial record TagSidecar
     /// AAC, because both live in a .m4a file. See <see cref="Metadata.AudioFormat.Codec"/>.</summary>
     public string? CodecDescription { get; init; }
 
-    /// <summary>Front-cover bytes, or null when the file had none.</summary>
+    /// <summary>Front-cover bytes, or null when the file had none. Left out of the JSON when null, in every
+    /// form of it: a file with no picture is not a reason to take the picture off another computer's
+    /// copy.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public byte[]? Art { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ArtMime { get; init; }
 
     // ── the listener's own mark ──
@@ -164,6 +169,11 @@ public sealed partial record TagSidecar
     [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(TagSidecar))]
     private sealed partial class TagSidecarJson : JsonSerializerContext;
+
+    /// <summary>The same shape with every empty field written out, for <see cref="ToStatedJson"/>.</summary>
+    [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.Never)]
+    [JsonSerializable(typeof(TagSidecar))]
+    private sealed partial class TagSidecarStatedJson : JsonSerializerContext;
 
     /// <summary>Reads the full set of tags from a file, art included, into a sidecar. Reading the art is
     /// the only expensive part. That is why this does not just copy from a TrackInfo that was already
@@ -460,7 +470,43 @@ public sealed partial record TagSidecar
         Source = MetadataSource.Tags,
     };
 
+    /// <summary>The sidecar as JSON, with empty text fields left out. Another computer reads a field that is
+    /// left out as "not known here" and keeps its own value (see <see cref="SidecarStatement"/>).</summary>
     public string ToJson() => JsonSerializer.Serialize(this, TagSidecarJson.Default.TagSidecar);
+
+    /// <summary>
+    /// The sidecar as JSON with every empty field written out (except the picture), so another computer that
+    /// takes it empties those fields too. Only for a sidecar read whole from a file that a person has just
+    /// edited: the file is the whole answer then. A sidecar built from anything thinner would empty fields it
+    /// never read.
+    /// </summary>
+    public string ToStatedJson() => JsonSerializer.Serialize(this, TagSidecarStatedJson.Default.TagSidecar);
+
+    /// <summary>
+    /// The sidecar as JSON for writing back over a sidecar that stated only <paramref name="stated"/>: every
+    /// field it stated is written, empty ones included, and a field it did not state is written only when it
+    /// now has a value. So a field the earlier sidecar never carried does not come back as "empty", and an
+    /// edit that emptied a field is written as empty.
+    /// </summary>
+    public string ToJsonOver(IReadOnlySet<string> stated)
+    {
+        ArgumentNullException.ThrowIfNull(stated);
+
+        var node = System.Text.Json.Nodes.JsonNode.Parse(ToStatedJson())!.AsObject();
+        foreach (var name in node.Select(p => p.Key).ToList())
+            if (!stated.Contains(name) && IsEmpty(node[name]))
+                node.Remove(name);
+        return node.ToJsonString();
+
+        static bool IsEmpty(System.Text.Json.Nodes.JsonNode? value) => value switch
+        {
+            null => true,
+            System.Text.Json.Nodes.JsonValue v when v.TryGetValue<string>(out var text) => string.IsNullOrEmpty(text),
+            System.Text.Json.Nodes.JsonValue v when v.TryGetValue<bool>(out var flag) => !flag,
+            System.Text.Json.Nodes.JsonValue v when v.TryGetValue<double>(out var number) => number == 0,
+            _ => false,
+        };
+    }
 
     public static TagSidecar? FromJson(string json)
     {

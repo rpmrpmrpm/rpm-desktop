@@ -52,9 +52,29 @@ public sealed record SidecarStatement(TagSidecar Sidecar, IReadOnlySet<string> S
 
         foreach (var (name, take) in Tags)
             if (Stated.Contains(name))
-                info = take(info, Sidecar);
+            {
+                var taken = take(info, Sidecar);
+                if (KeptWhenEmpty.Contains(name) && Empty(name, taken))
+                    continue;
+                info = taken;
+            }
         return info;
+
+        static bool Empty(string name, TrackInfo taken) => name switch
+        {
+            nameof(TagSidecar.Bpm) => taken.Bpm == 0,
+            nameof(TagSidecar.MusicalKey) => string.IsNullOrWhiteSpace(taken.MusicalKey),
+            _ => false,
+        };
     }
+
+    /// <summary>The tags that each computer measures for itself from the audio and writes into its own file
+    /// (the tempo and the key). An empty one in a sidecar is a computer that has not measured the track yet,
+    /// not a person emptying the field, so it never clears a measured value here. A value is taken.</summary>
+    internal static readonly IReadOnlySet<string> KeptWhenEmpty = new HashSet<string>(StringComparer.Ordinal)
+    {
+        nameof(TagSidecar.Bpm), nameof(TagSidecar.MusicalKey),
+    };
 
     /// <summary>
     /// The picture to write into a file whose embedded front cover is <paramref name="current"/>: the

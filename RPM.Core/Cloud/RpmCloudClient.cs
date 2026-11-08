@@ -1280,13 +1280,22 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     {
         ArgumentNullException.ThrowIfNull(sidecar);
 
+        return await PutSidecarJsonAsync(rpmId, sidecar.ToJson(), ct);
+    }
+
+    /// <summary>Writes a sidecar's JSON as given. False for a row that is not there, as
+    /// <see cref="RefreshSidecarAsync"/>.</summary>
+    public async Task<bool> PutSidecarJsonAsync(string rpmId, string json, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+
         try
         {
             var slot = await SendAsync<UrlResponse>(
                 HttpMethod.Get, $"cloud/sidecar/{rpmId}/upload", null, ct);
 
             await PutBytesAsync(
-                slot.Url, System.Text.Encoding.UTF8.GetBytes(sidecar.ToJson()),
+                slot.Url, System.Text.Encoding.UTF8.GetBytes(json),
                 "application/json", checksumBase64: null, ct);
 
             return true;
@@ -1295,6 +1304,52 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Tells the store that a track's sidecar was just rewritten by an edit, and returns the stamp the row
+    /// now carries. A computer that holds the file reads the sidecar again when it sees this (see
+    /// <see cref="CloudSyncPlan.SidecarChangedThere"/>). Called only after the sidecar is written: said first,
+    /// another computer could read the old sidecar under the new stamp and never read the new one. Zero when
+    /// the store wrote nothing (the row is gone).
+    /// </summary>
+    public async Task<long> SayRewrittenAsync(string rpmId, CancellationToken ct = default)
+    {
+        var response = await SendAsync<TagsPushResponse>(HttpMethod.Post, "cloud/catalog/tags",
+            JsonContent.Create(
+                new SidecarsRewrittenRequest([new SidecarRewritten(rpmId, true)]),
+                RpmCloudJson.Default.SidecarsRewrittenRequest), ct);
+
+        return response.Rows?.FirstOrDefault(r => string.Equals(r.RpmId, rpmId, StringComparison.Ordinal))?.UpdatedAt ?? 0;
+    }
+
+    /// <summary>
+    /// Changes a sidecar that this machine has no file for: reads it, applies <paramref name="change"/>, writes
+    /// it with the fields it did not state still left out (<see cref="TagSidecar.ToJsonOver"/>), and says it
+    /// was rewritten. Returns the stamp the row now carries, or null when the store keeps no sidecar or no row
+    /// for the track. Throws when the store cannot be reached.
+    /// </summary>
+    public async Task<long?> RewriteSidecarAsync(
+        string rpmId, Func<TagSidecar, TagSidecar> change, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+
+        if (await GetSidecarStatementAsync(rpmId, ct) is not { } said)
+            return null;
+        return await WriteSidecarOverAsync(rpmId, said, change(said.Sidecar), ct);
+    }
+
+    /// <summary>Writes <paramref name="changed"/> over the sidecar <paramref name="said"/> was read from, with
+    /// the fields it did not state left out, and says it was rewritten. Null when the row is gone.</summary>
+    public async Task<long?> WriteSidecarOverAsync(
+        string rpmId, SidecarStatement said, TagSidecar changed, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(said);
+        ArgumentNullException.ThrowIfNull(changed);
+
+        if (!await PutSidecarJsonAsync(rpmId, changed.ToJsonOver(said.Stated), ct))
+            return null;
+        return await SayRewrittenAsync(rpmId, ct);
     }
 
     private sealed record TagsPushRow(
@@ -1978,6 +2033,10 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
 
     private sealed record CatalogTagsRequest(IReadOnlyList<CatalogPush> Items);
 
+    private sealed record SidecarRewritten(string RpmId, bool Sidecar);
+
+    private sealed record SidecarsRewrittenRequest(IReadOnlyList<SidecarRewritten> Items);
+
     private sealed record PlaylistPutRequest(
         string Name,
         IReadOnlyList<string> TrackIds,
@@ -2043,6 +2102,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(LyricSheetAnswerBody))]
     [JsonSerializable(typeof(AlbumClassicalRequest))]
     [JsonSerializable(typeof(AlbumSettingsRequest))]
+    [JsonSerializable(typeof(SidecarsRewrittenRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(FeedbackReport))]
     [JsonSerializable(typeof(MoodListsPayload))]

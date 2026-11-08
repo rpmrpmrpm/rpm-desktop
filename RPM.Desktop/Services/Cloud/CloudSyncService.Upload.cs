@@ -837,16 +837,20 @@ public sealed partial class CloudSyncService
 
             try
             {
-                var sidecar = await _cloud.GetSidecarAsync(id, ct);
+                var said = await _cloud.GetSidecarStatementAsync(id, ct);
 
                 bool done;
-                if (sidecar is null || sidecar.Matches(track))
+                long stamp = 0;
+                if (said is null || said.Sidecar.Matches(track))
                 {
                     done = true;    // no sidecar under this id, or it already agrees: nothing to write
                 }
-                else if (await _cloud.RefreshSidecarAsync(id, sidecar.With(track), ct))
+                else if (await _cloud.WriteSidecarOverAsync(id, said, said.Sidecar.With(track), ct) is { } written)
                 {
+                    // Written with the fields the sidecar did not state still left out, and said to be
+                    // rewritten, so a computer that holds the file takes the edit.
                     done = true;
+                    stamp = written;
                     sent++;
                 }
                 else
@@ -856,6 +860,8 @@ public sealed partial class CloudSyncService
 
                 if (done && CloudSyncPlan.OwesSidecar(track))
                     db.NoteCloudMetadata(track.Id, readAt);
+                if (stamp > 0)
+                    db.NoteCloudStamp(track.Id, stamp);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -904,12 +910,28 @@ public sealed partial class CloudSyncService
                 var sidecar = (await Task.Run(() => TagSidecar.FromFile(path, root)))
                     .WithFavorite(track.IsFavorite, track.FavoritedUtcTicks);
 
-                if (await _cloud.RefreshSidecarAsync(id, sidecar, ct))
+                // A person edited the track here (the editors stamp the row as well as writing the file).
+                // Then the sidecar states every field, emptied ones included, and the store is told it was
+                // rewritten, so the listener's other computers take the edit into their own files. A file
+                // written by the app on its own (the tempo and key it measured, the id it stamped) is sent
+                // quietly: another computer has no reason to rewrite its file for that.
+                var edited = track.MetadataEditedUtcTicks > track.CloudSyncedUtcTicks;
+
+                if (await _cloud.PutSidecarJsonAsync(id, edited ? sidecar.ToStatedJson() : sidecar.ToJson(), ct))
                 {
+                    // Said only after the sidecar is in place, and before the row is stamped as sent: if
+                    // saying it fails, the row is still owed and both go again on the next run.
+                    var stamp = edited ? await _cloud.SayRewrittenAsync(id, ct) : 0;
+
                     // The file is now no newer than what the cloud holds. That stops the next run from
                     // sending it again. This is the same column that the upload stamps, with the same
                     // meaning.
                     db.NoteCloudMetadata(track.Id, readAt);
+
+                    // The store's stamp moved with the saying. Taken as this machine's, so the next listing
+                    // does not read this machine's own edit as another's.
+                    if (stamp > 0)
+                        db.NoteCloudStamp(track.Id, stamp);
                     sent++;
                 }
 
