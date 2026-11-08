@@ -9910,4 +9910,8 @@
   <data name="Web_DeleteAccountFailed" xml:space="preserve">
     <value>Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal.</value>
   </data>
+  <data name="Web_StarterFailed" xml:space="preserve">
+    <value>Unsere Titel konnten nicht heruntergeladen werden. Versuche es noch einmal.</value>
+    <comment>Web app, Import pane and setup: shown under Try our tracks when the three tracks that ship with the app could not be fetched.</comment>
+  </data>
 </root>

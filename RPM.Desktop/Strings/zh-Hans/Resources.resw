@@ -9910,4 +9910,8 @@
   <data name="Web_DeleteAccountFailed" xml:space="preserve">
     <value>无法删除账户，请重试。</value>
   </data>
+  <data name="Web_StarterFailed" xml:space="preserve">
+    <value>无法下载我们的曲目。请重试。</value>
+    <comment>Web app, Import pane and setup: shown under Try our tracks when the three tracks that ship with the app could not be fetched.</comment>
+  </data>
 </root>
