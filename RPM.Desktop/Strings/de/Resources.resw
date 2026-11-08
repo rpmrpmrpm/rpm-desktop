@@ -9869,6 +9869,10 @@
     <value>Die Tags konnten nicht gelesen werden. Schließe das Fenster und versuche es erneut.</value>
     <comment>Web app, edit windows: the tags could not be read from the cloud, so nothing can be edited.</comment>
   </data>
+  <data name="Web_AnalysisFailed" xml:space="preserve">
+    <value>Die Analyse konnte nicht geladen werden.</value>
+    <comment>Web app, track details, Sound tab: the shared analysis of the track could not be fetched from the cloud.</comment>
+  </data>
   <data name="Web_EditSaving" xml:space="preserve">
     <value>Wird gespeichert…</value>
     <comment>Web app, track metadata from a release: shown while the filled-in tags are saved.</comment>
