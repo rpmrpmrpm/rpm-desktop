@@ -5485,6 +5485,22 @@
     <value>成为支持者</value>
     <comment>Button that opens the page where supporting rpm is bought.</comment>
   </data>
+  <data name="Supporter_Manage" xml:space="preserve">
+    <value>管理订阅</value>
+    <comment>Button in Settings for a paying supporter. Opens the Stripe page where the subscription is cancelled or the card is changed.</comment>
+  </data>
+  <data name="Supporter_CheckoutFailed" xml:space="preserve">
+    <value>目前无法付款，请稍后重试。</value>
+    <comment>Shown under Become a supporter or Manage subscription when the payment page could not be opened.</comment>
+  </data>
+  <data name="Supporter_NoSubscription" xml:space="preserve">
+    <value>此账户没有订阅。</value>
+    <comment>Shown under Manage subscription for a supporter who did not pay through Stripe (for example, support given by rpm).</comment>
+  </data>
+  <data name="Web_BetaSupporter" xml:space="preserve">
+    <value>支持者现在即可使用 rpm，无需代码。</value>
+    <comment>Web app beta code card, above the Become a supporter button: paying opens the closed beta.</comment>
+  </data>
   <data name="Cloud_UsageUnlimited" xml:space="preserve">
     <value>已使用 {0}（存储无限）</value>
     <comment>Cloud settings usage line for a supporter, who has no ceiling to show.</comment>
