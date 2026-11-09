@@ -159,7 +159,7 @@ public sealed partial class WizardDoneStep : UserControl
 
     private void Support_Click(object sender, RoutedEventArgs e)
     {
-        SupporterLinks.OpenBecomeSupporter();
+        _ = SupporterLinks.OpenBecomeSupporterAsync();
 
         // Then on to the collection. The purchase finishes in a browser, and the app cannot see it happen.
         // Waiting on this screen for it would wait for something that never reports back.

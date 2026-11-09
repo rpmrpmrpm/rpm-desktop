@@ -157,9 +157,60 @@ public sealed partial class CloudSettingsPage : Page
 
         // Offered only to an account known not to be a supporter.
         SupportButton.Visibility = status is { IsSupporter: false } ? Visibility.Visible : Visibility.Collapsed;
+
+        // A tester does not pay, so there is nothing to manage. A supporter whose support was given by
+        // hand has no subscription either; the service says so when the button is pressed.
+        ManagePanel.Visibility = status is { IsSupporter: true, IsTester: false } ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void OnBecomeSupporter(object sender, RoutedEventArgs e) => SupporterLinks.OpenBecomeSupporter();
+    private void OnBecomeSupporter(object sender, RoutedEventArgs e) => _ = BecomeSupporterAsync();
+
+    private async Task BecomeSupporterAsync()
+    {
+        // Off while the checkout is asked for, so a second click does not open a second one.
+        SupportButton.IsEnabled = false;
+        try
+        {
+            await SupporterLinks.OpenBecomeSupporterAsync();
+        }
+        finally
+        {
+            SupportButton.IsEnabled = true;
+        }
+    }
+
+    private void OnManageSubscription(object sender, RoutedEventArgs e) => _ = ManageSubscriptionAsync();
+
+    private async Task ManageSubscriptionAsync()
+    {
+        ManageButton.IsEnabled = false;
+        ManageNote.Visibility = Visibility.Collapsed;
+        try
+        {
+            switch (await _supporter.ManageAsync())
+            {
+                case SupporterService.PaymentPage.At page:
+                    SupporterLinks.OpenPage(page);
+                    break;
+                case SupporterService.PaymentPage.NoPayments:
+                    ShowManageNote("Supporter_NoSubscription");
+                    break;
+                default:
+                    ShowManageNote("Supporter_CheckoutFailed");
+                    break;
+            }
+        }
+        finally
+        {
+            ManageButton.IsEnabled = true;
+        }
+    }
+
+    private void ShowManageNote(string key)
+    {
+        ManageNote.Text = Loc.Get(key);
+        ManageNote.Visibility = Visibility.Visible;
+    }
 
     // Debug only: pretend a standing
 

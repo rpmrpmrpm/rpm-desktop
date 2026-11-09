@@ -225,6 +225,80 @@ public sealed partial class SupporterService
     }
 
     /// <summary>
+    /// What the accounts service gave when asked for a page to pay at: an address, an account that has
+    /// never paid through Stripe, or no answer. The last two are different, so a failure is never shown
+    /// as "this account has no subscription".
+    /// </summary>
+    public abstract record PaymentPage
+    {
+        private PaymentPage() { }
+
+        /// <summary>A Stripe page for the signed-in account: the checkout, or the customer portal.</summary>
+        public sealed record At(string Url) : PaymentPage;
+
+        /// <summary>The account has never started a Stripe checkout, so there is no portal to open.</summary>
+        public sealed record NoPayments : PaymentPage;
+
+        /// <summary>No page could be had: signed out, offline, or the service refused.</summary>
+        public sealed record Failed : PaymentPage;
+
+        /// <summary>
+        /// Reads the service's answer. Only an <c>https</c> address is accepted, because the app opens it
+        /// in the browser without asking. A 404 is the service saying the account has no payments.
+        /// </summary>
+        public static PaymentPage Read(System.Net.HttpStatusCode status, string? body)
+        {
+            if (status == System.Net.HttpStatusCode.NotFound) return new NoPayments();
+            if ((int)status is < 200 or > 299 || string.IsNullOrEmpty(body)) return new Failed();
+
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                return json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && json.RootElement.TryGetProperty("url", out var url)
+                    && url.ValueKind == System.Text.Json.JsonValueKind.String
+                    && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var address)
+                    && address.Scheme == Uri.UriSchemeHttps
+                        ? new At(address.AbsoluteUri)
+                        : new Failed();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return new Failed();
+            }
+        }
+    }
+
+    /// <summary>A Stripe Checkout for the monthly subscription, or the customer portal when the account
+    /// already pays. The accounts service decides which.</summary>
+    public Task<PaymentPage> CheckoutAsync(CancellationToken ct = default) => PaymentPageAsync("supporter/checkout", ct);
+
+    /// <summary>The Stripe customer portal, where a supporter cancels or changes the card.</summary>
+    public Task<PaymentPage> ManageAsync(CancellationToken ct = default) => PaymentPageAsync("supporter/manage", ct);
+
+    private async Task<PaymentPage> PaymentPageAsync(string path, CancellationToken ct)
+    {
+        try
+        {
+            if (await _auth.GetAccessTokenAsync() is not { Length: > 0 } token)
+                return new PaymentPage.Failed();
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, path)
+            {
+                Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var resp = await Http.SendAsync(req, ct);
+            return PaymentPage.Read(resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        }
+        catch
+        {
+            return new PaymentPage.Failed();
+        }
+    }
+
+    /// <summary>
     /// Keeps the answer, and raises <see cref="Changed"/> if the answer is new.
     ///
     /// <para>A failed read is never remembered as "no". <see cref="Current"/> holds the last thing the server

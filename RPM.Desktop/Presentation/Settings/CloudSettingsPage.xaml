@@ -82,6 +82,15 @@
                 <TextBlock Text="{loc:Str Key=Cloud_BecomeSupporter}" VerticalAlignment="Center" />
               </StackPanel>
             </ctl:RpmPrimaryButton>
+
+            <!-- A paying supporter's way to cancel or change the card: the Stripe customer portal. -->
+            <StackPanel x:Name="ManagePanel" Spacing="6" Visibility="Collapsed">
+              <ctl:RpmButton x:Name="ManageButton" Click="OnManageSubscription" HorizontalAlignment="Left">
+                <TextBlock Text="{loc:Str Key=Supporter_Manage}" VerticalAlignment="Center" />
+              </ctl:RpmButton>
+              <TextBlock x:Name="ManageNote" FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"
+                         Visibility="Collapsed" />
+            </StackPanel>
           </StackPanel>
         </Border>
 

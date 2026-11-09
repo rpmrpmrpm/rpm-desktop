@@ -289,7 +289,7 @@ public sealed partial class RecognizeDialog : ContentDialog
 
     /// <summary>The page where rpm support is bought. It is the same page as the cloud settings page and
     /// the storage-full window use. See <see cref="SupporterLinks"/>.</summary>
-    private void Support_Click(object sender, RoutedEventArgs e) => SupporterLinks.OpenBecomeSupporter();
+    private void Support_Click(object sender, RoutedEventArgs e) => _ = SupporterLinks.OpenBecomeSupporterAsync();
 
     private async void Start_Click(object sender, RoutedEventArgs e)
     {

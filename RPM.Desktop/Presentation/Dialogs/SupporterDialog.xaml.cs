@@ -124,7 +124,7 @@ public sealed partial class SupporterDialog : ContentDialog
     /// read, and the supporter state changes on the next <c>auth/me</c> call.</summary>
     private void Support_Click(object sender, RoutedEventArgs e)
     {
-        SupporterLinks.OpenBecomeSupporter();
+        _ = SupporterLinks.OpenBecomeSupporterAsync();
         Hide();
     }
 
