@@ -54,6 +54,12 @@ public sealed record LibraryTrack
     /// this, newest first.</summary>
     public long FavoritedUtcTicks { get; init; }
 
+    /// <summary>The listener's star rating for the song, 0 to 10 (half stars), 0 meaning not rated.
+    /// Owned by the row and never by the file, like a favourite. Written by an import from another
+    /// music app (<see cref="LibraryDatabase.SetImportedRating"/>) and sent to the cloud by its own
+    /// pass (<see cref="LibraryDatabase.RatingsToSend"/>).</summary>
+    public int Rating { get; init; }
+
     /// <summary>
     /// The tempo the FILE claims, or zero where it claims none.
     ///
@@ -1873,6 +1879,12 @@ public sealed partial class LibraryDatabase : IDisposable
         AddColumnIfMissing("album_meta", "settings_edited_utc_ticks", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("album_meta", "settings_synced_utc_ticks", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("album_meta", "settings_cloud_updated_at", "INTEGER NOT NULL DEFAULT 0");
+
+        // The song's star rating (0 to 10, 0 = not rated) and whether the cloud has the current value.
+        // Added on every open and not behind a version step, for the same reason as release_type above.
+        // rating_sent starts at 1 on every existing row, because a rating of 0 is nothing to send.
+        AddColumnIfMissing("tracks", "rating", "INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing("tracks", "rating_sent", "INTEGER NOT NULL DEFAULT 1");
 
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into
@@ -4206,6 +4218,7 @@ public sealed partial class LibraryDatabase : IDisposable
         LastPlayedUtcTicks = r.GetInt64(r.GetOrdinal("last_played_utc_ticks")),
         IsFavorite = r.GetInt64(r.GetOrdinal("favorite")) != 0,
         FavoritedUtcTicks = r.GetInt64(r.GetOrdinal("favorited_utc_ticks")),
+        Rating = (int)r.GetInt64(r.GetOrdinal("rating")),
         CloudAdopted = r.GetInt64(r.GetOrdinal("cloud_adopted")) != 0,
         MetadataEditedUtcTicks = r.GetInt64(r.GetOrdinal("metadata_edited_utc_ticks")),
         CloudUpdatedAt = r.GetInt64(r.GetOrdinal("cloud_updated_at")),

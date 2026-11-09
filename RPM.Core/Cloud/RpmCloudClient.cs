@@ -122,7 +122,13 @@ public sealed record CloudTrackTags(
     // What kind of release the record is, as ReleaseTypes.ToStored writes it ("Album", "Ep", "Live"...). The
     // phone and the TV shelve an artist's records by it instead of guessing from the title. Album-level like
     // the pressing above it, and on the row for the same reason.
-    [property: JsonPropertyName("releaseType")] string? ReleaseType = null)
+    [property: JsonPropertyName("releaseType")] string? ReleaseType = null,
+    // The listener's star rating, 0 to 10, as the store holds it. Null when the server does not send
+    // one (an older server), which is "not known" and not "not rated". It is only read: the store takes
+    // a rating through PUT cloud/track-ratings (see PutTrackRatingsAsync), never through a tags push,
+    // so it is left out of what this client writes.
+    [property: JsonPropertyName("rating")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Rating = null)
 {
     /// <summary>Whether the row knows how loud the recording is. Zero means "not measured". A real
     /// reading is negative, because music sits below full scale. A track at exactly zero LUFS would be
@@ -1750,6 +1756,17 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
                         [.. rows.Select(r => new TrackPlaysEntry(r.RpmId, r.Plays, r.LastPlayedAt))]),
                     RpmCloudJson.Default.TrackPlaysRequest), ct)).UpdatedAt;
 
+    /// <summary>Sends song ratings (0 to 10, 0 = not rated) for tracks the cloud holds, at most 200. A
+    /// server that does not have the route answers 404, which reaches the caller as an
+    /// <see cref="HttpRequestException"/>.</summary>
+    public async Task PutTrackRatingsAsync(
+        IReadOnlyList<(string RpmId, int Rating)> rows, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/track-ratings",
+                JsonContent.Create(
+                    new TrackRatingsRequest([.. rows.Select(r => new TrackRatingEntry(r.RpmId, r.Rating))]),
+                    RpmCloudJson.Default.TrackRatingsRequest), ct);
+
     /// <summary>Every play row that this listener has on any device, or only the rows that the store has
     /// changed since a stamp that this machine has already taken in.</summary>
     public async Task<IReadOnlyList<CloudTrackPlays>> ListTrackPlaysAsync(
@@ -2053,6 +2070,10 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
 
     private sealed record TrackPlaysRequest(string DeviceId, IReadOnlyList<TrackPlaysEntry> Tracks);
 
+    private sealed record TrackRatingEntry(string RpmId, int Rating);
+
+    private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
+
     private sealed record StationListensEntry(
         string Uuid, double HeardSeconds, int Tunes, long LastHeardAt, CloudListenedStation Station);
 
@@ -2132,6 +2153,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(CloudAlbumMarkResponse))]
     [JsonSerializable(typeof(CloudAlbumMarksResponse))]
     [JsonSerializable(typeof(TrackPlaysRequest))]
+    [JsonSerializable(typeof(TrackRatingsRequest))]
     [JsonSerializable(typeof(TrackPlaysResponse))]
     [JsonSerializable(typeof(TrackPlaysListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]

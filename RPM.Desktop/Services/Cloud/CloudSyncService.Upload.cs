@@ -750,6 +750,9 @@ public sealed partial class CloudSyncService
         // they are kept in step between the listener's machines. See CloudSyncService.Plays.
         await SyncPlaysAsync(db, ct);
 
+        // Song ratings, on a pass of their own beside the plays. See CloudSyncService.Ratings.
+        await SyncRatingsAsync(db, cloud, ct);
+
         // Radio listens are handled the same way. See CloudSyncService.StationListens.
         await SyncStationListensAsync(ct);
 
