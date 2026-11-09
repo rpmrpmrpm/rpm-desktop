@@ -295,6 +295,14 @@ public sealed partial class LibraryDatabase
                 if (string.Equals(row.Device, mine, StringComparison.Ordinal))
                     continue;
 
+                // The plays of an import from another app. The machine that ran the import sends
+                // them; every other machine only takes them, so they are stored as already sent. A
+                // row this machine imported and has not sent yet is newer than the store's, and is
+                // kept: it goes up on the next pass.
+                var imported = IsImportDevice(row.Device);
+                if (imported && UnsentLocked(row.RpmId, row.Device))
+                    continue;
+
                 var (heldPlays, heldLastPlayed) = HeldPlaysLocked(row.RpmId, row.Device);
                 if (heldPlays == row.Plays && row.LastPlayedUtcTicks <= heldLastPlayed)
                     continue;
@@ -308,16 +316,18 @@ public sealed partial class LibraryDatabase
                     keep.CommandText =
                         """
                         INSERT INTO track_plays (rpm_id, device, plays, last_played_utc_ticks, sent_plays)
-                        VALUES ($id, $device, $plays, $at, 0)
+                        VALUES ($id, $device, $plays, $at, $sent)
                         ON CONFLICT (rpm_id, device) DO UPDATE SET
                             plays = excluded.plays,
                             last_played_utc_ticks =
-                                MAX(last_played_utc_ticks, excluded.last_played_utc_ticks)
+                                MAX(last_played_utc_ticks, excluded.last_played_utc_ticks),
+                            sent_plays = excluded.sent_plays
                         """;
                     keep.Parameters.AddWithValue("$id", row.RpmId);
                     keep.Parameters.AddWithValue("$device", row.Device);
                     keep.Parameters.AddWithValue("$plays", row.Plays);
                     keep.Parameters.AddWithValue("$at", row.LastPlayedUtcTicks);
+                    keep.Parameters.AddWithValue("$sent", imported ? row.Plays : 0);
                     keep.ExecuteNonQuery();
                 }
 
@@ -351,6 +361,104 @@ public sealed partial class LibraryDatabase
         }
 
         return applied;
+    }
+
+    /// <summary>The start of every import device name: <c>import:&lt;kind&gt;:&lt;library id&gt;</c>
+    /// (see <see cref="Migration.SourceLibrary.DeviceId"/>).</summary>
+    public const string ImportDevicePrefix = "import:";
+
+    private static bool IsImportDevice(string device) =>
+        device.StartsWith(ImportDevicePrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Stores the play totals an import from another app brought, as the rows of that source library's
+    /// device. They replace what an earlier import of the same library stored, so importing it again
+    /// does not count the same plays twice. The track's counter is worked out again from its rows, and
+    /// its last played moves only later. What the cloud already has (sent_plays) is kept, so totals
+    /// that did not change are not sent again.
+    /// </summary>
+    public void ApplyImportedPlays(string device, IReadOnlyList<TrackPlayRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        if (!IsImportDevice(device))
+            throw new ArgumentException($"An import device name starts with \"{ImportDevicePrefix}\".", nameof(device));
+
+        using (_gate.Take())
+        {
+            using var tx = _connection.BeginTransaction();
+            foreach (var row in rows)
+            {
+                if (string.IsNullOrEmpty(row.RpmId))
+                    continue;
+
+                using (var keep = _connection.CreateCommand())
+                {
+                    keep.CommandText =
+                        """
+                        INSERT INTO track_plays (rpm_id, device, plays, last_played_utc_ticks, sent_plays)
+                        VALUES ($id, $device, $plays, $at, 0)
+                        ON CONFLICT (rpm_id, device) DO UPDATE SET
+                            plays = excluded.plays,
+                            last_played_utc_ticks = excluded.last_played_utc_ticks
+                        """;
+                    keep.Parameters.AddWithValue("$id", row.RpmId);
+                    keep.Parameters.AddWithValue("$device", device);
+                    keep.Parameters.AddWithValue("$plays", Math.Max(0, row.Plays));
+                    keep.Parameters.AddWithValue("$at", Math.Max(0, row.LastPlayedUtcTicks));
+                    keep.ExecuteNonQuery();
+                }
+
+                using (var track = _connection.CreateCommand())
+                {
+                    track.CommandText =
+                        """
+                        UPDATE tracks
+                        SET plays = (SELECT COALESCE(SUM(plays), 0) FROM track_plays
+                                     WHERE track_plays.rpm_id = tracks.rpm_id),
+                            last_played_utc_ticks = MAX(last_played_utc_ticks, $at)
+                        WHERE rpm_id = $id
+                        """;
+                    track.Parameters.AddWithValue("$at", Math.Max(0, row.LastPlayedUtcTicks));
+                    track.Parameters.AddWithValue("$id", row.RpmId);
+                    track.ExecuteNonQuery();
+                }
+            }
+            tx.Commit();
+        }
+    }
+
+    /// <summary>Rows of imports from other apps that hold more plays than the cloud has accepted. The
+    /// caller sends them one device at a time and records each with <see cref="NotePlaysSent"/>.</summary>
+    public IReadOnlyList<TrackPlayRow> ImportPlaysToSend(int limit)
+    {
+        if (limit <= 0)
+            return [];
+
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT rpm_id, device, plays, last_played_utc_ticks, sent_plays
+                FROM track_plays
+                WHERE device LIKE 'import:%' AND plays > sent_plays
+                ORDER BY device, rpm_id
+                LIMIT $limit
+                """;
+            cmd.Parameters.AddWithValue("$limit", limit);
+            return ReadPlayRows(cmd);
+        }
+    }
+
+    /// <summary>Whether one device's row holds plays the cloud has not accepted. Held under
+    /// <see cref="_gate"/>.</summary>
+    private bool UnsentLocked(string rpmId, string device)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT plays > sent_plays FROM track_plays WHERE rpm_id = $id AND device = $device";
+        cmd.Parameters.AddWithValue("$id", rpmId);
+        cmd.Parameters.AddWithValue("$device", device);
+        return cmd.ExecuteScalar() is long unsent && unsent != 0;
     }
 
     /// <summary>What this mirror already holds for one device's row. Zero where there is none, which

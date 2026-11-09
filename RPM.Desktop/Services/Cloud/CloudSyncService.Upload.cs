@@ -125,7 +125,7 @@ public sealed partial class CloudSyncService
 
             _jobs.Stage(track.Id, CloudStage.Uploading, 0.55);
             var outcome = await _cloud.UploadAsync(
-                track.RpmId!, canonical, sidecar, new FileInfo(path).Length, ct);
+                track.RpmId!, canonical, sidecar, new FileInfo(path).Length, PlayClock.Seconds(track.AddedUtcTicks), ct);
 
             db.MarkSynced(track.Id, canonical.Sha256, canonical.SizeBytes, DateTime.UtcNow.Ticks);
 

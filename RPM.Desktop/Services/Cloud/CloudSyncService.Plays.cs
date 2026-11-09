@@ -73,20 +73,32 @@ public sealed partial class CloudSyncService
             return;
 
         var due = db.PlaysToSend(mine, PlaysPerRun);
-        if (due.Count == 0)
-            return;
+        if (due.Count > 0)
+            await SendPlaysAsync(db, mine, due, ct);
 
+        // The plays of imports from other apps that this machine ran: one device per source library,
+        // so one request per device. See LibraryDatabase.ApplyImportedPlays.
+        foreach (var device in db.ImportPlaysToSend(PlaysPerRun).GroupBy(r => r.Device))
+        {
+            if (ct.IsCancellationRequested)
+                return;
+            await SendPlaysAsync(db, device.Key, [.. device], ct);
+        }
+    }
+
+    private async Task SendPlaysAsync(LibraryDatabase db, string device, IReadOnlyList<LibraryDatabase.TrackPlayRow> due, CancellationToken ct)
+    {
         try
         {
             await _cloud.PutTrackPlaysAsync(
-                mine,
+                device,
                 [.. due.Select(r => (r.RpmId, r.Plays, PlayClock.Seconds(r.LastPlayedUtcTicks)))],
                 ct);
 
             // The rows as they were SENT are used, not the rows as they stand now. A listen counted since
             // the read is still unsent, and it goes out on the next pass. See
             // LibraryDatabase.NotePlaysSent.
-            db.NotePlaysSent(mine, due);
+            db.NotePlaysSent(device, due);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

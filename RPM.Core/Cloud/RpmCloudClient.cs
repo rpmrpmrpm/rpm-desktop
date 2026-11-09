@@ -577,6 +577,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         CanonicalFile canonical,
         TagSidecar sidecar,
         long originalSizeBytes,
+        long addedAtUnix,
         CancellationToken ct = default)
     {
         var init = await SendAsync<UploadInitResponse>(HttpMethod.Post, "cloud/upload/init",
@@ -633,7 +634,8 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
                     sidecar.Title,
                     sidecar.Artist,
                     sidecar.Album,
-                    TagsFrom(sidecar)),
+                    TagsFrom(sidecar),
+                    addedAtUnix),
                 RpmCloudJson.Default.UploadCompleteRequest), ct);
 
         // The renditions come last, and they are best-effort. A track is in the cloud once complete has
@@ -1767,6 +1769,17 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
                     new TrackRatingsRequest([.. rows.Select(r => new TrackRatingEntry(r.RpmId, r.Rating))]),
                     RpmCloudJson.Default.TrackRatingsRequest), ct);
 
+    /// <summary>Moves the date added of tracks the cloud holds earlier (unix seconds), at most 200. The
+    /// store never moves a date later. A server that does not have the route answers 404, which reaches
+    /// the caller as an <see cref="HttpRequestException"/>.</summary>
+    public async Task PutTrackAddedAsync(
+        IReadOnlyList<(string RpmId, long AddedAtUnix)> rows, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/track-added",
+                JsonContent.Create(
+                    new TrackAddedRequest([.. rows.Select(r => new TrackAddedEntry(r.RpmId, r.AddedAtUnix))]),
+                    RpmCloudJson.Default.TrackAddedRequest), ct);
+
     /// <summary>Every play row that this listener has on any device, or only the rows that the store has
     /// changed since a stamp that this machine has already taken in.</summary>
     public async Task<IReadOnlyList<CloudTrackPlays>> ListTrackPlaysAsync(
@@ -2040,7 +2053,9 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         string? Title,
         string? Artist,
         string? Album,
-        CloudTrackTags Tags);
+        CloudTrackTags Tags,
+        // When the track joined the library (unix seconds). 0 lets the server use its own time.
+        long AddedAt);
 
     private sealed record TranscodeRequest(IReadOnlyList<string> RpmIds, int Kilobits);
 
@@ -2073,6 +2088,10 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
+
+    private sealed record TrackAddedEntry(string RpmId, long AddedAt);
+
+    private sealed record TrackAddedRequest(IReadOnlyList<TrackAddedEntry> Tracks);
 
     private sealed record StationListensEntry(
         string Uuid, double HeardSeconds, int Tunes, long LastHeardAt, CloudListenedStation Station);
@@ -2154,6 +2173,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     [JsonSerializable(typeof(CloudAlbumMarksResponse))]
     [JsonSerializable(typeof(TrackPlaysRequest))]
     [JsonSerializable(typeof(TrackRatingsRequest))]
+    [JsonSerializable(typeof(TrackAddedRequest))]
     [JsonSerializable(typeof(TrackPlaysResponse))]
     [JsonSerializable(typeof(TrackPlaysListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]
