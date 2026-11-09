@@ -1,0 +1,35 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "totalSize": 3,
+    "offset": 2,
+    "Metadata": [
+      {
+        "ratingKey": "503",
+        "type": "track",
+        "title": "Night",
+        "grandparentTitle": "Artist Q",
+        "parentTitle": "Album Q",
+        "index": 1,
+        "parentIndex": 1,
+        "duration": 254000,
+        "addedAt": 1550000000,
+        "Media": [
+          {
+            "container": "m4a",
+            "Part": [
+              {
+                "key": "/library/parts/9003/1550000000/file.m4a",
+                "size": 7000000,
+                "file": "/data/music/x.m4a"
+              }
+            ]
+          }
+        ],
+        "viewCount": 1,
+        "lastViewedAt": 1650000000,
+        "userRating": 5.0
+      }
+    ]
+  }
+}

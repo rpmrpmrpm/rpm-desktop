@@ -1,0 +1,39 @@
+{
+  "Items": [
+    {
+      "Name": "East",
+      "ServerId": "f1e2d3c4b5a69788",
+      "Id": "0000000000000000000000000000000j3",
+      "DateCreated": "2020-10-10T10:10:10.0000000Z",
+      "Container": "m4a",
+      "RunTimeTicks": 1800000000,
+      "IndexNumber": 1,
+      "ParentIndexNumber": 1,
+      "Type": "Audio",
+      "Album": "Album K",
+      "AlbumArtist": "Various Artists",
+      "Artists": [
+        "Artist K"
+      ],
+      "MediaSources": [
+        {
+          "Protocol": "File",
+          "Id": "0000000000000000000000000000000j3",
+          "Path": "/media/music/Various Artists/Album K/01 East.m4a",
+          "Container": "m4a",
+          "Size": 6000000
+        }
+      ],
+      "UserData": {
+        "PlayCount": 2,
+        "IsFavorite": false,
+        "Played": true,
+        "Key": "0000000000000000000000000000000j3",
+        "LastPlayedDate": "2022-02-02T02:02:02.0000000Z"
+      },
+      "MediaType": "Audio"
+    }
+  ],
+  "TotalRecordCount": 3,
+  "StartIndex": 2
+}

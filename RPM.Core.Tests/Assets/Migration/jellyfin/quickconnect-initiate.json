@@ -1,0 +1,9 @@
+{
+  "Authenticated": false,
+  "Secret": "qc-secret-0001",
+  "Code": "123456",
+  "DeviceId": "rpm-test",
+  "DeviceName": "rpm",
+  "AppName": "rpm",
+  "AppVersion": "1.0"
+}

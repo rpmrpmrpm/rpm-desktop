@@ -1,0 +1,94 @@
+{
+  "kind": "plex",
+  "libraryId": "machine-1234",
+  "name": "Home Plex",
+  "tracks": [
+    {
+      "sourceId": "501",
+      "file": {
+        "remote": "/library/parts/9001/1500000000/file.flac",
+        "extension": ".flac",
+        "size": 31457280
+      },
+      "title": "Morning",
+      "artist": "Artist P",
+      "album": "Album P",
+      "albumArtist": "Artist P",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "durationSeconds": 213.0,
+      "sizeBytes": 31457280,
+      "rating": 8,
+      "favorite": false,
+      "plays": 4,
+      "lastPlayed": "2020-09-13T12:26:40Z",
+      "added": "2017-07-14T02:40:00Z"
+    },
+    {
+      "sourceId": "502",
+      "file": {
+        "remote": "/library/parts/9002/1500000001/file.mp3",
+        "extension": ".mp3",
+        "size": 4000000
+      },
+      "title": "Noon",
+      "artist": "Guest Singer",
+      "album": "Album P",
+      "albumArtist": "Artist P",
+      "trackNumber": 2,
+      "discNumber": 1,
+      "durationSeconds": 187.0,
+      "sizeBytes": 4000000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2017-07-14T02:40:01Z"
+    },
+    {
+      "sourceId": "503",
+      "file": {
+        "remote": "/library/parts/9003/1550000000/file.m4a",
+        "extension": ".m4a",
+        "size": 7000000
+      },
+      "title": "Night",
+      "artist": "Artist Q",
+      "album": "Album Q",
+      "albumArtist": "Artist Q",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "durationSeconds": 254.0,
+      "sizeBytes": 7000000,
+      "rating": 5,
+      "favorite": false,
+      "plays": 1,
+      "lastPlayed": "2022-04-15T05:20:00Z",
+      "added": "2019-02-12T19:33:20Z"
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "700",
+      "name": "Road trip",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "501",
+        "503"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "701",
+      "name": "Top rated",
+      "folder": [],
+      "smart": true,
+      "trackIds": [
+        "501"
+      ],
+      "unresolved": []
+    }
+  ],
+  "skipped": []
+}

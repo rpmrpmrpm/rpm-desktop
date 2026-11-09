@@ -22,6 +22,9 @@
     <Content Include="Assets\beat-decoder-reference.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\bar-dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The sample libraries for the import readers, copied in from the rpm repo by
+         scripts/sync_fixtures.py there. Do not edit them here. -->
+    <Content Include="Assets\Migration\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

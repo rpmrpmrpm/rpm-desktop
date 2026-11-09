@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Major Version</key><integer>1</integer>
+	<key>Minor Version</key><integer>1</integer>
+	<key>Application Version</key><string>3.5</string>
+	<key>Music Folder</key><string>file://localhost/C:/Users/Test/Music/</string>
+	<key>Tracks</key>
+	<dict>
+		<key>1</key>
+		<dict>
+			<key>Track ID</key><integer>1</integer>
+			<key>Name</key><string>One</string>
+			<key>Artist</key><string>Artist F</string>
+			<key>Album Artist</key><string>Artist F</string>
+			<key>Album</key><string>Album F</string>
+			<key>Track Number</key><integer>1</integer>
+			<key>Total Time</key><integer>180000</integer>
+			<key>Size</key><integer>5000000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Rating</key><integer>10</integer>
+			<key>Play Count</key><integer>2</integer>
+			<key>Play Date UTC</key><date>2022-01-01T10:00:00Z</date>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20F/Album%20F/01%20One.mp3</string>
+		</dict>
+		<key>2</key>
+		<dict>
+			<key>Track ID</key><integer>2</integer>
+			<key>Name</key><string>Two</string>
+			<key>Artist</key><string>Artist F</string>
+			<key>Album Artist</key><string>Artist F</string>
+			<key>Album</key><string>Album F</string>
+			<key>Track Number</key><integer>2</integer>
+			<key>Total Time</key><integer>181000</integer>
+			<key>Size</key><integer>5100000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Rating</key><integer>30</integer>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20F/Album%20F/02%20Two.mp3</string>
+		</dict>
+		<key>3</key>
+		<dict>
+			<key>Track ID</key><integer>3</integer>
+			<key>Name</key><string>Three</string>
+			<key>Artist</key><string>Artist F</string>
+			<key>Album Artist</key><string>Artist F</string>
+			<key>Album</key><string>Album F</string>
+			<key>Track Number</key><integer>3</integer>
+			<key>Total Time</key><integer>182000</integer>
+			<key>Size</key><integer>5200000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Rating</key><integer>70</integer>
+			<key>Play Count</key><integer>9</integer>
+			<key>Play Date UTC</key><date>2023-03-03T03:03:03Z</date>
+			<key>Loved</key><true/>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20F/Album%20F/03%20Three.mp3</string>
+		</dict>
+		<key>4</key>
+		<dict>
+			<key>Track ID</key><integer>4</integer>
+			<key>Name</key><string>Four</string>
+			<key>Artist</key><string>Artist G</string>
+			<key>Album Artist</key><string>Artist G</string>
+			<key>Album</key><string>Album G</string>
+			<key>Track Number</key><integer>1</integer>
+			<key>Total Time</key><integer>300000</integer>
+			<key>Size</key><integer>35000000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Rating</key><integer>100</integer>
+			<key>Play Count</key><integer>1</integer>
+			<key>Play Date UTC</key><date>2021-12-12T12:12:12Z</date>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20G/Album%20G/01%20Four.flac</string>
+		</dict>
+		<key>5</key>
+		<dict>
+			<key>Track ID</key><integer>5</integer>
+			<key>Name</key><string>Five</string>
+			<key>Artist</key><string>Artist G</string>
+			<key>Album Artist</key><string>Artist G</string>
+			<key>Album</key><string>Album G</string>
+			<key>Track Number</key><integer>2</integer>
+			<key>Total Time</key><integer>301000</integer>
+			<key>Size</key><integer>35100000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20G/Album%20G/02%20Five.flac</string>
+		</dict>
+		<key>6</key>
+		<dict>
+			<key>Track ID</key><integer>6</integer>
+			<key>Name</key><string>Six</string>
+			<key>Artist</key><string>Artist G</string>
+			<key>Album Artist</key><string>Artist G</string>
+			<key>Album</key><string>Album G</string>
+			<key>Track Number</key><integer>3</integer>
+			<key>Total Time</key><integer>302000</integer>
+			<key>Size</key><integer>35200000</integer>
+			<key>Date Added</key><date>2019-09-09T09:09:09Z</date>
+			<key>Rating</key><integer>50</integer>
+			<key>Location</key><string>file://localhost/C:/Users/Test/Music/Artist%20G/Album%20G/03%20Six.flac</string>
+		</dict>
+	</dict>
+	<key>Playlists</key>
+	<array>
+		<dict>
+			<key>Name</key><string>Gym</string>
+			<key>Playlist ID</key><integer>10</integer>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>4</integer></dict>
+				<dict><key>Track ID</key><integer>1</integer></dict>
+				<dict><key>Track ID</key><integer>3</integer></dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,231 @@
+{
+  "kind": "itunes",
+  "libraryId": "0A1B2C3D4E5F6A7B",
+  "name": "iTunes",
+  "tracks": [
+    {
+      "sourceId": "AAAA000000000101",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist A/Album A/01 Track One.m4a"
+      },
+      "title": "Track One",
+      "artist": "Artist A",
+      "album": "Album A",
+      "albumArtist": "Artist A",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "durationSeconds": 213.0,
+      "sizeBytes": 8000000,
+      "rating": 10,
+      "favorite": true,
+      "plays": 12,
+      "lastPlayed": "2021-05-06T07:08:09Z",
+      "added": "2014-03-02T10:20:30Z"
+    },
+    {
+      "sourceId": "AAAA000000000102",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist A/Album A/02 Track Two.m4a"
+      },
+      "title": "Track Two",
+      "artist": "Artist A",
+      "album": "Album A",
+      "albumArtist": "Artist A",
+      "trackNumber": 2,
+      "discNumber": 1,
+      "durationSeconds": 185.0,
+      "sizeBytes": 7000000,
+      "rating": 9,
+      "favorite": true,
+      "plays": 3,
+      "lastPlayed": "2020-11-12T13:14:15Z",
+      "added": "2014-03-02T10:20:31Z"
+    },
+    {
+      "sourceId": "AAAA000000000103",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist B/Album #1/01 Rock & Roll.mp3"
+      },
+      "title": "Rock & Roll",
+      "artist": "Artist B",
+      "album": "Album #1",
+      "albumArtist": "",
+      "trackNumber": 1,
+      "discNumber": 0,
+      "durationSeconds": 201.5,
+      "sizeBytes": 5000000,
+      "rating": 5,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2015-06-07T08:09:10Z"
+    },
+    {
+      "sourceId": "AAAA000000000104",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist B/Album #1/02 100% Pure.mp3"
+      },
+      "title": "100% Pure",
+      "artist": "Artist B",
+      "album": "Album #1",
+      "albumArtist": "",
+      "trackNumber": 2,
+      "discNumber": 0,
+      "durationSeconds": 150.0,
+      "sizeBytes": 4500000,
+      "rating": 2,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2015-06-07T08:09:11Z"
+    },
+    {
+      "sourceId": "AAAA000000000105",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Café Society/Le Café/01 Café.flac"
+      },
+      "title": "Café",
+      "artist": "Café Society",
+      "album": "Le Café",
+      "albumArtist": "Café Society",
+      "trackNumber": 1,
+      "discNumber": 0,
+      "durationSeconds": 240.0,
+      "sizeBytes": 30000000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2016-01-01T00:00:00Z"
+    },
+    {
+      "sourceId": "AAAA000000000106",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist C/Album C/2-03 Track Six.mp3"
+      },
+      "title": "Track Six",
+      "artist": "Artist C",
+      "album": "Album C",
+      "albumArtist": "",
+      "trackNumber": 3,
+      "discNumber": 2,
+      "durationSeconds": 199.0,
+      "sizeBytes": 6000000,
+      "rating": 7,
+      "favorite": false,
+      "plays": 1,
+      "lastPlayed": "2020-01-01T00:00:00Z",
+      "added": "2017-02-03T04:05:06Z"
+    },
+    {
+      "sourceId": "AAAA000000000111",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist E/Album E/01 Track Eleven.aiff"
+      },
+      "title": "Track Eleven",
+      "artist": "Artist E",
+      "album": "Album E",
+      "albumArtist": "Artist E",
+      "trackNumber": 1,
+      "discNumber": 0,
+      "durationSeconds": 226.0,
+      "sizeBytes": 40000000,
+      "rating": 8,
+      "favorite": false,
+      "plays": 40,
+      "lastPlayed": "2024-04-04T04:04:04Z",
+      "added": "2018-08-08T08:08:08Z"
+    },
+    {
+      "sourceId": "AAAA000000000112",
+      "file": {
+        "local": "/Users/test/Music/Music/Media.localized/Music/Artist E/Album E/02 Track Twelve.mp3"
+      },
+      "title": "Track Twelve",
+      "artist": "Artist E",
+      "album": "Album E",
+      "albumArtist": "Artist E",
+      "trackNumber": 2,
+      "discNumber": 0,
+      "durationSeconds": 95.0,
+      "sizeBytes": 3000000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2018-08-08T08:08:09Z"
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "BBBB000000001003",
+      "name": "Calm",
+      "folder": [
+        "Moods"
+      ],
+      "smart": false,
+      "trackIds": [
+        "AAAA000000000105",
+        "AAAA000000000106"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "BBBB000000001005",
+      "name": "Late",
+      "folder": [
+        "Moods",
+        "Evening"
+      ],
+      "smart": false,
+      "trackIds": [
+        "AAAA000000000111"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "BBBB000000001006",
+      "name": "Top Rated",
+      "folder": [],
+      "smart": true,
+      "trackIds": [
+        "AAAA000000000101",
+        "AAAA000000000102"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "BBBB000000001007",
+      "name": "Party",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "AAAA000000000103",
+        "AAAA000000000101",
+        "AAAA000000000103"
+      ],
+      "unresolved": [
+        "999",
+        "107"
+      ]
+    }
+  ],
+  "skipped": [
+    {
+      "what": "Radio Example",
+      "reasonKey": "Migration_SkipNotAFile"
+    },
+    {
+      "what": "Artist D - Cloud Song",
+      "reasonKey": "Migration_SkipNotOnThisComputer"
+    },
+    {
+      "what": "Episode 1",
+      "reasonKey": "Migration_SkipNotMusic"
+    },
+    {
+      "what": "Artist A - Music Video",
+      "reasonKey": "Migration_SkipNotMusic"
+    }
+  ]
+}

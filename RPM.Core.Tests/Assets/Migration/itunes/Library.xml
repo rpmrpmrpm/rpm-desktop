@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Major Version</key><integer>1</integer>
+	<key>Minor Version</key><integer>1</integer>
+	<key>Application Version</key><string>1.4.5.7</string>
+	<key>Date</key><date>2026-11-01T12:00:00Z</date>
+	<key>Features</key><integer>5</integer>
+	<key>Show Content Ratings</key><true/>
+	<key>Music Folder</key><string>file:///Users/test/Music/Music/Media.localized/</string>
+	<key>Library Persistent ID</key><string>0A1B2C3D4E5F6A7B</string>
+	<key>Tracks</key>
+	<dict>
+		<key>101</key>
+		<dict>
+			<key>Track ID</key><integer>101</integer>
+			<key>Size</key><integer>8000000</integer>
+			<key>Total Time</key><integer>213000</integer>
+			<key>Disc Number</key><integer>1</integer>
+			<key>Track Number</key><integer>1</integer>
+			<key>Date Added</key><date>2014-03-02T10:20:30Z</date>
+			<key>Play Count</key><integer>12</integer>
+			<key>Play Date</key><integer>3703234089</integer>
+			<key>Play Date UTC</key><date>2021-05-06T07:08:09Z</date>
+			<key>Rating</key><integer>100</integer>
+			<key>Loved</key><true/>
+			<key>Persistent ID</key><string>AAAA000000000101</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Track One</string>
+			<key>Artist</key><string>Artist A</string>
+			<key>Album Artist</key><string>Artist A</string>
+			<key>Album</key><string>Album A</string>
+			<key>Kind</key><string>Apple Lossless audio file</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20A/Album%20A/01%20Track%20One.m4a</string>
+		</dict>
+		<key>102</key>
+		<dict>
+			<key>Track ID</key><integer>102</integer>
+			<key>Size</key><integer>7000000</integer>
+			<key>Total Time</key><integer>185000</integer>
+			<key>Disc Number</key><integer>1</integer>
+			<key>Track Number</key><integer>2</integer>
+			<key>Date Added</key><date>2014-03-02T10:20:31Z</date>
+			<key>Play Count</key><integer>3</integer>
+			<key>Play Date UTC</key><date>2020-11-12T13:14:15Z</date>
+			<key>Rating</key><integer>90</integer>
+			<key>Favorited</key><true/>
+			<key>Persistent ID</key><string>AAAA000000000102</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Track Two</string>
+			<key>Artist</key><string>Artist A</string>
+			<key>Album Artist</key><string>Artist A</string>
+			<key>Album</key><string>Album A</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20A/Album%20A/02%20Track%20Two.m4a</string>
+		</dict>
+		<key>103</key>
+		<dict>
+			<key>Track ID</key><integer>103</integer>
+			<key>Size</key><integer>5000000</integer>
+			<key>Total Time</key><integer>201500</integer>
+			<key>Track Number</key><integer>1</integer>
+			<key>Date Added</key><date>2015-06-07T08:09:10Z</date>
+			<key>Rating</key><integer>50</integer>
+			<key>Persistent ID</key><string>AAAA000000000103</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Rock &#38; Roll</string>
+			<key>Artist</key><string>Artist B</string>
+			<key>Album</key><string>Album #1</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20B/Album%20%231/01%20Rock%20&#38;%20Roll.mp3</string>
+		</dict>
+		<key>104</key>
+		<dict>
+			<key>Track ID</key><integer>104</integer>
+			<key>Size</key><integer>4500000</integer>
+			<key>Total Time</key><integer>150000</integer>
+			<key>Track Number</key><integer>2</integer>
+			<key>Date Added</key><date>2015-06-07T08:09:11Z</date>
+			<key>Rating</key><integer>20</integer>
+			<key>Persistent ID</key><string>AAAA000000000104</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>100% Pure</string>
+			<key>Artist</key><string>Artist B</string>
+			<key>Album</key><string>Album #1</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20B/Album%20%231/02%20100%25%20Pure.mp3</string>
+		</dict>
+		<key>105</key>
+		<dict>
+			<key>Track ID</key><integer>105</integer>
+			<key>Size</key><integer>30000000</integer>
+			<key>Total Time</key><integer>240000</integer>
+			<key>Track Number</key><integer>1</integer>
+			<key>Date Added</key><date>2016-01-01T00:00:00Z</date>
+			<key>Rating</key><integer>60</integer>
+			<key>Rating Computed</key><true/>
+			<key>Album Rating</key><integer>60</integer>
+			<key>Album Rating Computed</key><true/>
+			<key>Persistent ID</key><string>AAAA000000000105</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Café</string>
+			<key>Artist</key><string>Café Society</string>
+			<key>Album Artist</key><string>Café Society</string>
+			<key>Album</key><string>Le Café</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Cafe%CC%81%20Society/Le%20Cafe%CC%81/01%20Cafe%CC%81.flac</string>
+		</dict>
+		<key>106</key>
+		<dict>
+			<key>Track ID</key><integer>106</integer>
+			<key>Size</key><integer>6000000</integer>
+			<key>Total Time</key><integer>199000</integer>
+			<key>Disc Number</key><integer>2</integer>
+			<key>Track Number</key><integer>3</integer>
+			<key>Date Added</key><date>2017-02-03T04:05:06Z</date>
+			<key>Play Count</key><integer>1</integer>
+			<key>Play Date UTC</key><date>2020-01-01T00:00:00Z</date>
+			<key>Rating</key><integer>70</integer>
+			<key>Persistent ID</key><string>AAAA000000000106</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Track Six</string>
+			<key>Artist</key><string>Artist C</string>
+			<key>Album</key><string>Album C</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20C/Album%20C/2-03%20Track%20Six.mp3</string>
+		</dict>
+		<key>107</key>
+		<dict>
+			<key>Track ID</key><integer>107</integer>
+			<key>Persistent ID</key><string>AAAA000000000107</string>
+			<key>Track Type</key><string>URL</string>
+			<key>Name</key><string>Radio Example</string>
+			<key>Location</key><string>http://radio.example.com/stream</string>
+		</dict>
+		<key>108</key>
+		<dict>
+			<key>Track ID</key><integer>108</integer>
+			<key>Total Time</key><integer>200000</integer>
+			<key>Persistent ID</key><string>AAAA000000000108</string>
+			<key>Track Type</key><string>Remote</string>
+			<key>Name</key><string>Cloud Song</string>
+			<key>Artist</key><string>Artist D</string>
+			<key>Album</key><string>Album D</string>
+		</dict>
+		<key>109</key>
+		<dict>
+			<key>Track ID</key><integer>109</integer>
+			<key>Size</key><integer>20000000</integer>
+			<key>Podcast</key><true/>
+			<key>Persistent ID</key><string>AAAA000000000109</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Episode 1</string>
+			<key>Location</key><string>file:///Users/test/Music/Podcasts/Episode%201.mp3</string>
+		</dict>
+		<key>110</key>
+		<dict>
+			<key>Track ID</key><integer>110</integer>
+			<key>Size</key><integer>90000000</integer>
+			<key>Has Video</key><true/>
+			<key>Music Video</key><true/>
+			<key>Persistent ID</key><string>AAAA000000000110</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Music Video</string>
+			<key>Artist</key><string>Artist A</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20A/Music%20Video.m4v</string>
+		</dict>
+		<key>111</key>
+		<dict>
+			<key>Track ID</key><integer>111</integer>
+			<key>Size</key><integer>40000000</integer>
+			<key>Total Time</key><integer>226000</integer>
+			<key>Track Number</key><integer>1</integer>
+			<key>Date Added</key><date>2018-08-08T08:08:08Z</date>
+			<key>Play Count</key><integer>40</integer>
+			<key>Play Date UTC</key><date>2024-04-04T04:04:04Z</date>
+			<key>Rating</key><integer>80</integer>
+			<key>Persistent ID</key><string>AAAA000000000111</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Track Eleven</string>
+			<key>Artist</key><string>Artist E</string>
+			<key>Album Artist</key><string>Artist E</string>
+			<key>Album</key><string>Album E</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20E/Album%20E/01%20Track%20Eleven.aiff</string>
+		</dict>
+		<key>112</key>
+		<dict>
+			<key>Track ID</key><integer>112</integer>
+			<key>Size</key><integer>3000000</integer>
+			<key>Total Time</key><integer>95000</integer>
+			<key>Track Number</key><integer>2</integer>
+			<key>Date Added</key><date>2018-08-08T08:08:09Z</date>
+			<key>Persistent ID</key><string>AAAA000000000112</string>
+			<key>Track Type</key><string>File</string>
+			<key>Name</key><string>Track Twelve</string>
+			<key>Artist</key><string>Artist E</string>
+			<key>Album Artist</key><string>Artist E</string>
+			<key>Album</key><string>Album E</string>
+			<key>Location</key><string>file:///Users/test/Music/Music/Media.localized/Music/Artist%20E/Album%20E/02%20Track%20Twelve.mp3</string>
+		</dict>
+	</dict>
+	<key>Playlists</key>
+	<array>
+		<dict>
+			<key>Name</key><string>Library</string>
+			<key>Description</key><string></string>
+			<key>Master</key><true/>
+			<key>Playlist ID</key><integer>1000</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001000</string>
+			<key>Visible</key><false/>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>101</integer></dict>
+				<dict><key>Track ID</key><integer>102</integer></dict>
+			</array>
+		</dict>
+		<dict>
+			<key>Name</key><string>Music</string>
+			<key>Playlist ID</key><integer>1001</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001001</string>
+			<key>Distinguished Kind</key><integer>4</integer>
+			<key>Music</key><true/>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>101</integer></dict>
+			</array>
+		</dict>
+		<dict>
+			<key>Name</key><string>Moods</string>
+			<key>Playlist ID</key><integer>1002</integer>
+			<key>Playlist Persistent ID</key><string>F0000000000000A1</string>
+			<key>All Items</key><true/>
+			<key>Folder</key><true/>
+		</dict>
+		<dict>
+			<key>Name</key><string>Calm</string>
+			<key>Playlist ID</key><integer>1003</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001003</string>
+			<key>Parent Persistent ID</key><string>F0000000000000A1</string>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>105</integer></dict>
+				<dict><key>Track ID</key><integer>106</integer></dict>
+			</array>
+		</dict>
+		<dict>
+			<key>Name</key><string>Evening</string>
+			<key>Playlist ID</key><integer>1004</integer>
+			<key>Playlist Persistent ID</key><string>F0000000000000A2</string>
+			<key>Parent Persistent ID</key><string>F0000000000000A1</string>
+			<key>All Items</key><true/>
+			<key>Folder</key><true/>
+		</dict>
+		<dict>
+			<key>Name</key><string>Late</string>
+			<key>Playlist ID</key><integer>1005</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001005</string>
+			<key>Parent Persistent ID</key><string>F0000000000000A2</string>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>111</integer></dict>
+			</array>
+		</dict>
+		<dict>
+			<key>Name</key><string>Top Rated</string>
+			<key>Playlist ID</key><integer>1006</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001006</string>
+			<key>All Items</key><true/>
+			<key>Smart Info</key>
+			<data>
+			AQEAAwAAAAIAAAAZAAAAAAAAAAcAAAABAAAAAAAAAAAAAAAAAAAAAAAA
+			</data>
+			<key>Smart Criteria</key>
+			<data>
+			U0xzdAABAAEAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+			</data>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>101</integer></dict>
+				<dict><key>Track ID</key><integer>102</integer></dict>
+			</array>
+		</dict>
+		<dict>
+			<key>Name</key><string>Party</string>
+			<key>Playlist ID</key><integer>1007</integer>
+			<key>Playlist Persistent ID</key><string>BBBB000000001007</string>
+			<key>All Items</key><true/>
+			<key>Playlist Items</key>
+			<array>
+				<dict><key>Track ID</key><integer>103</integer></dict>
+				<dict><key>Track ID</key><integer>101</integer></dict>
+				<dict><key>Track ID</key><integer>103</integer></dict>
+				<dict><key>Track ID</key><integer>999</integer></dict>
+				<dict><key>Track ID</key><integer>107</integer></dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

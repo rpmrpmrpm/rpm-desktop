@@ -1,0 +1,136 @@
+{
+  "kind": "musicbee",
+  "libraryId": "0c6a5c946e5de5a1",
+  "name": "MusicBee",
+  "tracks": [
+    {
+      "sourceId": "1",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist F\\Album F\\01 One.mp3"
+      },
+      "title": "One",
+      "artist": "Artist F",
+      "album": "Album F",
+      "albumArtist": "Artist F",
+      "trackNumber": 1,
+      "discNumber": 0,
+      "durationSeconds": 180.0,
+      "sizeBytes": 5000000,
+      "rating": 1,
+      "favorite": false,
+      "plays": 2,
+      "lastPlayed": "2022-01-01T10:00:00Z",
+      "added": "2019-09-09T09:09:09Z"
+    },
+    {
+      "sourceId": "2",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist F\\Album F\\02 Two.mp3"
+      },
+      "title": "Two",
+      "artist": "Artist F",
+      "album": "Album F",
+      "albumArtist": "Artist F",
+      "trackNumber": 2,
+      "discNumber": 0,
+      "durationSeconds": 181.0,
+      "sizeBytes": 5100000,
+      "rating": 3,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-09-09T09:09:09Z"
+    },
+    {
+      "sourceId": "3",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist F\\Album F\\03 Three.mp3"
+      },
+      "title": "Three",
+      "artist": "Artist F",
+      "album": "Album F",
+      "albumArtist": "Artist F",
+      "trackNumber": 3,
+      "discNumber": 0,
+      "durationSeconds": 182.0,
+      "sizeBytes": 5200000,
+      "rating": 7,
+      "favorite": true,
+      "plays": 9,
+      "lastPlayed": "2023-03-03T03:03:03Z",
+      "added": "2019-09-09T09:09:09Z"
+    },
+    {
+      "sourceId": "4",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist G\\Album G\\01 Four.flac"
+      },
+      "title": "Four",
+      "artist": "Artist G",
+      "album": "Album G",
+      "albumArtist": "Artist G",
+      "trackNumber": 1,
+      "discNumber": 0,
+      "durationSeconds": 300.0,
+      "sizeBytes": 35000000,
+      "rating": 10,
+      "favorite": false,
+      "plays": 1,
+      "lastPlayed": "2021-12-12T12:12:12Z",
+      "added": "2019-09-09T09:09:09Z"
+    },
+    {
+      "sourceId": "5",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist G\\Album G\\02 Five.flac"
+      },
+      "title": "Five",
+      "artist": "Artist G",
+      "album": "Album G",
+      "albumArtist": "Artist G",
+      "trackNumber": 2,
+      "discNumber": 0,
+      "durationSeconds": 301.0,
+      "sizeBytes": 35100000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-09-09T09:09:09Z"
+    },
+    {
+      "sourceId": "6",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist G\\Album G\\03 Six.flac"
+      },
+      "title": "Six",
+      "artist": "Artist G",
+      "album": "Album G",
+      "albumArtist": "Artist G",
+      "trackNumber": 3,
+      "discNumber": 0,
+      "durationSeconds": 302.0,
+      "sizeBytes": 35200000,
+      "rating": 5,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-09-09T09:09:09Z"
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "10",
+      "name": "Gym",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "4",
+        "1",
+        "3"
+      ],
+      "unresolved": []
+    }
+  ],
+  "skipped": []
+}

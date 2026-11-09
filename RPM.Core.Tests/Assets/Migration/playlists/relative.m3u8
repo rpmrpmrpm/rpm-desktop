@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:213,Artist A - Track One
+../Music/Artist A/Album A/01 Track One.flac
+
+Artist B/Album B/02 Track Two.mp3
+#EXTINF:213,Artist A - Track One
+../Music/Artist A/Album A/01 Track One.flac

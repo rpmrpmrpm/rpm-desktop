@@ -1,0 +1,168 @@
+{
+  "kind": "playlistfiles",
+  "libraryId": "",
+  "name": "Playlist files",
+  "tracks": [
+    {
+      "sourceId": "C:\\Users\\Test\\Music\\Artist C\\Album C\\03 Track Three.mp3",
+      "file": {
+        "local": "C:\\Users\\Test\\Music\\Artist C\\Album C\\03 Track Three.mp3"
+      },
+      "title": "Track Three",
+      "artist": "Artist C",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 180.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    },
+    {
+      "sourceId": "D:\\Music\\Artist D\\Album D\\04 Track Four.flac",
+      "file": {
+        "local": "D:\\Music\\Artist D\\Album D\\04 Track Four.flac"
+      },
+      "title": "Track Four",
+      "artist": "",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 0.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    },
+    {
+      "sourceId": "C:\\Music\\Beyoncé Tribute\\Café.mp3",
+      "file": {
+        "local": "C:\\Music\\Beyoncé Tribute\\Café.mp3"
+      },
+      "title": "Café",
+      "artist": "Beyoncé Tribute",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 200.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    },
+    {
+      "sourceId": "/Users/test/Music/Artist A/Album A/01 Track One.flac",
+      "file": {
+        "local": "/Users/test/Music/Artist A/Album A/01 Track One.flac"
+      },
+      "title": "Track One",
+      "artist": "Artist A",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 213.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    },
+    {
+      "sourceId": "/Users/test/Music/Artist E/Album E/05 Track Five.m4a",
+      "file": {
+        "local": "/Users/test/Music/Artist E/Album E/05 Track Five.m4a"
+      },
+      "title": "Track Five",
+      "artist": "Artist E",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 0.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    },
+    {
+      "sourceId": "/Users/test/Playlists/Artist B/Album B/02 Track Two.mp3",
+      "file": {
+        "local": "/Users/test/Playlists/Artist B/Album B/02 Track Two.mp3"
+      },
+      "title": "02 Track Two",
+      "artist": "",
+      "album": "",
+      "albumArtist": "",
+      "trackNumber": 0,
+      "discNumber": 0,
+      "durationSeconds": 0.0,
+      "sizeBytes": 0,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": null
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "/Users/test/Playlists/absolute.m3u",
+      "name": "absolute",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "C:\\Users\\Test\\Music\\Artist C\\Album C\\03 Track Three.mp3",
+        "D:\\Music\\Artist D\\Album D\\04 Track Four.flac"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "/Users/test/Playlists/latin1.m3u",
+      "name": "latin1",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "C:\\Music\\Beyoncé Tribute\\Café.mp3"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "/Users/test/Playlists/mac.pls",
+      "name": "mac",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "/Users/test/Music/Artist A/Album A/01 Track One.flac",
+        "/Users/test/Music/Artist E/Album E/05 Track Five.m4a"
+      ],
+      "unresolved": []
+    },
+    {
+      "sourceId": "/Users/test/Playlists/relative.m3u8",
+      "name": "relative",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "/Users/test/Music/Artist A/Album A/01 Track One.flac",
+        "/Users/test/Playlists/Artist B/Album B/02 Track Two.mp3",
+        "/Users/test/Music/Artist A/Album A/01 Track One.flac"
+      ],
+      "unresolved": []
+    }
+  ],
+  "skipped": []
+}

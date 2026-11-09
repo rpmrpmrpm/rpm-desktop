@@ -1,0 +1,32 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "type": "navidrome",
+    "serverVersion": "0.53.3",
+    "openSubsonic": true,
+    "searchResult3": {
+      "song": [
+        {
+          "id": "s3",
+          "parent": "al-Album T",
+          "isDir": false,
+          "title": "Gamma",
+          "album": "Album T",
+          "artist": "Artist T",
+          "track": 1,
+          "discNumber": 1,
+          "duration": 260,
+          "size": 8000000,
+          "suffix": "opus",
+          "contentType": "audio/opus",
+          "created": "2021-05-05T05:05:05Z",
+          "type": "music",
+          "userRating": 1,
+          "playCount": 2,
+          "played": "2022-06-06T06:06:06Z"
+        }
+      ]
+    }
+  }
+}

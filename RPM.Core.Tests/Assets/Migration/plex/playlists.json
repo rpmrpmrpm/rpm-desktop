@@ -1,0 +1,23 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "700",
+        "type": "playlist",
+        "title": "Road trip",
+        "smart": false,
+        "playlistType": "audio",
+        "leafCount": 2
+      },
+      {
+        "ratingKey": "701",
+        "type": "playlist",
+        "title": "Top rated",
+        "smart": true,
+        "playlistType": "audio",
+        "leafCount": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Living room TV",
+    "product": "Plex for Android (TV)",
+    "provides": "player",
+    "clientIdentifier": "tv-1",
+    "connections": []
+  },
+  {
+    "name": "Home Plex",
+    "product": "Plex Media Server",
+    "productVersion": "1.41.0",
+    "provides": "server",
+    "clientIdentifier": "machine-1234",
+    "accessToken": "plex-server-token",
+    "owned": true,
+    "connections": [
+      {
+        "protocol": "http",
+        "address": "192.168.1.10",
+        "port": 32400,
+        "uri": "http://192.168.1.10:32400",
+        "local": true,
+        "relay": false,
+        "IPv6": false
+      },
+      {
+        "protocol": "https",
+        "address": "1.2.3.4",
+        "port": 32400,
+        "uri": "https://1-2-3-4.0123456789abcdef.plex.direct:32400",
+        "local": false,
+        "relay": false,
+        "IPv6": false
+      },
+      {
+        "protocol": "https",
+        "address": "192.168.1.10",
+        "port": 32400,
+        "uri": "https://192-168-1-10.0123456789abcdef.plex.direct:32400",
+        "local": true,
+        "relay": false,
+        "IPv6": false
+      },
+      {
+        "protocol": "https",
+        "address": "5.6.7.8",
+        "port": 8443,
+        "uri": "https://5-6-7-8.0123456789abcdef.plex.direct:8443",
+        "local": false,
+        "relay": true,
+        "IPv6": false
+      }
+    ]
+  }
+]

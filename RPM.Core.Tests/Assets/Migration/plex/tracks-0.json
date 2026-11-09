@@ -1,0 +1,59 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "totalSize": 3,
+    "offset": 0,
+    "Metadata": [
+      {
+        "ratingKey": "501",
+        "type": "track",
+        "title": "Morning",
+        "grandparentTitle": "Artist P",
+        "parentTitle": "Album P",
+        "index": 1,
+        "parentIndex": 1,
+        "duration": 213000,
+        "addedAt": 1500000000,
+        "Media": [
+          {
+            "container": "flac",
+            "Part": [
+              {
+                "key": "/library/parts/9001/1500000000/file.flac",
+                "size": 31457280,
+                "file": "/data/music/x.flac"
+              }
+            ]
+          }
+        ],
+        "viewCount": 4,
+        "lastViewedAt": 1600000000,
+        "userRating": 8.0
+      },
+      {
+        "ratingKey": "502",
+        "type": "track",
+        "title": "Noon",
+        "grandparentTitle": "Artist P",
+        "parentTitle": "Album P",
+        "index": 2,
+        "parentIndex": 1,
+        "duration": 187000,
+        "addedAt": 1500000001,
+        "Media": [
+          {
+            "container": "mp3",
+            "Part": [
+              {
+                "key": "/library/parts/9002/1500000001/file.mp3",
+                "size": 4000000,
+                "file": "/data/music/x.mp3"
+              }
+            ]
+          }
+        ],
+        "originalTitle": "Guest Singer"
+      }
+    ]
+  }
+}

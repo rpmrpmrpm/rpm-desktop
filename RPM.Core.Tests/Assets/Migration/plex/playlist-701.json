@@ -1,0 +1,34 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "totalSize": 1,
+    "Metadata": [
+      {
+        "ratingKey": "501",
+        "type": "track",
+        "title": "Morning",
+        "grandparentTitle": "Artist P",
+        "parentTitle": "Album P",
+        "index": 1,
+        "parentIndex": 1,
+        "duration": 213000,
+        "addedAt": 1500000000,
+        "Media": [
+          {
+            "container": "flac",
+            "Part": [
+              {
+                "key": "/library/parts/9001/1500000000/file.flac",
+                "size": 31457280,
+                "file": "/data/music/x.flac"
+              }
+            ]
+          }
+        ],
+        "viewCount": 4,
+        "lastViewedAt": 1600000000,
+        "userRating": 8.0
+      }
+    ]
+  }
+}

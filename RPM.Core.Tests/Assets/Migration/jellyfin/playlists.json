@@ -1,0 +1,12 @@
+{
+  "Items": [
+    {
+      "Name": "Evening",
+      "Id": "00000000000000000000000000000pl1",
+      "Type": "Playlist",
+      "MediaType": "Audio"
+    }
+  ],
+  "TotalRecordCount": 1,
+  "StartIndex": 0
+}

@@ -1,0 +1,60 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "totalSize": 2,
+    "Metadata": [
+      {
+        "ratingKey": "501",
+        "type": "track",
+        "title": "Morning",
+        "grandparentTitle": "Artist P",
+        "parentTitle": "Album P",
+        "index": 1,
+        "parentIndex": 1,
+        "duration": 213000,
+        "addedAt": 1500000000,
+        "Media": [
+          {
+            "container": "flac",
+            "Part": [
+              {
+                "key": "/library/parts/9001/1500000000/file.flac",
+                "size": 31457280,
+                "file": "/data/music/x.flac"
+              }
+            ]
+          }
+        ],
+        "viewCount": 4,
+        "lastViewedAt": 1600000000,
+        "userRating": 8.0
+      },
+      {
+        "ratingKey": "503",
+        "type": "track",
+        "title": "Night",
+        "grandparentTitle": "Artist Q",
+        "parentTitle": "Album Q",
+        "index": 1,
+        "parentIndex": 1,
+        "duration": 254000,
+        "addedAt": 1550000000,
+        "Media": [
+          {
+            "container": "m4a",
+            "Part": [
+              {
+                "key": "/library/parts/9003/1550000000/file.m4a",
+                "size": 7000000,
+                "file": "/data/music/x.m4a"
+              }
+            ]
+          }
+        ],
+        "viewCount": 1,
+        "lastViewedAt": 1650000000,
+        "userRating": 5.0
+      }
+    ]
+  }
+}

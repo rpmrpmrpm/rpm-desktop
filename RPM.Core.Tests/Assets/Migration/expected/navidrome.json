@@ -1,0 +1,85 @@
+{
+  "kind": "navidrome",
+  "libraryId": "5a2988bddf4f59e9",
+  "name": "nas.local:4533",
+  "tracks": [
+    {
+      "sourceId": "s1",
+      "file": {
+        "remote": "s1",
+        "extension": ".flac",
+        "size": 31457280
+      },
+      "title": "Alpha",
+      "artist": "Artist S",
+      "album": "Album S",
+      "albumArtist": "Artist S",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "durationSeconds": 213.0,
+      "sizeBytes": 31457280,
+      "rating": 8,
+      "favorite": true,
+      "plays": 7,
+      "lastPlayed": "2023-03-04T05:06:07Z",
+      "added": "2020-01-02T03:04:05Z"
+    },
+    {
+      "sourceId": "s2",
+      "file": {
+        "remote": "s2",
+        "extension": ".mp3",
+        "size": 4500000
+      },
+      "title": "Beta",
+      "artist": "Artist S",
+      "album": "Album S",
+      "albumArtist": "Artist S",
+      "trackNumber": 2,
+      "discNumber": 1,
+      "durationSeconds": 190.0,
+      "sizeBytes": 4500000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2020-01-02T03:04:06Z"
+    },
+    {
+      "sourceId": "s3",
+      "file": {
+        "remote": "s3",
+        "extension": ".opus",
+        "size": 8000000
+      },
+      "title": "Gamma",
+      "artist": "Artist T",
+      "album": "Album T",
+      "albumArtist": "",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "durationSeconds": 260.0,
+      "sizeBytes": 8000000,
+      "rating": 2,
+      "favorite": false,
+      "plays": 2,
+      "lastPlayed": "2022-06-06T06:06:06Z",
+      "added": "2021-05-05T05:05:05Z"
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "p1",
+      "name": "Weekend",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "s3",
+        "s1",
+        "s3"
+      ],
+      "unresolved": []
+    }
+  ],
+  "skipped": []
+}

@@ -1,0 +1,17 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Directory": [
+      {
+        "key": "1",
+        "type": "movie",
+        "title": "Movies"
+      },
+      {
+        "key": "3",
+        "type": "artist",
+        "title": "Music"
+      }
+    ]
+  }
+}
