@@ -957,6 +957,14 @@
     <value>No search results</value>
     <comment>Empty state on the album wall and the album list when a search matches nothing.</comment>
   </data>
+  <data name="Library_SearchViewMore" xml:space="preserve">
+    <value>View more</value>
+    <comment>Library search results (phone): at the right of a group's heading (Artists, Albums, Tracks, Playlists, Genres) that has more than five results. Shows all of that group.</comment>
+  </data>
+  <data name="Library_SearchViewLess" xml:space="preserve">
+    <value>View less</value>
+    <comment>Library search results (phone): the same key once the group shows all its results. Shows the first five again.</comment>
+  </data>
   <data name="Library_Syncing" xml:space="preserve">
     <value>Updating the collection index…</value>
   </data>
@@ -1479,6 +1487,14 @@
   </data>
   <data name="Settings_Background" xml:space="preserve">
     <value>Background</value>
+  </data>
+  <data name="Settings_NightMode" xml:space="preserve">
+    <value>Night mode</value>
+    <comment>Settings &gt; Profile (phone), Background card: switch that keeps photo backgrounds darker on artist, album and playlist pages.</comment>
+  </data>
+  <data name="Settings_NightModeHint" xml:space="preserve">
+    <value>Keeps the photos behind artist, album and playlist pages dim. Easy on your eyes in the dark.</value>
+    <comment>Settings &gt; Profile (phone): hint under the Night mode switch.</comment>
   </data>
   <data name="Settings_BackgroundHint" xml:space="preserve">
     <value>Pick one of rpm’s own backdrops, or use a picture of your own.</value>
@@ -8315,7 +8331,11 @@
   </data>
   <data name="Rpm_About_ReadMore" xml:space="preserve">
     <value>Read more</value>
-    <comment>Album and artist pages, phone: small glass button at the end of the shortened Wikipedia text. Opens the full text in a sheet.</comment>
+    <comment>Album and artist pages, phone: at the end of the shortened Wikipedia text. Unfolds the first paragraph in place, under the text.</comment>
+  </data>
+  <data name="Rpm_About_ReadLess" xml:space="preserve">
+    <value>Read less</value>
+    <comment>Album and artist pages, phone: at the end of the unfolded Wikipedia paragraph, in the same style as Read more. Folds it back to three lines.</comment>
   </data>
   <data name="Fault_Offline" xml:space="preserve">
     <value>No internet connection.</value>
@@ -9208,6 +9228,18 @@
   <data name="Rpm_Album_Edited" xml:space="preserve">
     <value>{0} (edited)</value>
     <comment>iPhone album page: the date under a review that was rewritten after it was first posted. {0} is the date, for example "2 days ago".</comment>
+  </data>
+  <data name="Rpm_Queue_YourQueue" xml:space="preserve">
+    <value>Your queue</value>
+    <comment>Up next drawer (phone): heading over the songs the person added with Play next or Add to queue.</comment>
+  </data>
+  <data name="Rpm_Queue_Mixtape" xml:space="preserve">
+    <value>Mixtape</value>
+    <comment>Up next drawer (phone): heading over the songs a mixtape added, songs like the one it started from.</comment>
+  </data>
+  <data name="Rpm_Queue_AutoMixtape" xml:space="preserve">
+    <value>Auto mixtape</value>
+    <comment>Up next drawer (phone): switch. On, an album, playlist or single that ends goes on as a mixtape of similar songs (the same setting as Tv_SettingsMixtapeAfter).</comment>
   </data>
   <data name="Rpm_Queue_DiscardTitle" xml:space="preserve">
     <value>Discard your queue?</value>
