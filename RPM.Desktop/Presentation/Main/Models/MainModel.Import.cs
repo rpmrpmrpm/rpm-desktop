@@ -169,6 +169,17 @@ public sealed partial class MainModel
         bool merged = _settings.MultiDiscMode == MultiDiscMode.MergedAlbum;
         var root = _library.Root!;
 
+        // A library on a NAS: the NAS cannot refuse a write that comes over SMB, so its space is asked
+        // here, before anything is copied.
+        var (spaceLine, refuse) = await RPM.Desktop.Services.Nas.NasImportSpace.CheckAsync(
+            _settings.LibraryNas, root, App.Services.GetRequiredService<RPM.Desktop.Services.Nas.NasDiscovery>(),
+            QueueChipCounts.Bytes);
+        if (refuse)
+        {
+            SetStatus(spaceLine!);
+            return;
+        }
+
         // An import files music into the user's own collection, so that is the collection to be standing in
         // when it lands. Somebody else's shelf is a place to look at records. A record that lands somewhere
         // the user cannot see would look as if it had disappeared.
@@ -195,7 +206,9 @@ public sealed partial class MainModel
             var results = await Task.Run(() => RunImport(template, mode, merged, root, progress));
 
             int ok = results.Count(r => r.Success);
-            SetStatus(Loc.Format("Queue_ImportDone", ok, results.Count));
+            SetStatus(spaceLine is null
+                ? Loc.Format("Queue_ImportDone", ok, results.Count)
+                : Loc.Format("Queue_ImportDone", ok, results.Count) + " " + spaceLine);
         }
         catch (Exception ex)
         {

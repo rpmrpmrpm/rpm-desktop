@@ -60,7 +60,10 @@ public sealed partial class LibraryProblemPage : Page
         {
             case LibraryOpening.Trouble.FolderMissing:
                 TitleText.Text = Loc.Get("LibProblem_MissingTitle");
-                BodyText.Text = Loc.Get("LibProblem_MissingBody");
+                // A library on a NAS is missing because the NAS could not be mounted: say which NAS.
+                BodyText.Text = App.Services.GetRequiredService<SettingsService>().LibraryNas is { } nas
+                    ? Loc.Format("Nas_NotAvailable", nas.Name)
+                    : Loc.Get("LibProblem_MissingBody");
                 Step1Text.Text = Loc.Get("LibProblem_MissingStep1");
                 Step2Text.Text = Loc.Get("LibProblem_MissingStep2");
                 Step3Text.Text = Loc.Get("LibProblem_MissingStep3");
