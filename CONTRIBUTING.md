@@ -21,6 +21,7 @@ The repos:
 | [`rpm-desktop`](https://github.com/rpmrpmrpm/rpm-desktop) | The desktop app (C#, .NET, Uno Platform) and the shared libraries `RPM.Core` and `RPM.Fingerprint`. |
 | [`rpm-apple`](https://github.com/rpmrpmrpm/rpm-apple) | The iPhone and Apple TV apps (Swift, SwiftUI). |
 | [`rpm-android`](https://github.com/rpmrpmrpm/rpm-android) | The Android phone and Android TV apps (Kotlin, Jetpack Compose). |
+| [`rpm-collection-daemon`](https://github.com/rpmrpmrpm/rpm-collection-daemon) | The daemon that keeps rpm libraries on a NAS (Rust), with its Linux, Docker and Synology packages. |
 
 You only need the repo of the app you want to change.
 
