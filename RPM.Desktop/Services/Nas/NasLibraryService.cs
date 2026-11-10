@@ -1,3 +1,4 @@
+using RPM.Core.Library;
 using RPM.Core.Nas;
 using RPM.Core.Sharing;
 using RPM.Desktop.Services.Account;
@@ -21,8 +22,25 @@ public abstract record NasOpenResult
     public sealed record Failed(string Detail) : NasOpenResult;
 }
 
-/// <summary>A library on a NAS that is mounted and claimed, ready to open.</summary>
-public sealed record NasPrepared(string Path, NasLocation Location, NasCredentials Login);
+/// <summary>A library on a NAS that is mounted and claimed, ready to open. <paramref name="Adopted"/> is
+/// set when the library is the NAS folder's existing music, made a library just now.</summary>
+public sealed record NasPrepared(string Path, NasLocation Location, NasCredentials Login, FileHandling? Adopted = null);
+
+/// <summary>What a NAS sign-in opens.</summary>
+public abstract record NasTarget
+{
+    private NasTarget() { }
+
+    /// <summary>A new library folder under the NAS folder.</summary>
+    public sealed record New : NasTarget;
+
+    /// <summary>A library that is already on the NAS.</summary>
+    public sealed record Existing(NasLibraryEntry Entry) : NasTarget;
+
+    /// <summary>The NAS folder itself, which held music before rpm, kept as it is or organised by rpm as
+    /// the person chose.</summary>
+    public sealed record ExistingMusic(FileHandling Files) : NasTarget;
+}
 
 /// <summary>
 /// Puts the library on a NAS: mounts the share with the NAS login, opens the account's library there or
@@ -56,15 +74,22 @@ public sealed class NasLibraryService(
     /// Mounts, chooses or makes the library folder, and claims it. Reaches the network and the share, so
     /// it runs off the interface thread. Nothing is saved and nothing is opened.
     /// </summary>
-    /// <param name="chosen">A library already on the NAS, or null to make a new one.</param>
     public async Task<(NasOpenResult? Problem, NasPrepared? Ready)> PrepareAsync(
-        DiscoveredNas nas, PeerHello hello, NasCredentials login, NasLibraryEntry? chosen)
+        DiscoveredNas nas, PeerHello hello, NasCredentials login, NasTarget target)
     {
         var smb = hello.Nas!.Smb;
         if (NasSmbAddress.Parse(smb) is not { } address)
             return (new NasOpenResult.Failed("the NAS gave no SMB address"), null);
 
-        var newFolder = chosen is null ? NewFolderName(hello.Nas) : null;
+        var chosen = (target as NasTarget.Existing)?.Entry;
+        var adopted = (target as NasTarget.ExistingMusic)?.Files;
+        // The existing music is the NAS folder itself, which has no folder name under itself.
+        var newFolder = target switch
+        {
+            NasTarget.New => NewFolderName(hello.Nas),
+            NasTarget.ExistingMusic => "",
+            _ => null,
+        };
         var name = settings.ShareName;
         var account = AccountFingerprint() ?? "";
         return await Task.Run<(NasOpenResult?, NasPrepared?)>(() =>
@@ -86,6 +111,15 @@ public sealed class NasLibraryService(
                 Directory.CreateDirectory(path);
                 if (!NasMountPoint.IsLiveNetworkMount(path))
                     return (new NasOpenResult.Failed("the folder is not on the NAS"), null);
+                if (adopted is { } files)
+                {
+                    // A library inside a library would read the inner one's files as its own.
+                    if (HoldsLibrary(path))
+                        return (new NasOpenResult.Failed("the NAS folder already holds rpm libraries"), null);
+                    // Before the open, so the guard is in place before anything reads the folder.
+                    if (files == FileHandling.Kept)
+                        FileKeeping.Write(path, null, FileHandling.Kept);
+                }
                 NasLibrary.EnsureId(path);
                 NasClaim.AddKey(path, new NasClaimKey
                 {
@@ -99,9 +133,13 @@ public sealed class NasLibraryService(
                 return (new NasOpenResult.Failed(ex.Message), null);
             }
 
-            return (null, new NasPrepared(path, new NasLocation(nas.DeviceId, nas.Name, smb, folder), login));
+            return (null, new NasPrepared(path, new NasLocation(nas.DeviceId, nas.Name, smb, folder), login, adopted));
         });
     }
+
+    /// <summary>Whether a folder that is to become a library already holds one in a folder below it.</summary>
+    private static bool HoldsLibrary(string path) =>
+        Directory.EnumerateDirectories(path).Any(LibraryDatabase.ExistsUnder);
 
     /// <summary>Where an unfinished move to a NAS was going, so a second attempt continues into the same
     /// folder instead of making another.</summary>
@@ -156,7 +194,8 @@ public sealed class NasLibraryService(
         var pending = ReadPending() is { } earlier && earlier.NasDeviceId == nas.DeviceId
             ? hello.Nas!.Libraries.FirstOrDefault(l => l.Folder == earlier.Folder)
             : null;
-        var (problem, ready) = await PrepareAsync(nas, hello, login, pending);
+        var (problem, ready) = await PrepareAsync(
+            nas, hello, login, pending is null ? new NasTarget.New() : new NasTarget.Existing(pending));
         if (problem is not null || ready is null)
             return (problem, null, null);
         WritePending(new PendingMoveRecord(nas.DeviceId, ready.Location.Folder));
@@ -220,7 +259,10 @@ public sealed class NasLibraryService(
         ArgumentNullException.ThrowIfNull(ready);
         try
         {
-            library.Open(ready.Path);
+            if (ready.Adopted is { } files)
+                library.Adopt(ready.Path, files);
+            else
+                library.Open(ready.Path);
         }
         catch (Exception ex)
         {

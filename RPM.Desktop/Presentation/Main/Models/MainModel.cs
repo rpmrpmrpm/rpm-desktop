@@ -593,6 +593,7 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     private async Task StartupLibraryPassAsync()
     {
         await SyncLibraryAsync();
+        await OrganiseIfOwedAsync();
         // No catalogue fill here. This pass hangs off the library opening, and nothing in the background starts
         // itself off that. The records it queues are filled after the next add the user makes.
         if (_inbox.InboxPath is { } path && _inbox.HasMusic())
@@ -614,6 +615,24 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
         if (_scanning || _importing)
             return;
         await AddSourceAsync(inboxPath);
+    }
+
+    /// <summary>A folder of existing music adopted with "Let rpm organise them" is re-filed under the
+    /// naming template after its first catalogue read, which made the rows the re-file moves. Owed until it
+    /// has run, so a stop part-way is finished by the next pass (see LibraryService.OrganiseIfOwedAsync).</summary>
+    private async Task OrganiseIfOwedAsync()
+    {
+        try
+        {
+            var progress = new Progress<RefileProgress>(p => SetStatus(Loc.Format("Library_Organising", p.Done, p.Total)));
+            if (await _library.OrganiseIfOwedAsync(_settings.DefaultTemplate, progress) is { } done)
+                SetStatus(Loc.Format("Library_Organised", done.Moved));
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Scope.Said("library", $"the owed re-file stopped: {ex.Message}");
+            SetStatus(Loc.Get("Library_OrganiseStopped"));
+        }
     }
 
     private async Task SyncLibraryAsync()

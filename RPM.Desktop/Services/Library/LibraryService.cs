@@ -1,4 +1,6 @@
+using RPM.Core.Import;
 using RPM.Core.Library;
+using RPM.Core.Metadata;
 
 namespace RPM.Desktop.Services.Library;
 
@@ -281,6 +283,78 @@ public sealed partial class LibraryService : IDisposable
     /// <summary>Whether the open library's files are kept as they are.</summary>
     public bool KeepsFiles => FileHandling == FileHandling.Kept;
 
+    /// <summary>The library_meta key that says a re-file of the whole library is owed.</summary>
+    public const string OrganiseOwedKey = "organise";
+
+    /// <summary>
+    /// Opens a folder that already held music as the library. Kept: the marker and the library id are
+    /// written before the open, so the guard is in place before anything reads the folder. Organised: the
+    /// library opens as any other, and a re-file under the naming template is recorded as owed. It runs
+    /// after the first catalogue read (<see cref="OrganiseIfOwedAsync"/>), because the read is what makes
+    /// the rows the re-file moves.
+    /// </summary>
+    public void Adopt(string libraryRoot, FileHandling mode)
+    {
+        if (mode == FileHandling.Kept)
+            FileKeeping.Write(libraryRoot, null, FileHandling.Kept);
+        Open(libraryRoot);
+        if (mode == FileHandling.Organised && _db is { } db)
+            db.SetMeta(OrganiseOwedKey, "owed");
+    }
+
+    /// <summary>Runs the owed re-file, when one is owed and the library is organised, and clears it when it
+    /// has run. An app that quits part-way leaves it owed, and the next pass finishes it: a re-file moves
+    /// only the files that are not already where the template puts them.</summary>
+    public async Task<RefileOutcome?> OrganiseIfOwedAsync(
+        NamingTemplate template, IProgress<RefileProgress>? progress, CancellationToken ct = default)
+    {
+        if (_db is not { } db || KeepsFiles || db.GetMeta(OrganiseOwedKey) != "owed")
+            return null;
+        var outcome = await Task.Run(() => LibraryRefiler.Refile(db, db.Root, template, progress, ct), ct);
+        db.SetMeta(OrganiseOwedKey, null);
+        Raise("Organised");
+        return outcome;
+    }
+
+    /// <summary>
+    /// Turns a kept library into an organised one, as the person asked in Library settings. First each
+    /// file is given the id its row already has, so no track changes identity when the next catalogue read
+    /// starts reading ids from the files. Then the mode is switched and a re-file is owed. A file that does
+    /// not take its id is logged; the next read gives it a new one.
+    /// </summary>
+    public async Task ReleaseKeptAsync(CancellationToken ct = default)
+    {
+        if (_db is not { } db || !KeepsFiles)
+            return;
+        var root = db.Root;
+        KeptFiles.Close(root);
+        try
+        {
+            await Task.Run(() =>
+            {
+                foreach (var track in db.Query())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var path = Path.Combine(root, track.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                    if (!RpmTag.IsId(track.RpmId) || !File.Exists(path))
+                        continue;
+                    if (TagReader.Read(path).RpmId != track.RpmId && !TagReader.WriteRpmId(path, track.RpmId!))
+                        RPM.Core.Diagnostics.Said.Line("kept", $"{track.RelativePath} did not take its id");
+                }
+            }, ct);
+            FileKeeping.Write(root, db, FileHandling.Organised);
+            FileHandling = FileHandling.Organised;
+            db.SetMeta(OrganiseOwedKey, "owed");
+        }
+        catch
+        {
+            KeptFiles.Open(root);
+            throw;
+        }
+
+        Raise("ReleaseKept");
+    }
+
     public void Open(string libraryRoot)
     {
         // The new mirror is built before the old one is released. Building it reaches the disk: it creates
@@ -296,7 +370,12 @@ public sealed partial class LibraryService : IDisposable
         // Opened event that starts the catalogue read and the background work.
         var files = FileKeeping.Read(libraryRoot, opened);
         if (files == FileHandling.Kept)
+        {
             KeptFiles.Open(libraryRoot);
+            // The marker in the folder, recorded in this computer's database too.
+            if (opened.GetMeta(FileKeeping.MetaKey) is null)
+                opened.SetMeta(FileKeeping.MetaKey, "kept");
+        }
         Watch(opened);
 
         LibraryDatabase? previous;
