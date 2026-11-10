@@ -63,6 +63,10 @@ public enum RunEnd
     /// <summary>A cloud-only import cannot upload: the person signed out, or turned the cloud off. The
     /// downloaded files that wait for the cloud stay in the library until the import continues.</summary>
     CloudOff,
+
+    /// <summary>An error nothing expected stopped the run (<see cref="MigrationRun.Failure"/>). What was
+    /// done is in the record, and Continue starts where it stopped.</summary>
+    Failed,
 }
 
 /// <summary>The stage an import is in.</summary>
@@ -128,6 +132,9 @@ public sealed class MigrationRun(
 
     /// <summary>What happened to each source playlist, once the run has added them.</summary>
     public IReadOnlyList<PlaylistOutcome> Playlists { get; private set; } = [];
+
+    /// <summary>The error that ended the run as <see cref="RunEnd.Failed"/>; null otherwise.</summary>
+    public Exception? Failure { get; private set; }
 
     private readonly Dictionary<string, SourceTrack> _bySource = library.Tracks
         .GroupBy(t => t.SourceId, StringComparer.Ordinal)
@@ -217,6 +224,12 @@ public sealed class MigrationRun(
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             return RunEnd.Paused;
+        }
+        catch (Exception e)
+        {
+            // Not "paused": the person did not pause it, and must see that something went wrong.
+            Failure = e;
+            return RunEnd.Failed;
         }
 
         AddPlaylists(progress);

@@ -33,6 +33,11 @@ public sealed partial class MigrationDialog : ContentDialog
     private SourceKind _kind;
     private MigrationConnection? _connection;
     private SourceLibrary? _library;
+
+    /// <summary>The person is signing in again to continue an import that stopped on an expired sign-in.
+    /// The import then continues with its own destination, without the "where to" choice: a cloud-only
+    /// import must not turn into one to this computer with one click.</summary>
+    private bool _signingInAgain;
     private Estimate? _estimate;
     private CancellationTokenSource? _work;
     private IReadOnlyList<PlexServerChoice> _plexServers = [];
@@ -100,6 +105,7 @@ public sealed partial class MigrationDialog : ContentDialog
 
     private void ShowApps()
     {
+        _signingInAgain = false;
         ContinuePanel.Children.Clear();
         foreach (var open in _service.Unfinished())
         {
@@ -313,6 +319,13 @@ public sealed partial class MigrationDialog : ContentDialog
             var found = new Progress<int>(n => ReadingText.Text = Loc.Format("Migration_Reading", n));
             _library = await _service.ReadAsync(connection, found, ct);
             var library = _library;
+            if (_signingInAgain && _service.Current is { } stopped && stopped.Kind == library.Kind && stopped.LibraryId == library.LibraryId)
+            {
+                _signingInAgain = false;
+                if (_service.Start(library, connection, _service.LastDestination, _service.CurrentLabel))
+                    ShowRun();
+                return;
+            }
             _estimate = await Task.Run(() => _service.Estimate(library), ct);
             await ShowSummaryAsync();
         }
@@ -482,6 +495,7 @@ public sealed partial class MigrationDialog : ContentDialog
             RunEnd.DiskFull => "Migration_StoppedDiskFull",
             RunEnd.CloudFull => "Migration_StoppedCloudFull",
             RunEnd.CloudOff => "Migration_StoppedCloudOff",
+            RunEnd.Failed => "Migration_StoppedError",
             _ => "Migration_Paused",
         });
         if (!_service.IsRunning && stopped is not null)
@@ -553,6 +567,7 @@ public sealed partial class MigrationDialog : ContentDialog
             return;
         if (_service.LastEnd == RunEnd.SignInExpired)
         {
+            _signingInAgain = true;
             ShowConnect(library.Kind);
             return;
         }

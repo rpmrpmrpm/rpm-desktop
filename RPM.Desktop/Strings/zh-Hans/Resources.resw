@@ -10274,6 +10274,10 @@
     <value>已停止：你已退出登录，或云存储已关闭。</value>
     <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
+  <data name="Migration_StoppedError" xml:space="preserve">
+    <value>因出错而停止。继续即可重试。</value>
+    <comment>Import from another app: the import stopped because of an unexpected error. Continue starts it again where it stopped.</comment>
+  </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>正在从 {0} 导入：{2} 首中的第 {1} 首</value>
     <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>

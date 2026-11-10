@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using RPM.Core.Cloud;
+using RPM.Core.Diagnostics;
 using RPM.Core.Import;
 using RPM.Core.Library;
 using RPM.Core.Migration;
@@ -261,11 +262,17 @@ public sealed class MigrationService : IDisposable
             try
             {
                 end = await run.RunAsync(progress, cts.Token);
+                if (run.Failure is { } failure)
+                {
+                    _log.LogWarning(failure, "[Migration] The import from {Source} failed", library.Name);
+                    Faults.Note("migration", "importing from another app", failure);
+                }
             }
             catch (Exception e)
             {
-                _log.LogWarning(e, "[Migration] The import from {Source} stopped", library.Name);
-                end = RunEnd.Paused;
+                _log.LogWarning(e, "[Migration] The import from {Source} failed", library.Name);
+                Faults.Note("migration", "importing from another app", e);
+                end = RunEnd.Failed;
             }
 
             try
@@ -322,11 +329,8 @@ public sealed class MigrationService : IDisposable
         catch (Exception e) { _log.LogDebug(e, "[Migration] A listener failed"); }
     }
 
-    public void Dispose()
-    {
-        _cts?.Cancel();
-        _one.Dispose();
-    }
+    // The semaphore is not disposed: the background run releases it when it ends, which can be after this.
+    public void Dispose() => _cts?.Cancel();
 
     private sealed class Reporter(MigrationService service) : IProgress<MigrationProgress>
     {

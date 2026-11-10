@@ -10274,6 +10274,10 @@
     <value>Stopped: you are signed out, or cloud storage is turned off.</value>
     <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
+  <data name="Migration_StoppedError" xml:space="preserve">
+    <value>Stopped because of an error. Continue to try again.</value>
+    <comment>Import from another app: the import stopped because of an unexpected error. Continue starts it again where it stopped.</comment>
+  </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>Importing from {0}: {1} of {2}</value>
     <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>

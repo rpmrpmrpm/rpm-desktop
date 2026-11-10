@@ -10274,6 +10274,10 @@
     <value>Angehalten: Sie sind abgemeldet, oder der Cloud-Speicher ist ausgeschaltet.</value>
     <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
+  <data name="Migration_StoppedError" xml:space="preserve">
+    <value>Wegen eines Fehlers angehalten. Fortsetzen, um es erneut zu versuchen.</value>
+    <comment>Import from another app: the import stopped because of an unexpected error. Continue starts it again where it stopped.</comment>
+  </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>Import aus {0}: {1} von {2}</value>
     <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>

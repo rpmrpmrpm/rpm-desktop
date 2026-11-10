@@ -361,6 +361,21 @@ public class MigrationRunTests : IDisposable
     }
 
     [Fact]
+    public async Task An_unexpected_error_ends_the_run_as_failed_and_keeps_the_error()
+    {
+        var server = new FakeServer { Breaks = true };
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"));
+        server.Add(library.Tracks[0]);
+        var run = Run(library, MigrationDestination.ThisComputer, server);
+
+        var end = await run.RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(RunEnd.Failed, end);
+        Assert.IsType<InvalidOperationException>(run.Failure);
+        Assert.Equal(MigrationTrackState.Found, Assert.Single(Record(library).Due(_clock, 10)).State);
+    }
+
+    [Fact]
     public async Task Partial_download_is_downloaded_again()
     {
         var server = new FakeServer { ShortOnce = true };
@@ -578,6 +593,8 @@ public class MigrationRunTests : IDisposable
         public bool ShortOnce { get; set; }
         /// <summary>How many opens get no answer at all, as when the server is switched off.</summary>
         public int Unreachable { get; set; }
+        /// <summary>Every open throws an error nothing expects.</summary>
+        public bool Breaks { get; init; }
         public int Opens;
         public SourceKind Kind => SourceKind.Jellyfin;
         public void Add(SourceTrack track) => _files[((RemoteFile)track.File).Key] = TestAudio.Wav(1, track.SourceId.GetHashCode() & 0xff);
@@ -587,6 +604,7 @@ public class MigrationRunTests : IDisposable
             Interlocked.Increment(ref Opens);
             if (Expired) throw new MediaServerSignInExpired();
             if (Unreachable-- > 0) throw new HttpRequestException("Connection refused", new System.Net.Sockets.SocketException(61));
+            if (Breaks) throw new InvalidOperationException("Something nobody expected.");
             var bytes = _files[file.Key];
             if (ShortOnce)
             {

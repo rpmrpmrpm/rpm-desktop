@@ -10274,6 +10274,10 @@
     <value>Arrêté : vous êtes déconnecté, ou le stockage cloud est désactivé.</value>
     <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
+  <data name="Migration_StoppedError" xml:space="preserve">
+    <value>Arrêté à cause d'une erreur. Continuez pour réessayer.</value>
+    <comment>Import from another app: the import stopped because of an unexpected error. Continue starts it again where it stopped.</comment>
+  </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>Import depuis {0} : {1} sur {2}</value>
     <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>
