@@ -36,7 +36,7 @@ public static class NasStartup
         ArgumentNullException.ThrowIfNull(mount);
         if (login is null || NasSmbAddress.Parse(nas.Smb) is not { } address)
             return null;
-        if (mount.Mount(nas.DeviceId, address, login) is not NasMountResult.Mounted mounted)
+        if (mount.Mount(address, login) is not NasMountResult.Mounted mounted)
             return null;
         var path = address.LibraryPath(mounted.ShareRoot, nas.Folder);
         return NasMountPoint.IsLiveNetworkMount(path) ? path : null;

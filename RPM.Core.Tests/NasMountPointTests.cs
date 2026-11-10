@@ -60,6 +60,27 @@ public class NasSmbAddressTests
     }
 
     [Fact]
+    public void Knows_its_share_in_the_mount_table()
+    {
+        var address = NasSmbAddress.Parse("smb://127.0.0.1:1447/Music/rpm")!;
+
+        Assert.True(address.IsMountedFrom("//rpm@127.0.0.1:1447/Music"));
+        Assert.True(address.IsMountedFrom("//other;WORKGROUP@127.0.0.1:1447/music"));
+        Assert.False(address.IsMountedFrom("//rpm@127.0.0.1:1448/Music"));
+        Assert.False(address.IsMountedFrom("//rpm@127.0.0.1/Music"));
+        Assert.False(address.IsMountedFrom("//rpm@127.0.0.1:1447/Musical"));
+        Assert.False(address.IsMountedFrom("//rpm@localhost:1447/Music"));
+        Assert.False(address.IsMountedFrom("/dev/disk3s1"));
+        Assert.False(address.IsMountedFrom("map auto_home"));
+
+        // No port means the SMB port, on either side, and the share name is read with its escapes undone.
+        var plain = NasSmbAddress.Parse("smb://DiskStation.local/My%20Music")!;
+        Assert.True(plain.IsMountedFrom("//chivan@diskstation.local/My%20Music"));
+        Assert.True(plain.IsMountedFrom("//chivan@diskstation.local:445/my%20music"));
+        Assert.False(plain.IsMountedFrom("//chivan@diskstation.local:1445/My%20Music"));
+    }
+
+    [Fact]
     public void Refuses_what_is_not_an_smb_share()
     {
         Assert.Null(NasSmbAddress.Parse(null));

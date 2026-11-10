@@ -9,7 +9,7 @@ namespace RPM.Desktop.Services.Nas;
 /// </summary>
 internal sealed class LinuxGioMount : NasMount
 {
-    protected override NasMountResult MountCore(string nasDeviceId, NasSmbAddress address, NasCredentials login)
+    protected override NasMountResult MountCore(NasSmbAddress address, NasCredentials login)
     {
         var root = ShareRoot(address);
         if (Directory.Exists(root))

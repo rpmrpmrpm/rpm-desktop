@@ -19,8 +19,7 @@ public abstract record NasMountResult
 }
 
 /// <summary>
-/// Mounts a NAS share where rpm keeps its own mounts, without a drive letter, a desktop icon or a Finder
-/// sidebar entry. The system keeps the login only for the mount; rpm keeps it in <see cref="NasLogin"/>.
+/// Mounts a NAS share without a drive letter, a desktop icon or a Finder sidebar entry. The system keeps the login only for the mount; rpm keeps it in <see cref="NasLogin"/>.
 /// </summary>
 public abstract class NasMount
 {
@@ -29,19 +28,19 @@ public abstract class NasMount
     public static readonly TimeSpan ReachWait = TimeSpan.FromSeconds(2);
 
     public static NasMount ForThisSystem() =>
-        OperatingSystem.IsMacOS() ? new MacNetFsMount(Path.Combine(LocalData.Dir, "mounts"))
+        OperatingSystem.IsMacOS() ? new MacNetFsMount()
         : OperatingSystem.IsWindows() ? new WindowsUncMount()
         : new LinuxGioMount();
 
     /// <summary>Mounts the share in <paramref name="address"/>. Blocks; call it off the interface thread
     /// except at launch, where it is bounded by <see cref="ReachWait"/>.</summary>
-    public NasMountResult Mount(string nasDeviceId, NasSmbAddress address, NasCredentials login)
+    public NasMountResult Mount(NasSmbAddress address, NasCredentials login)
     {
         if (!Reachable(address))
             return new NasMountResult.Unreachable($"{address.HostWithoutPort} did not answer on the SMB port");
         try
         {
-            return MountCore(nasDeviceId, address, login);
+            return MountCore(address, login);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DllNotFoundException
                                        or EntryPointNotFoundException or System.ComponentModel.Win32Exception)
@@ -50,7 +49,7 @@ public abstract class NasMount
         }
     }
 
-    protected abstract NasMountResult MountCore(string nasDeviceId, NasSmbAddress address, NasCredentials login);
+    protected abstract NasMountResult MountCore(NasSmbAddress address, NasCredentials login);
 
     private static bool Reachable(NasSmbAddress address)
     {

@@ -30,7 +30,6 @@ public sealed class NasEndToEndFactAttribute : FactAttribute
 /// SMB, the real daemon reading it, and the real upload.</summary>
 public sealed class NasEndToEndLiveTests : IDisposable
 {
-    private readonly string _temp = Path.Combine(Path.GetTempPath(), "rpm-e2e-" + Guid.NewGuid().ToString("N"));
     private readonly PeerIdentity _owner = PeerIdentity.Create();
     private string? _mounted;
     private string? _library;
@@ -45,7 +44,6 @@ public sealed class NasEndToEndLiveTests : IDisposable
         }
 
         _owner.Dispose();
-        try { Directory.Delete(_temp, recursive: true); } catch (IOException) { }
     }
 
     /// <summary>The NAS's hello, read without pinning: this test does not know the NAS key beforehand.</summary>
@@ -64,7 +62,7 @@ public sealed class NasEndToEndLiveTests : IDisposable
 
         // 1. Mount the share hidden, as onboarding does.
         var mounted = Assert.IsType<NasMountResult.Mounted>(
-            new MacNetFsMount(Path.Combine(_temp, "mounts")).Mount("E2E", address, new NasCredentials(parts[1], parts[2])));
+            new MacNetFsMount().Mount(address, new NasCredentials(parts[1], parts[2])));
         _mounted = mounted.ShareRoot;
 
         // 2. The library folder, its id and the claim, written through the mount, as onboarding does.

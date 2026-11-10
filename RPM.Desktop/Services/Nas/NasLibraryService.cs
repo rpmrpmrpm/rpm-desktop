@@ -69,7 +69,7 @@ public sealed class NasLibraryService(
         var account = AccountFingerprint() ?? "";
         return await Task.Run<(NasOpenResult?, NasPrepared?)>(() =>
         {
-            var mounted = NasMount.ForThisSystem().Mount(nas.DeviceId, address, login);
+            var mounted = NasMount.ForThisSystem().Mount(address, login);
             switch (mounted)
             {
                 case NasMountResult.WrongLogin:
@@ -195,7 +195,7 @@ public sealed class NasLibraryService(
     {
         if (NasSmbAddress.Parse(hello.Nas?.Smb) is not { } address)
             return new NasOpenResult.Failed("the NAS gave no SMB address");
-        return await Task.Run<NasOpenResult?>(() => NasMount.ForThisSystem().Mount(nas.DeviceId, address, login) switch
+        return await Task.Run<NasOpenResult?>(() => NasMount.ForThisSystem().Mount(address, login) switch
         {
             NasMountResult.Mounted => null,
             NasMountResult.WrongLogin => new NasOpenResult.WrongLogin(),

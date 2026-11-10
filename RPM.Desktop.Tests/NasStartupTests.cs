@@ -32,7 +32,7 @@ public sealed class NasStartupTests : IDisposable
     {
         public int Calls;
 
-        protected override NasMountResult MountCore(string nasDeviceId, NasSmbAddress address, NasCredentials login)
+        protected override NasMountResult MountCore(NasSmbAddress address, NasCredentials login)
         {
             Calls++;
             return new NasMountResult.Mounted(root);
@@ -41,7 +41,7 @@ public sealed class NasStartupTests : IDisposable
 
     private sealed class RefusingMount : NasMount
     {
-        protected override NasMountResult MountCore(string nasDeviceId, NasSmbAddress address, NasCredentials login) =>
+        protected override NasMountResult MountCore(NasSmbAddress address, NasCredentials login) =>
             new NasMountResult.WrongLogin();
     }
 
@@ -77,7 +77,7 @@ public sealed class NasStartupTests : IDisposable
         var mount = new LocalFolderMount(_temp);
 
         Assert.IsType<NasMountResult.Unreachable>(
-            mount.Mount("NASID", NasSmbAddress.Parse($"smb://127.0.0.1:{port}/music")!, new NasCredentials("a", "b")));
+            mount.Mount(NasSmbAddress.Parse($"smb://127.0.0.1:{port}/music")!, new NasCredentials("a", "b")));
         Assert.Equal(0, mount.Calls);
     }
 }

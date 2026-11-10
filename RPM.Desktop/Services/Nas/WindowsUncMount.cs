@@ -15,7 +15,7 @@ internal sealed unsafe class WindowsUncMount : NasMount
     private const int ErrorInvalidPassword = 86;
     private const int ErrorAlreadyAssigned = 85;
 
-    protected override NasMountResult MountCore(string nasDeviceId, NasSmbAddress address, NasCredentials login)
+    protected override NasMountResult MountCore(NasSmbAddress address, NasCredentials login)
     {
         var share = address.UncShare;
         if (Directory.Exists(share))
