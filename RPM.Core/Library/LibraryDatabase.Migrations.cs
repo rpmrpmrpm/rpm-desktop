@@ -81,7 +81,7 @@ public sealed partial class LibraryDatabase
             cmd.Parameters.AddWithValue("$dest", (int)destination);
             cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.Ticks);
             var id = Convert.ToInt64(cmd.ExecuteScalar());
-            return new MigrationRecord(this, id, destination);
+            return new MigrationRecord(this, id, key, destination);
         }
     }
 
@@ -167,14 +167,19 @@ public sealed partial class LibraryDatabase
     {
         private readonly LibraryDatabase _db;
 
-        internal MigrationRecord(LibraryDatabase db, long id, MigrationDestination destination)
+        internal MigrationRecord(LibraryDatabase db, long id, string libraryKey, MigrationDestination destination)
         {
             _db = db;
             Id = id;
+            LibraryKey = libraryKey;
             Destination = destination;
         }
 
         public long Id { get; }
+
+        /// <summary>The key the record is filed under with its kind: the library id, or for playlist files
+        /// a hash of their paths. The same value <see cref="UnfinishedMigrations"/> reports.</summary>
+        public string LibraryKey { get; }
 
         public MigrationDestination Destination { get; }
 

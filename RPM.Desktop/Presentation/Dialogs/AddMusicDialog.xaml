@@ -184,6 +184,7 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
 
           <Button x:Name="FolderCard"
@@ -219,8 +220,43 @@
             </Grid>
           </Button>
 
-          <Button x:Name="CdCard"
+          <!-- A library in another music app (MusicBee, iTunes, Jellyfin, Plex, Navidrome, playlist
+               files). This opens its own window, because two ContentDialogs cannot be stacked. -->
+          <Button x:Name="OtherAppCard"
               Grid.Column="1"
+              Style="{StaticResource SourceTileStyle}"
+              Click="OtherApp_Click">
+            <Grid VerticalAlignment="Center">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+
+              <StackPanel Grid.Row="1">
+                <FontIcon Style="{StaticResource FaIcon}"
+                    Glyph="&#xf0ec;"
+                    FontSize="21"
+                    Foreground="#99FFFFFF"/>
+                <TextBlock Text="{loc:Str Key=AddMusic_OtherApp}"
+                    FontSize="12.5"
+                    FontWeight="SemiBold"
+                    Margin="0,8,0,0"
+                           Foreground="#F2FFFFFF"
+                    HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Str Key=AddMusic_OtherAppHint}"
+                    FontSize="10.5"
+                           Foreground="#88FFFFFF"
+                    TextWrapping="Wrap"
+                    TextAlignment="Center"
+                    Margin="0,2,0,0"
+                    Height="32"/>
+              </StackPanel>
+            </Grid>
+          </Button>
+
+          <Button x:Name="CdCard"
+              Grid.Column="2"
               Style="{StaticResource SourceTileStyle}"
               Click="Cd_Click">
             <Grid VerticalAlignment="Center">
@@ -254,7 +290,7 @@
           </Button>
 
           <Button x:Name="DvdCard"
-              Grid.Column="2"
+              Grid.Column="3"
               Style="{StaticResource SourceTileStyle}"
               Click="Dvd_Click">
             <Grid VerticalAlignment="Center">
@@ -290,7 +326,7 @@
           <!-- Record from a turntable or any line-in. This opens its own capture window. Whatever
                it puts into staging joins this flow as a folder. -->
           <Button x:Name="VinylCard"
-              Grid.Column="3"
+              Grid.Column="4"
               Style="{StaticResource SourceTileStyle}"
               Click="Vinyl_Click">
             <Grid VerticalAlignment="Center">
@@ -326,7 +362,7 @@
           <!-- Discs already ripped into .rpm that never reached the library. The disc is finished
                with, so there is nothing to put back in the drive. -->
           <Button x:Name="PendingCard"
-              Grid.Column="4"
+              Grid.Column="5"
               Style="{StaticResource SourceTileStyle}"
               Click="Pending_Click">
             <Grid VerticalAlignment="Center">

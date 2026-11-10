@@ -55,6 +55,8 @@ public enum AddMusicAction
     /// <summary>Split the vinyl session in <see cref="AddMusicOutcome.Folder"/>, then import
     /// it.</summary>
     SplitVinylSession,
+    /// <summary>Import a library from another music app: the caller opens the import window.</summary>
+    Migrate,
 }
 
 /// <summary>The result of the popup. Two ContentDialogs cannot be open at once. So anything that needs
@@ -158,6 +160,8 @@ public sealed partial class AddMusicDialog : ContentDialog
     private void Dvd_Click(object sender, RoutedEventArgs e) => Choose(AddMusicAction.RipDvd);
 
     private void Vinyl_Click(object sender, RoutedEventArgs e) => Choose(AddMusicAction.RecordVinyl);
+
+    private void OtherApp_Click(object sender, RoutedEventArgs e) => Choose(AddMusicAction.Migrate);
 
     private void Choose(AddMusicAction action, string? folder = null)
     {

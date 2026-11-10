@@ -471,6 +471,10 @@ public partial class App : Application
                         // subscriptions.
                         .AddSingleton<CloudMirrorService>()
                         .AddSingleton<CloudSyncService>()
+                        // Imports from other music apps (MusicBee, iTunes, Jellyfin, Plex, Navidrome,
+                        // playlist files). A singleton, because an import keeps running when its window
+                        // is hidden.
+                        .AddSingleton<RPM.Desktop.Services.Migration.MigrationService>()
                         .AddSingleton<RPM.Desktop.Services.Account.AccountDeletion>()
                         // What a track is played from when its bytes are not on this disk: the signed URL,
                         // and the opening seconds to start on while it opens.

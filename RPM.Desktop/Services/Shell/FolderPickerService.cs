@@ -59,6 +59,68 @@ public sealed class FolderPickerService
         }
     }
 
+    /// <summary>Pick one file, or several when <paramref name="multiple"/>, of the given kinds (bare,
+    /// lowercase extensions such as ".xml"). Files of other kinds are dropped from the answer. Empty when
+    /// the picker was cancelled.</summary>
+    public async Task<IReadOnlyList<string>> PickFilesAsync(IReadOnlyList<string> extensions, bool multiple)
+    {
+        try
+        {
+            var picked = OperatingSystem.IsMacOS()
+                ? await PickFilesViaNSOpenPanelAsync(multiple)
+                : await PickFilesViaWinRtAsync(extensions, multiple);
+            return [.. picked.Where(p => extensions.Contains(Path.GetExtension(p).ToLowerInvariant()))];
+        }
+        catch (Exception ex)
+        {
+            Failed("files", ex);
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> PickFilesViaWinRtAsync(IReadOnlyList<string> extensions, bool multiple)
+    {
+        return await _dispatcherQueue.ExecuteAsync(async () =>
+        {
+            var picker = Pickers.Owned<FileOpenPicker>();
+            picker.SuggestedStartLocation = PickerLocationId.MusicLibrary;
+            foreach (var ext in extensions)
+                picker.FileTypeFilter.Add(ext);
+            if (multiple)
+                return (IReadOnlyList<string>)[.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)];
+            var file = await picker.PickSingleFileAsync();
+            return file is null ? [] : [file.Path];
+        });
+    }
+
+    private async Task<IReadOnlyList<string>> PickFilesViaNSOpenPanelAsync(bool multiple)
+    {
+        return await _dispatcherQueue.ExecuteAsync(async () =>
+        {
+            await Task.CompletedTask; // satisfy async signature
+
+            var panel = objc_msgSend(objc_getClass("NSOpenPanel"), sel_registerName("openPanel"));
+            objc_msgSend_bool(panel, sel_registerName("setCanChooseDirectories:"), false);
+            objc_msgSend_bool(panel, sel_registerName("setCanChooseFiles:"), true);
+            objc_msgSend_bool(panel, sel_registerName("setAllowsMultipleSelection:"), multiple);
+
+            var result = objc_msgSend(panel, sel_registerName("runModal"));
+            if (result != 1) return (IReadOnlyList<string>)[];
+
+            var urls = objc_msgSend(panel, sel_registerName("URLs"));
+            var count = (long)objc_msgSend(urls, sel_registerName("count"));
+            var paths = new List<string>();
+            for (nint i = 0; i < count; i++)
+            {
+                var url = objc_msgSend_idx(urls, sel_registerName("objectAtIndex:"), i);
+                var pathPtr = objc_msgSend(url, sel_registerName("path"));
+                if (Marshal.PtrToStringUTF8(objc_msgSend(pathPtr, sel_registerName("UTF8String"))) is { Length: > 0 } path)
+                    paths.Add(path);
+            }
+            return paths;
+        });
+    }
+
     /// <summary>The image kinds the background picker accepts, as bare lowercase extensions.</summary>
     public static readonly string[] ImageExtensions =
         [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"];

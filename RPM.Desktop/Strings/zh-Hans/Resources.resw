@@ -9986,4 +9986,376 @@
     <value>原始文件与上传时完全相同。较低的比特率使用更少的数据。</value>
     <comment>Web app, Settings, Sound: under Streaming quality, what the choices do.</comment>
   </data>
+  <data name="AddMusic_OtherApp" xml:space="preserve">
+    <value>从其他应用导入</value>
+    <comment>Add music window: the tile that imports a library from another music app.</comment>
+  </data>
+  <data name="AddMusic_OtherAppHint" xml:space="preserve">
+    <value>MusicBee、iTunes、Jellyfin、Plex、Navidrome</value>
+    <comment>Add music window: the line under 'From another app', naming the apps it can import from.</comment>
+  </data>
+  <data name="Migration_Title" xml:space="preserve">
+    <value>从其他应用导入</value>
+    <comment>Title of the window that imports a library from another music app.</comment>
+  </data>
+  <data name="Migration_ChooseKicker" xml:space="preserve">
+    <value>你的音乐现在在哪里？</value>
+    <comment>Import from another app: heading above the list of apps.</comment>
+  </data>
+  <data name="Migration_SourceMusicBee" xml:space="preserve">
+    <value>MusicBee</value>
+    <comment>Import from another app: the MusicBee choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourceITunes" xml:space="preserve">
+    <value>iTunes 或 Apple Music</value>
+    <comment>Import from another app: the iTunes / Apple Music choice.</comment>
+  </data>
+  <data name="Migration_SourceJellyfin" xml:space="preserve">
+    <value>Jellyfin</value>
+    <comment>Import from another app: the Jellyfin choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourcePlex" xml:space="preserve">
+    <value>Plex</value>
+    <comment>Import from another app: the Plex choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourceNavidrome" xml:space="preserve">
+    <value>Navidrome 或 Subsonic</value>
+    <comment>Import from another app: the Navidrome / Subsonic server choice.</comment>
+  </data>
+  <data name="Migration_SourcePlaylistFiles" xml:space="preserve">
+    <value>播放列表文件</value>
+    <comment>Import from another app: the choice for .m3u/.pls playlist files. Also the name shown for this source in the report.</comment>
+  </data>
+  <data name="Migration_HintFile" xml:space="preserve">
+    <value>使用它保存的资料库文件</value>
+    <comment>Import from another app: line under MusicBee and iTunes.</comment>
+  </data>
+  <data name="Migration_HintServer" xml:space="preserve">
+    <value>登录你的服务器</value>
+    <comment>Import from another app: line under Jellyfin, Plex and Navidrome.</comment>
+  </data>
+  <data name="Migration_HintPlaylistFiles" xml:space="preserve">
+    <value>任何播放器的 .m3u、.m3u8 和 .pls</value>
+    <comment>Import from another app: line under Playlist files.</comment>
+  </data>
+  <data name="Migration_ContinueImport" xml:space="preserve">
+    <value>继续从 {0} 导入</value>
+    <comment>Import from another app: button for an import that has not finished. {0} is the source, for example MusicBee.</comment>
+  </data>
+  <data name="Migration_HowMusicBee" xml:space="preserve">
+    <value>在 MusicBee 中打开 Edit &gt; Preferences &gt; Library，开启“Save a copy of the library tags as an iTunes formatted XML file”。关闭 MusicBee，然后选择 MusicBee 资料库文件夹中的“iTunes Music Library.xml”文件。</value>
+    <comment>Import from another app: how to get MusicBee's library file. MusicBee's menu names are in English in the app; keep them as they are.</comment>
+  </data>
+  <data name="Migration_HowITunes" xml:space="preserve">
+    <value>在 Apple Music 中选择“文件 &gt; 资料库 &gt; 导出资料库”。在 Windows 版 iTunes 中选择“编辑 &gt; 偏好设置 &gt; 高级”，开启“与其他应用程序共享 iTunes 资料库 XML”。然后选择资料库文件。</value>
+    <comment>Import from another app: how to get the iTunes / Apple Music library file.</comment>
+  </data>
+  <data name="Migration_HowPlaylistFiles" xml:space="preserve">
+    <value>选择一个或多个播放列表文件。其中列出的音乐必须在这台电脑上。</value>
+    <comment>Import from another app: explanation for playlist files.</comment>
+  </data>
+  <data name="Migration_ChooseFile" xml:space="preserve">
+    <value>选择文件</value>
+    <comment>Import from another app: button that opens a file picker for the library file.</comment>
+  </data>
+  <data name="Migration_ChoosePlaylists" xml:space="preserve">
+    <value>选择播放列表</value>
+    <comment>Import from another app: button that opens a file picker for playlist files.</comment>
+  </data>
+  <data name="Migration_ServerAddress" xml:space="preserve">
+    <value>服务器地址</value>
+    <comment>Import from another app: label of the media server address box.</comment>
+  </data>
+  <data name="Migration_UserName" xml:space="preserve">
+    <value>用户名</value>
+    <comment>Import from another app: label of the user name box.</comment>
+  </data>
+  <data name="Migration_Password" xml:space="preserve">
+    <value>密码</value>
+    <comment>Import from another app: label of the password box.</comment>
+  </data>
+  <data name="Migration_SignIn" xml:space="preserve">
+    <value>登录</value>
+    <comment>Import from another app: button that signs in to the media server.</comment>
+  </data>
+  <data name="Migration_QuickConnect" xml:space="preserve">
+    <value>使用 Quick Connect</value>
+    <comment>Import from another app: Jellyfin's code sign-in. Quick Connect is Jellyfin's name for it.</comment>
+  </data>
+  <data name="Migration_QuickConnectCode" xml:space="preserve">
+    <value>在另一个 Jellyfin 应用的“设置 &gt; Quick Connect”中输入此代码：{0}</value>
+    <comment>Import from another app: shown while waiting for a Jellyfin Quick Connect approval. {0} is the six-digit code.</comment>
+  </data>
+  <data name="Migration_PlexSignIn" xml:space="preserve">
+    <value>使用 Plex 登录</value>
+    <comment>Import from another app: button that opens Plex's sign-in page in the browser.</comment>
+  </data>
+  <data name="Migration_PlexWaiting" xml:space="preserve">
+    <value>请在浏览器中登录 Plex。完成后此窗口会继续。</value>
+    <comment>Import from another app: shown while waiting for the Plex sign-in in the browser.</comment>
+  </data>
+  <data name="Migration_PlexServer" xml:space="preserve">
+    <value>服务器</value>
+    <comment>Import from another app: label of the Plex server list.</comment>
+  </data>
+  <data name="Migration_PlexNoServer" xml:space="preserve">
+    <value>从这里无法连接到任何 Plex 服务器。</value>
+    <comment>Import from another app: error when the Plex account has no server that answers.</comment>
+  </data>
+  <data name="Migration_SignInFailed" xml:space="preserve">
+    <value>服务器不接受此用户名或密码。</value>
+    <comment>Import from another app: error after a refused sign-in.</comment>
+  </data>
+  <data name="Migration_ServerUnreachable" xml:space="preserve">
+    <value>无法连接到服务器。请检查地址。</value>
+    <comment>Import from another app: error when the server does not answer.</comment>
+  </data>
+  <data name="Migration_ServerBlocked" xml:space="preserve">
+    <value>你的浏览器无法连接此服务器。请使用它的 https 地址，或在电脑上用 rpm 导入。</value>
+    <comment>Import from another app, web app only: a page on https cannot reach a server on plain http.</comment>
+  </data>
+  <data name="Migration_FileUnreadable" xml:space="preserve">
+    <value>无法将此文件读取为资料库文件。</value>
+    <comment>Import from another app: error when the chosen file is not an iTunes library XML.</comment>
+  </data>
+  <data name="Migration_ChooseMusicFolder" xml:space="preserve">
+    <value>选择音乐文件夹</value>
+    <comment>Import from another app, web app only: button to pick the folder that holds the music the library file lists.</comment>
+  </data>
+  <data name="Migration_MusicFolderHint" xml:space="preserve">
+    <value>浏览器无法打开资料库文件中的路径。请选择存放音乐的文件夹，rpm 会在其中找到每首曲目。</value>
+    <comment>Import from another app, web app only: why the music folder is needed.</comment>
+  </data>
+  <data name="Migration_Reading" xml:space="preserve">
+    <value>正在读取资料库（已找到 {0} 首曲目）</value>
+    <comment>Import from another app: shown while the source library is read. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummaryKicker" xml:space="preserve">
+    <value>找到的内容</value>
+    <comment>Import from another app: heading of the summary.</comment>
+  </data>
+  <data name="Migration_SummaryTracks" xml:space="preserve">
+    <value>{0} 首曲目（{1}）</value>
+    <comment>Import from another app: summary line. {0} is a number, {1} a size such as 212 GB.</comment>
+  </data>
+  <data name="Migration_SummaryPlaylists" xml:space="preserve">
+    <value>{0} 个播放列表</value>
+    <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummaryAlready" xml:space="preserve">
+    <value>约 {0} 首已在 rpm 中</value>
+    <comment>Import from another app: summary line, an estimate. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummarySkipped" xml:space="preserve">
+    <value>{0} 个项目不会导入（流媒体、视频、播客，或不在这台电脑上的文件）</value>
+    <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsFile" xml:space="preserve">
+    <value>rpm 会复制你的音乐，原文件保留在原处。你的 {0} 资料库中不会有任何更改或删除。</value>
+    <comment>Import from another app: shown on the summary and while importing from a library file. {0} is MusicBee or iTunes.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsServer" xml:space="preserve">
+    <value>rpm 只读取你的 {0} 服务器，不会更改或删除上面的任何内容。</value>
+    <comment>Import from another app: shown on the summary and while importing from a media server. {0} is Jellyfin, Plex or the server's name.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsPlaylists" xml:space="preserve">
+    <value>rpm 会复制音乐，原文件和播放列表文件保留在原处。</value>
+    <comment>Import from another app: shown on the summary and while importing playlist files.</comment>
+  </data>
+  <data name="Migration_WhereKicker" xml:space="preserve">
+    <value>导入到</value>
+    <comment>Import from another app: heading above the choice of this computer or the cloud.</comment>
+  </data>
+  <data name="Migration_ToThisComputer" xml:space="preserve">
+    <value>这台电脑</value>
+    <comment>Import from another app: destination choice.</comment>
+  </data>
+  <data name="Migration_ToThisComputerHint" xml:space="preserve">
+    <value>文件保存在你的 rpm 资料库文件夹中</value>
+    <comment>Import from another app: line under 'This computer'.</comment>
+  </data>
+  <data name="Migration_ToCloud" xml:space="preserve">
+    <value>仅云端</value>
+    <comment>Import from another app: destination choice.</comment>
+  </data>
+  <data name="Migration_ToCloudHint" xml:space="preserve">
+    <value>文件会存入你的 rpm 云端，不保留在这台电脑上</value>
+    <comment>Import from another app: line under 'Cloud only'.</comment>
+  </data>
+  <data name="Migration_SpaceDisk" xml:space="preserve">
+    <value>约需 {0}。此磁盘可用 {1}。</value>
+    <comment>Import from another app: space line. {0} and {1} are sizes such as 12 GB.</comment>
+  </data>
+  <data name="Migration_SpaceDiskShort" xml:space="preserve">
+    <value>此磁盘空间不足：约需 {0}，可用 {1}。</value>
+    <comment>Import from another app: shown instead of the Start button when the disk is too small. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_SpaceCloud" xml:space="preserve">
+    <value>约需 {0}。你的云存储可用 {1}。</value>
+    <comment>Import from another app: space line for a cloud import. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_SpaceCloudShort" xml:space="preserve">
+    <value>约需 {0}，你的云存储可用 {1}。专辑会一直导入到空间用完为止。</value>
+    <comment>Import from another app: space line when the cloud storage is too small. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_CloudSignInNeeded" xml:space="preserve">
+    <value>登录你的 rpm 帐户才能导入到云端。</value>
+    <comment>Import from another app: shown under 'Cloud only' when not signed in.</comment>
+  </data>
+  <data name="Migration_Start" xml:space="preserve">
+    <value>开始导入</value>
+    <comment>Import from another app: button on the summary.</comment>
+  </data>
+  <data name="Migration_StageReading" xml:space="preserve">
+    <value>正在读取资料库</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StageTracks" xml:space="preserve">
+    <value>正在导入曲目</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StagePlaylists" xml:space="preserve">
+    <value>正在添加播放列表</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StageFinishing" xml:space="preserve">
+    <value>正在完成</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_ProgressTracks" xml:space="preserve">
+    <value>{1} 首中的第 {0} 首，{3} 中的 {2}</value>
+    <comment>Import from another app: progress line. {0} and {1} are numbers, {2} and {3} sizes such as 14.2 GB.</comment>
+  </data>
+  <data name="Migration_ProgressCounts" xml:space="preserve">
+    <value>已导入：{0}。已在 rpm 中：{1}。未导入：{2}。</value>
+    <comment>Import from another app: progress counts. Numbers.</comment>
+  </data>
+  <data name="Migration_ProgressAlbum" xml:space="preserve">
+    <value>当前：{0}</value>
+    <comment>Import from another app: the album being imported. {0} is an album name.</comment>
+  </data>
+  <data name="Migration_ProgressTimeLeft" xml:space="preserve">
+    <value>约剩 {0}</value>
+    <comment>Import from another app: estimate. {0} is a duration such as 2 h 10 min.</comment>
+  </data>
+  <data name="Migration_Pause" xml:space="preserve">
+    <value>暂停</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_Continue" xml:space="preserve">
+    <value>继续</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_Hide" xml:space="preserve">
+    <value>隐藏</value>
+    <comment>Import from another app: button that closes the window while the import goes on.</comment>
+  </data>
+  <data name="Migration_Paused" xml:space="preserve">
+    <value>已暂停</value>
+    <comment>Import from another app: state after Pause.</comment>
+  </data>
+  <data name="Migration_StoppedSignIn" xml:space="preserve">
+    <value>已停止：服务器要求重新登录。</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedDiskFull" xml:space="preserve">
+    <value>已停止：磁盘已满。</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedCloudFull" xml:space="preserve">
+    <value>已停止：你的云存储已满。</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_Status" xml:space="preserve">
+    <value>正在从 {0} 导入：{2} 首中的第 {1} 首</value>
+    <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>
+  </data>
+  <data name="Migration_Back" xml:space="preserve">
+    <value>返回</value>
+    <comment>Import from another app: button back to the previous step.</comment>
+  </data>
+  <data name="Migration_Close" xml:space="preserve">
+    <value>关闭</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_ReportTitle" xml:space="preserve">
+    <value>从 {0} 导入已完成</value>
+    <comment>Import from another app: heading of the report. {0} is the source.</comment>
+  </data>
+  <data name="Migration_ReportCounts" xml:space="preserve">
+    <value>{0} 首曲目。已导入 {1} 首，{2} 首已在 rpm 中，{3} 首未导入。</value>
+    <comment>Import from another app: report line. Numbers.</comment>
+  </data>
+  <data name="Migration_ReportNotImported" xml:space="preserve">
+    <value>未导入</value>
+    <comment>Import from another app: heading of the list of tracks that were not imported.</comment>
+  </data>
+  <data name="Migration_ReportLowerQuality" xml:space="preserve">
+    <value>rpm 中已有较低质量的版本</value>
+    <comment>Import from another app: heading of the list of lossless files whose songs rpm has in a lossy format.</comment>
+  </data>
+  <data name="Migration_ReportLowerQualityHint" xml:space="preserve">
+    <value>rpm 中已有这些歌曲的有损格式版本。这里列出无损文件，你可以自行导入。</value>
+    <comment>Import from another app: explanation under the lower quality list.</comment>
+  </data>
+  <data name="Migration_ReportPlaylists" xml:space="preserve">
+    <value>已添加 {0} 个播放列表</value>
+    <comment>Import from another app: report line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_ReportPlaylistUnmatched" xml:space="preserve">
+    <value>{0}：{1} 个条目未找到</value>
+    <comment>Import from another app: report line for one playlist. {0} is its name, {1} a number.</comment>
+  </data>
+  <data name="Migration_ReportSmart" xml:space="preserve">
+    <value>{0}（智能播放列表，现为普通列表）</value>
+    <comment>Import from another app: report line. {0} is a playlist name.</comment>
+  </data>
+  <data name="Migration_ReportSkipped" xml:space="preserve">
+    <value>一开始就未导入</value>
+    <comment>Import from another app: heading of the items the source listed that are not music files.</comment>
+  </data>
+  <data name="Migration_TryAgain" xml:space="preserve">
+    <value>重试</value>
+    <comment>Import from another app: button that tries the tracks that were not imported again.</comment>
+  </data>
+  <data name="Migration_ReasonFileNotFound" xml:space="preserve">
+    <value>找不到文件</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonReadFailed" xml:space="preserve">
+    <value>无法读取</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonDiskFull" xml:space="preserve">
+    <value>磁盘已满</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonCloudFull" xml:space="preserve">
+    <value>云存储已满</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
+    <value>无法复制</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonRemoved" xml:space="preserve">
+    <value>导入期间已从 rpm 中移除</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonLowerQualityInRpm" xml:space="preserve">
+    <value>rpm 中已有较低质量的版本</value>
+    <comment>Import from another app: note on a track rpm already had in a lossy format.</comment>
+  </data>
+  <data name="Migration_SkipNotAFile" xml:space="preserve">
+    <value>不是文件（流媒体或网址）</value>
+    <comment>Import from another app: why an item of the source was not imported.</comment>
+  </data>
+  <data name="Migration_SkipNotOnThisComputer" xml:space="preserve">
+    <value>不在这台电脑上</value>
+    <comment>Import from another app: why an item of the source was not imported (for example a track only in Apple Music's cloud).</comment>
+  </data>
+  <data name="Migration_SkipNotMusic" xml:space="preserve">
+    <value>不是音乐（播客、有声书或视频）</value>
+    <comment>Import from another app: why an item of the source was not imported.</comment>
+  </data>
 </root>

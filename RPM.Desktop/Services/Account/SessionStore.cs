@@ -109,6 +109,10 @@ public sealed partial class SessionStore
 
     /// <summary>Whether every place that this store reads is in memory. That means no store on disk, no
     /// older home and no <c>auth.json</c>. This is true for a harness run's store and for no other store.</summary>
+    /// <summary>The store under the sign-in, for other small secrets of this app (a media server's
+    /// token during an import). Each user of it keeps to its own names.</summary>
+    internal SecretStore Secrets => _store;
+
     internal bool ReadsOnlyMemory => _store is MemorySecretStore && _earlier.Count == 0 && _plainTextPath is null;
 
     /// <summary>Reads the session. If the store holds none, it first moves the session out of an older home.</summary>

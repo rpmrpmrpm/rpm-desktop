@@ -56,11 +56,25 @@ public sealed partial class MainPage
             Dialogs.AddMusicAction.RipDvd => await ImportDiscAsync(m, Dialogs.DiscKind.Dvd, staging, settings),
             Dialogs.AddMusicAction.RecordVinyl => await RecordAndSplitVinylAsync(m, staging),
             Dialogs.AddMusicAction.SplitVinylSession => await SplitVinylSessionAsync(m, outcome.Folder!),
+            Dialogs.AddMusicAction.Migrate => await MigrateAsync(),
             _ => null,
         };
 
         if (source is not null)
             await ScanSourcesAsync([source]);
+    }
+
+    /// <summary>Opens the import from another app. It files tracks itself, so it hands no folder to the
+    /// queue.</summary>
+    private async Task<string?> MigrateAsync()
+    {
+        if (XamlRoot is not { } root)
+            return null;
+        await Dialogs.MigrationDialog.ShowAsync(
+            root,
+            App.Services.GetRequiredService<RPM.Desktop.Services.Migration.MigrationService>(),
+            App.Services.GetRequiredService<FolderPickerService>());
+        return null;
     }
 
     /// <summary>Scans folders into the queue and says what came of it. Every route in (the folder

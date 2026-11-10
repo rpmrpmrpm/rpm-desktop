@@ -9986,4 +9986,376 @@
     <value>L’original est exactement tel qu’il a été envoyé. Un débit plus faible consomme moins de données.</value>
     <comment>Web app, Settings, Sound: under Streaming quality, what the choices do.</comment>
   </data>
+  <data name="AddMusic_OtherApp" xml:space="preserve">
+    <value>Depuis une autre app</value>
+    <comment>Add music window: the tile that imports a library from another music app.</comment>
+  </data>
+  <data name="AddMusic_OtherAppHint" xml:space="preserve">
+    <value>MusicBee, iTunes, Jellyfin, Plex, Navidrome</value>
+    <comment>Add music window: the line under 'From another app', naming the apps it can import from.</comment>
+  </data>
+  <data name="Migration_Title" xml:space="preserve">
+    <value>Importer depuis une autre app</value>
+    <comment>Title of the window that imports a library from another music app.</comment>
+  </data>
+  <data name="Migration_ChooseKicker" xml:space="preserve">
+    <value>Où se trouve votre musique ?</value>
+    <comment>Import from another app: heading above the list of apps.</comment>
+  </data>
+  <data name="Migration_SourceMusicBee" xml:space="preserve">
+    <value>MusicBee</value>
+    <comment>Import from another app: the MusicBee choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourceITunes" xml:space="preserve">
+    <value>iTunes ou Apple Music</value>
+    <comment>Import from another app: the iTunes / Apple Music choice.</comment>
+  </data>
+  <data name="Migration_SourceJellyfin" xml:space="preserve">
+    <value>Jellyfin</value>
+    <comment>Import from another app: the Jellyfin choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourcePlex" xml:space="preserve">
+    <value>Plex</value>
+    <comment>Import from another app: the Plex choice. A product name.</comment>
+  </data>
+  <data name="Migration_SourceNavidrome" xml:space="preserve">
+    <value>Navidrome ou Subsonic</value>
+    <comment>Import from another app: the Navidrome / Subsonic server choice.</comment>
+  </data>
+  <data name="Migration_SourcePlaylistFiles" xml:space="preserve">
+    <value>Fichiers de playlist</value>
+    <comment>Import from another app: the choice for .m3u/.pls playlist files. Also the name shown for this source in the report.</comment>
+  </data>
+  <data name="Migration_HintFile" xml:space="preserve">
+    <value>Utilise le fichier de bibliothèque qu'elle enregistre</value>
+    <comment>Import from another app: line under MusicBee and iTunes.</comment>
+  </data>
+  <data name="Migration_HintServer" xml:space="preserve">
+    <value>Se connecte à votre serveur</value>
+    <comment>Import from another app: line under Jellyfin, Plex and Navidrome.</comment>
+  </data>
+  <data name="Migration_HintPlaylistFiles" xml:space="preserve">
+    <value>.m3u, .m3u8 et .pls de tout lecteur</value>
+    <comment>Import from another app: line under Playlist files.</comment>
+  </data>
+  <data name="Migration_ContinueImport" xml:space="preserve">
+    <value>Reprendre l'import depuis {0}</value>
+    <comment>Import from another app: button for an import that has not finished. {0} is the source, for example MusicBee.</comment>
+  </data>
+  <data name="Migration_HowMusicBee" xml:space="preserve">
+    <value>Dans MusicBee, ouvrez Edit &gt; Preferences &gt; Library et activez « Save a copy of the library tags as an iTunes formatted XML file ». Fermez MusicBee, puis choisissez le fichier « iTunes Music Library.xml » dans le dossier de bibliothèque de MusicBee.</value>
+    <comment>Import from another app: how to get MusicBee's library file. MusicBee's menu names are in English in the app; keep them as they are.</comment>
+  </data>
+  <data name="Migration_HowITunes" xml:space="preserve">
+    <value>Dans Apple Music, choisissez Fichier &gt; Bibliothèque &gt; Exporter la bibliothèque. Dans iTunes pour Windows, choisissez Édition &gt; Préférences &gt; Avancé et activez « Partager le fichier XML de la bibliothèque iTunes avec d'autres applications ». Choisissez ensuite le fichier de bibliothèque.</value>
+    <comment>Import from another app: how to get the iTunes / Apple Music library file.</comment>
+  </data>
+  <data name="Migration_HowPlaylistFiles" xml:space="preserve">
+    <value>Choisissez un ou plusieurs fichiers de playlist. La musique qu'ils contiennent doit être sur cet ordinateur.</value>
+    <comment>Import from another app: explanation for playlist files.</comment>
+  </data>
+  <data name="Migration_ChooseFile" xml:space="preserve">
+    <value>Choisir le fichier</value>
+    <comment>Import from another app: button that opens a file picker for the library file.</comment>
+  </data>
+  <data name="Migration_ChoosePlaylists" xml:space="preserve">
+    <value>Choisir des playlists</value>
+    <comment>Import from another app: button that opens a file picker for playlist files.</comment>
+  </data>
+  <data name="Migration_ServerAddress" xml:space="preserve">
+    <value>Adresse du serveur</value>
+    <comment>Import from another app: label of the media server address box.</comment>
+  </data>
+  <data name="Migration_UserName" xml:space="preserve">
+    <value>Nom d'utilisateur</value>
+    <comment>Import from another app: label of the user name box.</comment>
+  </data>
+  <data name="Migration_Password" xml:space="preserve">
+    <value>Mot de passe</value>
+    <comment>Import from another app: label of the password box.</comment>
+  </data>
+  <data name="Migration_SignIn" xml:space="preserve">
+    <value>Se connecter</value>
+    <comment>Import from another app: button that signs in to the media server.</comment>
+  </data>
+  <data name="Migration_QuickConnect" xml:space="preserve">
+    <value>Utiliser Quick Connect</value>
+    <comment>Import from another app: Jellyfin's code sign-in. Quick Connect is Jellyfin's name for it.</comment>
+  </data>
+  <data name="Migration_QuickConnectCode" xml:space="preserve">
+    <value>Saisissez ce code dans une autre app Jellyfin, dans Paramètres &gt; Quick Connect : {0}</value>
+    <comment>Import from another app: shown while waiting for a Jellyfin Quick Connect approval. {0} is the six-digit code.</comment>
+  </data>
+  <data name="Migration_PlexSignIn" xml:space="preserve">
+    <value>Se connecter avec Plex</value>
+    <comment>Import from another app: button that opens Plex's sign-in page in the browser.</comment>
+  </data>
+  <data name="Migration_PlexWaiting" xml:space="preserve">
+    <value>Connectez-vous à Plex dans votre navigateur. Cette fenêtre continue ensuite.</value>
+    <comment>Import from another app: shown while waiting for the Plex sign-in in the browser.</comment>
+  </data>
+  <data name="Migration_PlexServer" xml:space="preserve">
+    <value>Serveur</value>
+    <comment>Import from another app: label of the Plex server list.</comment>
+  </data>
+  <data name="Migration_PlexNoServer" xml:space="preserve">
+    <value>Aucun serveur Plex n'est joignable d'ici.</value>
+    <comment>Import from another app: error when the Plex account has no server that answers.</comment>
+  </data>
+  <data name="Migration_SignInFailed" xml:space="preserve">
+    <value>Le serveur n'a pas accepté le nom d'utilisateur ou le mot de passe.</value>
+    <comment>Import from another app: error after a refused sign-in.</comment>
+  </data>
+  <data name="Migration_ServerUnreachable" xml:space="preserve">
+    <value>Le serveur est injoignable. Vérifiez l'adresse.</value>
+    <comment>Import from another app: error when the server does not answer.</comment>
+  </data>
+  <data name="Migration_ServerBlocked" xml:space="preserve">
+    <value>Votre navigateur ne peut pas joindre ce serveur. Utilisez son adresse https, ou importez avec rpm sur votre ordinateur.</value>
+    <comment>Import from another app, web app only: a page on https cannot reach a server on plain http.</comment>
+  </data>
+  <data name="Migration_FileUnreadable" xml:space="preserve">
+    <value>Ce fichier n'a pas pu être lu comme fichier de bibliothèque.</value>
+    <comment>Import from another app: error when the chosen file is not an iTunes library XML.</comment>
+  </data>
+  <data name="Migration_ChooseMusicFolder" xml:space="preserve">
+    <value>Choisir le dossier de musique</value>
+    <comment>Import from another app, web app only: button to pick the folder that holds the music the library file lists.</comment>
+  </data>
+  <data name="Migration_MusicFolderHint" xml:space="preserve">
+    <value>Le navigateur ne peut pas ouvrir les chemins du fichier de bibliothèque. Choisissez le dossier qui contient la musique, et rpm y trouve chaque titre.</value>
+    <comment>Import from another app, web app only: why the music folder is needed.</comment>
+  </data>
+  <data name="Migration_Reading" xml:space="preserve">
+    <value>Lecture de la bibliothèque ({0} titres trouvés)</value>
+    <comment>Import from another app: shown while the source library is read. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummaryKicker" xml:space="preserve">
+    <value>Ce qui a été trouvé</value>
+    <comment>Import from another app: heading of the summary.</comment>
+  </data>
+  <data name="Migration_SummaryTracks" xml:space="preserve">
+    <value>{0} titres ({1})</value>
+    <comment>Import from another app: summary line. {0} is a number, {1} a size such as 212 GB.</comment>
+  </data>
+  <data name="Migration_SummaryPlaylists" xml:space="preserve">
+    <value>{0} playlists</value>
+    <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummaryAlready" xml:space="preserve">
+    <value>Environ {0} déjà dans rpm</value>
+    <comment>Import from another app: summary line, an estimate. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummarySkipped" xml:space="preserve">
+    <value>{0} éléments ne sont pas importés (flux, vidéos, podcasts, ou fichiers absents de cet ordinateur)</value>
+    <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsFile" xml:space="preserve">
+    <value>rpm copie votre musique et laisse les originaux à leur place. Rien n'est modifié ni supprimé dans votre bibliothèque {0}.</value>
+    <comment>Import from another app: shown on the summary and while importing from a library file. {0} is MusicBee or iTunes.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsServer" xml:space="preserve">
+    <value>rpm ne fait que lire votre serveur {0}. Rien n'y est modifié ni supprimé.</value>
+    <comment>Import from another app: shown on the summary and while importing from a media server. {0} is Jellyfin, Plex or the server's name.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsPlaylists" xml:space="preserve">
+    <value>rpm copie la musique et laisse les originaux et les fichiers de playlist à leur place.</value>
+    <comment>Import from another app: shown on the summary and while importing playlist files.</comment>
+  </data>
+  <data name="Migration_WhereKicker" xml:space="preserve">
+    <value>Destination</value>
+    <comment>Import from another app: heading above the choice of this computer or the cloud.</comment>
+  </data>
+  <data name="Migration_ToThisComputer" xml:space="preserve">
+    <value>Cet ordinateur</value>
+    <comment>Import from another app: destination choice.</comment>
+  </data>
+  <data name="Migration_ToThisComputerHint" xml:space="preserve">
+    <value>Les fichiers sont enregistrés dans votre dossier rpm</value>
+    <comment>Import from another app: line under 'This computer'.</comment>
+  </data>
+  <data name="Migration_ToCloud" xml:space="preserve">
+    <value>Cloud uniquement</value>
+    <comment>Import from another app: destination choice.</comment>
+  </data>
+  <data name="Migration_ToCloudHint" xml:space="preserve">
+    <value>Les fichiers vont dans votre cloud rpm et ne restent pas sur cet ordinateur</value>
+    <comment>Import from another app: line under 'Cloud only'.</comment>
+  </data>
+  <data name="Migration_SpaceDisk" xml:space="preserve">
+    <value>Nécessite environ {0}. {1} libres sur ce disque.</value>
+    <comment>Import from another app: space line. {0} and {1} are sizes such as 12 GB.</comment>
+  </data>
+  <data name="Migration_SpaceDiskShort" xml:space="preserve">
+    <value>Espace insuffisant sur ce disque : environ {0} nécessaires, {1} libres.</value>
+    <comment>Import from another app: shown instead of the Start button when the disk is too small. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_SpaceCloud" xml:space="preserve">
+    <value>Nécessite environ {0}. {1} libres dans votre stockage cloud.</value>
+    <comment>Import from another app: space line for a cloud import. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_SpaceCloudShort" xml:space="preserve">
+    <value>Nécessite environ {0}, et votre stockage cloud a {1} libres. Les albums sont importés jusqu'à ce que l'espace soit utilisé.</value>
+    <comment>Import from another app: space line when the cloud storage is too small. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Migration_CloudSignInNeeded" xml:space="preserve">
+    <value>Connectez-vous à votre compte rpm pour importer dans le cloud.</value>
+    <comment>Import from another app: shown under 'Cloud only' when not signed in.</comment>
+  </data>
+  <data name="Migration_Start" xml:space="preserve">
+    <value>Lancer l'import</value>
+    <comment>Import from another app: button on the summary.</comment>
+  </data>
+  <data name="Migration_StageReading" xml:space="preserve">
+    <value>Lecture de la bibliothèque</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StageTracks" xml:space="preserve">
+    <value>Import des titres</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StagePlaylists" xml:space="preserve">
+    <value>Ajout des playlists</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_StageFinishing" xml:space="preserve">
+    <value>Finalisation</value>
+    <comment>Import from another app: progress stage.</comment>
+  </data>
+  <data name="Migration_ProgressTracks" xml:space="preserve">
+    <value>{0} sur {1} titres, {2} sur {3}</value>
+    <comment>Import from another app: progress line. {0} and {1} are numbers, {2} and {3} sizes such as 14.2 GB.</comment>
+  </data>
+  <data name="Migration_ProgressCounts" xml:space="preserve">
+    <value>Importés : {0}. Déjà dans rpm : {1}. Non importés : {2}.</value>
+    <comment>Import from another app: progress counts. Numbers.</comment>
+  </data>
+  <data name="Migration_ProgressAlbum" xml:space="preserve">
+    <value>En cours : {0}</value>
+    <comment>Import from another app: the album being imported. {0} is an album name.</comment>
+  </data>
+  <data name="Migration_ProgressTimeLeft" xml:space="preserve">
+    <value>Environ {0} restant</value>
+    <comment>Import from another app: estimate. {0} is a duration such as 2 h 10 min.</comment>
+  </data>
+  <data name="Migration_Pause" xml:space="preserve">
+    <value>Pause</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_Continue" xml:space="preserve">
+    <value>Reprendre</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_Hide" xml:space="preserve">
+    <value>Masquer</value>
+    <comment>Import from another app: button that closes the window while the import goes on.</comment>
+  </data>
+  <data name="Migration_Paused" xml:space="preserve">
+    <value>En pause</value>
+    <comment>Import from another app: state after Pause.</comment>
+  </data>
+  <data name="Migration_StoppedSignIn" xml:space="preserve">
+    <value>Arrêté : le serveur demande de vous reconnecter.</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedDiskFull" xml:space="preserve">
+    <value>Arrêté : le disque est plein.</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedCloudFull" xml:space="preserve">
+    <value>Arrêté : votre stockage cloud est plein.</value>
+    <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_Status" xml:space="preserve">
+    <value>Import depuis {0} : {1} sur {2}</value>
+    <comment>Status line while an import runs with its window hidden. {0} is the source, {1} and {2} numbers.</comment>
+  </data>
+  <data name="Migration_Back" xml:space="preserve">
+    <value>Retour</value>
+    <comment>Import from another app: button back to the previous step.</comment>
+  </data>
+  <data name="Migration_Close" xml:space="preserve">
+    <value>Fermer</value>
+    <comment>Import from another app: button.</comment>
+  </data>
+  <data name="Migration_ReportTitle" xml:space="preserve">
+    <value>Import depuis {0} terminé</value>
+    <comment>Import from another app: heading of the report. {0} is the source.</comment>
+  </data>
+  <data name="Migration_ReportCounts" xml:space="preserve">
+    <value>{0} titres. {1} importés, {2} déjà dans rpm, {3} non importés.</value>
+    <comment>Import from another app: report line. Numbers.</comment>
+  </data>
+  <data name="Migration_ReportNotImported" xml:space="preserve">
+    <value>Non importés</value>
+    <comment>Import from another app: heading of the list of tracks that were not imported.</comment>
+  </data>
+  <data name="Migration_ReportLowerQuality" xml:space="preserve">
+    <value>rpm a une copie de moindre qualité</value>
+    <comment>Import from another app: heading of the list of lossless files whose songs rpm has in a lossy format.</comment>
+  </data>
+  <data name="Migration_ReportLowerQualityHint" xml:space="preserve">
+    <value>rpm avait déjà ces morceaux dans un format avec perte. Les fichiers sans perte sont listés pour que vous puissiez les importer vous-même.</value>
+    <comment>Import from another app: explanation under the lower quality list.</comment>
+  </data>
+  <data name="Migration_ReportPlaylists" xml:space="preserve">
+    <value>{0} playlists ajoutées</value>
+    <comment>Import from another app: report line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_ReportPlaylistUnmatched" xml:space="preserve">
+    <value>{0} : {1} éléments introuvables</value>
+    <comment>Import from another app: report line for one playlist. {0} is its name, {1} a number.</comment>
+  </data>
+  <data name="Migration_ReportSmart" xml:space="preserve">
+    <value>{0} (playlist intelligente, désormais une liste simple)</value>
+    <comment>Import from another app: report line. {0} is a playlist name.</comment>
+  </data>
+  <data name="Migration_ReportSkipped" xml:space="preserve">
+    <value>Non importés dès le départ</value>
+    <comment>Import from another app: heading of the items the source listed that are not music files.</comment>
+  </data>
+  <data name="Migration_TryAgain" xml:space="preserve">
+    <value>Réessayer</value>
+    <comment>Import from another app: button that tries the tracks that were not imported again.</comment>
+  </data>
+  <data name="Migration_ReasonFileNotFound" xml:space="preserve">
+    <value>Fichier introuvable</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonReadFailed" xml:space="preserve">
+    <value>Lecture impossible</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonDiskFull" xml:space="preserve">
+    <value>Le disque est plein</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonCloudFull" xml:space="preserve">
+    <value>Stockage cloud plein</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
+    <value>Copie impossible</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonRemoved" xml:space="preserve">
+    <value>Supprimé de rpm pendant l'import</value>
+    <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonLowerQualityInRpm" xml:space="preserve">
+    <value>rpm a une copie de moindre qualité</value>
+    <comment>Import from another app: note on a track rpm already had in a lossy format.</comment>
+  </data>
+  <data name="Migration_SkipNotAFile" xml:space="preserve">
+    <value>Pas un fichier (flux ou adresse web)</value>
+    <comment>Import from another app: why an item of the source was not imported.</comment>
+  </data>
+  <data name="Migration_SkipNotOnThisComputer" xml:space="preserve">
+    <value>Absent de cet ordinateur</value>
+    <comment>Import from another app: why an item of the source was not imported (for example a track only in Apple Music's cloud).</comment>
+  </data>
+  <data name="Migration_SkipNotMusic" xml:space="preserve">
+    <value>Pas de la musique (podcast, livre audio ou vidéo)</value>
+    <comment>Import from another app: why an item of the source was not imported.</comment>
+  </data>
 </root>

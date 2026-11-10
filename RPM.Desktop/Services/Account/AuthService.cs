@@ -106,6 +106,9 @@ public sealed partial class AuthService
     public event Func<Task>? SigningOut;
 
     public bool IsLoggedIn => _session is not null;
+
+    /// <summary>The keychain (or its stand-in) the session is kept in, for other small secrets.</summary>
+    internal SecretStore Secrets => _store.Secrets;
     public string? Email => _session?.Email;
 
     /// <summary>The Cognito subject of the person who is signed in, or null. Server-side rows are keyed by it.

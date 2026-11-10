@@ -1,0 +1,293 @@
+<ContentDialog x:Class="RPM.Desktop.Presentation.Dialogs.MigrationDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
+               xmlns:loc="using:RPM.Desktop.Strings"
+               RequestedTheme="Dark"
+               Background="Transparent"
+               BorderThickness="0">
+
+  <!-- The ContentDialog is only a transparent scrim; the card is the shell. These theme resources must
+       be set in each dialog, because on Uno they do not pass through merged dictionaries. -->
+  <ContentDialog.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/RpmAccentControls.xaml"/>
+        <ResourceDictionary Source="ms-appx:///Themes/DenseForm.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <Thickness x:Key="ContentDialogPadding">0</Thickness>
+          <x:Double x:Key="ContentDialogMinWidth">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxWidth">4096</x:Double>
+          <x:Double x:Key="ContentDialogMinHeight">0</x:Double>
+          <x:Double x:Key="ContentDialogMaxHeight">4096</x:Double>
+          <SolidColorBrush x:Key="ContentDialogBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent"/>
+          <Thickness x:Key="ContentDialogBorderWidth">0</Thickness>
+          <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+          <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#66000000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- A source tile: the same muted glass square as the Add music window's. -->
+      <Style x:Key="AppTileStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource GlassButtonBaseFillBrush}"/>
+        <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="8,8"/>
+        <Setter Property="Height" Value="104"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="#F2FFFFFF"/>
+      </Style>
+      <Style x:Key="LineStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Foreground" Value="#DDFFFFFF"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+      </Style>
+      <Style x:Key="QuietLineStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Foreground" Value="#99FFFFFF"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+      </Style>
+      <Style x:Key="WarnLineStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="#FFB2B2"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+      </Style>
+    </ResourceDictionary>
+  </ContentDialog.Resources>
+
+  <ctl:ResizableDialogShell x:Name="Shell"
+                            Title="{loc:Str Key=Migration_Title}"
+                            TitleGlyph="&#xf0ec;"
+                            ScrollBody="True">
+
+    <ctl:ResizableDialogShell.FooterLeading>
+      <Button x:Name="BackButton" Click="Back_Click" Style="{StaticResource GlassButtonStyle}" Padding="16,0"
+              Visibility="Collapsed" Content="{loc:Str Key=Migration_Back}"/>
+    </ctl:ResizableDialogShell.FooterLeading>
+
+    <ctl:ResizableDialogShell.Footer>
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button x:Name="CloseButton" Click="Close_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
+                Content="{loc:Str Key=Migration_Close}"/>
+        <Button x:Name="HideButton" Click="Hide_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
+                Visibility="Collapsed" Content="{loc:Str Key=Migration_Hide}"/>
+        <Button x:Name="PauseButton" Click="Pause_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
+                Visibility="Collapsed" Content="{loc:Str Key=Migration_Pause}"/>
+        <Button x:Name="RetryButton" Click="Retry_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
+                Visibility="Collapsed" Content="{loc:Str Key=Migration_TryAgain}"/>
+        <ctl:RpmPrimaryButton x:Name="PrimaryButton" Click="Primary_Click" Padding="18,0" Visibility="Collapsed">
+          <TextBlock x:Name="PrimaryText" VerticalAlignment="Center"/>
+        </ctl:RpmPrimaryButton>
+      </StackPanel>
+    </ctl:ResizableDialogShell.Footer>
+
+    <Grid>
+
+      <!-- 1. Which app the music is in now. -->
+      <StackPanel x:Name="AppsFace" Spacing="10">
+        <TextBlock Text="{loc:Str Key=Migration_ChooseKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+        <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+        <StackPanel x:Name="ContinuePanel" Spacing="6"/>
+        <Grid ColumnSpacing="10" RowSpacing="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="MusicBee">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0fc;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourceMusicBee}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintFile}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="ITunes">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf001;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourceITunes}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintFile}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="PlaylistFiles">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0cb;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourcePlaylistFiles}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintPlaylistFiles}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="1" Grid.Column="0" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="Jellyfin">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf233;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourceJellyfin}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintServer}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="Plex">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf233;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourcePlex}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintServer}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="Navidrome">
+            <StackPanel>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf233;" FontSize="19" Foreground="#99FFFFFF"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourceNavidrome}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintServer}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </StackPanel>
+
+      <!-- 2. Connect: a file, playlist files, or a server sign-in. -->
+      <StackPanel x:Name="ConnectFace" Spacing="10" Visibility="Collapsed">
+        <TextBlock x:Name="ConnectKicker" Style="{StaticResource DenseGroupHeaderStyle}"/>
+        <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+
+        <StackPanel x:Name="FilePanel" Spacing="10" Visibility="Collapsed">
+          <TextBlock x:Name="FileHow" Style="{StaticResource LineStyle}"/>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button x:Name="ChooseFileButton" Click="ChooseFile_Click" Style="{StaticResource GlassButtonStyle}" Padding="16,0"/>
+            <TextBlock x:Name="ChosenText" Style="{StaticResource QuietLineStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel x:Name="ServerPanel" Spacing="8" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=Migration_ServerAddress}" Style="{StaticResource QuietLineStyle}"/>
+          <TextBox x:Name="AddressBox" HeaderTemplate="{x:Null}"/>
+          <TextBlock Text="{loc:Str Key=Migration_UserName}" Style="{StaticResource QuietLineStyle}"/>
+          <TextBox x:Name="UserBox" HeaderTemplate="{x:Null}"/>
+          <TextBlock Text="{loc:Str Key=Migration_Password}" Style="{StaticResource QuietLineStyle}"/>
+          <PasswordBox x:Name="PasswordBox"/>
+          <Button x:Name="QuickConnectButton" Click="QuickConnect_Click" Style="{StaticResource GlassButtonStyle}" Padding="16,0"
+                  Content="{loc:Str Key=Migration_QuickConnect}" Visibility="Collapsed"/>
+        </StackPanel>
+
+        <StackPanel x:Name="PlexPanel" Spacing="10" Visibility="Collapsed">
+          <Button x:Name="PlexSignInButton" Click="PlexSignIn_Click" Style="{StaticResource GlassButtonStyle}" Padding="16,0"
+                  Content="{loc:Str Key=Migration_PlexSignIn}"/>
+          <TextBlock Text="{loc:Str Key=Migration_PlexServer}" Style="{StaticResource QuietLineStyle}" x:Name="PlexServerLabel" Visibility="Collapsed"/>
+          <ComboBox x:Name="PlexServerBox" HorizontalAlignment="Stretch" Visibility="Collapsed"/>
+        </StackPanel>
+
+        <TextBlock x:Name="ConnectNote" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
+        <TextBlock x:Name="ConnectError" Style="{StaticResource WarnLineStyle}" Visibility="Collapsed"/>
+      </StackPanel>
+
+      <!-- 3. Reading the library. -->
+      <StackPanel x:Name="ReadingFace" Spacing="12" Visibility="Collapsed" VerticalAlignment="Center">
+        <ProgressBar IsIndeterminate="True" HorizontalAlignment="Stretch"/>
+        <TextBlock x:Name="ReadingText" Style="{StaticResource LineStyle}" HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <!-- 4. What was found, where it goes, and that nothing in the other app changes. -->
+      <StackPanel x:Name="SummaryFace" Spacing="8" Visibility="Collapsed">
+        <TextBlock Text="{loc:Str Key=Migration_SummaryKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+        <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+        <TextBlock x:Name="SummaryTracks" Style="{StaticResource LineStyle}" FontSize="14"/>
+        <TextBlock x:Name="SummaryPlaylists" Style="{StaticResource LineStyle}"/>
+        <TextBlock x:Name="SummaryAlready" Style="{StaticResource LineStyle}"/>
+        <TextBlock x:Name="SummarySkipped" Style="{StaticResource QuietLineStyle}"/>
+
+        <StackPanel x:Name="WherePanel" Spacing="6" Margin="0,8,0,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=Migration_WhereKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+          <RadioButton x:Name="ToComputer" GroupName="Where" IsChecked="True" Checked="Where_Changed">
+            <StackPanel>
+              <TextBlock Text="{loc:Str Key=Migration_ToThisComputer}" FontSize="12.5"/>
+              <TextBlock Text="{loc:Str Key=Migration_ToThisComputerHint}" Style="{StaticResource QuietLineStyle}"/>
+            </StackPanel>
+          </RadioButton>
+          <RadioButton x:Name="ToCloud" GroupName="Where" Checked="Where_Changed">
+            <StackPanel>
+              <TextBlock Text="{loc:Str Key=Migration_ToCloud}" FontSize="12.5"/>
+              <TextBlock x:Name="ToCloudHint" Text="{loc:Str Key=Migration_ToCloudHint}" Style="{StaticResource QuietLineStyle}"/>
+            </StackPanel>
+          </RadioButton>
+        </StackPanel>
+
+        <TextBlock x:Name="SpaceText" Style="{StaticResource QuietLineStyle}" Margin="0,6,0,0"/>
+        <TextBlock x:Name="SummaryKeeps" Style="{StaticResource LineStyle}" Margin="0,6,0,0"/>
+      </StackPanel>
+
+      <!-- 5. Progress. -->
+      <StackPanel x:Name="ProgressFace" Spacing="8" Visibility="Collapsed">
+        <TextBlock x:Name="StageText" Style="{StaticResource DenseGroupHeaderStyle}"/>
+        <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+        <ProgressBar x:Name="Bar" Minimum="0" Maximum="1" Value="0" HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+        <TextBlock x:Name="ProgressTracks" Style="{StaticResource LineStyle}" FontSize="14"/>
+        <TextBlock x:Name="ProgressCounts" Style="{StaticResource LineStyle}"/>
+        <TextBlock x:Name="ProgressAlbum" Style="{StaticResource QuietLineStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+        <TextBlock x:Name="ProgressTimeLeft" Style="{StaticResource QuietLineStyle}"/>
+        <TextBlock x:Name="ProgressStopped" Style="{StaticResource WarnLineStyle}" Visibility="Collapsed"/>
+        <TextBlock x:Name="ProgressKeeps" Style="{StaticResource QuietLineStyle}" Margin="0,6,0,0"/>
+      </StackPanel>
+
+      <!-- 6. The report. -->
+      <StackPanel x:Name="ReportFace" Spacing="8" Visibility="Collapsed">
+        <TextBlock x:Name="ReportTitle" Style="{StaticResource DenseGroupHeaderStyle}"/>
+        <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+        <TextBlock x:Name="ReportCounts" Style="{StaticResource LineStyle}" FontSize="14"/>
+        <TextBlock x:Name="ReportPlaylists" Style="{StaticResource LineStyle}"/>
+        <StackPanel x:Name="ReportPlaylistNotes" Spacing="2"/>
+
+        <StackPanel x:Name="NotImportedPanel" Spacing="4" Margin="0,6,0,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=Migration_ReportNotImported}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <ListView x:Name="NotImportedList" MaxHeight="200" SelectionMode="None" IsItemClickEnabled="False">
+            <ListView.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" FontSize="11.5" Foreground="#CCFFFFFF" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </StackPanel>
+
+        <StackPanel x:Name="LowerQualityPanel" Spacing="4" Margin="0,6,0,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=Migration_ReportLowerQuality}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <TextBlock Text="{loc:Str Key=Migration_ReportLowerQualityHint}" Style="{StaticResource QuietLineStyle}"/>
+          <ListView x:Name="LowerQualityList" MaxHeight="160" SelectionMode="None">
+            <ListView.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" FontSize="11.5" Foreground="#CCFFFFFF" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </StackPanel>
+
+        <StackPanel x:Name="SkippedPanel" Spacing="4" Margin="0,6,0,0" Visibility="Collapsed">
+          <TextBlock Text="{loc:Str Key=Migration_ReportSkipped}" Style="{StaticResource DenseGroupHeaderStyle}"/>
+          <ListView x:Name="SkippedList" MaxHeight="140" SelectionMode="None">
+            <ListView.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" FontSize="11.5" Foreground="#AAFFFFFF" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+  </ctl:ResizableDialogShell>
+</ContentDialog>
