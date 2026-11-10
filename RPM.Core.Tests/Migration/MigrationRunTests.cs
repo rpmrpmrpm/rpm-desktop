@@ -243,6 +243,39 @@ public class MigrationRunTests : IDisposable
         Assert.Equal(10, Row("One").Plays);
     }
 
+    [Fact]
+    public async Task Finished_run_adds_the_playlists_and_closes_the_record()
+    {
+        var one = Local("s1", "Record", "One", 1, seed: 1);
+        var two = Local("s2", "Record", "Two", 2, seed: 2);
+        var library = Library(SourceKind.MusicBee, one, two) with
+        {
+            Playlists = [new SourcePlaylist("p1", "Mix", [], false, ["s2", "s1"], [])],
+        };
+        var run = Run(library, MigrationDestination.ThisComputer);
+        var stages = new List<MigrationStage>();
+
+        var end = await run.RunAsync(new SyncProgress(p => stages.Add(p.Stage)), CancellationToken.None);
+
+        Assert.Equal(RunEnd.Finished, end);
+        Assert.Equal(new PlaylistOutcome("Mix", 2, 0, false, false), Assert.Single(run.Playlists));
+        Assert.Contains(MigrationStage.Playlists, stages);
+        Assert.Equal(MigrationStage.Finishing, stages[^1]);
+        Assert.Empty(_db.UnfinishedMigrations());
+    }
+
+    [Fact]
+    public async Task Paused_run_leaves_the_record_open()
+    {
+        var library = Library(SourceKind.MusicBee, Local("s1", "Record", "One", 1, seed: 1));
+        using var stop = new CancellationTokenSource();
+        stop.Cancel();
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, stop.Token);
+
+        Assert.Single(_db.UnfinishedMigrations());
+    }
+
     // ── media servers ──
 
     [Fact]

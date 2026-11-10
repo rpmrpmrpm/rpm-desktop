@@ -89,6 +89,13 @@ public sealed class MigrationRun(
     /// <summary>The most downloaded files that wait for the cloud at once in a cloud-only import.</summary>
     internal int MaxStaged { get; init; } = 3;
 
+    /// <summary>The name shown in brackets on a playlist renamed because rpm already had one of that
+    /// name. The source's name unless the caller gives a translated label (playlist files).</summary>
+    public string SourceLabel { get; init; } = library.Name;
+
+    /// <summary>What happened to each source playlist, once the run has added them.</summary>
+    public IReadOnlyList<PlaylistOutcome> Playlists { get; private set; } = [];
+
     private readonly Dictionary<string, SourceTrack> _bySource = library.Tracks
         .GroupBy(t => t.SourceId, StringComparer.Ordinal)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -149,13 +156,17 @@ public sealed class MigrationRun(
                     if (record.Destination == MigrationDestination.CloudOnly && !await FitsAsync(work, ct))
                     {
                         // The albums that fitted finish first: their files are downloaded and wait for the
-                        // upload, and the report must count them as imported, not as waiting.
+                        // upload, and the report must count them as imported, not as waiting. Their
+                        // playlists are added too; a later run adds the rest.
                         await DrainAsync(progress, ct);
+                        AddPlaylists(progress);
                         return RunEnd.CloudFull;
                     }
 
                     _currentAlbum = string.IsNullOrWhiteSpace(work[0].Album) ? work[0].Title : work[0].Album;
                     var end = await AlbumAsync(work, progress, ct);
+                    if (end is RunEnd.DiskFull)
+                        AddPlaylists(progress);
                     if (end is not null)
                         return end.Value;
                     _albumTimes.Add((DateTime.UtcNow, work.Sum(t => t.SizeBytes)));
@@ -167,8 +178,17 @@ public sealed class MigrationRun(
             return RunEnd.Paused;
         }
 
+        AddPlaylists(progress);
         Report(progress, MigrationStage.Finishing);
+        record.Finish(Now());
         return RunEnd.Finished;
+    }
+
+    /// <summary>Adds the source's playlists with the tracks that are in rpm now.</summary>
+    private void AddPlaylists(IProgress<MigrationProgress> progress)
+    {
+        Report(progress, MigrationStage.Playlists);
+        Playlists = MigrationPlaylists.Apply(db, library, record, SourceLabel);
     }
 
     // ── one album ──
