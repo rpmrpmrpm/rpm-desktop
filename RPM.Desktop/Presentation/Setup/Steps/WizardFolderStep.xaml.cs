@@ -206,7 +206,15 @@ public sealed partial class WizardFolderStep : UserControl
                 return;
             }
 
-            if (await NasLoginDialog.ShowAsync(XamlRoot, service, nas, hello) is not { } prepared)
+            NasPrepared? prepared = null;
+            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, NasLoginDialog.ChoicesFor(hello.Nas!, service),
+                async (credentials, chosen) =>
+                {
+                    var (problem, ready) = await service.PrepareAsync(nas, hello, credentials, chosen);
+                    prepared = ready;
+                    return problem;
+                });
+            if (login is null || prepared is null)
                 return;
 
             if (service.Open(prepared) is NasOpenResult.Opened opened)

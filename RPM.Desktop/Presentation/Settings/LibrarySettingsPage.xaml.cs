@@ -49,6 +49,7 @@ public sealed partial class LibrarySettingsPage : Page
         BuildJumpLinks();
         InitRequiredTags();
         InitSharing();
+        InitNas();
         RefreshFingerprintStatus();
         RefreshAnalysisTagStatus();
         InitNaming();

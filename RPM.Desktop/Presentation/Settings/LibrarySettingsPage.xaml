@@ -75,6 +75,10 @@
 
           <!-- Why a folder was refused, or why one could not be opened. Empty the rest of the time. -->
           <TextBlock x:Name="FolderStatus" FontSize="12" Foreground="#FFD466" TextWrapping="Wrap" />
+
+          <!-- Each rpm NAS on the network: where the library is when it is on one, or the way to move it
+               there or to use the library already there. Filled in code (LibrarySettingsPage.Nas.cs). -->
+          <StackPanel x:Name="NasPanel" Spacing="10" Margin="0,6,0,0" />
         </StackPanel>
       </Border>
 
