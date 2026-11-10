@@ -1,3 +1,4 @@
+using System.Text;
 using RPM.Core.Scanning;
 using System.Globalization;
 using System.Net;
@@ -150,6 +151,28 @@ internal static class MediaServerHttp
                 return mapped;
         }
         return "";
+    }
+
+    /// <summary>
+    /// Notices a server that ignores the page it is asked for and sends its first page again, as some do
+    /// with an offset they do not support. Without this, a reader that waits for a short page would ask
+    /// for ever, and one that counts to the total would list every track again.
+    /// </summary>
+    public sealed class FirstPage
+    {
+        private byte[]? _first;
+
+        /// <summary>True when <paramref name="items"/> is the first page again, from the second page on.</summary>
+        public bool Again(JsonElement items)
+        {
+            var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(items.ValueKind == JsonValueKind.Undefined ? "" : items.GetRawText()));
+            if (_first is null)
+            {
+                _first = hash;
+                return false;
+            }
+            return hash.AsSpan().SequenceEqual(_first);
+        }
     }
 
     /// <summary>The media type of a body <see cref="StreamAsync"/> handed back, such as "audio/flac", or

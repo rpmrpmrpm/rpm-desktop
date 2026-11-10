@@ -107,6 +107,7 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
             sections = Child(await JsonAsync(http, request, ct), "MediaContainer");
 
         var tracks = new List<SourceTrack>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var skipped = new List<SourceSkip>();
         foreach (var section in Items(sections, "Directory").Where(d => Str(d, "type") == "artist"))
         {
@@ -114,7 +115,7 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
             {
                 switch (TrackOf(item))
                 {
-                    case SourceTrack track:
+                    case SourceTrack track when seen.Add(track.SourceId):
                         tracks.Add(track);
                         break;
                     case SourceSkip skip:
@@ -161,12 +162,15 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
         string path, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
         var start = 0;
+        var first = new FirstPage();
         while (true)
         {
             var separator = path.Contains('?') ? '&' : '?';
             using var request = Plex.Request(HttpMethod.Get, connection,
                 $"{path}{separator}X-Plex-Container-Start={start}&X-Plex-Container-Size={PageSize}", null, server.AccessToken);
             var page = Child(await JsonAsync(http, request, ct), "MediaContainer");
+            if (first.Again(Child(page, "Metadata")))
+                yield break;
             var items = Items(page, "Metadata").ToList();
             foreach (var item in items)
                 yield return item;

@@ -89,15 +89,16 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
             name = Str(await JsonAsync(http, info, ct), "ServerName");
 
         var tracks = new List<SourceTrack>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var skipped = new List<SourceSkip>();
         await foreach (var item in PagesAsync(
             $"Users/{session.UserId}/Items?IncludeItemTypes=Audio&Recursive=true&Fields=DateCreated,MediaSources,Path&EnableUserData=true",
             count => found.Report(count), ct))
         {
-            if (TrackOf(item) is { } track)
-                tracks.Add(track);
-            else
+            if (TrackOf(item) is not { } track)
                 skipped.Add(new SourceSkip(What(item), SkipReason.NotMusic));
+            else if (seen.Add(track.SourceId))
+                tracks.Add(track);
         }
 
         var known = tracks.Select(t => t.SourceId).ToHashSet(StringComparer.Ordinal);
@@ -141,11 +142,14 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
         string path, Action<int>? progress, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
         var start = 0;
+        var first = new FirstPage();
         while (true)
         {
             var separator = path.Contains('?') ? '&' : '?';
             using var request = Jellyfin.Request(HttpMethod.Get, session.Server, $"{path}{separator}StartIndex={start}&Limit={PageSize}", session.Token);
             var page = await JsonAsync(http, request, ct);
+            if (first.Again(Child(page, "Items")))
+                yield break;
             var items = Items(page, "Items").ToList();
             foreach (var item in items)
                 yield return item;

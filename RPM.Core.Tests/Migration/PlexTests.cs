@@ -59,6 +59,20 @@ public class PlexTests
     }
 
     [Fact]
+    public async Task A_server_that_ignores_the_container_start_gives_each_track_once()
+    {
+        var http = new FixtureHttp(r => r.RequestUri!.AbsolutePath == "/library/sections/3/all"
+            ? FixtureHttp.Sample("plex", "tracks-0.json")
+            : ServerAnswer(r));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var library = await new PlexServer(http.Client(), Choice, Connection).ReadAsync(new Progress<int>(), limit.Token);
+
+        Assert.Equal(library.Tracks.Count, library.Tracks.Select(t => t.SourceId).Distinct().Count());
+        Assert.Equal(2, library.Tracks.Count);
+    }
+
+    [Fact]
     public async Task Smart_playlist_is_flagged()
     {
         var library = await ReadAsync(new FixtureHttp(ServerAnswer));

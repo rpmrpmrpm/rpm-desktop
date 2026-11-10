@@ -52,6 +52,21 @@ public class JellyfinTests
     }
 
     [Fact]
+    public async Task A_server_that_ignores_the_start_index_gives_each_track_once()
+    {
+        // Every request gets the first page, though the server says there are three tracks.
+        var http = new FixtureHttp(r => FixtureHttp.Query(r, "IncludeItemTypes") == "Audio"
+            ? FixtureHttp.Sample("jellyfin", "items-0.json")
+            : Answer(r));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var library = await new JellyfinServer(http.Client(), Session).ReadAsync(new Progress<int>(), limit.Token);
+
+        Assert.Equal(2, library.Tracks.Count);
+        Assert.Equal(2, library.Tracks.Select(t => t.SourceId).Distinct().Count());
+    }
+
+    [Fact]
     public async Task Reads_every_page()
     {
         var http = new FixtureHttp(Answer);

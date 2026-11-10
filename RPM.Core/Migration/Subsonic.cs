@@ -48,17 +48,25 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
     public async Task<SourceLibrary> ReadAsync(IProgress<int> found, CancellationToken ct)
     {
         var tracks = new List<SourceTrack>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var skipped = new List<SourceSkip>();
+        var first = new FirstPage();
         for (var offset = 0; ; offset += PageSize)
         {
             // An empty query lists every song, in pages. Navidrome and most other servers accept it.
             var page = await Expired(() => Subsonic.CallAsync(http, login, "search3",
                 $"query=&artistCount=0&albumCount=0&songCount={PageSize}&songOffset={offset}", ct));
+            var list = Child(Child(page, "searchResult3"), "song");
+            if (first.Again(list))
+                break;
             var songs = Items(Child(page, "searchResult3"), "song").ToList();
             foreach (var song in songs)
             {
                 if (TrackOf(song) is { } track)
-                    tracks.Add(track);
+                {
+                    if (seen.Add(track.SourceId))
+                        tracks.Add(track);
+                }
                 else
                     skipped.Add(new SourceSkip(Str(song, "artist") is { Length: > 0 } a ? $"{a} - {Str(song, "title")}" : Str(song, "title"), SkipReason.NotMusic));
             }

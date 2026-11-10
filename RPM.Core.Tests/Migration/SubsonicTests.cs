@@ -80,6 +80,20 @@ public class SubsonicTests
     }
 
     [Fact]
+    public async Task A_server_that_ignores_paging_is_read_once()
+    {
+        // Every request gets all three songs, whatever offset and size it asks for.
+        var http = new FixtureHttp(r => r.RequestUri!.AbsolutePath == "/rest/search3"
+            ? FixtureHttp.Sample("subsonic", "search3-all.json")
+            : Answer(r));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var library = await new SubsonicServer(http.Client(), Login) { PageSize = 2 }.ReadAsync(new Progress<int>(), limit.Token);
+
+        Assert.Equal(["s1", "s2", "s3"], library.Tracks.Select(t => t.SourceId));
+    }
+
+    [Fact]
     public async Task Rating_is_doubled()
     {
         var library = await ReadAsync(new FixtureHttp(Answer));

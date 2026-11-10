@@ -1,0 +1,70 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "type": "navidrome",
+    "serverVersion": "0.53.3",
+    "openSubsonic": true,
+    "searchResult3": {
+      "song": [
+        {
+          "id": "s1",
+          "parent": "al-Album S",
+          "isDir": false,
+          "title": "Alpha",
+          "album": "Album S",
+          "artist": "Artist S",
+          "track": 1,
+          "discNumber": 1,
+          "duration": 213,
+          "size": 31457280,
+          "suffix": "flac",
+          "contentType": "audio/flac",
+          "created": "2020-01-02T03:04:05.000000000Z",
+          "type": "music",
+          "displayAlbumArtist": "Artist S",
+          "starred": "2021-02-03T04:05:06Z",
+          "userRating": 4,
+          "playCount": 7,
+          "played": "2023-03-04T05:06:07Z"
+        },
+        {
+          "id": "s2",
+          "parent": "al-Album S",
+          "isDir": false,
+          "title": "Beta",
+          "album": "Album S",
+          "artist": "Artist S",
+          "track": 2,
+          "discNumber": 1,
+          "duration": 190,
+          "size": 4500000,
+          "suffix": "mp3",
+          "contentType": "audio/mp3",
+          "created": "2020-01-02T03:04:06Z",
+          "type": "music",
+          "displayAlbumArtist": "Artist S"
+        },
+        {
+          "id": "s3",
+          "parent": "al-Album T",
+          "isDir": false,
+          "title": "Gamma",
+          "album": "Album T",
+          "artist": "Artist T",
+          "track": 1,
+          "discNumber": 1,
+          "duration": 260,
+          "size": 8000000,
+          "suffix": "opus",
+          "contentType": "audio/opus",
+          "created": "2021-05-05T05:05:05Z",
+          "type": "music",
+          "userRating": 1,
+          "playCount": 2,
+          "played": "2022-06-06T06:06:06Z"
+        }
+      ]
+    }
+  }
+}
