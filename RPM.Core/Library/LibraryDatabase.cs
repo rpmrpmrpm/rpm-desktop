@@ -1886,6 +1886,10 @@ public sealed partial class LibraryDatabase : IDisposable
         AddColumnIfMissing("tracks", "rating", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("tracks", "rating_sent", "INTEGER NOT NULL DEFAULT 1");
 
+        // The record of imports from other music apps (see LibraryDatabase.Migrations). Created on every
+        // open and not behind a version step, for the same reason as release_type above.
+        CreateMigrationTables();
+
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into
         // a walk of the index.
