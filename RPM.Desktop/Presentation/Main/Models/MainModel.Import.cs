@@ -267,6 +267,7 @@ public sealed partial class MainModel
         {
             filed = LibraryFiler.File(
                 _library.Db, tracks, new FilingRules(template, mode, merged, root),
+                [.. importable.Select(q => q.Source).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase)],
                 new FilingStatus(this, progress),
                 (input, done) =>
                 {

@@ -33,20 +33,24 @@ public static class LibraryFiler
     /// twice with the same file is filed once, and both entries name the same row. When the disk is
     /// full the batch stops; that track and every one after it come back not filed, with
     /// <see cref="ApplyResult.DiskFull"/> set.</summary>
+    /// <param name="sourceRoots">The folders the files were added from (the folders the person dropped on
+    /// the queue). After a move, the folders under them that the move emptied are removed; these folders
+    /// themselves stay.</param>
     /// <param name="landed">Called for each file the moment it lands, before the batch goes on. A caller
     /// that keeps its own record of what was filed (the queue, an import's record) writes it here, so
     /// that record is right even when the batch stops part-way with an exception.</param>
     public static IReadOnlyList<Filed> File(
-        LibraryDatabase db, IReadOnlyList<TrackInfo> tracks, FilingRules rules,
+        LibraryDatabase db, IReadOnlyList<TrackInfo> tracks, FilingRules rules, IReadOnlyCollection<string> sourceRoots,
         IProgress<FilingProgress>? progress, Action<TrackInfo, Filed> landed, CancellationToken ct)
-        => File(db, tracks, rules, progress, landed, ct, (s, root, mode) => OrganizeApplier.Apply(s, root, mode));
+        => File(db, tracks, rules, sourceRoots, progress, landed, ct, (s, root, mode) => OrganizeApplier.Apply(s, root, mode));
 
     /// <summary>The same, with the step that copies or moves one file replaced (for tests).</summary>
     internal static IReadOnlyList<Filed> File(
-        LibraryDatabase db, IReadOnlyList<TrackInfo> tracks, FilingRules rules,
+        LibraryDatabase db, IReadOnlyList<TrackInfo> tracks, FilingRules rules, IReadOnlyCollection<string> sourceRoots,
         IProgress<FilingProgress>? progress, Action<TrackInfo, Filed> landed, CancellationToken ct,
         Func<TrackSuggestion, string, OrganizeMode, ApplyResult> apply)
     {
+        ArgumentNullException.ThrowIfNull(sourceRoots);
         ArgumentNullException.ThrowIfNull(landed);
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(tracks);
@@ -126,7 +130,7 @@ public static class LibraryFiler
 
         // Moves leave empty folders behind in the places the files came from.
         if (rules.Mode == OrganizeMode.Move && results.Any(r => r.Success))
-            foreach (var source in distinct.Select(t => Path.GetDirectoryName(t.FilePath)).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var source in sourceRoots)
                 OrganizeApplier.CleanupEmptyFolders(source);
 
         // Folder pictures. The carry runs first: a rip stages the full-size scan beside its tracks, and

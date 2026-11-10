@@ -378,7 +378,7 @@ public sealed class MigrationRun(
             else
             {
                 var filing = rules with { Mode = staged ? OrganizeMode.Move : OrganizeMode.Copy };
-                var filed = LibraryFiler.File(db, [info], filing, null, (_, _) => { }, ct)[0];
+                var filed = LibraryFiler.File(db, [info], filing, staged ? [stagingRoot] : [], null, (_, _) => { }, ct)[0];
                 if (!filed.Result.Success || filed.Row is null)
                 {
                     if (filed.Result.DiskFull)

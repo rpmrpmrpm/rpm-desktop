@@ -56,11 +56,27 @@ public class LibraryFilerTests : IDisposable
     }
 
     [Fact]
+    public void Move_removes_the_emptied_folders_under_the_folder_the_files_came_from()
+    {
+        var one = Wav("One", 1);
+        var album = Path.Combine(_source, "Artist A", "Album A");
+        Directory.CreateDirectory(album);
+        var nested = Path.Combine(album, "One.wav");
+        File.Move(one.FilePath, nested);
+
+        var filed = LibraryFiler.File(_db, [one with { FilePath = nested }], Rules(OrganizeMode.Move), [_source], null, (_, _) => { }, CancellationToken.None);
+
+        Assert.True(filed[0].Result.Success);
+        Assert.False(Directory.Exists(Path.Combine(_source, "Artist A")));
+        Assert.True(Directory.Exists(_source));
+    }
+
+    [Fact]
     public void Copy_leaves_the_source_in_place()
     {
         var one = Wav("One", 1);
 
-        var filed = LibraryFiler.File(_db, [one], Rules(), null, (_, _) => { }, CancellationToken.None);
+        var filed = LibraryFiler.File(_db, [one], Rules(), [], null, (_, _) => { }, CancellationToken.None);
 
         var result = Assert.Single(filed).Result;
         Assert.True(result.Success, result.Error);
@@ -72,7 +88,7 @@ public class LibraryFilerTests : IDisposable
     [Fact]
     public void Filed_rows_are_upserted_with_tags_from_the_destination()
     {
-        var filed = LibraryFiler.File(_db, [Wav("One", 1), Wav("Two", 2)], Rules(), null, (_, _) => { }, CancellationToken.None);
+        var filed = LibraryFiler.File(_db, [Wav("One", 1), Wav("Two", 2)], Rules(), [], null, (_, _) => { }, CancellationToken.None);
 
         Assert.All(filed, f => Assert.NotNull(f.Row));
         var rows = _db.Query();
@@ -86,7 +102,7 @@ public class LibraryFilerTests : IDisposable
     {
         var one = Wav("One", 1);
 
-        var filed = LibraryFiler.File(_db, [one, one with { Title = "One again" }], Rules(), null, (_, _) => { }, CancellationToken.None);
+        var filed = LibraryFiler.File(_db, [one, one with { Title = "One again" }], Rules(), [], null, (_, _) => { }, CancellationToken.None);
 
         Assert.Equal(2, filed.Count);
         Assert.Single(_db.Query());
@@ -99,7 +115,7 @@ public class LibraryFilerTests : IDisposable
         var tracks = new[] { Wav("One", 1), Wav("Two", 2), Wav("Three", 3) };
         var calls = 0;
 
-        var filed = LibraryFiler.File(_db, tracks, Rules(), null, (_, _) => { }, CancellationToken.None, (s, root, mode) =>
+        var filed = LibraryFiler.File(_db, tracks, Rules(), [], null, (_, _) => { }, CancellationToken.None, (s, root, mode) =>
             ++calls == 2
                 ? new ApplyResult { SourcePath = s.Track.FilePath, DestinationPath = "x", Success = false, Error = "No space left on device", DiskFull = true }
                 : OrganizeApplier.Apply(s, root, mode));
@@ -118,7 +134,7 @@ public class LibraryFilerTests : IDisposable
         var landed = new List<string>();
         var calls = 0;
 
-        Assert.Throws<InvalidOperationException>(() => LibraryFiler.File(_db, tracks, Rules(), null,
+        Assert.Throws<InvalidOperationException>(() => LibraryFiler.File(_db, tracks, Rules(), [], null,
             (input, _) => landed.Add(input.Title!), CancellationToken.None, (s, root, mode) =>
                 ++calls == 3 ? throw new InvalidOperationException("stopped") : OrganizeApplier.Apply(s, root, mode)));
 
@@ -130,7 +146,7 @@ public class LibraryFilerTests : IDisposable
     public void Progress_reaches_the_total()
     {
         var reports = new List<FilingProgress>();
-        LibraryFiler.File(_db, [Wav("One", 1), Wav("Two", 2)], Rules(), new SyncProgress<FilingProgress>(reports.Add), (_, _) => { }, CancellationToken.None);
+        LibraryFiler.File(_db, [Wav("One", 1), Wav("Two", 2)], Rules(), [], new SyncProgress<FilingProgress>(reports.Add), (_, _) => { }, CancellationToken.None);
 
         Assert.Equal((2, 2), (reports[^1].Done, reports[^1].Total));
     }
@@ -141,7 +157,7 @@ public class LibraryFilerTests : IDisposable
         var tracks = new[] { Wav("One", 1), Wav("Two", 2) };
 
         var plan = LibraryFiler.Plan(_db, tracks, NamingTemplate.ArtistAlbumNumberedTitle, merged: true, _root);
-        var filed = LibraryFiler.File(_db, tracks, Rules(), null, (_, _) => { }, CancellationToken.None);
+        var filed = LibraryFiler.File(_db, tracks, Rules(), [], null, (_, _) => { }, CancellationToken.None);
 
         Assert.Equal(
             plan.Select(p => Path.Combine(_root, p.ProposedRelativePath.Replace('/', Path.DirectorySeparatorChar))),
