@@ -187,4 +187,27 @@ public class KeptPrimitivesTests : IDisposable
         Assert.Equal(before, Snapshot());
         Assert.Equal(MinimalMp3(), File.ReadAllBytes(target));
     }
+
+    [Fact]
+    public void A_moved_file_whose_last_rename_fails_goes_back_where_it_came_from()
+    {
+        // A folder under the destination's name: the check for an existing file passes, the move to the
+        // hidden name and the tag write happen, and the rename into place fails.
+        var outside = Path.Combine(_temp, "Downloads", "only-copy.mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(outside)!);
+        File.WriteAllBytes(outside, MinimalMp3());
+        Directory.CreateDirectory(Path.Combine(_root, "Someone", "Blocked.mp3"));
+        var suggestion = new TrackSuggestion
+        {
+            Track = new TrackInfo { FilePath = outside, Extension = ".mp3", Title = "x", Source = MetadataSource.Manual },
+            ProposedRelativePath = "Someone/Blocked.mp3",
+        };
+
+        var result = OrganizeApplier.Apply(suggestion, _root, OrganizeMode.Move, writeTags: true);
+
+        Assert.False(result.Success);
+        Assert.True(File.Exists(outside));
+        Assert.True(new FileInfo(outside).Length >= MinimalMp3().Length);
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(_root, "Someone"), ".rpm-*"));
+    }
 }
