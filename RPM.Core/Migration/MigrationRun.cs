@@ -110,6 +110,7 @@ public sealed class MigrationRun(
 
         CleanStaging();
         record.AddFound(library.Tracks.Select(t => t.SourceId));
+        RefreshPlays();
         _index = LibraryIndex.Build(db);
         var albums = AlbumBatch.Group(library.Tracks);
 
@@ -182,6 +183,23 @@ public sealed class MigrationRun(
         Report(progress, MigrationStage.Finishing);
         record.Finish(Now());
         return RunEnd.Finished;
+    }
+
+    /// <summary>A second run writes the source's current play totals for the tracks an earlier run
+    /// brought in. They replace the old ones on the source library's device, so nothing is counted
+    /// twice; the cloud sync sends what changed.</summary>
+    private void RefreshPlays()
+    {
+        var rows = new List<LibraryDatabase.TrackPlayRow>();
+        foreach (var (sourceId, trackId) in record.TrackIds())
+        {
+            if (!_bySource.TryGetValue(sourceId, out var track) || track.Plays <= 0 && track.LastPlayed is null)
+                continue;
+            if (db.FindById(trackId)?.RpmId is { Length: > 0 } rpmId)
+                rows.Add(new LibraryDatabase.TrackPlayRow(rpmId, library.DeviceId, track.Plays, track.LastPlayed?.UtcTicks ?? 0, 0));
+        }
+        if (rows.Count > 0)
+            db.ApplyImportedPlays(library.DeviceId, rows);
     }
 
     /// <summary>Adds the source's playlists with the tracks that are in rpm now.</summary>

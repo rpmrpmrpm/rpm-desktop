@@ -240,7 +240,8 @@ public class MigrationRunTests : IDisposable
 
         Assert.Equal(2, _db.Query().Count);
         Assert.Equal(new MigrationCounts(2, 2, 0, 0, 0), Record(library).Counts());
-        Assert.Equal(10, Row("One").Plays);
+        // The source's current total replaces the first import's, on the source's own device.
+        Assert.Equal(12, Row("One").Plays);
     }
 
     [Fact]
