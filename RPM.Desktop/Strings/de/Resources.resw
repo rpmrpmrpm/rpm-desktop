@@ -10150,6 +10150,22 @@
     <value>{0} Elemente werden nicht importiert (Streams, Videos, Podcasts oder Dateien, die nicht auf diesem Computer liegen)</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_UnfinishedNote" xml:space="preserve">
+    <value>Ein früherer Import dieser Mediathek wurde bei {0} von {1} Titeln angehalten.</value>
+    <comment>Import from another app, summary: an import of the same library did not finish. {0} tracks are through, of {1}. The person chooses Continue import or Start over.</comment>
+  </data>
+  <data name="Migration_ContinueStopped" xml:space="preserve">
+    <value>Import fortsetzen</value>
+    <comment>Import from another app, summary: button that continues an earlier import of the same library where it stopped.</comment>
+  </data>
+  <data name="Migration_StartOver" xml:space="preserve">
+    <value>Neu beginnen</value>
+    <comment>Import from another app, summary: button that checks every track of the library again instead of continuing.</comment>
+  </data>
+  <data name="Migration_StartOverHint" xml:space="preserve">
+    <value>Prüft jeden Titel erneut. Titel, die schon in rpm sind, werden nicht doppelt importiert.</value>
+    <comment>Import from another app, summary: tooltip of the Start over button.</comment>
+  </data>
   <data name="Migration_KeepsOriginalsFile" xml:space="preserve">
     <value>rpm kopiert Ihre Musik und lässt die Originale, wo sie sind. In Ihrer {0}-Mediathek wird nichts geändert oder entfernt.</value>
     <comment>Import from another app: shown on the summary and while importing from a library file. {0} is MusicBee or iTunes.</comment>
@@ -10242,6 +10258,10 @@
     <value>Noch etwa {0}</value>
     <comment>Import from another app: estimate. {0} is a duration such as 2 h 10 min.</comment>
   </data>
+  <data name="Migration_ProgressUnderAMinute" xml:space="preserve">
+    <value>Weniger als eine Minute übrig</value>
+    <comment>Import from another app, progress: the estimated time left is under one minute.</comment>
+  </data>
   <data name="Migration_Pause" xml:space="preserve">
     <value>Pausieren</value>
     <comment>Import from another app: button.</comment>
@@ -10317,6 +10337,10 @@
   <data name="Migration_ReportPlaylistUnmatched" xml:space="preserve">
     <value>{0}: {1} Einträge nicht gefunden</value>
     <comment>Import from another app: report line for one playlist. {0} is its name, {1} a number.</comment>
+  </data>
+  <data name="Migration_ReportPlaylistUnmatchedOne" xml:space="preserve">
+    <value>{0}: 1 Eintrag nicht gefunden</value>
+    <comment>Import from another app, report: a playlist ({0} is its name) with one entry that matched no track.</comment>
   </data>
   <data name="Migration_ReportSmart" xml:space="preserve">
     <value>{0} (intelligente Playlist, jetzt eine normale Liste)</value>

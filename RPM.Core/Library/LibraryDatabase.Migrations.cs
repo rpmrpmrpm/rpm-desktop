@@ -109,6 +109,26 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>
+    /// The record of an unfinished import of <paramref name="library"/>, or null when there is none (never
+    /// imported, or finished). Unlike <see cref="OpenMigration"/> it changes nothing, so the app can ask
+    /// the person whether to continue it or start over before anything is written.
+    /// </summary>
+    public MigrationRecord? UnfinishedMigration(SourceLibrary library)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        var key = LibraryKeyOf(library);
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText = "SELECT id, destination FROM migration WHERE kind = $kind AND library_id = $key AND finished_utc_ticks = 0";
+            cmd.Parameters.AddWithValue("$kind", library.Kind.ToString().ToLowerInvariant());
+            cmd.Parameters.AddWithValue("$key", key);
+            using var reader = cmd.ExecuteReader();
+            return reader.Read() ? new MigrationRecord(this, reader.GetInt64(0), key, (MigrationDestination)reader.GetInt64(1)) : null;
+        }
+    }
+
     /// <summary>The imports that have not finished, newest first, so the app can offer to continue them.</summary>
     public IReadOnlyList<MigrationSummary> UnfinishedMigrations()
     {
@@ -355,6 +375,28 @@ public sealed partial class LibraryDatabase
                     """;
                 cmd.Parameters.AddWithValue("$m", Id);
                 cmd.Parameters.AddWithValue("$removed", MigrationReason.Removed);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// "Start over": every track is checked again, as on a first run. The tracks that are in rpm
+        /// already are found by the matching and not copied twice. The links to the playlists stay, so
+        /// they are filled in and not made a second time. Downloaded tracks that wait for the cloud keep
+        /// their state, because only the record knows to delete their files once uploaded.
+        /// </summary>
+        public void StartOver()
+        {
+            using (_db._gate.Take())
+            {
+                using var cmd = _db._connection.CreateCommand();
+                cmd.CommandText =
+                    """
+                    UPDATE migration_track SET state = 0, attempts = 0, next_try_utc_ticks = 0, reason = NULL, detail = NULL, track_id = NULL
+                    WHERE migration_id = $m AND state <> $downloaded
+                    """;
+                cmd.Parameters.AddWithValue("$m", Id);
+                cmd.Parameters.AddWithValue("$downloaded", (int)MigrationTrackState.Downloaded);
                 cmd.ExecuteNonQuery();
             }
         }

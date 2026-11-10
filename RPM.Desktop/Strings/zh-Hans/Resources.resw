@@ -10150,6 +10150,22 @@
     <value>{0} 个项目不会导入（流媒体、视频、播客，或不在这台电脑上的文件）</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_UnfinishedNote" xml:space="preserve">
+    <value>此前导入该资料库时在 {1} 首曲目中的第 {0} 首停止。</value>
+    <comment>Import from another app, summary: an import of the same library did not finish. {0} tracks are through, of {1}. The person chooses Continue import or Start over.</comment>
+  </data>
+  <data name="Migration_ContinueStopped" xml:space="preserve">
+    <value>继续导入</value>
+    <comment>Import from another app, summary: button that continues an earlier import of the same library where it stopped.</comment>
+  </data>
+  <data name="Migration_StartOver" xml:space="preserve">
+    <value>重新开始</value>
+    <comment>Import from another app, summary: button that checks every track of the library again instead of continuing.</comment>
+  </data>
+  <data name="Migration_StartOverHint" xml:space="preserve">
+    <value>重新检查每首曲目。已在 rpm 中的曲目不会重复导入。</value>
+    <comment>Import from another app, summary: tooltip of the Start over button.</comment>
+  </data>
   <data name="Migration_KeepsOriginalsFile" xml:space="preserve">
     <value>rpm 会复制你的音乐，原文件保留在原处。你的 {0} 资料库中不会有任何更改或删除。</value>
     <comment>Import from another app: shown on the summary and while importing from a library file. {0} is MusicBee or iTunes.</comment>
@@ -10242,6 +10258,10 @@
     <value>约剩 {0}</value>
     <comment>Import from another app: estimate. {0} is a duration such as 2 h 10 min.</comment>
   </data>
+  <data name="Migration_ProgressUnderAMinute" xml:space="preserve">
+    <value>剩余不到一分钟</value>
+    <comment>Import from another app, progress: the estimated time left is under one minute.</comment>
+  </data>
   <data name="Migration_Pause" xml:space="preserve">
     <value>暂停</value>
     <comment>Import from another app: button.</comment>
@@ -10317,6 +10337,10 @@
   <data name="Migration_ReportPlaylistUnmatched" xml:space="preserve">
     <value>{0}：{1} 个条目未找到</value>
     <comment>Import from another app: report line for one playlist. {0} is its name, {1} a number.</comment>
+  </data>
+  <data name="Migration_ReportPlaylistUnmatchedOne" xml:space="preserve">
+    <value>{0}：1 个条目未找到</value>
+    <comment>Import from another app, report: a playlist ({0} is its name) with one entry that matched no track.</comment>
   </data>
   <data name="Migration_ReportSmart" xml:space="preserve">
     <value>{0}（智能播放列表，现为普通列表）</value>

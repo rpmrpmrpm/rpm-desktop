@@ -151,6 +151,42 @@ public class MigrationRecordTests : IDisposable
     }
 
     [Fact]
+    public void An_unfinished_import_is_found_without_opening_it()
+    {
+        Assert.Null(_db.UnfinishedMigration(Library()));
+
+        var record = _db.OpenMigration(Library(), MigrationDestination.CloudOnly);
+        record.AddFound(["a", "b", "c"]);
+        record.Note("a", MigrationTrackState.Imported, 1);
+
+        var found = _db.UnfinishedMigration(Library());
+        Assert.NotNull(found);
+        Assert.Equal(MigrationDestination.CloudOnly, found.Destination);
+        Assert.Equal(new MigrationCounts(3, 1, 0, 0, 2), found.Counts());
+        Assert.Null(_db.UnfinishedMigration(Library(id: "other")));
+
+        record.Finish(Now);
+        Assert.Null(_db.UnfinishedMigration(Library()));
+    }
+
+    [Fact]
+    public void Start_over_checks_every_track_again_but_keeps_playlists_and_downloads_that_wait()
+    {
+        var record = _db.OpenMigration(Library(playlists: "p1"), MigrationDestination.CloudOnly);
+        record.AddFound(["a", "b", "c", "d"]);
+        record.Note("a", MigrationTrackState.Imported, 1);
+        record.Note("b", MigrationTrackState.NotImported, reason: MigrationReason.FileNotFound);
+        record.Note("c", MigrationTrackState.Downloaded, 3);
+        record.NotePlaylist("p1", 9, ["a"]);
+
+        record.StartOver();
+
+        Assert.Equal(["a", "b", "d"], record.Rows(MigrationTrackState.Found).Select(r => r.SourceId));
+        Assert.Equal(3, record.Rows(MigrationTrackState.Downloaded).Single().TrackId);
+        Assert.Equal(9, record.Playlist("p1")?.PlaylistId);
+    }
+
+    [Fact]
     public void Counts_add_up_to_found()
     {
         var record = _db.OpenMigration(Library(), MigrationDestination.ThisComputer);

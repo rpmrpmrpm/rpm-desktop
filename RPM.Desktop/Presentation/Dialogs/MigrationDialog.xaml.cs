@@ -91,6 +91,7 @@ public sealed partial class MigrationDialog : ContentDialog
         HideButton.Visibility = Vis(face == Face.Progress && _service.IsRunning);
         PauseButton.Visibility = Vis(face == Face.Progress && _service.IsRunning);
         RetryButton.Visibility = Vis(face == Face.Report && _service.LastReport?.NotImported.Count > 0);
+        StartOverButton.Visibility = Visibility.Collapsed;
         PrimaryButton.Visibility = Visibility.Collapsed;
     }
 
@@ -312,17 +313,17 @@ public sealed partial class MigrationDialog : ContentDialog
         Cancel();
         var ct = _work!.Token;
         _connection = connection;
-        ReadingText.Text = Loc.Format("Migration_Reading", 0);
+        ReadingText.Text = Loc.Format("Migration_Reading", Count(0));
         Show(Face.Reading);
         try
         {
-            var found = new Progress<int>(n => ReadingText.Text = Loc.Format("Migration_Reading", n));
+            var found = new Progress<int>(n => ReadingText.Text = Loc.Format("Migration_Reading", Count(n)));
             _library = await _service.ReadAsync(connection, found, ct);
             var library = _library;
             if (_signingInAgain && _service.Current is { } stopped && stopped.Kind == library.Kind && stopped.LibraryId == library.LibraryId)
             {
                 _signingInAgain = false;
-                if (_service.Start(library, connection, _service.LastDestination, _service.CurrentLabel))
+                if (_service.Start(library, connection, _service.LastDestination, _service.CurrentLabel, ImportStart.Continue))
                     ShowRun();
                 return;
             }
@@ -344,14 +345,14 @@ public sealed partial class MigrationDialog : ContentDialog
 
         SummaryTracks.Text = library.Tracks.Count == 1
             ? Loc.Format("Migration_SummaryTracksOne", Size(estimate.TotalBytes))
-            : Loc.Format("Migration_SummaryTracks", library.Tracks.Count, Size(estimate.TotalBytes));
+            : Loc.Format("Migration_SummaryTracks", Count(library.Tracks.Count), Size(estimate.TotalBytes));
         SummaryPlaylists.Text = library.Playlists.Count == 1
             ? Loc.Get("Migration_SummaryPlaylistsOne")
-            : Loc.Format("Migration_SummaryPlaylists", library.Playlists.Count);
+            : Loc.Format("Migration_SummaryPlaylists", Count(library.Playlists.Count));
         SummaryPlaylists.Visibility = Vis(library.Playlists.Count > 0);
-        SummaryAlready.Text = Loc.Format("Migration_SummaryAlready", estimate.AboutAlreadyInRpm);
+        SummaryAlready.Text = Loc.Format("Migration_SummaryAlready", Count(estimate.AboutAlreadyInRpm));
         SummaryAlready.Visibility = Vis(estimate.AboutAlreadyInRpm > 0);
-        SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", library.Skipped.Count);
+        SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", Count(library.Skipped.Count));
         SummarySkipped.Visibility = Vis(library.Skipped.Count > 0);
         SummaryKeeps.Text = Keeps(library);
 
@@ -359,6 +360,18 @@ public sealed partial class MigrationDialog : ContentDialog
         WherePanel.Visibility = Vis(server);
         ToCloud.IsEnabled = _service.CloudReady;
         ToCloudHint.Text = Loc.Get(_service.CloudReady ? "Migration_ToCloudHint" : "Migration_CloudSignInNeeded");
+
+        // An earlier import of this library that did not finish: the person chooses to continue it, with
+        // its own destination, or to start over.
+        var unfinished = _service.UnfinishedFor(library);
+        if (unfinished is not null)
+        {
+            var counts = unfinished.Counts();
+            UnfinishedText.Text = Loc.Format("Migration_UnfinishedNote",
+                Count(counts.Imported + counts.AlreadyInRpm + counts.NotImported), Count(counts.Found));
+            (unfinished.Destination == MigrationDestination.CloudOnly && _service.CloudReady ? ToCloud : ToComputer).IsChecked = true;
+        }
+        UnfinishedText.Visibility = Vis(unfinished is not null);
         if (!_service.CloudReady)
             ToComputer.IsChecked = true;
 
@@ -409,16 +422,21 @@ public sealed partial class MigrationDialog : ContentDialog
                     Size(needed), Size(free));
             }
         }
-        Primary("Migration_Start", startable);
+        var unfinished = _library is { } shown && _service.UnfinishedFor(shown) is not null;
+        Primary(unfinished ? "Migration_ContinueStopped" : "Migration_Start", startable);
+        StartOverButton.Visibility = Vis(unfinished);
+        StartOverButton.IsEnabled = startable;
     }
 
-    private void Start()
+    private void Start(ImportStart how)
     {
         if (_library is not { } library || _connection is not { } connection)
             return;
-        if (_service.Start(library, connection, Destination, Label(library.Kind, library.Name)))
+        if (_service.Start(library, connection, Destination, Label(library.Kind, library.Name), how))
             ShowRun();
     }
+
+    private void StartOver_Click(object sender, RoutedEventArgs e) => Start(ImportStart.StartOver);
 
     private async void Continue_Click(object sender, RoutedEventArgs e)
     {
@@ -436,8 +454,8 @@ public sealed partial class MigrationDialog : ContentDialog
         Show(Face.Reading);
         try
         {
-            var library = await _service.ReadAsync(connection, new Progress<int>(n => ReadingText.Text = Loc.Format("Migration_Reading", n)), ct);
-            if (_service.Start(library, connection, open.Destination, Label(library.Kind, library.Name)))
+            var library = await _service.ReadAsync(connection, new Progress<int>(n => ReadingText.Text = Loc.Format("Migration_Reading", Count(n))), ct);
+            if (_service.Start(library, connection, open.Destination, Label(library.Kind, library.Name), ImportStart.Continue))
                 ShowRun();
         }
         catch (OperationCanceledException) { }
@@ -493,10 +511,15 @@ public sealed partial class MigrationDialog : ContentDialog
         {
             var done = p.Counts.Imported + p.Counts.AlreadyInRpm + p.Counts.NotImported;
             Bar.Value = p.BytesTotal > 0 ? (double)p.BytesDone / p.BytesTotal : p.Total > 0 ? (double)done / p.Total : 0;
-            ProgressTracks.Text = Loc.Format("Migration_ProgressTracks", done, p.Total, Size(p.BytesDone), Size(p.BytesTotal));
-            ProgressCounts.Text = Loc.Format("Migration_ProgressCounts", p.Counts.Imported, p.Counts.AlreadyInRpm, p.Counts.NotImported);
+            ProgressTracks.Text = Loc.Format("Migration_ProgressTracks", Count(done), Count(p.Total), Size(p.BytesDone), Size(p.BytesTotal));
+            ProgressCounts.Text = Loc.Format("Migration_ProgressCounts", Count(p.Counts.Imported), Count(p.Counts.AlreadyInRpm), Count(p.Counts.NotImported));
             ProgressAlbum.Text = p.CurrentAlbum is { Length: > 0 } album ? Loc.Format("Migration_ProgressAlbum", album) : "";
-            ProgressTimeLeft.Text = p.TimeLeft is { } left ? Loc.Format("Migration_ProgressTimeLeft", PaneStats.Duration(left.TotalSeconds)) : "";
+            ProgressTimeLeft.Text = p.TimeLeft switch
+            {
+                null => "",
+                { TotalMinutes: < 1 } => Loc.Get("Migration_ProgressUnderAMinute"),
+                { } left => Loc.Format("Migration_ProgressTimeLeft", PaneStats.Duration(left.TotalSeconds)),
+            };
         }
         ProgressKeeps.Text = library is null ? "" : Keeps(library);
 
@@ -520,23 +543,21 @@ public sealed partial class MigrationDialog : ContentDialog
         Show(Face.Report);
         _service.ReportSeen = true;
         ReportTitle.Text = Loc.Format("Migration_ReportTitle", _service.CurrentLabel);
-        ReportCounts.Text = Loc.Format("Migration_ReportCounts", report.Counts.Found, report.Counts.Imported, report.Counts.AlreadyInRpm, report.Counts.NotImported);
+        ReportCounts.Text = Loc.Format("Migration_ReportCounts", Count(report.Counts.Found), Count(report.Counts.Imported), Count(report.Counts.AlreadyInRpm), Count(report.Counts.NotImported));
         ReportPlaylists.Text = report.Playlists.Count == 1
             ? Loc.Get("Migration_ReportPlaylistsOne")
-            : Loc.Format("Migration_ReportPlaylists", report.Playlists.Count);
+            : Loc.Format("Migration_ReportPlaylists", Count(report.Playlists.Count));
         ReportPlaylists.Visibility = Vis(report.Playlists.Count > 0);
 
-        ReportPlaylistNotes.Children.Clear();
-        foreach (var playlist in report.Playlists.Where(p => p.Unmatched > 0 || p.WasSmart))
-        {
-            ReportPlaylistNotes.Children.Add(new TextBlock
-            {
-                Text = playlist.WasSmart && playlist.Unmatched == 0
-                    ? Loc.Format("Migration_ReportSmart", playlist.Name)
-                    : Loc.Format("Migration_ReportPlaylistUnmatched", playlist.Name, playlist.Unmatched),
-                Style = (Style)Resources["QuietLineStyle"],
-            });
-        }
+        var notes = report.Playlists.Where(p => p.Unmatched > 0 || p.WasSmart)
+            .Select(playlist => playlist.WasSmart && playlist.Unmatched == 0
+                ? Loc.Format("Migration_ReportSmart", playlist.Name)
+                : playlist.Unmatched == 1
+                    ? Loc.Format("Migration_ReportPlaylistUnmatchedOne", playlist.Name)
+                    : Loc.Format("Migration_ReportPlaylistUnmatched", playlist.Name, Count(playlist.Unmatched)))
+            .ToList();
+        ReportPlaylistNotes.ItemsSource = notes;
+        ReportPlaylistNotes.Visibility = Vis(notes.Count > 0);
 
         NotImportedPanel.Visibility = Vis(report.NotImported.Count > 0);
         NotImportedList.ItemsSource = report.NotImported
@@ -564,7 +585,7 @@ public sealed partial class MigrationDialog : ContentDialog
                 catch (Exception ex) { Error(ex); }
                 break;
             case Face.Summary:
-                Start();
+                Start(ImportStart.Continue);
                 break;
             case Face.Progress when !_service.IsRunning:
                 await ContinueRunAsync();
@@ -590,7 +611,7 @@ public sealed partial class MigrationDialog : ContentDialog
             var fresh = connection.Kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome
                 ? await _service.ReadAsync(connection, new Progress<int>(), _work!.Token)
                 : library;
-            _service.Start(fresh, connection, _service.LastDestination, _service.CurrentLabel);
+            _service.Start(fresh, connection, _service.LastDestination, _service.CurrentLabel, ImportStart.Continue);
             ShowRun();
         }
         catch (OperationCanceledException) { }
@@ -606,7 +627,7 @@ public sealed partial class MigrationDialog : ContentDialog
         if (_service.Current is not { } library || _service.LastConnection is not { } connection || _service.LastReport is not { } report)
             return;
         _service.Retry(library, _service.LastDestination, report.NotImported.Select(n => n.SourceId));
-        if (_service.Start(library, connection, _service.LastDestination, _service.CurrentLabel))
+        if (_service.Start(library, connection, _service.LastDestination, _service.CurrentLabel, ImportStart.Continue))
             ShowRun();
     }
 
@@ -635,6 +656,9 @@ public sealed partial class MigrationDialog : ContentDialog
 
     /// <summary>A size as the rest of the app writes it, and "0 KB" for nothing yet (the shared helper
     /// writes nothing for zero, which reads as a gap in a progress line).</summary>
+    /// <summary>A count as people read it, with the separators of the system's number format ("24,993").</summary>
+    private static string Count(int n) => n.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+
     private static string Size(long bytes) => bytes > 0 ? TrackFieldText.Size(bytes) : Loc.Format("Unit_KB", 0);
 
     private static string SourceKey(SourceKind kind) => kind switch

@@ -224,8 +224,15 @@ public sealed class MigrationService : IDisposable
 
     // ── the run ──
 
+    /// <summary>The unfinished import of this library, or null. Read without changing anything, so the
+    /// window can ask whether to continue it or start over.</summary>
+    public LibraryDatabase.MigrationRecord? UnfinishedFor(SourceLibrary library) =>
+        _library.IsOpen ? _library.Db.UnfinishedMigration(library) : null;
+
     /// <summary>Starts the import in the background. False when one is running already.</summary>
-    public bool Start(SourceLibrary library, MigrationConnection connection, MigrationDestination destination, string label)
+    /// <param name="how">Continue where an earlier import of this library stopped (or start fresh when there
+    /// was none), or start over and check every track again.</param>
+    public bool Start(SourceLibrary library, MigrationConnection connection, MigrationDestination destination, string label, ImportStart how)
     {
         if (!_library.IsOpen || _library.Root is not { } root || !_one.Wait(0))
             return false;
@@ -234,6 +241,8 @@ public sealed class MigrationService : IDisposable
         var rules = new FilingRules(
             _settings.DefaultTemplate, OrganizeMode.Copy, _settings.MultiDiscMode == MultiDiscMode.MergedAlbum, root);
         var record = db.OpenMigration(library, destination);
+        if (how == ImportStart.StartOver)
+            record.StartOver();
         KeepConnection(library, record.LibraryKey, connection);
 
         var cts = new CancellationTokenSource();
@@ -361,6 +370,16 @@ public sealed class MigrationService : IDisposable
 
         public void AddPlaylist(long playlistNodeId) => _ = service._cloudSync.AddPlaylistToCloudAsync(playlistNodeId);
     }
+}
+
+/// <summary>How an import starts when the library was imported part of the way before.</summary>
+public enum ImportStart
+{
+    /// <summary>Where it stopped: the tracks that are through are not looked at again.</summary>
+    Continue,
+
+    /// <summary>Every track is checked again. Tracks already in rpm are found and not copied twice.</summary>
+    StartOver,
 }
 
 /// <summary>The connection's JSON, written at build time (the published app is Native AOT).</summary>

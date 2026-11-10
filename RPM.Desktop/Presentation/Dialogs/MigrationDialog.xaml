@@ -94,6 +94,9 @@
                 Visibility="Collapsed" Content="{loc:Str Key=Migration_Pause}"/>
         <Button x:Name="RetryButton" Click="Retry_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
                 Visibility="Collapsed" Content="{loc:Str Key=Migration_TryAgain}"/>
+        <Button x:Name="StartOverButton" Click="StartOver_Click" Style="{StaticResource GlassButtonStyle}" Padding="18,0"
+                Visibility="Collapsed" Content="{loc:Str Key=Migration_StartOver}"
+                ToolTipService.ToolTip="{loc:Str Key=Migration_StartOverHint}"/>
         <ctl:RpmPrimaryButton x:Name="PrimaryButton" Click="Primary_Click" Padding="18,0" Visibility="Collapsed">
           <TextBlock x:Name="PrimaryText" VerticalAlignment="Center"/>
         </ctl:RpmPrimaryButton>
@@ -207,6 +210,7 @@
       <StackPanel x:Name="SummaryFace" Spacing="8" Visibility="Collapsed">
         <TextBlock Text="{loc:Str Key=Migration_SummaryKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>
         <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
+        <TextBlock x:Name="UnfinishedText" Style="{StaticResource WarnLineStyle}" Visibility="Collapsed"/>
         <TextBlock x:Name="SummaryTracks" Style="{StaticResource LineStyle}" FontSize="14"/>
         <TextBlock x:Name="SummaryPlaylists" Style="{StaticResource LineStyle}"/>
         <TextBlock x:Name="SummaryAlready" Style="{StaticResource LineStyle}"/>
@@ -252,7 +256,14 @@
         <Border Height="1" Background="{StaticResource DenseRuleBrush}"/>
         <TextBlock x:Name="ReportCounts" Style="{StaticResource LineStyle}" FontSize="14"/>
         <TextBlock x:Name="ReportPlaylists" Style="{StaticResource LineStyle}"/>
-        <StackPanel x:Name="ReportPlaylistNotes" Spacing="2"/>
+        <!-- A ListView, so a library with thousands of playlists does not build thousands of elements. -->
+        <ListView x:Name="ReportPlaylistNotes" MaxHeight="140" SelectionMode="None" IsItemClickEnabled="False">
+          <ListView.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" FontSize="11.5" Foreground="#AAFFFFFF" TextTrimming="CharacterEllipsis"/>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
 
         <StackPanel x:Name="NotImportedPanel" Spacing="4" Margin="0,6,0,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=Migration_ReportNotImported}" Style="{StaticResource DenseGroupHeaderStyle}"/>
