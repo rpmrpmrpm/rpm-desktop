@@ -5,7 +5,11 @@ using Microsoft.UI.Xaml.Media;
 
 using RPM.Core.Library;
 
+using RPM.Core.Sharing;
+using RPM.Desktop.Presentation.Controls;
+using RPM.Desktop.Presentation.Dialogs;
 using RPM.Desktop.Services.Library;
+using RPM.Desktop.Services.Nas;
 using RPM.Desktop.Services.Shell;
 using RPM.Desktop.Strings;
 
@@ -91,6 +95,140 @@ public sealed partial class WizardFolderStep : UserControl
     }
 
     private bool Adoptable => _state is FolderState.Empty or FolderState.ExistingLibrary;
+
+    // ── a NAS as the place for the library ──
+
+    private NasDiscovery? _nas;
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _nas = App.Services.GetRequiredService<NasDiscovery>();
+        _nas.Changed += OnNasChanged;
+        _nas.Start();
+        _nas.Ask();
+        ShowNasRows();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_nas is not null)
+            _nas.Changed -= OnNasChanged;
+    }
+
+    // Raised on a background thread. The callback must not throw: on WinUI an exception there ends the app.
+    private void OnNasChanged() => DispatcherQueue.TryEnqueue(() =>
+    {
+        try { ShowNasRows(); }
+        catch (Exception ex) { RPM.Core.Diagnostics.Scope.Said("nas", $"the NAS rows could not be shown: {ex.Message}"); }
+    });
+
+    private void ShowNasRows()
+    {
+        if (_nas is null)
+            return;
+        NasRows.Children.Clear();
+        foreach (var nas in _nas.Machines)
+            NasRows.Children.Add(NasRow(nas));
+    }
+
+    private Border NasRow(DiscoveredNas nas)
+    {
+        var hint = new TextBlock
+        {
+            Text = nas.SameVersion ? Loc.Format("Nas_LocationHint", nas.Name) : Loc.Format("Nas_NeedsUpdate", nas.Name),
+            FontSize = 12,
+            Foreground = new SolidColorBrush(nas.SameVersion ? Windows.UI.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF) : Amber),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        var text = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = Loc.Format("Nas_Location", nas.Name),
+            FontSize = 14,
+            Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        text.Children.Add(hint);
+        Grid.SetColumn(text, 1);
+
+        var glyph = new FontIcon
+        {
+            Style = (Style)Application.Current.Resources["FaIcon"],
+            Glyph = "\uf233",
+            FontSize = 18,
+            Foreground = new SolidColorBrush(Cyan),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var grid = new Grid { ColumnSpacing = 14 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(glyph);
+        grid.Children.Add(text);
+
+        if (nas.SameVersion)
+        {
+            var choose = new RpmButton
+            {
+                Content = Loc.Get("Nas_Choose"),
+                Padding = new Thickness(18, 0, 18, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            choose.Click += async (_, _) => await ChooseNasAsync(nas, choose, hint);
+            Grid.SetColumn(choose, 2);
+            grid.Children.Add(choose);
+        }
+
+        return new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(16, 14, 16, 14),
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x13, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2B, 0xFF, 0xFF, 0xFF)),
+            Child = grid,
+        };
+    }
+
+    /// <summary>The NAS login, then the library on it. The library becomes the collection only once it
+    /// is open, as with a folder.</summary>
+    private async Task ChooseNasAsync(DiscoveredNas nas, Button button, TextBlock hint)
+    {
+        button.IsEnabled = false;
+        try
+        {
+            var service = App.Services.GetRequiredService<NasLibraryService>();
+            if (await NasLibraryService.HelloAsync(nas, CancellationToken.None) is not { } hello)
+            {
+                hint.Text = Loc.Format("Nas_Unreachable", nas.Name);
+                hint.Foreground = new SolidColorBrush(Amber);
+                return;
+            }
+
+            if (await NasLoginDialog.ShowAsync(XamlRoot, service, nas, hello) is not { } prepared)
+                return;
+
+            if (service.Open(prepared) is NasOpenResult.Opened opened)
+            {
+                Chosen?.Invoke(this, opened.Path);
+                return;
+            }
+
+            hint.Text = Loc.Format("Nas_OpenFailed", nas.Name);
+            hint.Foreground = new SolidColorBrush(Amber);
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Scope.Said("nas", $"choosing the NAS failed: {ex.Message}");
+            hint.Text = Loc.Format("Nas_OpenFailed", nas.Name);
+            hint.Foreground = new SolidColorBrush(Amber);
+        }
+        finally
+        {
+            button.IsEnabled = true;
+        }
+    }
 
     /// <summary>The row, the glyph and the button, all from the one state. It is one method, not a
     /// property per element, so the state cannot change without every element updating.

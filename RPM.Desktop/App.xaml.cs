@@ -494,6 +494,7 @@ public partial class App : Application
                         // NAS that holds this library up to date.
                         .AddSingleton<RPM.Desktop.Services.Nas.NasDiscovery>()
                         .AddSingleton<RPM.Desktop.Services.Nas.NasPublisher>()
+                        .AddSingleton<RPM.Desktop.Services.Nas.NasLibraryService>()
                         // Who those computers belong to. It is kept apart from the sharing itself, because
                         // it is a fact held by the API and not by the machine on the network. Also, nothing
                         // about sharing waits for it.

@@ -10442,4 +10442,100 @@
     <value>1 playlist added</value>
     <comment>Import from another app: report line for one playlist.</comment>
   </data>
+  <data name="Nas_Location" xml:space="preserve">
+    <value>{0} (NAS)</value>
+    <comment>Setup and Library settings: a NAS offered as the place for the library. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_LocationHint" xml:space="preserve">
+    <value>Your music is kept on {0}. It plays at home even when this computer is off.</value>
+    <comment>Setup: second line of a NAS row. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_Choose" xml:space="preserve">
+    <value>Choose</value>
+    <comment>Setup: button on a NAS row.</comment>
+  </data>
+  <data name="Nas_NeedsUpdate" xml:space="preserve">
+    <value>{0} needs a newer rpm package.</value>
+    <comment>Setup: a NAS whose rpm package speaks an older or newer protocol. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_LoginTitle" xml:space="preserve">
+    <value>Sign in to {0}</value>
+    <comment>Title of the NAS sign-in window. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_LoginBody" xml:space="preserve">
+    <value>Use the user name and password of your account on the NAS. rpm keeps them on this computer.</value>
+    <comment>NAS sign-in window: line under the title.</comment>
+  </data>
+  <data name="Nas_Library" xml:space="preserve">
+    <value>Library</value>
+    <comment>NAS sign-in window: label of the list of libraries on the NAS.</comment>
+  </data>
+  <data name="Nas_NewLibrary" xml:space="preserve">
+    <value>New library ({0})</value>
+    <comment>NAS sign-in window: the choice that makes a new library. {0} is the folder name it gets.</comment>
+  </data>
+  <data name="Nas_LoginWrong" xml:space="preserve">
+    <value>The user name or password is not correct.</value>
+    <comment>NAS sign-in window: the NAS refused the login.</comment>
+  </data>
+  <data name="Nas_Unreachable" xml:space="preserve">
+    <value>{0} is not available. Check that it is on and on the same network.</value>
+    <comment>NAS sign-in window and Library settings: the NAS did not answer. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_OpenFailed" xml:space="preserve">
+    <value>The library on {0} could not be opened.</value>
+    <comment>NAS sign-in window: mounting worked but the library did not open. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_Connecting" xml:space="preserve">
+    <value>Connecting to {0}</value>
+    <comment>NAS sign-in window and Library settings: status while rpm mounts the NAS. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_Move" xml:space="preserve">
+    <value>Move collection to {0}</value>
+    <comment>Library settings: button that copies the collection to a NAS. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_Use" xml:space="preserve">
+    <value>Use {0}</value>
+    <comment>Library settings: button for a library that is already on the NAS, which claims it without copying. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_MoveBody" xml:space="preserve">
+    <value>rpm copies every file to {0} and checks each copy. Your music on this computer is not changed or deleted.</value>
+    <comment>Library settings: line under the move button. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_MoveProgress" xml:space="preserve">
+    <value>{0} of {1} files copied</value>
+    <comment>Library settings: progress of the move to a NAS.</comment>
+  </data>
+  <data name="Nas_MoveDone" xml:space="preserve">
+    <value>Your collection is on {0}. The copy on this computer is still in {1}.</value>
+    <comment>Library settings: the move finished. {0} is the NAS name, {1} the old folder.</comment>
+  </data>
+  <data name="Nas_MoveStopped" xml:space="preserve">
+    <value>The move stopped. Nothing was changed. Try again to continue.</value>
+    <comment>Library settings: the move to a NAS was interrupted.</comment>
+  </data>
+  <data name="Nas_MoveNoRoom" xml:space="preserve">
+    <value>{0} needs {1} more free space.</value>
+    <comment>Library settings: the collection does not fit on the NAS. {0} is the NAS name, {1} a size.</comment>
+  </data>
+  <data name="Nas_UseElsewhere" xml:space="preserve">
+    <value>Set the rpm package's folder on {0} to the folder that holds this library.</value>
+    <comment>Library settings: the library is on the NAS but not in the package's folder. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_Space" xml:space="preserve">
+    <value>{0} of {1} used</value>
+    <comment>Library settings and import: space used on the NAS. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Nas_SpaceAlmostFull" xml:space="preserve">
+    <value>{0} of {1} used (almost full)</value>
+    <comment>Import: the NAS is over 90 percent of its limit. {0} and {1} are sizes.</comment>
+  </data>
+  <data name="Nas_SpaceFull" xml:space="preserve">
+    <value>Not imported: {0} is full ({1} of {2} used).</value>
+    <comment>Import: refused because the NAS limit or disk would be passed. {0} is the NAS name, {1} and {2} sizes.</comment>
+  </data>
+  <data name="Nas_NotAvailable" xml:space="preserve">
+    <value>{0} is not available. Your library is on it.</value>
+    <comment>Problem screen at launch: the library is on a NAS that could not be mounted. {0} is the NAS name.</comment>
+  </data>
 </root>
