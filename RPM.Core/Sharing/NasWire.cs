@@ -22,12 +22,17 @@ public sealed record NasHello
     [JsonPropertyName("freeBytes")] public long FreeBytes { get; init; }
 
     [JsonPropertyName("libraries")] public IReadOnlyList<NasLibraryEntry> Libraries { get; init; } = [];
+
+    /// <summary>The folder holds music and no library. A computer may make the folder itself a library,
+    /// with its files as they are.</summary>
+    [JsonPropertyName("existingMusic")] public bool ExistingMusic { get; init; }
 }
 
 /// <summary>One library folder on a NAS, as the NAS's hello lists it.</summary>
 public sealed record NasLibraryEntry
 {
-    /// <summary>The folder's name under the folder that holds the libraries.</summary>
+    /// <summary>The folder's name under the folder that holds the libraries. Empty when the library is
+    /// that folder itself.</summary>
     [JsonPropertyName("folder")] public string Folder { get; init; } = "";
 
     [JsonPropertyName("libraryId")] public string LibraryId { get; init; } = "";
