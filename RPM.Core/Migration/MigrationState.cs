@@ -67,6 +67,10 @@ public static class MigrationReason
     /// path). The detail holds the reason the file system gave.</summary>
     public const string CouldNotCopy = "Migration_ReasonCouldNotCopy";
 
+    /// <summary>A cloud-only import: the cloud refused the upload for good. The detail holds the reason
+    /// the upload gave. The downloaded copy is removed.</summary>
+    public const string UploadFailed = "Migration_ReasonUploadFailed";
+
     /// <summary>The track was removed from rpm while the import was waiting for the cloud.</summary>
     public const string Removed = "Migration_ReasonRemoved";
 

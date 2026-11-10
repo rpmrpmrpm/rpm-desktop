@@ -10222,6 +10222,10 @@
     <value>正在完成</value>
     <comment>Import from another app: progress stage.</comment>
   </data>
+  <data name="Migration_StageWaiting" xml:space="preserve">
+    <value>正在等待连接</value>
+    <comment>Import from another app: progress stage while the media server or the cloud gives no answer. The import tries again by itself.</comment>
+  </data>
   <data name="Migration_ProgressTracks" xml:space="preserve">
     <value>{1} 首中的第 {0} 首，{3} 中的 {2}</value>
     <comment>Import from another app: progress line. {0} and {1} are numbers, {2} and {3} sizes such as 14.2 GB.</comment>
@@ -10265,6 +10269,10 @@
   <data name="Migration_StoppedCloudFull" xml:space="preserve">
     <value>已停止：你的云存储已满。</value>
     <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedCloudOff" xml:space="preserve">
+    <value>已停止：你已退出登录，或云存储已关闭。</value>
+    <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>正在从 {0} 导入：{2} 首中的第 {1} 首</value>
@@ -10337,6 +10345,10 @@
   <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
     <value>无法复制</value>
     <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonUploadFailed" xml:space="preserve">
+    <value>无法上传</value>
+    <comment>Import from another app: why a track was not imported (cloud-only import, the cloud refused the file). The upload's own reason follows in brackets.</comment>
   </data>
   <data name="Migration_ReasonRemoved" xml:space="preserve">
     <value>导入期间已从 rpm 中移除</value>

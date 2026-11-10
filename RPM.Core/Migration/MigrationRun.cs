@@ -12,14 +12,31 @@ public interface IMigrationCloud
 {
     bool SignedIn { get; }
 
-    /// <summary>Bytes used, the plan's limit, and whether the plan has no limit.</summary>
-    Task<(long Used, long Quota, bool Unlimited)> QuotaAsync(CancellationToken ct);
+    /// <summary>Bytes used, the plan's limit, and whether the plan has no limit; null when the quota
+    /// could not be read (no connection, or the server failed). Null is not "full".</summary>
+    Task<(long Used, long Quota, bool Unlimited)?> QuotaAsync(CancellationToken ct);
+
+    /// <summary>Whether the upload workers can take a file of this size now.</summary>
+    CloudUploads CanUpload(long bytes);
 
     /// <summary>Moves the date added of tracks the cloud holds earlier (unix seconds), at most 200.</summary>
     Task PutTrackAddedAsync(IReadOnlyList<(string RpmId, long AddedAtUnix)> rows, CancellationToken ct);
 
     /// <summary>Asks the cloud sync to look for tracks to upload now, instead of at its next pass.</summary>
     void RequestUpload();
+}
+
+/// <summary>What the upload workers can do now.</summary>
+public enum CloudUploads
+{
+    /// <summary>They upload what is chosen for the cloud.</summary>
+    Ready,
+
+    /// <summary>Nothing is uploaded: the person is signed out, or the cloud is turned off.</summary>
+    Off,
+
+    /// <summary>The plan's storage has no room for the file.</summary>
+    Full,
 }
 
 /// <summary>How a run ended.</summary>
@@ -39,10 +56,23 @@ public enum RunEnd
 
     /// <summary>The cloud storage of the plan is full. The albums that did not fit are still waiting.</summary>
     CloudFull,
+
+    /// <summary>A cloud-only import cannot upload: the person signed out, or turned the cloud off. The
+    /// downloaded files that wait for the cloud stay in the library until the import continues.</summary>
+    CloudOff,
 }
 
 /// <summary>The stage an import is in.</summary>
-public enum MigrationStage { Reading, Tracks, Playlists, Finishing }
+public enum MigrationStage
+{
+    Reading,
+    Tracks,
+    Playlists,
+    Finishing,
+
+    /// <summary>The media server or the cloud gives no answer. The run tries again by itself.</summary>
+    Waiting,
+}
 
 /// <summary>What the progress view shows. <paramref name="TimeLeft"/> is null until a few albums are
 /// done.</summary>
@@ -110,6 +140,7 @@ public sealed class MigrationRun(
 
         CleanStaging();
         record.AddFound(library.Tracks.Select(t => t.SourceId));
+        record.ReopenFailed();
         RefreshPlays();
         _index = LibraryIndex.Build(db);
         var albums = AlbumBatch.Group(library.Tracks);
@@ -133,6 +164,8 @@ public sealed class MigrationRun(
                     // next try of a track that failed. Nothing left at all: the run is done.
                     if (record.Rows(MigrationTrackState.Downloaded).Count > 0)
                     {
+                        if (UploadsBlocked() is { } blocked)
+                            return Stop(blocked, progress);
                         cloud.RequestUpload();
                         await Delay(PollInterval, ct);
                         continue;
@@ -154,22 +187,26 @@ public sealed class MigrationRun(
                     if (work.Count == 0)
                         continue;
 
-                    if (record.Destination == MigrationDestination.CloudOnly && !await FitsAsync(work, ct))
+                    if (record.Destination == MigrationDestination.CloudOnly)
                     {
-                        // The albums that fitted finish first: their files are downloaded and wait for the
-                        // upload, and the report must count them as imported, not as waiting. Their
-                        // playlists are added too; a later run adds the rest.
-                        await DrainAsync(progress, ct);
-                        AddPlaylists(progress);
-                        return RunEnd.CloudFull;
+                        // An unreadable quota is not a full one: wait and read it again.
+                        bool? fits;
+                        for (var waits = 0; (fits = await FitsAsync(work, ct)) is null; waits++)
+                        {
+                            Report(progress, MigrationStage.Waiting);
+                            await Delay(ConnectionWait(waits), ct);
+                        }
+                        if (fits is false)
+                        {
+                            // The albums that fitted finish first: their files are downloaded and wait for
+                            // the upload, and the report must count them as imported, not as waiting.
+                            return Stop(await DrainAsync(progress, ct) ?? RunEnd.CloudFull, progress);
+                        }
                     }
 
                     _currentAlbum = string.IsNullOrWhiteSpace(work[0].Album) ? work[0].Title : work[0].Album;
-                    var end = await AlbumAsync(work, progress, ct);
-                    if (end is RunEnd.DiskFull)
-                        AddPlaylists(progress);
-                    if (end is not null)
-                        return end.Value;
+                    if (await AlbumAsync(work, progress, ct) is { } end)
+                        return Stop(end, progress);
                     _albumTimes.Add((DateTime.UtcNow, work.Sum(t => t.SizeBytes)));
                 }
             }
@@ -184,6 +221,20 @@ public sealed class MigrationRun(
         record.Finish(Now());
         return RunEnd.Finished;
     }
+
+    /// <summary>The run stops before the end. The playlists get the tracks that are in rpm so far (a later
+    /// run puts the rest in their places); a sign-in that expired adds nothing, because the person
+    /// continues at once.</summary>
+    private RunEnd Stop(RunEnd end, IProgress<MigrationProgress> progress)
+    {
+        if (end is RunEnd.CloudFull or RunEnd.DiskFull or RunEnd.CloudOff)
+            AddPlaylists(progress);
+        return end;
+    }
+
+    /// <summary>How long to wait for a server or the cloud that gives no answer: 5 seconds, doubling
+    /// to at most a minute.</summary>
+    private static TimeSpan ConnectionWait(int waits) => TimeSpan.FromSeconds(Math.Min(60, 5 * Math.Pow(2, Math.Min(waits, 4))));
 
     /// <summary>A second run writes the source's current play totals for the tracks an earlier run
     /// brought in. They replace the old ones on the source library's device, so nothing is counted
@@ -219,11 +270,20 @@ public sealed class MigrationRun(
         {
             foreach (var track in work)
             {
-                ct.ThrowIfCancellationRequested();
-                var end = await TrackAsync(track, plays, added, ct);
-                Report(progress, MigrationStage.Tracks);
-                if (end is not null)
-                    return end;
+                // A server that gives no answer is waited for, and the same track tried again. It costs
+                // the track no attempt: the network being down says nothing about the file.
+                for (var waits = 0; ; waits++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var step = await TrackAsync(track, plays, added, ct);
+                    Report(progress, MigrationStage.Tracks);
+                    if (step.End is not null)
+                        return step.End;
+                    if (!step.Again)
+                        break;
+                    Report(progress, MigrationStage.Waiting);
+                    await Delay(ConnectionWait(waits), ct);
+                }
             }
             return null;
         }
@@ -236,7 +296,15 @@ public sealed class MigrationRun(
         }
     }
 
-    private async Task<RunEnd?> TrackAsync(
+    /// <summary>What one track's turn gives: go on, stop the run, or wait and try the same track again.</summary>
+    private readonly record struct Step(RunEnd? End = null, bool Again = false)
+    {
+        public static readonly Step Next = default;
+
+        public static implicit operator Step(RunEnd end) => new(end);
+    }
+
+    private async Task<Step> TrackAsync(
         SourceTrack track, List<LibraryDatabase.TrackPlayRow> plays, List<(string, long)> added, CancellationToken ct)
     {
         string path;
@@ -247,14 +315,14 @@ public sealed class MigrationRun(
                 if (!File.Exists(local.Path))
                 {
                     record.Note(track.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.FileNotFound, detail: local.Path);
-                    return null;
+                    return Step.Next;
                 }
                 path = local.Path;
                 break;
 
             case RemoteFile remote:
-                if (record.Destination == MigrationDestination.CloudOnly)
-                    await WaitForRoomAsync(ct);
+                if (record.Destination == MigrationDestination.CloudOnly && await WaitForRoomAsync(ct) is { } blocked)
+                    return blocked;
                 switch (await DownloadAsync(track, remote, ct))
                 {
                     case Downloaded d:
@@ -263,8 +331,10 @@ public sealed class MigrationRun(
                         break;
                     case RunEnd end:
                         return end;
+                    case NoAnswer:
+                        return new Step(Again: true);
                     default:
-                        return null;
+                        return Step.Next;
                 }
                 break;
 
@@ -282,7 +352,7 @@ public sealed class MigrationRun(
             catch (Exception e) when (e is not OperationCanceledException)
             {
                 record.Note(track.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.ReadFailed, detail: path);
-                return null;
+                return Step.Next;
             }
 
             if (await Match(info, path, ct) is { } existing)
@@ -292,7 +362,7 @@ public sealed class MigrationRun(
                 record.Note(track.SourceId, MigrationTrackState.AlreadyInRpm, existing.Id,
                     reason: lower ? MigrationReason.LowerQualityInRpm : null,
                     detail: lower ? (track.File as LocalFile)?.Path ?? path : null);
-                return null;
+                return Step.Next;
             }
 
             LibraryTrack row;
@@ -314,7 +384,7 @@ public sealed class MigrationRun(
                     if (filed.Result.DiskFull)
                         return RunEnd.DiskFull;
                     record.Note(track.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.CouldNotCopy, detail: filed.Result.Error);
-                    return null;
+                    return Step.Next;
                 }
                 staged = false;   // moved into the library: no longer a staged copy
                 row = db.FindByRelativePath(filed.Row.RelativePath) ?? filed.Row;
@@ -333,7 +403,7 @@ public sealed class MigrationRun(
             {
                 record.Note(track.SourceId, MigrationTrackState.Imported, row.Id);
             }
-            return null;
+            return Step.Next;
         }
         finally
         {
@@ -393,6 +463,9 @@ public sealed class MigrationRun(
 
     private sealed record Downloaded(string Path);
 
+    /// <summary>The server gave no answer at all: it is switched off, asleep, or the network is down.</summary>
+    private sealed record NoAnswer;
+
     /// <summary>The file in the staging folder, or the end of the run, or null when the track was noted
     /// as failed. A download is written to a <c>.part</c> file and renamed only when its length is the
     /// size the server gave, so a stop never leaves half a file under the real name.</summary>
@@ -428,6 +501,11 @@ public sealed class MigrationRun(
             TryDelete(part);
             return RunEnd.SignInExpired;
         }
+        catch (Exception e) when (Unanswered(e, ct))
+        {
+            TryDelete(part);
+            return new NoAnswer();
+        }
         catch (IOException e) when (OrganizeApplier.IsDiskFull(e))
         {
             TryDelete(part);
@@ -441,38 +519,76 @@ public sealed class MigrationRun(
         }
     }
 
-    /// <summary>Waits until every downloaded file of this import has reached the cloud and been swept.</summary>
-    private async Task DrainAsync(IProgress<MigrationProgress> progress, CancellationToken ct)
+    /// <summary>A request that got no answer from the server: no connection, or no reply in time. A
+    /// reply with an error status is an answer, and counts against the track.</summary>
+    private static bool Unanswered(Exception e, CancellationToken ct) => e switch
+    {
+        HttpRequestException { StatusCode: null } => true,
+        TaskCanceledException when !ct.IsCancellationRequested => true,   // HttpClient's timeout
+        _ => false,
+    };
+
+    /// <summary>Waits until every downloaded file of this import has reached the cloud and been swept.
+    /// Returns why it cannot, when the cloud cannot take them.</summary>
+    private async Task<RunEnd?> DrainAsync(IProgress<MigrationProgress> progress, CancellationToken ct)
     {
         while (true)
         {
             Sweep();
             Report(progress, MigrationStage.Tracks);
             if (record.Rows(MigrationTrackState.Downloaded).Count == 0)
-                return;
+                return null;
+            if (UploadsBlocked() is { } blocked)
+                return blocked;
             cloud.RequestUpload();
             await Delay(PollInterval, ct);
         }
     }
 
-    /// <summary>Waits while <see cref="MaxStaged"/> downloaded files wait for the cloud.</summary>
-    private async Task WaitForRoomAsync(CancellationToken ct)
+    /// <summary>Waits while <see cref="MaxStaged"/> downloaded files wait for the cloud. Returns why the
+    /// run must stop, when the cloud cannot take them.</summary>
+    private async Task<RunEnd?> WaitForRoomAsync(CancellationToken ct)
     {
         while (true)
         {
             Sweep();
             if (record.Rows(MigrationTrackState.Downloaded).Count < MaxStaged)
-                return;
+                return null;
+            if (UploadsBlocked() is { } blocked)
+                return blocked;
             cloud.RequestUpload();
             await Delay(PollInterval, ct);
         }
     }
 
+    /// <summary>Why the downloaded files that wait cannot reach the cloud now, or null when they can:
+    /// the person signed out or turned the cloud off, or the plan has no room for one of them. Without
+    /// this the run would wait for an upload that never starts.</summary>
+    private RunEnd? UploadsBlocked()
+    {
+        foreach (var waiting in record.Rows(MigrationTrackState.Downloaded))
+        {
+            if (waiting.TrackId is not { } id || db.FindById(id) is not { } row || row.CloudState is CloudState.Synced or CloudState.CloudOnly)
+                continue;
+            switch (cloud.CanUpload(row.SizeBytes))
+            {
+                case CloudUploads.Off:
+                    return RunEnd.CloudOff;
+                case CloudUploads.Full:
+                    return RunEnd.CloudFull;
+            }
+        }
+        return null;
+    }
+
     /// <summary>
     /// For each downloaded track of a cloud-only import: once its row is <see cref="CloudState.Synced"/>,
     /// it is marked as only in the cloud and the file is deleted; a row that is already only in the cloud
-    /// (the app stopped between the two) has its file deleted. The state is read from the row each time,
-    /// so it does not matter in which order the upload and this sweep happen.
+    /// (the app stopped between the two) has its file deleted. A row whose upload the cloud refused for
+    /// good is not imported: the record says why, and the downloaded copy and its row are removed,
+    /// because the person chose not to keep the files on this computer. A later run tries it again. The
+    /// state is read from the row each time, so it does not matter in which order the upload and this
+    /// sweep happen.
     /// </summary>
     private void Sweep()
     {
@@ -481,6 +597,15 @@ public sealed class MigrationRun(
             if (waiting.TrackId is not { } id || db.FindById(id) is not { } row)
             {
                 record.Note(waiting.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.Removed);
+                continue;
+            }
+
+            if (row.CloudState == CloudState.Error && db.UploadGivenUp(row.Id, Now()))
+            {
+                // Noted first: a stop before the removal leaves the row in the library, which is safe.
+                record.Note(waiting.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.UploadFailed, detail: row.CloudError);
+                db.Remove(row.RelativePath);
+                TryDelete(Path.Combine(rules.Root, row.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
                 continue;
             }
 
@@ -494,10 +619,13 @@ public sealed class MigrationRun(
         }
     }
 
-    /// <summary>Whether the album fits in the cloud plan, counting the files still waiting to upload.</summary>
-    private async Task<bool> FitsAsync(IReadOnlyList<SourceTrack> album, CancellationToken ct)
+    /// <summary>Whether the album fits in the cloud plan, counting the files still waiting to upload; null
+    /// when the quota could not be read.</summary>
+    private async Task<bool?> FitsAsync(IReadOnlyList<SourceTrack> album, CancellationToken ct)
     {
-        var (used, quota, unlimited) = await cloud.QuotaAsync(ct);
+        if (await cloud.QuotaAsync(ct) is not { } space)
+            return null;
+        var (used, quota, unlimited) = space;
         if (unlimited)
             return true;
         var waiting = record.Rows(MigrationTrackState.Downloaded)

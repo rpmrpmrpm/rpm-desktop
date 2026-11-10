@@ -375,6 +375,120 @@ public class MigrationRunTests : IDisposable
         Assert.Equal(["b1", "b2"], record.Due(_clock, 10).Select(r => r.SourceId));
     }
 
+    [Fact]
+    public async Task Cloud_only_upload_refused_for_good_is_not_imported_and_its_copy_is_removed()
+    {
+        var server = new FakeServer();
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"));
+        server.Add(library.Tracks[0]);
+        using var uploads = new FakeUploader(_db, _root, delay: TimeSpan.FromMilliseconds(5), refuse: true);
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.CloudOnly, server).RunAsync(Quiet, limit.Token);
+
+        Assert.Equal(RunEnd.Finished, end);
+        var row = Assert.Single(Record(library).Rows(MigrationTrackState.NotImported));
+        Assert.Equal(MigrationReason.UploadFailed, row.Reason);
+        Assert.Equal("Not a format the cloud takes", row.Detail);
+        Assert.Empty(_db.Query());
+        Assert.Empty(Directory.GetFiles(_root, "*.wav", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task Cloud_only_stops_when_the_cloud_cannot_take_the_waiting_files()
+    {
+        var server = new FakeServer();
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"), Remote("j2", "Record", "Two", 2));
+        foreach (var t in library.Tracks) server.Add(t);
+        _cloud.Uploads = CloudUploads.Full;
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.CloudOnly, server).RunAsync(Quiet, limit.Token);
+
+        Assert.Equal(RunEnd.CloudFull, end);
+    }
+
+    [Fact]
+    public async Task Cloud_only_stops_when_uploads_are_off()
+    {
+        var server = new FakeServer();
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"));
+        server.Add(library.Tracks[0]);
+        _cloud.Uploads = CloudUploads.Off;
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.CloudOnly, server).RunAsync(Quiet, limit.Token);
+
+        Assert.Equal(RunEnd.CloudOff, end);
+        Assert.Equal(MigrationTrackState.Downloaded, Assert.Single(Record(library).Due(_clock, 10)).State);
+    }
+
+    [Fact]
+    public async Task Unreadable_quota_is_waited_out_not_read_as_full()
+    {
+        var server = new FakeServer();
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"));
+        server.Add(library.Tracks[0]);
+        _cloud.Quota = (0, 1_000_000_000, false);
+        _cloud.QuotaFailures = 3;
+        using var uploads = new FakeUploader(_db, _root, delay: TimeSpan.FromMilliseconds(5));
+        var stages = new List<MigrationStage>();
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.CloudOnly, server)
+            .RunAsync(new SyncProgress(p => { lock (stages) stages.Add(p.Stage); }), limit.Token);
+
+        Assert.Equal(RunEnd.Finished, end);
+        Assert.Equal(1, Record(library).Counts().Imported);
+        Assert.Contains(MigrationStage.Waiting, stages);
+    }
+
+    [Fact]
+    public async Task Unreachable_server_is_waited_for_without_using_attempts()
+    {
+        var server = new FakeServer { Unreachable = CloudRetrySchedule.MaxAttempts + 3 };
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"));
+        server.Add(library.Tracks[0]);
+        var stages = new List<MigrationStage>();
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.ThisComputer, server)
+            .RunAsync(new SyncProgress(p => { lock (stages) stages.Add(p.Stage); }), limit.Token);
+
+        Assert.Equal(RunEnd.Finished, end);
+        Assert.Equal(1, Record(library).Counts().Imported);
+        Assert.Contains(MigrationStage.Waiting, stages);
+    }
+
+    [Fact]
+    public async Task New_run_tries_the_tracks_that_failed_before()
+    {
+        var track = Local("m1", "Record", "One", write: false);
+        var library = Library(SourceKind.MusicBee, track);
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+        Assert.Equal(1, Record(library).Counts().NotImported);
+
+        Local("m1", "Record", "One");   // the file is back
+        var end = await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(RunEnd.Finished, end);
+        Assert.Equal(new MigrationCounts(1, 1, 0, 0, 0), Record(library).Counts());
+    }
+
+    [Fact]
+    public async Task Track_removed_from_rpm_during_the_import_is_not_brought_back()
+    {
+        var library = Library(SourceKind.MusicBee, Local("m1", "Record", "One"));
+        var record = Record(library);
+        record.AddFound(["m1"]);
+        record.Note("m1", MigrationTrackState.NotImported, reason: MigrationReason.Removed);
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(MigrationReason.Removed, Assert.Single(Record(library).Rows(MigrationTrackState.NotImported)).Reason);
+        Assert.Empty(_db.Query());
+    }
+
     // ── fakes ──
 
     private sealed class SyncProgress(Action<MigrationProgress> report) : IProgress<MigrationProgress>
@@ -385,10 +499,14 @@ public class MigrationRunTests : IDisposable
     private sealed class FakeCloud : IMigrationCloud
     {
         public (long Used, long Quota, bool Unlimited) Quota { get; set; } = (0, 0, true);
+        public int QuotaFailures { get; set; }
+        public CloudUploads Uploads { get; set; } = CloudUploads.Ready;
         public int UploadRequests;
         public List<(string RpmId, long AddedAtUnix)> Added { get; } = [];
         public bool SignedIn => true;
-        public Task<(long Used, long Quota, bool Unlimited)> QuotaAsync(CancellationToken ct) => Task.FromResult(Quota);
+        public Task<(long Used, long Quota, bool Unlimited)?> QuotaAsync(CancellationToken ct) =>
+            Task.FromResult<(long, long, bool)?>(QuotaFailures-- > 0 ? null : Quota);
+        public CloudUploads CanUpload(long bytes) => Uploads;
         public Task PutTrackAddedAsync(IReadOnlyList<(string RpmId, long AddedAtUnix)> rows, CancellationToken ct)
         {
             lock (Added) Added.AddRange(rows);
@@ -402,6 +520,8 @@ public class MigrationRunTests : IDisposable
         private readonly Dictionary<string, byte[]> _files = [];
         public bool Expired { get; init; }
         public bool ShortOnce { get; set; }
+        /// <summary>How many opens get no answer at all, as when the server is switched off.</summary>
+        public int Unreachable { get; set; }
         public int Opens;
         public SourceKind Kind => SourceKind.Jellyfin;
         public void Add(SourceTrack track) => _files[((RemoteFile)track.File).Key] = TestAudio.Wav(1, track.SourceId.GetHashCode() & 0xff);
@@ -410,6 +530,7 @@ public class MigrationRunTests : IDisposable
         {
             Interlocked.Increment(ref Opens);
             if (Expired) throw new MediaServerSignInExpired();
+            if (Unreachable-- > 0) throw new HttpRequestException("Connection refused", new System.Net.Sockets.SocketException(61));
             var bytes = _files[file.Key];
             if (ShortOnce)
             {
@@ -429,7 +550,7 @@ public class MigrationRunTests : IDisposable
         public int MostFilesSeen;
         public int DeletedBeforeSynced;
 
-        public FakeUploader(LibraryDatabase db, string root, TimeSpan delay, string? staging = null, Action<long>? onSynced = null)
+        public FakeUploader(LibraryDatabase db, string root, TimeSpan delay, string? staging = null, Action<long>? onSynced = null, bool refuse = false)
         {
             _loop = Task.Run(async () =>
             {
@@ -450,6 +571,13 @@ public class MigrationRunTests : IDisposable
                             firstSeen[t.Id] = seen = DateTime.UtcNow;
                         if (DateTime.UtcNow - seen < delay)
                             continue;
+                        if (refuse)
+                        {
+                            // The same refusal twice: final, as CloudRetrySchedule.AfterFailure rules.
+                            db.MarkCloudAttemptFailed(t.Id, "Not a format the cloud takes", CloudRetrySchedule.NeverAgainTicks(DateTime.UtcNow));
+                            db.MarkCloudAttemptFailed(t.Id, "Not a format the cloud takes", CloudRetrySchedule.NeverAgainTicks(DateTime.UtcNow));
+                            continue;
+                        }
                         db.SeedSynced(t.Id, "hash-" + t.Id, t.SizeBytes, 5);
                         onSynced?.Invoke(t.SizeBytes);
                     }

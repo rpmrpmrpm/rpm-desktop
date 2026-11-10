@@ -10222,6 +10222,10 @@
     <value>Finishing</value>
     <comment>Import from another app: progress stage.</comment>
   </data>
+  <data name="Migration_StageWaiting" xml:space="preserve">
+    <value>Waiting for the connection</value>
+    <comment>Import from another app: progress stage while the media server or the cloud gives no answer. The import tries again by itself.</comment>
+  </data>
   <data name="Migration_ProgressTracks" xml:space="preserve">
     <value>{0} of {1} tracks, {2} of {3}</value>
     <comment>Import from another app: progress line. {0} and {1} are numbers, {2} and {3} sizes such as 14.2 GB.</comment>
@@ -10265,6 +10269,10 @@
   <data name="Migration_StoppedCloudFull" xml:space="preserve">
     <value>Stopped: your cloud storage is full.</value>
     <comment>Import from another app: why the import stopped.</comment>
+  </data>
+  <data name="Migration_StoppedCloudOff" xml:space="preserve">
+    <value>Stopped: you are signed out, or cloud storage is turned off.</value>
+    <comment>Import from another app: why a cloud-only import stopped.</comment>
   </data>
   <data name="Migration_Status" xml:space="preserve">
     <value>Importing from {0}: {1} of {2}</value>
@@ -10337,6 +10345,10 @@
   <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
     <value>Could not be copied</value>
     <comment>Import from another app: why a track was not imported.</comment>
+  </data>
+  <data name="Migration_ReasonUploadFailed" xml:space="preserve">
+    <value>Could not be uploaded</value>
+    <comment>Import from another app: why a track was not imported (cloud-only import, the cloud refused the file). The upload's own reason follows in brackets.</comment>
   </data>
   <data name="Migration_ReasonRemoved" xml:space="preserve">
     <value>Removed from rpm during the import</value>

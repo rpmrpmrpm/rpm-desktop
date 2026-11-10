@@ -342,8 +342,12 @@ public sealed class MigrationService : IDisposable
     {
         public bool SignedIn => service._auth.IsLoggedIn;
 
-        public async Task<(long Used, long Quota, bool Unlimited)> QuotaAsync(CancellationToken ct) =>
-            await service.CloudSpaceAsync(ct) ?? (0, 0, false);
+        public Task<(long Used, long Quota, bool Unlimited)?> QuotaAsync(CancellationToken ct) => service.CloudSpaceAsync(ct);
+
+        public CloudUploads CanUpload(long bytes) =>
+            !service.CloudReady ? CloudUploads.Off
+            : service._cloudSync.Status.Space.Fits(bytes) ? CloudUploads.Ready
+            : CloudUploads.Full;
 
         public Task PutTrackAddedAsync(IReadOnlyList<(string RpmId, long AddedAtUnix)> rows, CancellationToken ct) =>
             service._cloud.PutTrackAddedAsync(rows, ct);

@@ -39,6 +39,30 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>
+    /// Whether the upload workers have stopped trying this track: its upload failed and it has no attempts
+    /// left, or the same refusal came twice and it waits for a date that is not a backoff (see
+    /// <see cref="CloudRetrySchedule.AfterFailure"/>). The rule <see cref="QueryDueForUpload"/> and
+    /// <see cref="NextCloudRetryTicks"/> use.
+    /// </summary>
+    public bool UploadGivenUp(long trackId, long nowUtcTicks)
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                $"""
+                SELECT 1 FROM tracks
+                WHERE id = $id AND cloud_state = {(int)CloudState.Error}
+                  AND (cloud_attempts >= {CloudRetrySchedule.MaxAttempts} OR cloud_next_attempt_utc_ticks > $horizon)
+                """;
+            cmd.Parameters.AddWithValue("$id", trackId);
+            // A date further out than a day is a never-again date, not a backoff.
+            cmd.Parameters.AddWithValue("$horizon", nowUtcTicks + TimeSpan.FromDays(1).Ticks);
+            return cmd.ExecuteScalar() is not null;
+        }
+    }
+
     /// <summary>One track by its row id, or null when there is no such row.</summary>
     public LibraryTrack? FindById(long id)
     {
@@ -306,6 +330,27 @@ public sealed partial class LibraryDatabase
                 cmd.Parameters.AddWithValue("$attempts", attempts);
                 cmd.Parameters.AddWithValue("$next", nowUtcTicks + CloudRetrySchedule.Backoff(attempts - 1).Ticks);
                 cmd.Parameters.AddWithValue("$reason", reason);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// At the start of each run, the tracks that were not imported go back to waiting, with no
+        /// attempts counted, so a run after the server was asleep, the disk was full or a file was missing
+        /// tries them again. A track the person removed from rpm during the import stays removed.
+        /// </summary>
+        public void ReopenFailed()
+        {
+            using (_db._gate.Take())
+            {
+                using var cmd = _db._connection.CreateCommand();
+                cmd.CommandText =
+                    """
+                    UPDATE migration_track SET state = 0, attempts = 0, next_try_utc_ticks = 0, reason = NULL, detail = NULL
+                    WHERE migration_id = $m AND state = 4 AND COALESCE(reason, '') <> $removed
+                    """;
+                cmd.Parameters.AddWithValue("$m", Id);
+                cmd.Parameters.AddWithValue("$removed", MigrationReason.Removed);
                 cmd.ExecuteNonQuery();
             }
         }

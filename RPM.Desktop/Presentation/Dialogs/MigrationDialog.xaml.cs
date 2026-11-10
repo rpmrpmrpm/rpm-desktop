@@ -459,6 +459,7 @@ public sealed partial class MigrationDialog : ContentDialog
             MigrationStage.Playlists => "Migration_StagePlaylists",
             MigrationStage.Finishing => "Migration_StageFinishing",
             MigrationStage.Reading => "Migration_StageReading",
+            MigrationStage.Waiting => "Migration_StageWaiting",
             _ => "Migration_StageTracks",
         });
 
@@ -480,6 +481,7 @@ public sealed partial class MigrationDialog : ContentDialog
             RunEnd.SignInExpired => "Migration_StoppedSignIn",
             RunEnd.DiskFull => "Migration_StoppedDiskFull",
             RunEnd.CloudFull => "Migration_StoppedCloudFull",
+            RunEnd.CloudOff => "Migration_StoppedCloudOff",
             _ => "Migration_Paused",
         });
         if (!_service.IsRunning && stopped is not null)
