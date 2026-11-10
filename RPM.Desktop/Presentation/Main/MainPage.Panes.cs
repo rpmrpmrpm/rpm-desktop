@@ -466,6 +466,10 @@ public sealed partial class MainPage
         Common.FrostPlate.Current.Reshaping(LeftPanel);
         Grid.SetColumnSpan(LeftPanel, over ? 3 : 1);
         Canvas.SetZIndex(LeftPanel, over ? 1 : 0);
+        // The library card stays laid out under the import card. On the Skia head a click on the import
+        // card (its "Add music" button, for one) went to the library card under it, so the covered card
+        // takes no pointer input until it is uncovered.
+        LibraryPanel.IsHitTestVisible = !over;
     }
 
     /// <summary>Whether the left card lies over the row, or is still sliding back from it.</summary>
