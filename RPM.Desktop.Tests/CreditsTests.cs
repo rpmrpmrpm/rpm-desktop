@@ -281,6 +281,8 @@ public class CreditsTests
             ["fa-solid-900.ttf"] = "Font Awesome",
             ["fa-regular-400.ttf"] = "Font Awesome",
             ["fa-brands-400.ttf"] = "Font Awesome",
+            // The marks of the apps the import reads from (rpm/scripts/gen_brand_font.py).
+            ["rpm-brands.ttf"] = "MusicBee, Apple Music, Jellyfin, Plex, Navidrome",
         };
 
         var fonts = Path.Combine(Root, "RPM.Desktop", "Assets", "Fonts");
