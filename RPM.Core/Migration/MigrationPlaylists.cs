@@ -16,9 +16,10 @@ public sealed record PlaylistOutcome(string Name, int Entries, int Unmatched, bo
 /// <para>The first time, each playlist is created in its folders with the source's entries, in order and
 /// with repeats. A name a playlist the person made in rpm already uses gets the source's name in
 /// brackets ("Road trip (MusicBee)"), so nothing the person made is changed. After that the import
-/// record links the two playlists, and a second import only adds the source's new entries to the end.
-/// It never removes or reorders, so edits made in rpm stay. A playlist the person deleted in rpm stays
-/// deleted.</para>
+/// record links the two playlists. While the rpm playlist still holds exactly what the import put in,
+/// the source's new entries take their places in the source's order (a run stopped at "cloud full" and
+/// continued later). Once the person has changed it, new entries only go on the end, so edits made in
+/// rpm stay. A playlist the person deleted in rpm stays deleted.</para>
 /// </summary>
 public static class MigrationPlaylists
 {
@@ -69,9 +70,20 @@ public static class MigrationPlaylists
                     else
                         fresh.Add(item);
                 }
-                if (fresh.Count > 0)
-                    db.AddSongsToPlaylist(node.Id, fresh.Select(f => f.Song), AlreadyInPlaylist.AddAnother);
                 var entries = before.Entries.Concat(fresh.Select(f => f.SourceId)).ToList();
+                if (fresh.Count > 0)
+                {
+                    var untouched = Untouched(db.GetPlaylistItems(node.Id), before.Entries, resolved);
+                    db.AddSongsToPlaylist(node.Id, fresh.Select(f => f.Song), AlreadyInPlaylist.AddAnother);
+                    // Noted in the order written, so a stop before the reorder below leaves a record that
+                    // still matches the playlist.
+                    record.NotePlaylist(playlist.SourceId, node.Id, entries);
+                    if (untouched && InSourceOrder(db.GetPlaylistItems(node.Id), entries, resolved) is { } order)
+                    {
+                        db.ReorderPlaylistItems(node.Id, order);
+                        entries = [.. resolved.Select(r => r.SourceId)];
+                    }
+                }
                 record.NotePlaylist(playlist.SourceId, node.Id, entries);
                 outcomes.Add(new PlaylistOutcome(node.Name, entries.Count, unmatched, playlist.Smart, false));
                 continue;
@@ -90,6 +102,53 @@ public static class MigrationPlaylists
             outcomes.Add(new PlaylistOutcome(name, resolved.Count, unmatched, playlist.Smart, taken));
         }
         return outcomes;
+    }
+
+    /// <summary>Whether the playlist holds exactly the songs the import put in, in that order, and nothing else.</summary>
+    private static bool Untouched(
+        IReadOnlyList<PlaylistItem> items, IReadOnlyList<string> made, IReadOnlyList<(string SourceId, (string? RpmId, string RelPath) Song)> resolved)
+    {
+        if (items.Count != made.Count)
+            return false;
+        var songOf = new Dictionary<string, (string? RpmId, string RelPath)>(StringComparer.Ordinal);
+        foreach (var (sourceId, song) in resolved)
+            songOf.TryAdd(sourceId, song);
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].ItemKind != PlaylistItemKind.Song || !songOf.TryGetValue(made[i], out var song) || !Same(items[i], song))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool Same(PlaylistItem item, (string? RpmId, string RelPath) song) =>
+        item.RpmId is { Length: > 0 } id && song.RpmId is { Length: > 0 }
+            ? string.Equals(id, song.RpmId, StringComparison.Ordinal)
+            : string.Equals(item.RelPath, song.RelPath, StringComparison.Ordinal);
+
+    /// <summary>The playlist's item ids in the source's order, or null when the items are not one per
+    /// entry (something changed the playlist meanwhile). <paramref name="entries"/> names the source
+    /// entry of each item, in the order the items are now.</summary>
+    private static List<long>? InSourceOrder(
+        IReadOnlyList<PlaylistItem> items, IReadOnlyList<string> entries, IReadOnlyList<(string SourceId, (string? RpmId, string RelPath) Song)> resolved)
+    {
+        if (items.Count != entries.Count || items.Count != resolved.Count)
+            return null;
+        var bySource = new Dictionary<string, Queue<long>>(StringComparer.Ordinal);
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (!bySource.TryGetValue(entries[i], out var ids))
+                bySource[entries[i]] = ids = new Queue<long>();
+            ids.Enqueue(items[i].Id);
+        }
+        var order = new List<long>(items.Count);
+        foreach (var (sourceId, _) in resolved)
+        {
+            if (!bySource.TryGetValue(sourceId, out var ids) || !ids.TryDequeue(out var id))
+                return null;
+            order.Add(id);
+        }
+        return order;
     }
 
     private static (string? RpmId, string RelPath)? Resolve(

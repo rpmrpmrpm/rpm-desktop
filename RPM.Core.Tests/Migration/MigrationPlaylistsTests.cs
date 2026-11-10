@@ -115,6 +115,26 @@ public class MigrationPlaylistsTests : IDisposable
     }
 
     [Fact]
+    public void Tracks_that_arrive_after_a_stop_take_their_places_in_a_playlist_nobody_changed()
+    {
+        // A run stopped at "cloud full" adds the playlist with the tracks that arrived; Continue brings the rest.
+        var tracks = new[] { Track("a", "A"), Track("b", "B"), Track("c", "C") };
+        var library = new SourceLibrary(SourceKind.MusicBee, "lib", "MusicBee", tracks, [List("p1", "Mix", ["b", "a", "c", "b"])], []);
+        var record = _db.OpenMigration(library, MigrationDestination.ThisComputer);
+        record.AddFound(tracks.Select(t => t.SourceId));
+        record.Note("a", MigrationTrackState.Imported, Row("A").Id);
+        MigrationPlaylists.Apply(_db, library, record, "MusicBee");
+        Assert.Equal(["A"], Titles(Node("Mix")));
+
+        record.Note("b", MigrationTrackState.Imported, Row("B").Id);
+        record.Note("c", MigrationTrackState.Imported, Row("C").Id);
+        var outcome = Assert.Single(MigrationPlaylists.Apply(_db, library, record, "MusicBee"));
+
+        Assert.Equal(["B", "A", "C", "B"], Titles(Node("Mix")));
+        Assert.Equal(4, outcome.Entries);
+    }
+
+    [Fact]
     public void Smart_playlist_becomes_plain_and_is_reported()
     {
         var (library, record) = Imported(SourceKind.ITunes, [List("p1", "Top Rated", ["a", "b"], smart: true)]);
