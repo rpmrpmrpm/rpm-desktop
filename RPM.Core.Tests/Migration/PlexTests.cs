@@ -88,6 +88,21 @@ public class PlexTests
     }
 
     [Fact]
+    public async Task A_direct_connection_comes_before_a_relayed_one()
+    {
+        const string resources = """
+            [{"name":"S","provides":"server","clientIdentifier":"m","accessToken":"t","connections":[
+              {"protocol":"https","uri":"https://relay.plex.direct:8443","local":false,"relay":true},
+              {"protocol":"https","uri":"https://direct.plex.direct:32400","local":false,"relay":false}]}]
+            """;
+        var http = new FixtureHttp(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(resources) });
+
+        var server = Assert.Single(await PlexSignIn.ServersAsync(http.Client(), ClientId, "t", CancellationToken.None));
+
+        Assert.Equal(["https://direct.plex.direct:32400/", "https://relay.plex.direct:8443/"], server.Connections.Select(c => c.ToString()));
+    }
+
+    [Fact]
     public async Task Pick_connection_takes_the_first_that_answers()
     {
         var local = new Uri("https://192-168-1-10.0123456789abcdef.plex.direct:32400");
