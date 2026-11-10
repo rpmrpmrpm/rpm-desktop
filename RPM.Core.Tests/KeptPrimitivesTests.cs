@@ -90,15 +90,37 @@ public class KeptPrimitivesTests : IDisposable
     }
 
     [Fact]
-    public void Covers_trash_inbox_and_the_empty_folder_sweep_leave_the_folder_alone()
+    public void Picture_edits_are_kept_in_rpm_data_and_read_before_the_folders_own()
     {
         var before = Snapshot();
         var album = Path.GetDirectoryName(_song)!;
+        var chosen = Path.Combine(_root, ".rpm", "art", "Artist", "Album");
 
-        Assert.False(FolderArtWriter.WriteCover(album, [9, 9]));
-        Assert.False(FolderArtWriter.DeleteCover(album));
-        Assert.False(FolderArtWriter.ReplaceDisc(album, [9, 9]));
-        Assert.False(FolderArtWriter.DeleteDisc(album));
+        Assert.EndsWith("folder.jpg", FolderArtWriter.FindFolderImage(album));
+        Assert.True(FolderArtWriter.WriteCover(album, [9, 9]));
+        Assert.Equal(Path.Combine(chosen, "cover.jpg"), FolderArtWriter.FindFolderImage(album));
+        Assert.True(FolderArtWriter.DeleteCover(album));
+        Assert.Null(FolderArtWriter.FindFolderImage(album));
+        Assert.True(FolderArtWriter.WriteCover(album, [8, 8]));
+        Assert.Equal([8, 8], File.ReadAllBytes(FolderArtWriter.FindFolderImage(album)!));
+
+        Assert.True(FolderArtWriter.ReplaceDisc(album, [7, 7]));
+        Assert.Equal(Path.Combine(chosen, "disc.png"), FolderArtWriter.FindDiscImage(album));
+        Assert.True(FolderArtWriter.DeleteDisc(album));
+        Assert.Null(FolderArtWriter.FindDiscImage(album));
+
+        Assert.Equal(before, Snapshot());
+
+        // Closed, the library is not kept here any more, and the folder's own pictures are what is read.
+        KeptFiles.Close(_root);
+        Assert.EndsWith("folder.jpg", FolderArtWriter.FindFolderImage(album));
+        KeptFiles.Open(_root);
+    }
+
+    [Fact]
+    public void Trash_inbox_and_the_empty_folder_sweep_leave_the_folder_alone()
+    {
+        var before = Snapshot();
         Assert.False(OsTrash.Trash(_song));
         OrganizeApplier.CleanupEmptyFolders(_root);
         Assert.Throws<KeptFileException>(() => LibraryInbox.Quarantine(_root, _song));

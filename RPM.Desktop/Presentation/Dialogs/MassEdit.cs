@@ -381,6 +381,9 @@ internal static class MassEdit
                     if (plan[i].Cloud is { } keptCloudRow)
                         cloudEdits.Add((keptCloudRow, s.Track, edited.RelativePath));
                     landed.Add((plan[i].Row, plan[i].Row.FilePath));
+                    // The album's pictures are written below like a cloud record's: no file moved into
+                    // the folder, and the picture writers keep a kept folder's pictures in .rpm/art.
+                    cloudFolders.Add(Path.Combine(root, edited.Folder.Replace('/', Path.DirectorySeparatorChar)));
                     continue;
                 }
 

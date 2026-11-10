@@ -90,6 +90,15 @@ public static class FolderArtWriter
     /// </summary>
     public static string? FindFolderImage(string folder)
     {
+        // A kept library: the picture chosen in rpm, or its removal, comes before the folder's own.
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+        {
+            if (File.Exists(Path.Combine(chosen, CoverRemovedName)))
+                return null;
+            if (Existing(chosen, ChosenCoverNames) is { } own)
+                return own;
+        }
+
         if (!Directory.Exists(folder))
             return null;
 
@@ -128,11 +137,75 @@ public static class FolderArtWriter
 
     private static readonly string[] DiscImageNames = ["disc.png", "disc.jpg", "disc.jpeg"];
 
+    // ── a kept library's chosen pictures, in .rpm/art (see KeptFiles.ArtFolderFor) ──
+
+    private static readonly string[] ChosenCoverNames = ["cover.jpg", "cover.png"];
+
+    /// <summary>The marker that says the person removed the cover in rpm. The folder's own picture is then
+    /// not shown. A picture inside the music files cannot be removed in a kept library and still shows.</summary>
+    public const string CoverRemovedName = "cover.removed";
+
+    /// <summary>The same for the disc picture.</summary>
+    public const string DiscRemovedName = "disc.removed";
+
+    private static string? Existing(string folder, string[] names)
+    {
+        foreach (var name in names)
+        {
+            var path = Path.Combine(folder, name);
+            if (File.Exists(path))
+                return path;
+        }
+        return null;
+    }
+
+    private static bool WriteChosen(string chosen, string name, string[] replaces, string removedMarker, byte[] bytes)
+    {
+        if (bytes.Length == 0)
+            return false;
+        try
+        {
+            Directory.CreateDirectory(chosen);
+            foreach (var old in replaces.Append(removedMarker))
+                File.Delete(Path.Combine(chosen, old));
+            File.WriteAllBytes(Path.Combine(chosen, name), bytes);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool MarkRemoved(string chosen, string[] pictures, string removedMarker)
+    {
+        try
+        {
+            Directory.CreateDirectory(chosen);
+            foreach (var old in pictures)
+                File.Delete(Path.Combine(chosen, old));
+            File.WriteAllText(Path.Combine(chosen, removedMarker), "");
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>The album folder's disc art (disc.png|jpg|jpeg), or null. This is a transparent PNG of the
     /// record itself, which the turntable shows in place of the drawn disc. It is folder-driven, like the
     /// cover: written at import, read locally while playing, and never looked up dynamically.</summary>
     public static string? FindDiscImage(string folder)
     {
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+        {
+            if (File.Exists(Path.Combine(chosen, DiscRemovedName)))
+                return null;
+            if (Existing(chosen, DiscImageNames) is { } own)
+                return own;
+        }
+
         foreach (var name in DiscImageNames)
         {
             var path = Path.Combine(folder, name);
@@ -148,8 +221,8 @@ public static class FolderArtWriter
     /// Returns whether a cover was written.</summary>
     public static bool WriteCover(string folder, byte[] bytes)
     {
-        if (KeptFiles.Declines(folder, "given a new cover"))
-            return false;
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+            return WriteChosen(chosen, "cover.jpg", ChosenCoverNames, CoverRemovedName, bytes);
         try
         {
             if (!Directory.Exists(folder) || bytes.Length == 0)
@@ -178,8 +251,8 @@ public static class FolderArtWriter
     /// anything went.</summary>
     public static bool DeleteCover(string folder)
     {
-        if (KeptFiles.Declines(folder, "cleared of its cover"))
-            return false;
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+            return MarkRemoved(chosen, ChosenCoverNames, CoverRemovedName);
         bool gone = false;
         foreach (var name in ExistingImageNames)
         {
@@ -252,8 +325,8 @@ public static class FolderArtWriter
     /// </summary>
     public static bool ReplaceDisc(string folder, byte[] bytes)
     {
-        if (KeptFiles.Declines(folder, "given a new disc picture"))
-            return false;
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+            return WriteChosen(chosen, "disc.png", DiscImageNames, DiscRemovedName, bytes);
         try
         {
             if (!Directory.Exists(folder) || bytes.Length == 0)
@@ -278,8 +351,8 @@ public static class FolderArtWriter
     /// </summary>
     public static bool DeleteDisc(string folder)
     {
-        if (KeptFiles.Declines(folder, "cleared of its disc picture"))
-            return false;
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+            return MarkRemoved(chosen, DiscImageNames, DiscRemovedName);
         bool gone = false;
         foreach (var name in DiscImageNames)
         {

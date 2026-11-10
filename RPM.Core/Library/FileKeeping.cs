@@ -142,6 +142,33 @@ public static class KeptFiles
         return false;
     }
 
+    /// <summary>
+    /// Where the pictures chosen in rpm for an album folder of a kept library are kept:
+    /// <c>&lt;root&gt;/.rpm/art/&lt;album folder&gt;</c>. A kept folder's own pictures cannot be replaced or
+    /// removed, so an edit is stored here and read before them (see <c>FolderArtWriter</c>). The folder
+    /// travels with the library, so every computer and the NAS daemon read the same pictures. Null for a
+    /// folder outside a kept library.
+    /// </summary>
+    public static string? ArtFolderFor(string albumFolder)
+    {
+        var full = Normal(albumFolder);
+        foreach (var root in _roots)
+        {
+            if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var relative = full[root.Length..].TrimEnd(Path.DirectorySeparatorChar);
+            if (relative.Split(Path.DirectorySeparatorChar)[0]
+                .Equals(LibraryDatabase.DataFolderName, StringComparison.OrdinalIgnoreCase))
+                return null;
+            return Path.Combine(root, LibraryDatabase.DataFolderName, ArtFolderName, relative);
+        }
+
+        return null;
+    }
+
+    /// <summary>The folder under <c>.rpm</c> that holds a kept library's chosen pictures.</summary>
+    public const string ArtFolderName = "art";
+
     /// <summary>Throws <see cref="KeptFileException"/> when <paramref name="path"/> is in a kept folder.
     /// Call it before writing, moving, renaming or deleting the file or folder at the path.</summary>
     public static void Refuse(string path, string action)
