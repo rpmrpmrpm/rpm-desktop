@@ -76,15 +76,29 @@ public static class OrganizeApplier
         }
         catch (Exception ex)
         {
+            // A copy that failed part-way (the disk filled up) leaves half a file behind. The destination
+            // did not exist before (checked above), so whatever is there now is that half file.
+            if (mode == OrganizeMode.Copy && !suggestion.IsAlreadyInPlace)
+            {
+                try { File.Delete(destination); }
+                catch { /* nothing more can be done here; the result reports the failure */ }
+            }
+
             return new ApplyResult
             {
                 SourcePath = source,
                 DestinationPath = destination,
                 Success = false,
                 Error = ex.Message,
+                DiskFull = IsDiskFull(ex),
             };
         }
     }
+
+    /// <summary>Whether an exception says the disk is full: ENOSPC (28) on macOS and Linux, and
+    /// ERROR_DISK_FULL or ERROR_HANDLE_DISK_FULL on Windows.</summary>
+    internal static bool IsDiskFull(Exception ex) =>
+        ex is IOException { HResult: 28 or unchecked((int)0x80070070) or unchecked((int)0x80070027) };
 
     /// <summary>
     /// Deletes now-empty directories under <paramref name="root"/> after a Move run

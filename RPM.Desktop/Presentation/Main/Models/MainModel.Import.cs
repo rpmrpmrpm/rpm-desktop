@@ -70,56 +70,13 @@ public sealed partial class MainModel
 
         bool merged = _settings.MultiDiscMode == MultiDiscMode.MergedAlbum;
 
-        // Read on the UI thread, and planned off it. These two reach the library's own gate, which the
-        // window also goes through.
+        // The queue is read on the UI thread, and planned off it. The plan is LibraryFiler's, the same one
+        // the press files by.
         var importable = Queue.ImportableRows();
-        var artists = ArtistCanonicalizer.FromLibrary(_library.Db);
+        var tracks = importable.Select(q => q.Wanted).ToList();
+        var db = _library.Db;
 
-        var tracks = importable.Select(q => artists.Apply(q.Wanted)).ToList();
-
-        tracks = [.. tracks.Select(t => DiscNamed(t, merged))];
-
-        Func<TrackInfo, string?>? albumFolderOverride = merged
-            ? t => t.DiscNumber > 0 && !string.IsNullOrWhiteSpace(t.Album)
-                ? _library.Db.FindAlbumFolder(t.Album!, t.AlbumArtist)
-                : null
-            : null;
-
-        var albumSets = merged ? BuildMergedAlbums(tracks, root) : null;
-        Func<TrackInfo, TrackInfo>? namingView = albumSets is null
-            ? null
-            : t => albumSets.TryGetValue(MergedAlbumKey(t), out var siblings)
-                ? MultiDiscImport.NamedInMergedAlbum(t, siblings, template)
-                : t;
-
-        return Task.Run<IReadOnlyList<TrackSuggestion>>(
-            () => RenamePlanner.Plan(tracks, template, root, albumFolderOverride, namingView));
-    }
-
-    /// <summary>What a track on a numbered disc is called for filing, under the multi-disc setting.
-    ///
-    /// <para><b>Both modes change the album name, in opposite directions.</b> Separate decorates the name,
-    /// so the discs cannot collide. Merged UNDECORATES it. A set whose tagger wrote the disc number into
-    /// the album name arrives already split. "The Wall (1)" and "The Wall (2)" are two album names, and
-    /// everything downstream merges on that name. So a properly tagged two-disc set landed as two folders
-    /// when the setting was Merged. See <see cref="MultiDiscImport.MergedAlbumName"/>, which has the guards
-    /// that stop a record that simply ends in a number from being renamed.</para>
-    ///
-    /// <para>This is one method, not the same lines written twice, once in the preview and once in the
-    /// press. Two copies could drift apart. A preview that is prepared differently from the press gives a
-    /// confident wrong answer. That is why <see cref="PlanImportAsync"/> exists.</para>
-    /// </summary>
-    private static TrackInfo DiscNamed(TrackInfo track, bool merged)
-    {
-        if (track.DiscNumber == 0 || track.DiscCount <= 1 || string.IsNullOrWhiteSpace(track.Album))
-            return track;
-
-        return track with
-        {
-            Album = merged
-                ? MultiDiscImport.MergedAlbumName(track.Album!, track.DiscNumber, track.DiscCount)
-                : MultiDiscImport.SeparateAlbumName(track.Album!, track.DiscNumber, track.DiscSubtitle),
-        };
+        return Task.Run(() => LibraryFiler.Plan(db, tracks, template, merged, root));
     }
 
     // ── arranging a record by hand ──────────────────────────────────────────────────────────────
@@ -286,14 +243,6 @@ public sealed partial class MainModel
         var byPath = importable.ToDictionary(q => q.Path, StringComparer.OrdinalIgnoreCase);
         var tracks = importable.Select(q => q.Wanted).ToList();
 
-        // Each artist is spelled the way the collection already spells them, before anything decides where
-        // a file goes. A record tagged "guns n roses" files onto the "Guns N' Roses" shelf. It does not
-        // start a second shelf beside it. The tag written into the file agrees with the folder, because
-        // both are rendered from these same tracks. Changes are applied in order, so the run also agrees
-        // with itself about a band that the library has never held.
-        var artists = ArtistCanonicalizer.FromLibrary(_library.Db);
-        tracks = tracks.Select(artists.Apply).ToList();
-
         // An import files the QUEUE's files. The music that is playing is almost always a record from the
         // library, and this does not touch it. Stopping it was collateral damage. Filing a few tracks in
         // the background is no reason for the room to go quiet.
@@ -306,126 +255,46 @@ public sealed partial class MainModel
             && (mode == OrganizeMode.Move || LibraryInbox.IsInside(root, playing)))
             _dispatcher.TryEnqueue(_playback.Stop);
 
-        // Multi-disc filing (both CD and vinyl). Merged (the default): a disc of a set lands in the album
-        // folder that its siblings already occupy. So a disc ripped later joins the existing album. A disc
-        // marker that the tagger wrote into the album name is removed, so that the two discs agree which
-        // record they are. Separate: each disc becomes its own album, and its name is decorated with the
-        // disc, so they file apart. See DiscNamed.
-        tracks = [.. tracks.Select(t => DiscNamed(t, merged))];
-        Func<TrackInfo, string?>? albumFolderOverride = merged
-            ? t => t.DiscNumber > 0 && !string.IsNullOrWhiteSpace(t.Album)
-                ? _library.Db.FindAlbumFolder(t.Album!, t.AlbumArtist)
-                : null
-            : null;
-
-        // Merged discs share a folder, so they must not share file names. The template names each file from
-        // the merged album's continuing count. For example, disc 2 track 1 is 9 of 18. The TAGS keep the
-        // standard per-disc numbering. The album's earlier discs, which are already on the shelf, are
-        // counted in too. That is what makes a disc imported months later land in sequence, and not on top
-        // of the others.
-        var albumSets = merged ? BuildMergedAlbums(tracks, root) : null;
-        Func<TrackInfo, TrackInfo>? namingView = albumSets is null
-            ? null
-            : t => albumSets.TryGetValue(MergedAlbumKey(t), out var siblings)
-                ? MultiDiscImport.NamedInMergedAlbum(t, siblings, template)
-                : t;
-        var sources = importable.Select(q => q.Source)
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-
-        var suggestions = RenamePlanner.Plan(tracks, template, root, albumFolderOverride, namingView);
-        var list = new List<ApplyResult>(suggestions.Count);
-        var mirrored = new List<LibraryTrack>(suggestions.Count);
-        // Successfully imported rows leave the queue. Failures stay for another look.
+        // Successfully imported rows leave the queue. Failures stay for another look. The queue is cleared
+        // in a finally block, after LibraryFiler has recorded what landed (in its own finally block), so the
+        // mirror and the queue agree with the disk whichever way the run ends.
         var importedIds = new List<long>();
         // (intent, where its file landed) for this run only. This is the scope in which the album answers
         // are applied.
         var landed = new List<(long IntentId, string DestinationPath)>();
-        int done = 0;
-        progress.Report((0, suggestions.Count));
-
-        // The db is caught up in a finally block. Whatever landed on disk before something went wrong is
-        // still ON disk. So the mirror and the queue must agree with it either way. Half an import that
-        // knows what it did can be recovered. Half an import that forgot what it did leaves a duplicate for
-        // the next import.
+        IReadOnlyList<Filed> filed;
         try
         {
-            // Reported at most sixteen times a second, and always for the last file. One file can take a
-            // millisecond, for example a small copy onto an SSD. A post for each file would be thousands a
-            // second. Each post re-reads half a dozen bindings, on the thread that has to stay responsive.
-            var lastReport = System.Diagnostics.Stopwatch.StartNew();
-            foreach (var s in suggestions)
-            {
-                // A file that is waiting in the inbox is always MOVED, whatever the copy setting says. The
-                // inbox is a staging area inside the collection, not a source worth keeping. Copying out of
-                // it would leave the same album sitting there forever. It would be re-scanned and offered
-                // again on every launch, and it would eventually be filed twice.
-                var fileMode = LibraryInbox.IsInside(root, s.Track.FilePath) ? OrganizeMode.Move : mode;
-                var result = OrganizeApplier.Apply(s, root, fileMode);
-                list.Add(result);
-                done++;
-                if (lastReport.ElapsedMilliseconds >= 60 || done == suggestions.Count)
+            filed = LibraryFiler.File(
+                _library.Db, tracks, new FilingRules(template, mode, merged, root),
+                new FilingStatus(this, progress),
+                (input, done) =>
                 {
-                    SetStatus(Loc.Format("Queue_Importing", done, suggestions.Count, Path.GetFileName(s.Track.FilePath)));
-                    progress.Report((done, suggestions.Count));
-                    lastReport.Restart();
-                }
-
-                if (!result.Success)
-                    continue;
-
-                if (byPath.TryGetValue(result.SourcePath, out var queued))
-                {
+                    if (!byPath.TryGetValue(input.FilePath, out var queued))
+                        return;
                     importedIds.Add(queued.Id);
-                    // The record's answers are applied to the folders that these files landed in, and to no
-                    // others (see AlbumIntentApplier). A run can only touch what the run filed.
+                    // The record's answers are applied to the folders that these files landed in, and to
+                    // no others (see AlbumIntentApplier). A run can only touch what the run filed.
                     if (queued.AlbumIntentId != 0)
-                        landed.Add((queued.AlbumIntentId, result.DestinationPath));
-                }
-
-                // Mirror what actually landed on disk. The tags were just written into the destination. So
-                // the db row is the file's truth, not the plan's.
-                try
-                {
-                    mirrored.Add(LibraryDatabase.FromTrackInfo(TagReader.Read(result.DestinationPath), root));
-                }
-                catch
-                {
-                    mirrored.Add(LibraryDatabase.FromTrackInfo(s.Track with { FilePath = result.DestinationPath }, root));
-                }
-            }
+                        landed.Add((queued.AlbumIntentId, done.Result.DestinationPath));
+                },
+                CancellationToken.None);
         }
         finally
         {
-            _library.Db.UpsertMany(mirrored);
             _library.Db.QueueRemove(importedIds);
         }
 
+        var list = filed.Select(f => f.Result).ToList();
+
         // What the queue was told about each RECORD (whether it is classical, whether it is levelled, and
         // what the disc label looks like) is written onto the folders that this run filed them into. It is
-        // read after the loop, because the queue rows are gone by now, and the ids were kept above.
+        // read after the filing, because the queue rows are gone by now, and the ids were kept above.
         ApplyAlbumIntents(landed, albumIntents, root);
 
         // The import already has in hand what the CATALOGUE said about each record. It is kept here, and it
         // is not thrown away once the tags are written.
         RememberPressings(list, root);
-
-        // A disc that joins an existing album makes the whole album multi-disc. So the discs already there
-        // are brought up to the same disc count. If they carry no disc number, they are stamped as disc 1.
-        if (merged)
-            BackfillAlbumDiscCounts(tracks, root);
-
-        // Moves leave empty folders behind. Sweep them out of each source tree.
-        if (mode == OrganizeMode.Move && list.Any(r => r.Success))
-            foreach (var source in sources)
-                OrganizeApplier.CleanupEmptyFolders(source);
-
-        // Folder images. The carry runs first. A rip stages the full-size scan beside its tracks.
-        // WriteCovers would otherwise fill the folder from a track's embedded copy, and that copy is
-        // deliberately the smaller of the two. WriteCovers then covers everything that arrived without an
-        // image. That is an ordinary import of files that are already tagged.
-        FolderArtWriter.CarryCoverImages(list);
-        FolderArtWriter.WriteCovers(list);
-        FolderArtWriter.CarryDiscImages(list);
 
         return list;
     }
@@ -526,94 +395,16 @@ public sealed partial class MainModel
         }
     }
 
-    /// <summary>Which record a track belongs to, for merged filing: the album under the artist that it
-    /// files under. This is the same key that the queue's tree and the disc backfill use.</summary>
-    private static (string Album, string Artist) MergedAlbumKey(TrackInfo track)
-        => (AlbumResolver.NormalizeAlbum(track.Album ?? ""),
-            (string.IsNullOrWhiteSpace(track.AlbumArtist) ? track.Artist : track.AlbumArtist) ?? "");
-
-    /// <summary>Every track of each multi-disc record being imported, INCLUDING the ones already on the
-    /// shelf.
-    ///
-    /// <para>The continuing number of disc 2 track 1 is "one plus everything on disc 1". Disc 1 is very
-    /// often not in this import at all. It may have been filed last month. Without the album folder's
-    /// existing rows, the second disc would restart at 1 and land on top of the first. Preventing that is
-    /// the whole purpose of this method.</para>
-    /// </summary>
-    private Dictionary<(string Album, string Artist), List<TrackInfo>> BuildMergedAlbums(
-        IReadOnlyList<TrackInfo> tracks, string root)
+    /// <summary>The filer's progress as the import's: the status line names the file, and the bar moves.
+    /// The status line is written at most as often as the filer reports (about sixteen times a
+    /// second).</summary>
+    private sealed class FilingStatus(MainModel model, IProgress<(int Done, int Total)> bar) : IProgress<FilingProgress>
     {
-        var sets = new Dictionary<(string Album, string Artist), List<TrackInfo>>();
-        foreach (var track in tracks.Where(t => t.DiscNumber > 0 && !string.IsNullOrWhiteSpace(t.Album)))
+        public void Report(FilingProgress value)
         {
-            var key = MergedAlbumKey(track);
-            if (!sets.TryGetValue(key, out var members))
-                sets[key] = members = [];
-            members.Add(track);
-        }
-
-        foreach (var (key, members) in sets)
-        {
-            if (_library.Db.FindAlbumFolder(key.Album, key.Artist) is not { } folder)
-                continue;
-            foreach (var shelved in _library.Db.QueryUnderFolder(folder))
-            {
-                // Only what the count needs: which disc, which track, and how long that disc is.
-                members.Add(new TrackInfo
-                {
-                    FilePath = Path.Combine(root, shelved.RelativePath),
-                    Extension = shelved.Extension,
-                    DiscNumber = shelved.DiscNumber,
-                    DiscCount = shelved.DiscCount,
-                    TrackNumber = shelved.TrackNumber,
-                    // A library row has no track COUNT. How long the disc is falls back to the highest
-                    // number that is actually filed under it. That is what DiscNumbering does with a 0.
-                });
-            }
-        }
-        return sets;
-    }
-
-    /// <summary>After a disc of a multi-disc set is imported into an album that already held earlier
-    /// discs, this brings those earlier tracks up to the set's disc count. If they carry no disc number,
-    /// they get disc 1. So the whole album reads "disc N of M" consistently. This is best-effort, per file.
-    /// A file that cannot be retagged keeps its old disc fields.
-    /// </summary>
-    private void BackfillAlbumDiscCounts(IReadOnlyList<TrackInfo> imported, string root)
-    {
-        var albums = imported
-            .Where(t => t.DiscNumber > 0 && t.DiscCount > 1 && !string.IsNullOrWhiteSpace(t.Album))
-            .GroupBy(t => (Album: AlbumResolver.NormalizeAlbum(t.Album!), t.AlbumArtist));
-
-        foreach (var album in albums)
-        {
-            uint discCount = album.Max(t => t.DiscCount);
-            var folder = _library.Db.FindAlbumFolder(album.Key.Album, album.Key.AlbumArtist);
-            if (folder is null)
-                continue;
-
-            var updated = new List<LibraryTrack>();
-            foreach (var existing in _library.Db.QueryUnderFolder(folder))
-            {
-                var abs = Path.Combine(root, existing.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-                TrackInfo info;
-                try { info = TagReader.Read(abs); }
-                catch { continue; }
-
-                uint disc = info.DiscNumber > 0 ? info.DiscNumber : 1;
-                if (info.DiscCount == discCount && info.DiscNumber == disc)
-                    continue;   // already consistent
-
-                try
-                {
-                    TagReader.WriteAll(abs, info with { DiscNumber = disc, DiscCount = discCount });
-                    updated.Add(LibraryDatabase.FromTrackInfo(TagReader.Read(abs), root));
-                }
-                catch { /* leave this file as it was */ }
-            }
-
-            if (updated.Count > 0)
-                _library.Db.UpsertMany(updated);
+            if (value.FileName.Length > 0)
+                model.SetStatus(Loc.Format("Queue_Importing", value.Done, value.Total, value.FileName));
+            bar.Report((value.Done, value.Total));
         }
     }
 

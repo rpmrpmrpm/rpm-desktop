@@ -14,4 +14,7 @@ public sealed record ApplyResult
     public required string DestinationPath { get; init; }
     public bool Success { get; init; }
     public string? Error { get; init; }
+
+    /// <summary>The copy or move failed because the disk is full. A batch stops at the first one.</summary>
+    public bool DiskFull { get; init; }
 }
