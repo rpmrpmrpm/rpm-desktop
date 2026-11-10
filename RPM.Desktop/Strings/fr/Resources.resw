@@ -10390,14 +10390,6 @@
     <value>Lecture impossible</value>
     <comment>Import from another app: why a track was not imported.</comment>
   </data>
-  <data name="Migration_ReasonDiskFull" xml:space="preserve">
-    <value>Le disque est plein</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
-  <data name="Migration_ReasonCloudFull" xml:space="preserve">
-    <value>Stockage cloud plein</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
   <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
     <value>Copie impossible</value>
     <comment>Import from another app: why a track was not imported.</comment>

@@ -57,12 +57,6 @@ public static class MigrationReason
     /// <summary>The file could not be read or downloaded. Tried again later.</summary>
     public const string ReadFailed = "Migration_ReasonReadFailed";
 
-    /// <summary>The disk ran out of space while copying.</summary>
-    public const string DiskFull = "Migration_ReasonDiskFull";
-
-    /// <summary>The cloud storage of the plan is full.</summary>
-    public const string CloudFull = "Migration_ReasonCloudFull";
-
     /// <summary>The file could not be put into the library (for example another file is already at its
     /// path). The detail holds the reason the file system gave.</summary>
     public const string CouldNotCopy = "Migration_ReasonCouldNotCopy";

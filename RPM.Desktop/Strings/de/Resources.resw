@@ -10390,14 +10390,6 @@
     <value>Konnte nicht gelesen werden</value>
     <comment>Import from another app: why a track was not imported.</comment>
   </data>
-  <data name="Migration_ReasonDiskFull" xml:space="preserve">
-    <value>Das Laufwerk ist voll</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
-  <data name="Migration_ReasonCloudFull" xml:space="preserve">
-    <value>Cloud-Speicher voll</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
   <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
     <value>Konnte nicht kopiert werden</value>
     <comment>Import from another app: why a track was not imported.</comment>

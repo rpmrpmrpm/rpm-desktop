@@ -10390,14 +10390,6 @@
     <value>无法读取</value>
     <comment>Import from another app: why a track was not imported.</comment>
   </data>
-  <data name="Migration_ReasonDiskFull" xml:space="preserve">
-    <value>磁盘已满</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
-  <data name="Migration_ReasonCloudFull" xml:space="preserve">
-    <value>云存储已满</value>
-    <comment>Import from another app: why a track was not imported.</comment>
-  </data>
   <data name="Migration_ReasonCouldNotCopy" xml:space="preserve">
     <value>无法复制</value>
     <comment>Import from another app: why a track was not imported.</comment>
