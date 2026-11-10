@@ -385,6 +385,7 @@
     <Content Include="Assets\Fonts\fa-solid-900.ttf" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Fonts\fa-regular-400.ttf" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Fonts\fa-brands-400.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\rpm-brands.ttf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Doto (SIL OFL, see Doto-OFL.txt): dot-matrix face for the RPaMp ticker. A static instance
          baked from the variable font at wght=600 ROND=100, because Uno-Skia ignores variable-font axes. -->
     <Content Include="Assets\Fonts\Doto.ttf" CopyToOutputDirectory="PreserveNewest" />

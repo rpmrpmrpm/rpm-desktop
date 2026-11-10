@@ -117,6 +117,10 @@
        (Apple's leaf, Google's tail), and a FontIcon clips them to its own bounds. A TextBlock lays
        them out on a normal line, so they keep their full height. -->
   <FontFamily x:Key="FaBrandFont">ms-appx:///Assets/Fonts/fa-brands-400.ttf#Font Awesome 5 Brands</FontFamily>
+  <!-- The marks of the music apps rpm imports from (the import window). Written by
+       rpm/scripts/gen_brand_font.py; the code points are listed there. Set on a TextBlock, as the
+       Font Awesome brand glyphs are. -->
+  <FontFamily x:Key="RpmBrandsFont">ms-appx:///Assets/Fonts/rpm-brands.ttf#rpm Brands</FontFamily>
 
   <!-- The artist mark: a head and shoulders with a microphone in front. Font Awesome has no such
        glyph, so it is built from two glyphs it does have: the body of user-music, whose right shoulder

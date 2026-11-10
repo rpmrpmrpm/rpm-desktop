@@ -156,7 +156,10 @@ public sealed class MigrationService : IDisposable
                 return await Task.Run(() => PlaylistFileReader.Read(
                     [.. connection.Files.Order(StringComparer.Ordinal).Select(f => new PlaylistFileInput(f, File.ReadAllBytes(f)))]), ct);
             default:
-                return await (ServerFor(connection) ?? throw new InvalidOperationException("No server.")).ReadAsync(found, ct);
+                // On a worker: the reader parses every page, and a playlist of 20,000 entries is one answer
+                // of several megabytes. Its continuations must not run on the UI thread.
+                var server = ServerFor(connection) ?? throw new InvalidOperationException("No server.");
+                return await Task.Run(() => server.ReadAsync(found, ct), ct);
         }
     }
 

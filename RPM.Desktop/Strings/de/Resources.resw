@@ -7721,6 +7721,10 @@
     <value>Alle Symbole in der App.</value>
     <comment>About screen: what Font Awesome is used for.</comment>
   </data>
+  <data name="Credits_AppMarks_Use" xml:space="preserve">
+    <value>Die Logos auf den Schaltflächen beim Import aus einer anderen App, um diese Apps zu benennen.</value>
+    <comment>About screen: what the marks of other music apps are used for.</comment>
+  </data>
   <data name="Credits_OpenSans_Use" xml:space="preserve">
     <value>Die Ersatzschrift, wenn der App-Schrift ein Zeichen fehlt.</value>
     <comment>About screen: what the Open Sans typeface is used for.</comment>

@@ -110,6 +110,7 @@ public static partial class Credits
             new("Font Awesome", "5", null, "Copyright (c) Fonticons, Inc.", "https://fontawesome.com", null, "Credits_FontAwesome_Use", null, ["FontAwesomePro"]),
             new("Open Sans", null, null, "Copyright 2020 The Open Sans Project Authors", "https://fonts.google.com/specimen/Open+Sans", null, "Credits_OpenSans_Use", null, ["OFL-1.1"]),
             new("Uno Fluent icons", null, null, "Copyright (C) 2015-2026 Uno Platform Inc.", "https://github.com/unoplatform/uno.fonts", null, "Credits_UnoFluentIcons_Use", null, ["Apache-2.0"]),
+            new("MusicBee, Apple Music, Jellyfin, Plex, Navidrome", null, null, "Trademarks of their owners. Apple Music and Jellyfin drawings from Simple Icons.", "https://simpleicons.org", null, "Credits_AppMarks_Use", null, ["CC0-1.0"]),
         ]),
         new("Credits_Section_Wordmarks", "Credits_Wordmarks_Note",
         [

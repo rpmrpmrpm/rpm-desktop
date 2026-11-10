@@ -7721,6 +7721,10 @@
     <value>应用中的所有图标。</value>
     <comment>About screen: what Font Awesome is used for.</comment>
   </data>
+  <data name="Credits_AppMarks_Use" xml:space="preserve">
+    <value>从其他应用导入时按钮上的标志，用于指明这些应用。</value>
+    <comment>About screen: what the marks of other music apps are used for.</comment>
+  </data>
   <data name="Credits_OpenSans_Use" xml:space="preserve">
     <value>当应用自带字体缺少某个字形时使用的后备字体。</value>
     <comment>About screen: what the Open Sans typeface is used for.</comment>

@@ -514,7 +514,8 @@ public sealed partial class MigrationDialog : ContentDialog
             ProgressTracks.Text = Loc.Format("Migration_ProgressTracks", Count(done), Count(p.Total), Size(p.BytesDone), Size(p.BytesTotal));
             ProgressCounts.Text = Loc.Format("Migration_ProgressCounts", Count(p.Counts.Imported), Count(p.Counts.AlreadyInRpm), Count(p.Counts.NotImported));
             ProgressAlbum.Text = p.CurrentAlbum is { Length: > 0 } album ? Loc.Format("Migration_ProgressAlbum", album) : "";
-            ProgressTimeLeft.Text = p.TimeLeft switch
+            // An estimate only means something while the import runs.
+            ProgressTimeLeft.Text = !_service.IsRunning ? "" : p.TimeLeft switch
             {
                 null => "",
                 { TotalMinutes: < 1 } => Loc.Get("Migration_ProgressUnderAMinute"),
