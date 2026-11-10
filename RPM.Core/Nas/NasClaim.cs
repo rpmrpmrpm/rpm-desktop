@@ -62,7 +62,8 @@ public static class NasClaim
     /// Adds <paramref name="key"/> to the claim file, or replaces the entry with the same public key. The
     /// other keys stay, so a second computer of the same owner joins without removing the first.
     /// </summary>
-    /// <remarks>Written to a temporary name and renamed, so the daemon never reads half a file.</remarks>
+    /// <remarks>Written to a temporary name and renamed, so the daemon never reads half a file. On a share
+    /// that refuses the rename it is written in place.</remarks>
     public static void AddKey(string libraryRoot, NasClaimKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -72,9 +73,20 @@ public static class NasClaim
             .ToList();
         var path = PathIn(libraryRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var json = JsonSerializer.Serialize(current with { Keys = keys }, NasJson.Default.NasClaimFile);
         var temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(current with { Keys = keys }, NasJson.Default.NasClaimFile));
-        File.Move(temporary, path, overwrite: true);
+        File.WriteAllText(temporary, json);
+        try
+        {
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (IOException)
+        {
+            // Some shares refuse a rename (seen with Samba over a mounted folder). The file is then written
+            // in place. The daemon reads a half-written file as no claim and reads it again when it changes.
+            File.WriteAllText(path, json);
+            try { File.Delete(temporary); } catch (IOException) { }
+        }
     }
 
     /// <summary>

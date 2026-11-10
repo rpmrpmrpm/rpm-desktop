@@ -29,6 +29,9 @@ public readonly record struct MoveProgress(int Copied, int Total);
 /// <summary>Copies one file to another path. The default reads and writes with a large buffer.</summary>
 public delegate Task FileCopy(string from, string to, CancellationToken cancellation);
 
+/// <summary>Renames a file over another. The default is <see cref="File.Move(string, string, bool)"/>.</summary>
+public delegate void FileRename(string from, string to);
+
 /// <summary>
 /// Copies a library's files to a new folder, checking each copy, so the library can then be opened there.
 ///
@@ -37,10 +40,10 @@ public delegate Task FileCopy(string from, string to, CancellationToken cancella
 /// a move that stops (the network dropped, the computer slept) continues with the next file and never
 /// counts a half-copied one. The caller switches to the new folder only on <see cref="MoveResult.Done"/>.</para>
 /// </summary>
-public sealed class LibraryMove(FileCopy copy)
+public sealed class LibraryMove(FileCopy copy, FileRename rename)
 {
-    /// <summary>Copies with a 1 MB buffer.</summary>
-    public static LibraryMove Default { get; } = new(DefaultCopyAsync);
+    /// <summary>Copies with a 1 MB buffer and renames with <see cref="File.Move(string, string, bool)"/>.</summary>
+    public static LibraryMove Default { get; } = new(DefaultCopyAsync, (from, to) => File.Move(from, to, overwrite: true));
 
     private const string Temporary = ".rpmmove";
 
@@ -86,7 +89,23 @@ public sealed class LibraryMove(FileCopy copy)
                     return new MoveResult.Failed(file.Relative, "the copy does not match the original");
                 }
 
-                File.Move(part, target, overwrite: true);
+                try
+                {
+                    rename(part, target);
+                }
+                catch (IOException) when (File.Exists(part))
+                {
+                    // Some shares refuse a rename (seen with Samba over a mounted folder). The checked copy is
+                    // then copied to its name and checked again there.
+                    File.Copy(part, target, overwrite: true);
+                    File.Delete(part);
+                    if (!await SameAsync(source, target, cancellation))
+                    {
+                        File.Delete(target);
+                        journal.Save();
+                        return new MoveResult.Failed(file.Relative, "the copy does not match the original");
+                    }
+                }
             }
             catch (OperationCanceledException)
             {

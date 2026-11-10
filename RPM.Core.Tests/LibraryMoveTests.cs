@@ -41,6 +41,8 @@ public sealed class LibraryMoveTests : IDisposable
         Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .ToDictionary(p => Path.GetRelativePath(root, p), p => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))));
 
+    private static void Rename(string from, string to) => File.Move(from, to, overwrite: true);
+
     private static Task<MoveResult> Run(LibraryMove move, string from, string to, string journal, long free = long.MaxValue) =>
         move.RunAsync(from, to, MoveJournal.Open(journal), free, progress: null, CancellationToken.None);
 
@@ -80,7 +82,7 @@ public sealed class LibraryMoveTests : IDisposable
                 throw new IOException("the share went away");
             File.Copy(from, to, overwrite: true);
             await Task.CompletedTask;
-        });
+        }, Rename);
 
         var first = await Run(failing, _from, _to, _journal);
 
@@ -95,7 +97,7 @@ public sealed class LibraryMoveTests : IDisposable
             secondCalls++;
             File.Copy(from, to, overwrite: true);
             await Task.CompletedTask;
-        });
+        }, Rename);
         var second = await Run(counting, _from, _to, _journal);
 
         Assert.IsType<MoveResult.Done>(second);
@@ -110,7 +112,7 @@ public sealed class LibraryMoveTests : IDisposable
             var bytes = File.ReadAllBytes(from);
             bytes[0] ^= 0xFF;
             await File.WriteAllBytesAsync(to, bytes, ct);
-        });
+        }, Rename);
 
         var result = await Run(corrupting, _from, _to, _journal);
 
@@ -130,7 +132,7 @@ public sealed class LibraryMoveTests : IDisposable
             calls++;
             File.Copy(from, to, overwrite: true);
             await Task.CompletedTask;
-        });
+        }, Rename);
         await Run(counting, _from, _to, _journal);
 
         Assert.Equal(1, calls);
@@ -144,6 +146,20 @@ public sealed class LibraryMoveTests : IDisposable
 
         Assert.IsType<MoveResult.NoRoom>(result);
         Assert.Empty(Directory.EnumerateFiles(_to, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task A_share_that_refuses_the_rename_still_gets_checked_copies()
+    {
+        var refusing = new LibraryMove(
+            async (from, to, ct) => { File.Copy(from, to, overwrite: true); await Task.CompletedTask; },
+            (_, _) => throw new IOException("Operation not supported"));
+
+        var result = await Run(refusing, _from, _to, _journal);
+
+        Assert.IsType<MoveResult.Done>(result);
+        Assert.Equal(7, Directory.EnumerateFiles(_to, "*", SearchOption.AllDirectories).Count());
+        Assert.DoesNotContain(Directory.EnumerateFiles(_to, "*", SearchOption.AllDirectories), f => f.EndsWith(".rpmmove", StringComparison.Ordinal));
     }
 
     [Fact]
