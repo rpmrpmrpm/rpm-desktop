@@ -50,6 +50,8 @@ public static class LibraryInbox
         if (Directory.Exists(path))
             return path;
 
+        // A kept library has no inbox. Its callers check first; this makes one that does not fail loudly.
+        KeptFiles.Refuse(path, "created");
         Directory.CreateDirectory(path);
         try { File.WriteAllText(Path.Combine(path, ReadmeName), ReadmeText); }
         catch { /* the folder is what matters; a note that could not be written is not a failure */ }
@@ -92,6 +94,7 @@ public static class LibraryInbox
     /// could not be created). In that case the caller must leave the file where it is.</returns>
     public static string? Quarantine(string libraryRoot, string fullPath)
     {
+        KeptFiles.Refuse(fullPath, "moved to the inbox");
         try
         {
             var relative = Path.GetRelativePath(libraryRoot, fullPath);

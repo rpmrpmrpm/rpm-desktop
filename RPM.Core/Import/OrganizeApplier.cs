@@ -1,3 +1,4 @@
+using RPM.Core.Library;
 using RPM.Core.Metadata;
 using RPM.Core.Models;
 
@@ -25,8 +26,16 @@ public static class OrganizeApplier
             suggestion.ProposedRelativePath.Replace('/', Path.DirectorySeparatorChar));
         string? partial = null;
 
+        // In a kept library a visible file is never written after it appears. A new file goes in under a
+        // hidden name, gets its tags there, and is renamed into place last. A file that is already in the
+        // kept folder is not moved or tagged at all.
+        bool kept = KeptFiles.Covers(destination);
+
         try
         {
+            if (kept && (suggestion.IsAlreadyInPlace || KeptFiles.Covers(source)))
+                KeptFiles.Refuse(source, "moved or tagged");
+
             if (!suggestion.IsAlreadyInPlace)
             {
                 if (File.Exists(destination))
@@ -41,7 +50,7 @@ public static class OrganizeApplier
                 var folder = Path.GetDirectoryName(destination)!;
                 Directory.CreateDirectory(folder);
 
-                if (mode == OrganizeMode.Move)
+                if (mode == OrganizeMode.Move && !kept)
                 {
                     File.Move(source, destination);
                 }
@@ -54,52 +63,36 @@ public static class OrganizeApplier
                     // put there meanwhile.
                     RemoveLeftCopies(folder);
                     partial = Path.Combine(folder, $"{PartialPrefix}{Guid.NewGuid():N}{Path.GetExtension(destination)}");
-                    copy(source, partial);
+                    if (mode == OrganizeMode.Move)
+                        File.Move(source, partial);
+                    else
+                        copy(source, partial);
+                    if (kept && writeTags)
+                        WriteTags(partial);
                     File.Move(partial, destination, overwrite: false);
                     partial = null;
                 }
             }
 
-            if (writeTags)
-            {
-                try
-                {
-                    var track = suggestion.Track;
-
-                    // A copy is a second file, so it needs an identity of its own. Inheriting the
-                    // source's RPM id would leave two files pointing at one library row.
-                    bool freshId = mode == OrganizeMode.Copy && !suggestion.IsAlreadyInPlace;
-                    if (freshId)
-                        track = track with { RpmId = RpmTag.New() };
-
-                    if (track.TagsEdited || track.PendingArt is not null)
-                        TagReader.WriteAll(destination, track); // full wanted state, incl. art
-                    else if (track.Source is MetadataSource.Fingerprint or MetadataSource.FilenameGuess or MetadataSource.Manual
-                             && track.HasUsableMetadata)
-                        TagReader.Write(destination, track);
-                    else
-                        // The tags were already good and nothing was edited. This is the common case for
-                        // a clean import, and the one path that writes no tags at all. The file still
-                        // has to get an RPM id, or it would have no link to its row.
-                        TagReader.StampRpmId(destination, freshId);
-                }
-                catch
-                {
-                    // Tag write-back is best effort. The file move already succeeded. A file that
-                    // missed its RPM id here lands in the mirror with a null one. That is what makes
-                    // the next sync pick it up and stamp it.
-                }
-            }
+            if (writeTags && !kept)
+                WriteTags(destination);
 
             return new ApplyResult { SourcePath = source, DestinationPath = destination, Success = true };
         }
         catch (Exception ex)
         {
             // Only this copy's own hidden file is removed. The destination is never touched here: if a
-            // file is there, another import put it there.
+            // file is there, another import put it there. A moved file is the person's only copy, so it
+            // goes back where it came from instead.
             if (partial is not null)
             {
-                try { File.Delete(partial); }
+                try
+                {
+                    if (mode == OrganizeMode.Move)
+                        File.Move(partial, source, overwrite: false);
+                    else
+                        File.Delete(partial);
+                }
                 catch { /* nothing more can be done here; the result reports the failure */ }
             }
 
@@ -111,6 +104,37 @@ public static class OrganizeApplier
                 Error = ex.Message,
                 DiskFull = IsDiskFull(ex),
             };
+        }
+
+        void WriteTags(string path)
+        {
+            try
+            {
+                var track = suggestion.Track;
+
+                // A copy is a second file, so it needs an identity of its own. Inheriting the source's RPM
+                // id would leave two files pointing at one library row.
+                bool freshId = mode == OrganizeMode.Copy && !suggestion.IsAlreadyInPlace;
+                if (freshId)
+                    track = track with { RpmId = RpmTag.New() };
+
+                if (track.TagsEdited || track.PendingArt is not null)
+                    TagReader.WriteAll(path, track); // full wanted state, incl. art
+                else if (track.Source is MetadataSource.Fingerprint or MetadataSource.FilenameGuess or MetadataSource.Manual
+                         && track.HasUsableMetadata)
+                    TagReader.Write(path, track);
+                else
+                    // The tags were already good and nothing was edited. This is the common case for a clean
+                    // import, and the one path that writes no tags at all. The file still has to get an RPM
+                    // id, or it would have no link to its row.
+                    TagReader.StampRpmId(path, freshId);
+            }
+            catch
+            {
+                // Tag write-back is best effort. The file move already succeeded. A file that missed its RPM
+                // id here lands in the mirror with a null one. That is what makes the next sync pick it up
+                // and stamp it.
+            }
         }
     }
 
@@ -151,6 +175,9 @@ public static class OrganizeApplier
         {
             try
             {
+                // A kept folder's own empty folders are the person's, not leftovers of a move.
+                if (KeptFiles.Covers(dir))
+                    continue;
                 if (!Directory.EnumerateFileSystemEntries(dir).Any())
                     Directory.Delete(dir);
             }

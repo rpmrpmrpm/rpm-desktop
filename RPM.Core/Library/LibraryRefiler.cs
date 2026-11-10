@@ -37,6 +37,7 @@ public static class LibraryRefiler
         LibraryDatabase db, string root, NamingTemplate template,
         IProgress<RefileProgress>? progress = null, CancellationToken ct = default)
     {
+        KeptFiles.Refuse(root, "re-filed");
         var tracks = db.Query();
         if (tracks.Count == 0)
             return RefileOutcome.Empty;
@@ -123,6 +124,7 @@ public static class LibraryRefiler
     public static void FollowFolders(
         LibraryDatabase db, string root, Dictionary<string, HashSet<string>> folderMoves)
     {
+        KeptFiles.Refuse(root, "re-filed");
         foreach (var (source, destinations) in folderMoves)
         {
             if (destinations.Count != 1)

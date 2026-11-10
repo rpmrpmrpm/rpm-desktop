@@ -82,7 +82,7 @@ public static class AlbumFileSplitter
         foreach (var dir in legacy)
         {
             var parent = Path.GetDirectoryName(dir);
-            if (parent is null)
+            if (parent is null || RPM.Core.Library.KeptFiles.Covers(dir))
                 continue;
             var target = Path.Combine(parent, OriginalsFolderName);
             try
@@ -122,6 +122,7 @@ public static class AlbumFileSplitter
     {
         if (plan.Tracks.Count < 2)
             throw new InvalidOperationException("split plan has fewer than two tracks");
+        RPM.Core.Library.KeptFiles.Refuse(plan.SourcePath, "split");
 
         string sourceDir = Path.GetDirectoryName(plan.SourcePath)
             ?? throw new InvalidOperationException("source file has no parent folder");

@@ -1432,6 +1432,8 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     /// </summary>
     public async Task RestoreAsync(string rpmId, string targetPath, CancellationToken ct = default)
     {
+        // A restore may bring a missing file back into a kept folder, never replace one that is there.
+        RPM.Core.Library.KeptFiles.RefuseReplace(targetPath, "replaced by the cloud copy");
         var sidecar = await GetSidecarAsync(rpmId, ct)
             ?? throw new CloudRejectedException($"No sidecar in the cloud for {rpmId}.");
 

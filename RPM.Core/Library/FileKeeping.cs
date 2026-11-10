@@ -152,6 +152,16 @@ public static class KeptFiles
         throw new KeptFileException(path, action);
     }
 
+    /// <summary>For the best-effort primitives that answer false instead of throwing: true, and a log
+    /// line, when the path is in a kept folder. The caller then returns its failure without writing.</summary>
+    public static bool Declines(string path, string action)
+    {
+        if (!Covers(path))
+            return false;
+        Said.Line("kept", $"declined: {action} {path}");
+        return true;
+    }
+
     /// <summary>Like <see cref="Refuse"/>, but only when something is already at the path. A new file
     /// may be created in a kept folder; an existing one may not be replaced.</summary>
     public static void RefuseReplace(string path, string action)

@@ -22,6 +22,8 @@ public static class OsTrash
     {
         if (string.IsNullOrWhiteSpace(path))
             return false;
+        if (RPM.Core.Library.KeptFiles.Declines(path, "moved to the trash"))
+            return false;
         try
         {
             if (OperatingSystem.IsMacOS())

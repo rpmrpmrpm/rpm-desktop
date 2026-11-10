@@ -1,3 +1,4 @@
+using RPM.Core.Library;
 using RPM.Core.Metadata;
 using RPM.Core.Models;
 using RPM.Core.Scanning;
@@ -147,6 +148,8 @@ public static class FolderArtWriter
     /// Returns whether a cover was written.</summary>
     public static bool WriteCover(string folder, byte[] bytes)
     {
+        if (KeptFiles.Declines(folder, "given a new cover"))
+            return false;
         try
         {
             if (!Directory.Exists(folder) || bytes.Length == 0)
@@ -175,6 +178,8 @@ public static class FolderArtWriter
     /// anything went.</summary>
     public static bool DeleteCover(string folder)
     {
+        if (KeptFiles.Declines(folder, "cleared of its cover"))
+            return false;
         bool gone = false;
         foreach (var name in ExistingImageNames)
         {
@@ -247,6 +252,8 @@ public static class FolderArtWriter
     /// </summary>
     public static bool ReplaceDisc(string folder, byte[] bytes)
     {
+        if (KeptFiles.Declines(folder, "given a new disc picture"))
+            return false;
         try
         {
             if (!Directory.Exists(folder) || bytes.Length == 0)
@@ -271,6 +278,8 @@ public static class FolderArtWriter
     /// </summary>
     public static bool DeleteDisc(string folder)
     {
+        if (KeptFiles.Declines(folder, "cleared of its disc picture"))
+            return false;
         bool gone = false;
         foreach (var name in DiscImageNames)
         {

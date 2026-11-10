@@ -1,4 +1,5 @@
 using RPM.Core.Analysis;
+using RPM.Core.Library;
 using RPM.Core.Models;
 
 namespace RPM.Core.Metadata;
@@ -274,6 +275,7 @@ public static class TagReader
     public static AnalysisTagWrite WriteAnalysisTags(string path, TrackAnalysis analysis, bool overwrite = false)
     {
         ArgumentNullException.ThrowIfNull(analysis);
+        KeptFiles.Refuse(path, "tagged");
 
         // A placeholder has no bytes here to write into, and opening one starts a download.
         if (NotOnThisDisk(path))
@@ -303,6 +305,8 @@ public static class TagReader
     /// </summary>
     public static string? StampRpmId(string path, bool force = false)
     {
+        // Before the try: a refusal must not be read as "this file cannot carry an id".
+        KeptFiles.Refuse(path, "given an rpm id");
         try
         {
             using var file = TagLib.File.Create(path);
@@ -336,6 +340,7 @@ public static class TagReader
     public static bool WriteRpmId(string path, string id)
     {
         if (!RpmTag.IsId(id)) return false;
+        KeptFiles.Refuse(path, "given an rpm id");
 
         try
         {
@@ -352,6 +357,7 @@ public static class TagReader
 
     private static void WriteCore(string path, TrackInfo info, bool overwriteAll)
     {
+        KeptFiles.Refuse(path, "tagged");
         using var file = TagLib.File.Create(path);
         var tag = file.Tag;
 
