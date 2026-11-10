@@ -59,6 +59,61 @@ public class OrganizeApplierTests : IDisposable
     }
 
     [Fact]
+    public void Copy_is_written_under_a_hidden_name_and_renamed_when_complete()
+    {
+        // A copy stopped part-way (the app quit) must never sit under the real name: the library would
+        // read it as the song, cut off.
+        var s = Suggestion("a.mp3", "Muse/x.mp3");
+        string? target = null;
+
+        var result = OrganizeApplier.Apply(s, _dest, OrganizeMode.Copy, writeTags: false, (from, to) =>
+        {
+            target = to;
+            File.Copy(from, to);
+        });
+
+        Assert.True(result.Success);
+        Assert.Equal(Path.Combine(_dest, "Muse"), Path.GetDirectoryName(target));
+        Assert.StartsWith(".", Path.GetFileName(target));
+        Assert.Equal("audio-bytes", File.ReadAllText(Path.Combine(_dest, "Muse", "x.mp3")));
+        Assert.Equal(["x.mp3"], Directory.GetFiles(Path.Combine(_dest, "Muse")).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Failed_copy_never_removes_a_file_another_import_put_at_the_destination()
+    {
+        var s = Suggestion("a.mp3", "Muse/x.mp3");
+        var destination = Path.Combine(_dest, "Muse", "x.mp3");
+
+        var result = OrganizeApplier.Apply(s, _dest, OrganizeMode.Copy, writeTags: false, (from, to) =>
+        {
+            File.WriteAllText(destination, "the other import's copy");   // lands while this copy runs
+            File.Copy(from, to);
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal("the other import's copy", File.ReadAllText(destination));
+        Assert.Equal(["x.mp3"], Directory.GetFiles(Path.Combine(_dest, "Muse")).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Old_hidden_copies_left_by_a_stop_are_removed_from_the_folder()
+    {
+        var folder = Path.Combine(_dest, "Muse");
+        Directory.CreateDirectory(folder);
+        var old = Path.Combine(folder, ".rpm-copy-left.mp3");
+        var fresh = Path.Combine(folder, ".rpm-copy-running.mp3");
+        File.WriteAllText(old, "half");
+        File.WriteAllText(fresh, "half");
+        File.SetLastWriteTimeUtc(old, DateTime.UtcNow.AddDays(-2));
+
+        OrganizeApplier.Apply(Suggestion("a.mp3", "Muse/x.mp3"), _dest, OrganizeMode.Copy, writeTags: false);
+
+        Assert.False(File.Exists(old));
+        Assert.True(File.Exists(fresh));
+    }
+
+    [Fact]
     public void Never_overwrites_existing_destination()
     {
         var s = Suggestion("a.mp3", "taken.mp3");

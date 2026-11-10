@@ -13,12 +13,17 @@ public static class OrganizeApplier
     /// hand-edited (<see cref="TrackInfo.TagsEdited"/>, a full write including pending
     /// cover art), and <paramref name="writeTags"/> is set.
     /// </summary>
-    public static ApplyResult Apply(TrackSuggestion suggestion, string destinationRoot, OrganizeMode mode, bool writeTags = true)
+    public static ApplyResult Apply(TrackSuggestion suggestion, string destinationRoot, OrganizeMode mode, bool writeTags = true) =>
+        Apply(suggestion, destinationRoot, mode, writeTags, (from, to) => File.Copy(from, to));
+
+    /// <summary>The same, with the step that copies the bytes replaced (for tests).</summary>
+    internal static ApplyResult Apply(TrackSuggestion suggestion, string destinationRoot, OrganizeMode mode, bool writeTags, Action<string, string> copy)
     {
         string source = suggestion.Track.FilePath;
         string destination = Path.Combine(
             destinationRoot,
             suggestion.ProposedRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        string? partial = null;
 
         try
         {
@@ -33,12 +38,26 @@ public static class OrganizeApplier
                         Error = "destination already exists",
                     };
 
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                var folder = Path.GetDirectoryName(destination)!;
+                Directory.CreateDirectory(folder);
 
                 if (mode == OrganizeMode.Move)
+                {
                     File.Move(source, destination);
+                }
                 else
-                    File.Copy(source, destination);
+                {
+                    // The bytes go to a hidden name in the same folder and are renamed only when complete.
+                    // A copy that stops part-way (the app quits, the disk fills) never sits under the real
+                    // name, where the library would read it as the song, cut off. The library scan skips
+                    // names that start with a dot. The rename refuses to replace a file another import
+                    // put there meanwhile.
+                    RemoveLeftCopies(folder);
+                    partial = Path.Combine(folder, $"{PartialPrefix}{Guid.NewGuid():N}{Path.GetExtension(destination)}");
+                    copy(source, partial);
+                    File.Move(partial, destination, overwrite: false);
+                    partial = null;
+                }
             }
 
             if (writeTags)
@@ -76,11 +95,11 @@ public static class OrganizeApplier
         }
         catch (Exception ex)
         {
-            // A copy that failed part-way (the disk filled up) leaves half a file behind. The destination
-            // did not exist before (checked above), so whatever is there now is that half file.
-            if (mode == OrganizeMode.Copy && !suggestion.IsAlreadyInPlace)
+            // Only this copy's own hidden file is removed. The destination is never touched here: if a
+            // file is there, another import put it there.
+            if (partial is not null)
             {
-                try { File.Delete(destination); }
+                try { File.Delete(partial); }
                 catch { /* nothing more can be done here; the result reports the failure */ }
             }
 
@@ -93,6 +112,23 @@ public static class OrganizeApplier
                 DiskFull = IsDiskFull(ex),
             };
         }
+    }
+
+    /// <summary>The start of the hidden name a copy is written under until it is complete.</summary>
+    internal const string PartialPrefix = ".rpm-copy-";
+
+    /// <summary>Removes hidden copies in a folder that a stop left behind. Only ones older than a day: a
+    /// younger one may be another import's copy that is still running.</summary>
+    private static void RemoveLeftCopies(string folder)
+    {
+        try
+        {
+            foreach (var left in Directory.EnumerateFiles(folder, PartialPrefix + "*"))
+                if (File.GetLastWriteTimeUtc(left) < DateTime.UtcNow.AddDays(-1))
+                    File.Delete(left);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     /// <summary>Whether an exception says the disk is full: ENOSPC (28) on macOS and Linux, and
