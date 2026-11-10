@@ -45,15 +45,32 @@ public class LibraryFolderTests : IDisposable
     }
 
     [Fact]
-    public void A_folder_with_music_already_in_it_is_refused()
+    public void A_folder_with_music_already_in_it_is_not_adopted_without_asking()
     {
-        // The important case: adopting this folder would add every audio file in it to the collection
-        // in place and write an rpm id into each file's tags.
+        // Adopting this folder as an organised library would write an rpm id into every file. The person
+        // chooses first: keep the files as they are, or let rpm organise them.
         var path = Folder("my-music");
         File.WriteAllText(Path.Combine(path, "01 Something.mp3"), "");
 
-        Assert.Equal(LibraryFolderKind.NotEmpty, LibraryFolder.Classify(path));
+        Assert.Equal(LibraryFolderKind.HasMusic, LibraryFolder.Classify(path));
         Assert.False(LibraryFolder.Adoptable(path));
+    }
+
+    [Fact]
+    public void Music_is_found_in_artist_and_album_folders_but_not_too_deep_or_hidden()
+    {
+        var path = Folder("collection");
+        Directory.CreateDirectory(Path.Combine(path, "Artist", "Album", "Disc 1"));
+        File.WriteAllText(Path.Combine(path, "Artist", "Album", "Disc 1", "01.FLAC"), "");
+        Assert.Equal(LibraryFolderKind.HasMusic, LibraryFolder.Classify(path));
+
+        var deep = Folder("deep");
+        Directory.CreateDirectory(Path.Combine(deep, "a", "b", "c", "d"));
+        File.WriteAllText(Path.Combine(deep, "a", "b", "c", "d", "01.mp3"), "");
+        Directory.CreateDirectory(Path.Combine(deep, ".hidden"));
+        File.WriteAllText(Path.Combine(deep, ".hidden", "02.mp3"), "");
+        File.WriteAllText(Path.Combine(deep, "notes.txt"), "");
+        Assert.Equal(LibraryFolderKind.NotEmpty, LibraryFolder.Classify(deep));
     }
 
     [Fact]
