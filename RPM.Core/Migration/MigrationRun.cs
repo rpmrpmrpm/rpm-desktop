@@ -24,6 +24,9 @@ public interface IMigrationCloud
 
     /// <summary>Asks the cloud sync to look for tracks to upload now, instead of at its next pass.</summary>
     void RequestUpload();
+
+    /// <summary>Puts a playlist in the cloud, as "Add to cloud" on the playlist does.</summary>
+    void AddPlaylist(long playlistNodeId);
 }
 
 /// <summary>What the upload workers can do now.</summary>
@@ -253,11 +256,20 @@ public sealed class MigrationRun(
             db.ApplyImportedPlays(library.DeviceId, rows);
     }
 
-    /// <summary>Adds the source's playlists with the tracks that are in rpm now.</summary>
+    /// <summary>Adds the source's playlists with the tracks that are in rpm now. A cloud-only import also
+    /// puts them in the cloud: their tracks are only there, and the person's other devices play from it.
+    /// An import to this computer leaves them here, as any playlist made in rpm.</summary>
     private void AddPlaylists(IProgress<MigrationProgress> progress)
     {
         Report(progress, MigrationStage.Playlists);
         Playlists = MigrationPlaylists.Apply(db, library, record, SourceLabel);
+
+        if (record.Destination != MigrationDestination.CloudOnly || cloud.CanUpload(0) == CloudUploads.Off)
+            return;
+        var nodes = db.GetPlaylistNodes().Select(n => n.Id).ToHashSet();
+        foreach (var playlist in library.Playlists)
+            if (record.Playlist(playlist.SourceId) is { } made && nodes.Contains(made.PlaylistId))
+                cloud.AddPlaylist(made.PlaylistId);
     }
 
     // ── one album ──

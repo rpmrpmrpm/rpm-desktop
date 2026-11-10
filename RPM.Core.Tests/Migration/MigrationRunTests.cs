@@ -263,6 +263,25 @@ public class MigrationRunTests : IDisposable
         Assert.Contains(MigrationStage.Playlists, stages);
         Assert.Equal(MigrationStage.Finishing, stages[^1]);
         Assert.Empty(_db.UnfinishedMigrations());
+        Assert.Empty(_cloud.PlaylistsAdded);   // this computer: playlists stay here, as any playlist made in rpm
+    }
+
+    [Fact]
+    public async Task Cloud_only_import_puts_its_playlists_in_the_cloud()
+    {
+        var server = new FakeServer();
+        var library = Library(SourceKind.Jellyfin, Remote("j1", "Record", "One"), Remote("j2", "Record", "Two", 2)) with
+        {
+            Playlists = [new SourcePlaylist("p1", "Mix", [], false, ["j2", "j1"], [])],
+        };
+        foreach (var t in library.Tracks) server.Add(t);
+        using var uploads = new FakeUploader(_db, _root, delay: TimeSpan.FromMilliseconds(5));
+
+        var end = await Run(library, MigrationDestination.CloudOnly, server).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(RunEnd.Finished, end);
+        var mix = _db.GetPlaylistNodes().Single(n => n.Name == "Mix" && n.Kind == PlaylistNodeKind.Playlist);
+        Assert.Equal([mix.Id], _cloud.PlaylistsAdded);
     }
 
     [Fact]
@@ -507,6 +526,8 @@ public class MigrationRunTests : IDisposable
         public Task<(long Used, long Quota, bool Unlimited)?> QuotaAsync(CancellationToken ct) =>
             Task.FromResult<(long, long, bool)?>(QuotaFailures-- > 0 ? null : Quota);
         public CloudUploads CanUpload(long bytes) => Uploads;
+        public List<long> PlaylistsAdded { get; } = [];
+        public void AddPlaylist(long playlistNodeId) => PlaylistsAdded.Add(playlistNodeId);
         public Task PutTrackAddedAsync(IReadOnlyList<(string RpmId, long AddedAtUnix)> rows, CancellationToken ct)
         {
             lock (Added) Added.AddRange(rows);

@@ -353,6 +353,8 @@ public sealed class MigrationService : IDisposable
             service._cloud.PutTrackAddedAsync(rows, ct);
 
         public void RequestUpload() => _ = service._cloudSync.KickAsync();
+
+        public void AddPlaylist(long playlistNodeId) => _ = service._cloudSync.AddPlaylistToCloudAsync(playlistNodeId);
     }
 }
 
