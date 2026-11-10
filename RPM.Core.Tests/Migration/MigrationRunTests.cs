@@ -447,6 +447,37 @@ public class MigrationRunTests : IDisposable
     }
 
     [Fact]
+    public async Task A_source_date_before_1970_or_after_now_is_not_used()
+    {
+        var library = Library(SourceKind.MusicBee,
+            Local("s1", "Record", "One", 1, seed: 1, added: new DateTimeOffset(1950, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+            Local("s2", "Record", "Two", 2, seed: 2, added: DateTimeOffset.UtcNow.AddYears(50)));
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        // The server refuses an upload with such a date, and the track would never reach the cloud.
+        Assert.All(_db.Query(), row => Assert.InRange(row.AddedUtcTicks, new DateTime(1970, 1, 2).Ticks, DateTime.UtcNow.AddMinutes(1).Ticks));
+    }
+
+    [Fact]
+    public async Task A_track_uploaded_during_the_run_gets_its_date_added_in_the_cloud_at_the_end()
+    {
+        // Cloud on for the whole library: the upload can take a newly filed track before its earlier date
+        // is set. The run sends the dates of the tracks the cloud holds when it finishes.
+        var library = Library(SourceKind.MusicBee, Local("s1", "Record", "One", added: Y2015));
+        using var uploads = new FakeUploader(_db, _root, delay: TimeSpan.Zero, everything: true);
+        var run = Run(library, MigrationDestination.ThisComputer);
+
+        await run.RunAsync(Quiet, CancellationToken.None);
+        var rpmId = Row("One").RpmId!;
+        for (var i = 0; i < 200 && Row("One").CloudState != CloudState.Synced; i++)
+            await Task.Delay(5);
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Contains((rpmId, Y2015.ToUnixTimeSeconds()), _cloud.Added);
+    }
+
+    [Fact]
     public async Task Cloud_only_deletes_only_after_synced()
     {
         var server = new FakeServer();
@@ -678,7 +709,7 @@ public class MigrationRunTests : IDisposable
         public int MostFilesSeen;
         public int DeletedBeforeSynced;
 
-        public FakeUploader(LibraryDatabase db, string root, TimeSpan delay, string? staging = null, Action<long>? onSynced = null, bool refuse = false)
+        public FakeUploader(LibraryDatabase db, string root, TimeSpan delay, string? staging = null, Action<long>? onSynced = null, bool refuse = false, bool everything = false)
         {
             _loop = Task.Run(async () =>
             {
@@ -688,7 +719,7 @@ public class MigrationRunTests : IDisposable
                     var files = Directory.GetFiles(root, "*.wav", SearchOption.AllDirectories).Length
                         + (staging is not null && Directory.Exists(staging) ? Directory.GetFiles(staging).Length : 0);
                     MostFilesSeen = Math.Max(MostFilesSeen, files);
-                    foreach (var t in db.Query().Where(t => t.CloudSelected && t.CloudState is CloudState.Local or CloudState.Queued))
+                    foreach (var t in db.Query().Where(t => (everything || t.CloudSelected) && t.CloudState is CloudState.Local or CloudState.Queued))
                     {
                         if (!File.Exists(Path.Combine(root, t.RelativePath)))
                         {

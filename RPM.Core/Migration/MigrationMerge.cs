@@ -29,8 +29,8 @@ public static class MigrationMerge
         ArgumentNullException.ThrowIfNull(rpm);
         ArgumentNullException.ThrowIfNull(source);
 
-        var sourceAdded = source.Added?.UtcTicks ?? 0;
-        var sourceLast = source.LastPlayed?.UtcTicks ?? 0;
+        var sourceAdded = Real(source.Added);
+        var sourceLast = Real(source.LastPlayed);
 
         var favorite = rpm.Favorite || source.Favorite;
         var favoritedAt = rpm.Favorite
@@ -46,4 +46,9 @@ public static class MigrationMerge
     }
 
     private static long Earlier(long a, long b) => a <= 0 ? b : b <= 0 ? a : Math.Min(a, b);
+
+    /// <summary>A source date as UTC ticks, or 0 when there is none or it is not a real one: before 1970 or
+    /// after now. The cloud refuses such a date, and an upload carrying it would never land.</summary>
+    public static long Real(DateTimeOffset? at) =>
+        at is { } t && t > DateTimeOffset.UnixEpoch && t <= DateTimeOffset.UtcNow.AddMinutes(1) ? t.UtcTicks : 0;
 }

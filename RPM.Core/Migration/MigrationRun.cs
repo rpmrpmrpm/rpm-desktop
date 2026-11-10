@@ -285,6 +285,7 @@ public sealed class MigrationRun(
 
         AddPlaylists(progress);
         Report(progress, MigrationStage.Finishing);
+        await SendCloudDatesAsync();
         record.Finish(Now());
         return RunEnd.Finished;
     }
@@ -314,7 +315,7 @@ public sealed class MigrationRun(
             if (!_bySource.TryGetValue(sourceId, out var track) || track.Plays <= 0 && track.LastPlayed is null)
                 continue;
             if (db.FindById(trackId)?.RpmId is { Length: > 0 } rpmId)
-                rows.Add(new LibraryDatabase.TrackPlayRow(rpmId, library.DeviceId, track.Plays, track.LastPlayed?.UtcTicks ?? 0, 0));
+                rows.Add(new LibraryDatabase.TrackPlayRow(rpmId, library.DeviceId, track.Plays, MigrationMerge.Real(track.LastPlayed), 0));
         }
         if (rows.Count > 0)
             db.ApplyImportedPlays(library.DeviceId, rows);
@@ -509,7 +510,7 @@ public sealed class MigrationRun(
         if (row.RpmId is not { Length: > 0 } rpmId)
             return;
         if (track.Plays > 0 || track.LastPlayed is not null)
-            plays.Add(new LibraryDatabase.TrackPlayRow(rpmId, library.DeviceId, track.Plays, track.LastPlayed?.UtcTicks ?? 0, 0));
+            plays.Add(new LibraryDatabase.TrackPlayRow(rpmId, library.DeviceId, track.Plays, MigrationMerge.Real(track.LastPlayed), 0));
         if (row.CloudState is CloudState.Synced or CloudState.CloudOnly && merged.AddedUtcTicks > 0 && merged.AddedUtcTicks < row.AddedUtcTicks)
             added.Add((rpmId, PlayClock.Seconds(merged.AddedUtcTicks)));
     }
@@ -716,6 +717,26 @@ public sealed class MigrationRun(
         var waiting = record.Rows(MigrationTrackState.Downloaded)
             .Sum(r => r.TrackId is { } id ? db.FindById(id)?.SizeBytes ?? 0 : 0);
         return used + waiting + album.Sum(t => t.SizeBytes) <= quota;
+    }
+
+    /// <summary>
+    /// Sends the source's date added of every imported track the cloud holds. An upload can take a newly
+    /// filed track before its earlier date is set, and the cloud then keeps the day of the import. The
+    /// store only moves a date earlier, so sending it again changes nothing that is right already.
+    /// </summary>
+    private async Task SendCloudDatesAsync()
+    {
+        var added = new List<(string RpmId, long AddedAtUnix)>();
+        foreach (var (sourceId, trackId) in record.TrackIds())
+        {
+            if (!_bySource.TryGetValue(sourceId, out var track) || db.FindById(trackId) is not { RpmId: { Length: > 0 } rpmId } row
+                || row.CloudState is not (CloudState.Synced or CloudState.CloudOnly))
+                continue;
+            var at = MigrationMerge.Merge(new RpmSide(0, false, 0, 0, 0), track).AddedUtcTicks;
+            if (at > 0)
+                added.Add((rpmId, PlayClock.Seconds(at)));
+        }
+        await SendAddedAsync(added);
     }
 
     private async Task SendAddedAsync(List<(string RpmId, long AddedAtUnix)> added)
