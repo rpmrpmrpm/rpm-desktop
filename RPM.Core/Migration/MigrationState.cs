@@ -63,6 +63,13 @@ public static class MigrationReason
     /// <summary>The cloud storage of the plan is full.</summary>
     public const string CloudFull = "Migration_ReasonCloudFull";
 
+    /// <summary>The file could not be put into the library (for example another file is already at its
+    /// path). The detail holds the reason the file system gave.</summary>
+    public const string CouldNotCopy = "Migration_ReasonCouldNotCopy";
+
+    /// <summary>The track was removed from rpm while the import was waiting for the cloud.</summary>
+    public const string Removed = "Migration_ReasonRemoved";
+
     /// <summary>On an already-in-rpm row: rpm's copy is lossy and the source's is lossless.</summary>
     public const string LowerQualityInRpm = "Migration_ReasonLowerQualityInRpm";
 }

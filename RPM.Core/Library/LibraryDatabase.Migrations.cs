@@ -39,6 +39,19 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>One track by its row id, or null when there is no such row.</summary>
+    public LibraryTrack? FindById(long id)
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText = "SELECT * FROM tracks WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", id);
+            using var reader = cmd.ExecuteReader();
+            return reader.Read() ? ReadTrack(reader) : null;
+        }
+    }
+
     /// <summary>
     /// Opens the record of the import of <paramref name="library"/>, creating it the first time. The
     /// same source library (same kind and library id) always opens the same record, so a second import
