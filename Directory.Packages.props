@@ -69,7 +69,7 @@
          managed stacks for a thread that is not answering, the suspensions of the collector, lock
          contention, and which handle a blocked thread is blocked on. It has to be a second process,
          because .NET has no supported way to suspend one of its own threads and walk it. -->
-    <PackageVersion Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.731102" />
+    <PackageVersion Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.750501" />
     <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.6" />
 
     <!-- RPM.Lambda.Api -->
