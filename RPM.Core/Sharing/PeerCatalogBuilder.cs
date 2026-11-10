@@ -283,24 +283,31 @@ public static class PeerCatalogBuilder
     /// when empty. Who is asking decides whether the owner's marks travel and whether the owner's
     /// playlists do. A parameter that could be forgotten would send them to a guest, or fail to, by
     /// omission.</para>
+    ///
+    /// <para><paramref name="hosts"/> are the NAS machines that also serve this library. They are
+    /// stated at every call for the same reason: a reader only plays from a NAS that a computer it
+    /// trusts has named.</para>
     /// </summary>
     public static PeerCatalog Catalog(
         IEnumerable<LibraryTrack> tracks, string name, IReadOnlyList<PeerAlbum> albums,
-        IReadOnlyList<PeerPlaylist> playlists, IReadOnlyList<PeerMoodList> moodLists)
+        IReadOnlyList<PeerPlaylist> playlists, IReadOnlyList<PeerMoodList> moodLists,
+        IReadOnlyList<PeerHost> hosts)
     {
         ArgumentNullException.ThrowIfNull(albums);
         ArgumentNullException.ThrowIfNull(playlists);
         ArgumentNullException.ThrowIfNull(moodLists);
+        ArgumentNullException.ThrowIfNull(hosts);
 
         var listing = From(tracks);
         return new PeerCatalog
         {
-            Version = PeerCatalog.VersionOf(listing, albums, playlists, moodLists),
+            Version = PeerCatalog.VersionOf(listing, albums, playlists, moodLists, hosts),
             Name = name ?? "",
             Tracks = listing,
             Albums = albums,
             Playlists = playlists,
             MoodLists = moodLists,
+            Hosts = hosts,
         };
     }
 

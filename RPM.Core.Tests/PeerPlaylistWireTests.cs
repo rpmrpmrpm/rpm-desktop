@@ -22,7 +22,7 @@ public class PeerPlaylistWireTests
         };
 
         var catalog = PeerCatalogBuilder.Catalog(
-            [], "Their laptop", [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string>()), []);
+            [], "Their laptop", [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string>()), [], []);
 
         var json = JsonSerializer.Serialize(catalog, SharingProtocol.Json);
         var back = JsonSerializer.Deserialize<PeerCatalog>(json, SharingProtocol.Json);
@@ -56,7 +56,7 @@ public class PeerPlaylistWireTests
 
         var sent = PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string> { [7] = "ABC123" });
         var json = JsonSerializer.Serialize(
-            PeerCatalogBuilder.Catalog([], "Their laptop", [], sent, []), SharingProtocol.Json);
+            PeerCatalogBuilder.Catalog([], "Their laptop", [], sent, [], []), SharingProtocol.Json);
         var arrived = PeerCatalogBuilder.To(JsonSerializer.Deserialize<PeerCatalog>(json, SharingProtocol.Json)!.Playlists);
 
         Assert.Equal(new PlaylistCover.ChosenByOwner(7, "ABC123"), arrived.Single(r => r.Name == "Picked").Cover);
@@ -71,8 +71,8 @@ public class PeerPlaylistWireTests
         PlaylistTreeRow[] tree = [new(7, null, PlaylistNodeKind.Playlist, "Picked", 0, [], new PlaylistCover.Picture())];
 
         Assert.NotEqual(
-            PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string> { [7] = "A" }), []),
-            PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string> { [7] = "B" }), []));
+            PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string> { [7] = "A" }), [], []),
+            PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(tree, new Dictionary<long, string> { [7] = "B" }), [], []));
     }
 
     /// <summary>The explicit flag survives the wire, and a listing from a build that never sent it

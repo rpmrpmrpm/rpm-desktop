@@ -57,7 +57,7 @@ public class PeerCatalogBuilderTests
     {
         var catalog = PeerCatalogBuilder.Catalog(
             [Track("gid-1", lufs: double.NegativeInfinity), Track("gid-2", lufs: -14.2)],
-            "Desk", [], [], []);
+            "Desk", [], [], [], []);
 
         Assert.False(string.IsNullOrEmpty(catalog.Version));
         Assert.Equal(2, catalog.Tracks.Count);
@@ -90,7 +90,7 @@ public class PeerCatalogBuilderTests
     {
         var catalog = PeerCatalogBuilder.Catalog([
             Track("gid-1", lufs: double.NaN, peak: double.PositiveInfinity, seconds: double.NaN),
-        ], "Desk", [], [], []);
+        ], "Desk", [], [], [], []);
 
         Assert.False(string.IsNullOrEmpty(catalog.Version));
         Assert.Null(catalog.Tracks[0].LoudnessLufs);

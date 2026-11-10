@@ -479,7 +479,7 @@ public sealed partial class SharingService : IDisposable
             : [];
 
         var catalog = PeerCatalogBuilder.Catalog(
-            _library.Query(), _settings.ShareName, albums, playlists, moodLists);
+            _library.Query(), _settings.ShareName, albums, playlists, moodLists, []);
 
         // WHAT THIS MACHINE SAID, AND FROM WHICH LIBRARY.
         //

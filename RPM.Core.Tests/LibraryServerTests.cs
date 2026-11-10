@@ -61,7 +61,7 @@ public class LibraryServerTests : IDisposable
             // case LibraryServer's own check exists for: the 204 in these tests comes from there.
             OnCatalog = catalog ?? ((_, _, _) => Task.FromResult(LibraryServer.CatalogAnswer.Listing(new PeerCatalog
             {
-                Version = PeerCatalog.VersionOf([Track], [], [], []),
+                Version = PeerCatalog.VersionOf([Track], [], [], [], []),
                 Name = "Alex's iMac",
                 Tracks = [Track],
             }))),
@@ -155,7 +155,7 @@ public class LibraryServerTests : IDisposable
     public async Task A_borrower_that_is_current_is_told_so_without_a_listing_being_built()
     {
         var built = 0;
-        var version = PeerCatalog.VersionOf([Track], [], [], []);
+        var version = PeerCatalog.VersionOf([Track], [], [], [], []);
 
         using var server = Serving(catalog: (_, have, _) =>
         {

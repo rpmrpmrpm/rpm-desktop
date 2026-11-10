@@ -80,6 +80,16 @@ public static class SharingProtocol
 
     public const string ArtRoute = "/rpm/art/";
 
+    /// <summary>The service type a NAS announces, for itself and for each library on it. It is not
+    /// <see cref="ServiceType"/>, so a build that does not know about a NAS never sees one.</summary>
+    public const string NasServiceType = "_rpm-nas._tcp";
+
+    /// <summary>The owner's computer uploads both catalogues and its trust list to the NAS here.</summary>
+    public const string NasPublishRoute = "/rpm/nas/publish";
+
+    /// <summary>The owner's computer uploads a picture to the NAS here, followed by its key.</summary>
+    public const string NasArtRoute = "/rpm/nas/art/";
+
     /// <summary>
     /// Whether a URL is a track being served by another computer on this network, as against a store's
     /// presigned link.
@@ -101,6 +111,18 @@ public static class SharingProtocol
         public const string Name = "n";
 
         public const string PublicKey = "k";
+
+        /// <summary>In a NAS announcement: <see cref="RoleNas"/> or <see cref="RoleLibrary"/>.</summary>
+        public const string Role = "r";
+
+        /// <summary>In a NAS library's announcement: the library id.</summary>
+        public const string LibraryId = "l";
+
+        /// <summary>In a NAS's own announcement: the SMB address of the folder that holds the libraries.</summary>
+        public const string Smb = "s";
+
+        public const string RoleNas = "nas";
+        public const string RoleLibrary = "library";
     }
 
     /// <summary>One set of options for both ends. camelCase, because this is a wire format that a phone, a
@@ -150,6 +172,12 @@ public sealed record PeerHello
     /// <summary>How many tracks are on offer. It is shown in the offer, so that "share libraries?" is a question
     /// with a size in it.</summary>
     [JsonPropertyName("trackCount")] public int TrackCount { get; init; }
+
+    /// <summary>The library a NAS announcement serves. Null for a computer and for the NAS as a whole.</summary>
+    [JsonPropertyName("libraryId")] public string? LibraryId { get; init; }
+
+    /// <summary>Space and libraries. Present only when a NAS answers.</summary>
+    [JsonPropertyName("nas")] public NasHello? Nas { get; init; }
 }
 
 /// <summary>
@@ -638,6 +666,13 @@ public sealed record PeerCatalog
     [JsonPropertyName("moodLists")] public IReadOnlyList<PeerMoodList> MoodLists { get; init; } = [];
 
     /// <summary>
+    /// The NAS machines that also serve this library. A reader that trusts the computer this came from
+    /// may trust these too, without a code, and tries them first for tracks. It is empty in anything an
+    /// older build sends, and for a library that is not on a NAS.
+    /// </summary>
+    [JsonPropertyName("hosts")] public IReadOnlyList<PeerHost> Hosts { get; init; } = [];
+
+    /// <summary>
     /// The version of a listing: a hash over what identifies each track and everything about it that would show. It
     /// also covers the albums' marks beside them, and the playlists built from them. Two catalogues with the same
     /// version are the same catalogue. The borrower can be told so, instead of being sent it again.
@@ -649,12 +684,14 @@ public sealed record PeerCatalog
     /// </summary>
     public static string VersionOf(
         IReadOnlyList<PeerTrack> tracks, IReadOnlyList<PeerAlbum> albums,
-        IReadOnlyList<PeerPlaylist> playlists, IReadOnlyList<PeerMoodList> moodLists)
+        IReadOnlyList<PeerPlaylist> playlists, IReadOnlyList<PeerMoodList> moodLists,
+        IReadOnlyList<PeerHost> hosts)
     {
         ArgumentNullException.ThrowIfNull(tracks);
         ArgumentNullException.ThrowIfNull(albums);
         ArgumentNullException.ThrowIfNull(playlists);
         ArgumentNullException.ThrowIfNull(moodLists);
+        ArgumentNullException.ThrowIfNull(hosts);
 
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (var track in tracks.OrderBy(t => t.RpmId, StringComparer.Ordinal))
@@ -684,6 +721,14 @@ public sealed record PeerCatalog
                                       .ThenBy(l => l.Decade))
         {
             hash.AppendData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(list, SharingJson.Default.PeerMoodList)));
+            hash.AppendData("\n"u8);
+        }
+
+        // The hosts are in the hash for the same reason. A library that moves to a NAS changes no track
+        // row, and readers must learn about the NAS on their next visit.
+        foreach (var host in hosts.OrderBy(h => h.DeviceId, StringComparer.Ordinal))
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(host, SharingJson.Default.PeerHost)));
             hash.AppendData("\n"u8);
         }
 
@@ -724,4 +769,9 @@ public sealed record PeerCatalog
 [JsonSerializable(typeof(PeerMoodList))]
 [JsonSerializable(typeof(PeerPlaylistItem))]
 [JsonSerializable(typeof(PeerCatalog))]
+[JsonSerializable(typeof(PeerHost))]
+[JsonSerializable(typeof(NasHello))]
+[JsonSerializable(typeof(NasLibraryEntry))]
+[JsonSerializable(typeof(NasPublish))]
+[JsonSerializable(typeof(NasTrusted))]
 public sealed partial class SharingJson : JsonSerializerContext;

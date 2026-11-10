@@ -287,7 +287,7 @@ public class PeerGuestShelfTests : IDisposable
                 lender.Query(), "Their laptop",
                 PeerCatalogBuilder.From(
                     lender.AlbumMetaEdits(), PeerCatalogBuilder.AlbumAudience.AGuest),
-                PeerCatalogBuilder.Playlists(lender.PlaylistTree(), new Dictionary<long, string>()), []);
+                PeerCatalogBuilder.Playlists(lender.PlaylistTree(), new Dictionary<long, string>()), [], []);
 
             _shelf.MirrorPeerLibrary(
                 Friend, PeerLibraryMirror.ToCatalogRows(catalog.Tracks),

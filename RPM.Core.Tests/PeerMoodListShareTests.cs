@@ -34,9 +34,9 @@ public class PeerMoodListShareTests
         var tracks = new[] { Track("a"), Track("b") };
 
         var before = PeerCatalog.VersionOf(tracks, [], [],
-            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", "Rock", 0, ["a"]))));
+            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", "Rock", 0, ["a"]))), []);
         var after = PeerCatalog.VersionOf(tracks, [], [],
-            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", "Rock", 0, ["b"]))));
+            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", "Rock", 0, ["b"]))), []);
 
         Assert.NotEqual(before, after);
     }
@@ -51,8 +51,8 @@ public class PeerMoodListShareTests
         var lists = PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", null, 0, ["a"])));
 
         Assert.Equal(
-            PeerCatalog.VersionOf(tracks, [], [], lists),
-            PeerCatalog.VersionOf(tracks, [], [], lists));
+            PeerCatalog.VersionOf(tracks, [], [], lists, []),
+            PeerCatalog.VersionOf(tracks, [], [], lists, []));
     }
 
     [Fact]
@@ -65,15 +65,15 @@ public class PeerMoodListShareTests
         var two = new MoodListPayload("Danceable", "Pop", 1980, ["a"]);
 
         Assert.Equal(
-            PeerCatalog.VersionOf(tracks, [], [], PeerCatalogBuilder.MoodLists(Cut(one, two))),
-            PeerCatalog.VersionOf(tracks, [], [], PeerCatalogBuilder.MoodLists(Cut(two, one))));
+            PeerCatalog.VersionOf(tracks, [], [], PeerCatalogBuilder.MoodLists(Cut(one, two)), []),
+            PeerCatalog.VersionOf(tracks, [], [], PeerCatalogBuilder.MoodLists(Cut(two, one)), []));
     }
 
     [Fact]
     public void A_shelf_with_no_cut_still_has_a_version()
     {
         // What an older build sends, and what a collection with no measurements sends.
-        Assert.False(string.IsNullOrEmpty(PeerCatalog.VersionOf([Track("a")], [], [], [])));
+        Assert.False(string.IsNullOrEmpty(PeerCatalog.VersionOf([Track("a")], [], [], [], [])));
     }
 
     // ── what is sent ──
@@ -109,7 +109,7 @@ public class PeerMoodListShareTests
     {
         var catalog = PeerCatalogBuilder.Catalog(
             [], "Their laptop", [], [],
-            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", null, 0, ["a"]))));
+            PeerCatalogBuilder.MoodLists(Cut(new MoodListPayload("Calm", null, 0, ["a"]))), []);
 
         Assert.Single(catalog.MoodLists);
         Assert.Equal("Calm", catalog.MoodLists[0].Kind);
@@ -118,7 +118,7 @@ public class PeerMoodListShareTests
     [Fact]
     public void An_older_build_sends_no_lists_and_that_is_a_shelf_without_them()
     {
-        var catalog = PeerCatalogBuilder.Catalog([], "Their laptop", [], [], []);
+        var catalog = PeerCatalogBuilder.Catalog([], "Their laptop", [], [], [], []);
 
         Assert.Empty(catalog.MoodLists);
     }

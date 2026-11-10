@@ -96,7 +96,7 @@ public class JsonShapeTests
         };
         var albums = new[] { new PeerAlbum { Folder = "Numan/One", Rating = 5 } };
 
-        var version = PeerCatalog.VersionOf(tracks, albums, [], []);
+        var version = PeerCatalog.VersionOf(tracks, albums, [], [], []);
 
         // The same computation, written out with the reflection serialiser.
         var reflected = Reflected(SharingProtocol.Json);

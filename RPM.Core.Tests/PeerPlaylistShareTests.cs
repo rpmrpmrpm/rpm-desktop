@@ -213,10 +213,10 @@ public class PeerPlaylistShareTests : IDisposable
     public void A_playlist_that_changed_changes_the_version_of_the_listing()
     {
         var road = _lender.CreatePlaylist(null, "Road trips");
-        var before = PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(_lender.PlaylistTree(), new Dictionary<long, string>()), []);
+        var before = PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(_lender.PlaylistTree(), new Dictionary<long, string>()), [], []);
 
         _lender.RenamePlaylistNode(road, "Long drives");
-        var after = PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(_lender.PlaylistTree(), new Dictionary<long, string>()), []);
+        var after = PeerCatalog.VersionOf([], [], PeerCatalogBuilder.Playlists(_lender.PlaylistTree(), new Dictionary<long, string>()), [], []);
 
         // Otherwise the borrower is told "still abc123" and waits for the owner's next import to hear
         // about a rename, possibly for ever.

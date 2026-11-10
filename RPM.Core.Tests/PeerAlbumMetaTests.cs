@@ -140,8 +140,8 @@ public class PeerAlbumMetaTests : IDisposable
         var albums = PeerCatalogBuilder.From([Edit("Cher/Half Breed", at: 500, classical: true)], Owner);
         var after = PeerCatalogBuilder.From([Edit("Cher/Half Breed", at: 600, classical: false)], Owner);
 
-        Assert.NotEqual(PeerCatalog.VersionOf([], albums, [], []), PeerCatalog.VersionOf([], after, [], []));
-        Assert.NotEqual(PeerCatalog.VersionOf([], albums, [], []), PeerCatalog.VersionOf([], [], [], []));
+        Assert.NotEqual(PeerCatalog.VersionOf([], albums, [], [], []), PeerCatalog.VersionOf([], after, [], [], []));
+        Assert.NotEqual(PeerCatalog.VersionOf([], albums, [], [], []), PeerCatalog.VersionOf([], [], [], [], []));
     }
 
     [Fact]

@@ -458,6 +458,61 @@ public sealed partial class PeerClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// Uploads both catalogues and the trust list to a NAS that holds this library. True when the NAS
+    /// took it. The NAS answers 403 unless this computer's key is in the library's claim file.
+    /// </summary>
+    public async Task<bool> PublishAsync(NasPublish publish, CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(publish);
+        if (await TokenAsync(cancellation) is not { } token)
+            return false;
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + SharingProtocol.NasPublishRoute)
+        {
+            Content = JsonContent.Create(publish, SharingJson.Default.NasPublish),
+        };
+        request.Headers.Add("Authorization", "Bearer " + token);
+        try
+        {
+            // A large library is several megabytes of catalogue, twice, so this gets the listing's time.
+            using var deadline = Deadline(Listing, cancellation);
+            using var response = await _http.SendAsync(request, deadline.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ObjectDisposedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Uploads a picture to a NAS under <paramref name="key"/>, such as <c>pl:12</c>. True when the
+    /// NAS took it.</summary>
+    public async Task<bool> PutArtAsync(string key, byte[] bytes, CancellationToken cancellation)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(bytes);
+        if (await TokenAsync(cancellation) is not { } token)
+            return false;
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put, $"{BaseUrl}{SharingProtocol.NasArtRoute}{Uri.EscapeDataString(key)}")
+        {
+            Content = new ByteArrayContent(bytes),
+        };
+        request.Headers.Add("Authorization", "Bearer " + token);
+        try
+        {
+            using var deadline = Deadline(Quick, cancellation);
+            using var response = await _http.SendAsync(request, deadline.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ObjectDisposedException)
+        {
+            return false;
+        }
+    }
+
     private string? _deviceId;
 
     /// <summary>The peer's device id, remembered after the first greeting. The session signature is bound to
