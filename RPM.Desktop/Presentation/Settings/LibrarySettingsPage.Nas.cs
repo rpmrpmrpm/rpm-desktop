@@ -98,13 +98,13 @@ public sealed partial class LibrarySettingsPage
         if (_nasService!.OpenLibraryOn(space) is { } here)
         {
             line.Text = spaceText;
-            panel.Children.Add(Action(Loc.Format("Nas_Use", nas.Name), "", async button =>
+            panel.Children.Add(Action(Loc.Format("Nas_Use", nas.Name), "\uf00c", async button =>
                 await UseAsync(nas, hello, here, button, line)));
             return panel;
         }
 
         line.Text = Loc.Format("Nas_MoveBody", nas.Name) + " " + spaceText;
-        panel.Children.Add(Action(Loc.Format("Nas_Move", nas.Name), "", async button =>
+        panel.Children.Add(Action(Loc.Format("Nas_Move", nas.Name), "\uf233", async button =>
             await MoveAsync(nas, hello, button, line)));
         return panel;
     }
