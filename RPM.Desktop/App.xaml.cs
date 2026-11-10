@@ -490,6 +490,10 @@ public partial class App : Application
                         .AddSingleton<RPM.Desktop.Services.Sharing.PeerLibraryStore>()
                         .AddSingleton<RPM.Desktop.Services.Sharing.PeerDiscovery>()
                         .AddSingleton<RPM.Desktop.Services.Sharing.SharingService>()
+                        // A library on a NAS: the NAS machines on the network, and the uploader that keeps the
+                        // NAS that holds this library up to date.
+                        .AddSingleton<RPM.Desktop.Services.Nas.NasDiscovery>()
+                        .AddSingleton<RPM.Desktop.Services.Nas.NasPublisher>()
                         // Who those computers belong to. It is kept apart from the sharing itself, because
                         // it is a fact held by the API and not by the machine on the network. Also, nothing
                         // about sharing waits for it.
@@ -1108,6 +1112,9 @@ public partial class App : Application
         // belongs to somebody else's account, and that it must not ask about it.
         Host.Services.GetRequiredService<CloudStreamService>().Sharing = sharing;
 
+        // A library on a NAS is kept up to date from here. See NasPublisher.
+        StartNas(Host.Services);
+
         sharing.RestartSoon();
 
         // Force dark theme on the root content
@@ -1539,4 +1546,6 @@ public partial class App : Application
     }
     #endif
 
+    private static void StartNas(IServiceProvider services) =>
+        services.GetRequiredService<RPM.Desktop.Services.Nas.NasPublisher>().Start();
 }

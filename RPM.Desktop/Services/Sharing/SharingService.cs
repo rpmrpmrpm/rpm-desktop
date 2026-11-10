@@ -50,6 +50,7 @@ public sealed partial class SharingService : IDisposable
     private readonly PeerBook _book;
     private readonly PeerLibraryStore _guests;
     private readonly PeerDiscovery _discovery;
+    private readonly RPM.Desktop.Services.Nas.NasDiscovery _nas;
     private readonly ILogger<SharingService> _log;
 
     private readonly object _gate = new();
@@ -103,6 +104,7 @@ public sealed partial class SharingService : IDisposable
         PeerBook book,
         PeerLibraryStore guests,
         PeerDiscovery discovery,
+        RPM.Desktop.Services.Nas.NasDiscovery nas,
         ILogger<SharingService> log,
         CloudStreamService? stream = null,
         RpmCloudClient? cloud = null,
@@ -115,6 +117,7 @@ public sealed partial class SharingService : IDisposable
         _book = book;
         _guests = guests;
         _discovery = discovery;
+        _nas = nas;
         _log = log;
         _stream = stream;
         _cloud = cloud;
@@ -453,6 +456,17 @@ public sealed partial class SharingService : IDisposable
             return LibraryServer.CatalogAnswer.Unchanged;
         }
 
+        return LibraryServer.CatalogAnswer.Listing(BuildCatalog(audience, inputs, Who(asking.DeviceId)));
+    }
+
+    /// <summary>
+    /// Builds the listing for <paramref name="audience"/> from the open collection, and remembers its
+    /// version when nothing changed while it was being built. <paramref name="inputs"/> must be read
+    /// before the build starts (see <see cref="Catalog"/>).
+    /// </summary>
+    private PeerCatalog BuildCatalog(
+        PeerCatalogBuilder.AlbumAudience audience, CatalogInputs inputs, string forWhom)
+    {
         var albums = _library.IsOpen
             ? PeerCatalogBuilder.From(_library.Db.AlbumMetaEdits(), audience)
             : [];
@@ -479,7 +493,7 @@ public sealed partial class SharingService : IDisposable
             : [];
 
         var catalog = PeerCatalogBuilder.Catalog(
-            _library.Query(), _settings.ShareName, albums, playlists, moodLists, []);
+            _library.Query(), _settings.ShareName, albums, playlists, moodLists, inputs.Hosts);
 
         // WHAT THIS MACHINE SAID, AND FROM WHICH LIBRARY.
         //
@@ -493,7 +507,7 @@ public sealed partial class SharingService : IDisposable
         // sent names a narrowing. The two cases need opposite fixes, and nothing else on either machine
         // tells them apart.
         Said.Line("sharing",
-            $"served {Who(asking.DeviceId)}: {catalog.Tracks.Count} tracks, {albums.Count} albums, " +
+            $"built for {forWhom}: {catalog.Tracks.Count} tracks, {albums.Count} albums, " +
             $"{playlists.Count} playlists and {moodLists.Count} generated lists " +
             $"(version {Short(catalog.Version)}) out of {_library.Root} — " +
             $"{_library.Db.Count} rows in it, local rows only {_library.Db.LocalRowsOnly}, " +
@@ -509,7 +523,58 @@ public sealed partial class SharingService : IDisposable
                 _served[audience] = (inputs, catalog.Version);
         }
 
-        return LibraryServer.CatalogAnswer.Listing(catalog);
+        return catalog;
+    }
+
+    /// <summary>
+    /// The version of the listing for <paramref name="audience"/>. It is built only when the collection,
+    /// or anything else in <see cref="CatalogInputs"/>, changed since the last build. The NAS uploader
+    /// asks this on every tick to learn whether the NAS holds the current listing.
+    /// </summary>
+    public string CatalogVersion(PeerCatalogBuilder.AlbumAudience audience)
+    {
+        var inputs = Inputs(audience);
+        if (Remembered(audience) is { } last && last.Inputs == inputs)
+            return last.Version;
+        return BuildCatalog(audience, inputs, "the NAS").Version;
+    }
+
+    /// <summary>The listing for <paramref name="audience"/>, built now, for an upload to the NAS.</summary>
+    public PeerCatalog CatalogFor(PeerCatalogBuilder.AlbumAudience audience) =>
+        BuildCatalog(audience, Inputs(audience), "the NAS");
+
+    /// <summary>Every key this computer trusts, with how it knows it: the trust list a NAS that holds this
+    /// library is given.</summary>
+    public IReadOnlyList<NasTrusted> NasTrustList() =>
+        [.. _book.Peers
+            .OrderBy(p => p.DeviceId, StringComparer.Ordinal)
+            .Select(p => new NasTrusted { PublicKey = SharingProtocol.ToBase64Url(p.PublicKey), Kind = p.Kind })];
+
+    /// <summary>The picture this computer serves under <paramref name="key"/> (such as <c>pl:12</c>), for an
+    /// upload to the NAS.</summary>
+    public Task<(byte[] Bytes, string ContentType)?> OwnArtAsync(string key, CancellationToken ct) =>
+        ArtFor(null!, key, ct);
+
+    /// <summary>
+    /// The NAS machines that serve the open library and have accepted this computer as an owner. It is
+    /// the <see cref="PeerCatalog.Hosts"/> list. It is empty when the library is not on a NAS that is on
+    /// the network now, or when this computer's key is not in the library's claim file.
+    /// </summary>
+    public IReadOnlyList<PeerHost> NasHosts()
+    {
+        if (!_library.IsOpen || _library.Root is not { Length: > 0 } root ||
+            RPM.Core.Nas.NasLibrary.IdOf(root) is not { } libraryId ||
+            _nas.LibraryServing(libraryId) is not { } nas)
+            return [];
+        if (RPM.Core.Nas.NasClaim.Read(root) is not { } claim || !claim.Holds(PeerKeyStore.Identity.PublicKey))
+            return [];
+        return [new PeerHost
+        {
+            DeviceId = nas.DeviceId,
+            PublicKey = SharingProtocol.ToBase64Url(nas.PublicKey),
+            Name = nas.Name,
+            LibraryId = libraryId,
+        }];
     }
 
     /// <summary>Everything <see cref="Catalog"/> reads that <see cref="LibraryDatabase.WriteTurns"/>
@@ -536,7 +601,23 @@ public sealed partial class SharingService : IDisposable
         bool LocalRowsOnly,
         bool CloudRowsOnly,
         string Name,
-        PeerCatalogBuilder.AlbumAudience Audience);
+        PeerCatalogBuilder.AlbumAudience Audience,
+        HostList Hosts);
+
+    /// <summary>
+    /// The NAS hosts as an input. They change without a row being written (a NAS appears on the network,
+    /// or the claim is written), so they are part of what a remembered version is checked against. The
+    /// list compares by its content, so two reads of the same hosts are equal.
+    /// </summary>
+    private sealed record HostList(IReadOnlyList<PeerHost> Items) : IReadOnlyList<PeerHost>
+    {
+        public PeerHost this[int index] => Items[index];
+        public int Count => Items.Count;
+        public IEnumerator<PeerHost> GetEnumerator() => Items.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => Items.GetEnumerator();
+        public bool Equals(HostList? other) => other is not null && Items.SequenceEqual(other.Items);
+        public override int GetHashCode() => Items.Count;
+    }
 
     private CatalogInputs Inputs(PeerCatalogBuilder.AlbumAudience audience)
     {
@@ -547,7 +628,8 @@ public sealed partial class SharingService : IDisposable
             db?.LocalRowsOnly ?? false,
             db?.CloudRowsOnly ?? false,
             _settings.ShareName ?? "",
-            audience);
+            audience,
+            new HostList(NasHosts()));
     }
 
     private (CatalogInputs Inputs, string Version)? Remembered(PeerCatalogBuilder.AlbumAudience audience)
