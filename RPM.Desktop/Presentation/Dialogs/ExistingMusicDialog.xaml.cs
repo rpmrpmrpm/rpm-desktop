@@ -20,7 +20,7 @@ public sealed partial class ExistingMusicDialog : ContentDialog
         InitializeComponent();
         Shell.Title = Loc.Get("ExistingMusic_Title");
         BodyText.Text = Loc.Format("ExistingMusic_Body", folderName);
-        Shell.AttachResize(this, minWidth: 440, minHeight: 420, maxWidth: 640, defaultHeight: 470, defaultWidth: 520);
+        Shell.AttachResize(this, minWidth: 520, minHeight: 440, maxWidth: 720, defaultHeight: 480, defaultWidth: 600);
     }
 
     private void Keep_Click(object sender, RoutedEventArgs e)

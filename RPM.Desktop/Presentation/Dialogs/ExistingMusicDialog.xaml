@@ -69,37 +69,53 @@
                  TextWrapping="Wrap" TextAlignment="Center"
                  HorizontalAlignment="Center" MaxWidth="420"/>
 
-      <Button x:Name="KeepButton" Click="Keep_Click"
-              Style="{StaticResource GlassButtonStyle}"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="18,14">
-        <Grid ColumnSpacing="14">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf023;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"/>
-          <StackPanel Grid.Column="1" Spacing="4">
-            <TextBlock Text="{loc:Str Key=ExistingMusic_Keep}" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"/>
-            <TextBlock Text="{loc:Str Key=ExistingMusic_KeepBody}" FontSize="12" Foreground="#AAFFFFFF" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Grid>
-      </Button>
+      <!-- Two tiles, as on setup's import step: the frosted pane of AddMusicDialog's source tiles. -->
+      <Grid ColumnSpacing="14">
+        <Grid.Resources>
+          <Style x:Key="ChoiceTileStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource GlassButtonBaseFillBrush}"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="18,20"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+            <Setter Property="Foreground" Value="#F2FFFFFF"/>
+          </Style>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#26FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#45FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#45FFFFFF"/>
+        </Grid.Resources>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-      <Button x:Name="OrganiseButton" Click="Organise_Click"
-              Style="{StaticResource GlassButtonStyle}"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="18,14">
-        <Grid ColumnSpacing="14">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-          <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07c;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"/>
-          <StackPanel Grid.Column="1" Spacing="4">
-            <TextBlock Text="{loc:Str Key=ExistingMusic_Organise}" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"/>
-            <TextBlock Text="{loc:Str Key=ExistingMusic_OrganiseBody}" FontSize="12" Foreground="#AAFFFFFF" TextWrapping="Wrap"/>
+        <Button x:Name="KeepButton" Style="{StaticResource ChoiceTileStyle}" Click="Keep_Click">
+          <StackPanel Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf023;" FontSize="28"
+                      Foreground="{StaticResource RpmCyanBrush}"/>
+            <TextBlock Text="{loc:Str Key=ExistingMusic_Keep}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=ExistingMusic_KeepBody}" FontSize="12" Foreground="#8CFFFFFF"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
           </StackPanel>
-        </Grid>
-      </Button>
+        </Button>
+
+        <Button x:Name="OrganiseButton" Grid.Column="1" Style="{StaticResource ChoiceTileStyle}" Click="Organise_Click">
+          <StackPanel Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07c;" FontSize="28"
+                      Foreground="{StaticResource RpmCyanBrush}"/>
+            <TextBlock Text="{loc:Str Key=ExistingMusic_Organise}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:Str Key=ExistingMusic_OrganiseBody}" FontSize="12" Foreground="#8CFFFFFF"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
+          </StackPanel>
+        </Button>
+      </Grid>
     </StackPanel>
 
     <ctl:ResizableDialogShell.Footer>
