@@ -53,7 +53,11 @@ public sealed partial class MigrationDialog : ContentDialog
             _work?.Cancel();
         };
 
-        if (_service.IsRunning || _service.LastEnd is not null && _service.Current is not null)
+        // A running or stopped import opens where it is; a finished one shows its report once. After that
+        // the window starts at the list of apps, so another import can be started.
+        var stopped = _service.LastEnd is not null && _service.LastEnd != RunEnd.Finished;
+        var unseenReport = _service.LastEnd == RunEnd.Finished && !_service.ReportSeen;
+        if (_service.Current is not null && (_service.IsRunning || stopped || unseenReport))
             ShowRun();
         else
             ShowApps();
@@ -325,9 +329,15 @@ public sealed partial class MigrationDialog : ContentDialog
         if (_library is not { } library || _estimate is not { } estimate)
             return;
 
-        SummaryTracks.Text = Loc.Format("Migration_SummaryTracks", library.Tracks.Count, TrackFieldText.Size(estimate.TotalBytes));
-        SummaryPlaylists.Text = Loc.Format("Migration_SummaryPlaylists", library.Playlists.Count);
+        SummaryTracks.Text = library.Tracks.Count == 1
+            ? Loc.Format("Migration_SummaryTracksOne", Size(estimate.TotalBytes))
+            : Loc.Format("Migration_SummaryTracks", library.Tracks.Count, Size(estimate.TotalBytes));
+        SummaryPlaylists.Text = library.Playlists.Count == 1
+            ? Loc.Get("Migration_SummaryPlaylistsOne")
+            : Loc.Format("Migration_SummaryPlaylists", library.Playlists.Count);
+        SummaryPlaylists.Visibility = Vis(library.Playlists.Count > 0);
         SummaryAlready.Text = Loc.Format("Migration_SummaryAlready", estimate.AboutAlreadyInRpm);
+        SummaryAlready.Visibility = Vis(estimate.AboutAlreadyInRpm > 0);
         SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", library.Skipped.Count);
         SummarySkipped.Visibility = Vis(library.Skipped.Count > 0);
         SummaryKeeps.Text = Keeps(library);
@@ -367,7 +377,7 @@ public sealed partial class MigrationDialog : ContentDialog
             {
                 startable = free >= needed;
                 SpaceText.Text = Loc.Format(startable ? "Migration_SpaceDisk" : "Migration_SpaceDiskShort",
-                    TrackFieldText.Size(needed), TrackFieldText.Size(free));
+                    Size(needed), Size(free));
                 if (!startable)
                     SpaceText.Style = (Style)Resources["WarnLineStyle"];
             }
@@ -383,7 +393,7 @@ public sealed partial class MigrationDialog : ContentDialog
             {
                 var free = Math.Max(0, space.Quota - space.Used);
                 SpaceText.Text = Loc.Format(free >= needed ? "Migration_SpaceCloud" : "Migration_SpaceCloudShort",
-                    TrackFieldText.Size(needed), TrackFieldText.Size(free));
+                    Size(needed), Size(free));
             }
         }
         Primary("Migration_Start", startable);
@@ -456,7 +466,7 @@ public sealed partial class MigrationDialog : ContentDialog
         {
             var done = p.Counts.Imported + p.Counts.AlreadyInRpm + p.Counts.NotImported;
             Bar.Value = p.BytesTotal > 0 ? (double)p.BytesDone / p.BytesTotal : p.Total > 0 ? (double)done / p.Total : 0;
-            ProgressTracks.Text = Loc.Format("Migration_ProgressTracks", done, p.Total, TrackFieldText.Size(p.BytesDone), TrackFieldText.Size(p.BytesTotal));
+            ProgressTracks.Text = Loc.Format("Migration_ProgressTracks", done, p.Total, Size(p.BytesDone), Size(p.BytesTotal));
             ProgressCounts.Text = Loc.Format("Migration_ProgressCounts", p.Counts.Imported, p.Counts.AlreadyInRpm, p.Counts.NotImported);
             ProgressAlbum.Text = p.CurrentAlbum is { Length: > 0 } album ? Loc.Format("Migration_ProgressAlbum", album) : "";
             ProgressTimeLeft.Text = p.TimeLeft is { } left ? Loc.Format("Migration_ProgressTimeLeft", PaneStats.Duration(left.TotalSeconds)) : "";
@@ -479,9 +489,12 @@ public sealed partial class MigrationDialog : ContentDialog
     private void ShowReport(MigrationReport report)
     {
         Show(Face.Report);
+        _service.ReportSeen = true;
         ReportTitle.Text = Loc.Format("Migration_ReportTitle", _service.CurrentLabel);
         ReportCounts.Text = Loc.Format("Migration_ReportCounts", report.Counts.Found, report.Counts.Imported, report.Counts.AlreadyInRpm, report.Counts.NotImported);
-        ReportPlaylists.Text = Loc.Format("Migration_ReportPlaylists", report.Playlists.Count);
+        ReportPlaylists.Text = report.Playlists.Count == 1
+            ? Loc.Get("Migration_ReportPlaylistsOne")
+            : Loc.Format("Migration_ReportPlaylists", report.Playlists.Count);
         ReportPlaylists.Visibility = Vis(report.Playlists.Count > 0);
 
         ReportPlaylistNotes.Children.Clear();
@@ -589,6 +602,10 @@ public sealed partial class MigrationDialog : ContentDialog
     }
 
     // ── words ──
+
+    /// <summary>A size as the rest of the app writes it, and "0 KB" for nothing yet (the shared helper
+    /// writes nothing for zero, which reads as a gap in a progress line).</summary>
+    private static string Size(long bytes) => bytes > 0 ? TrackFieldText.Size(bytes) : Loc.Format("Unit_KB", 0);
 
     private static string SourceKey(SourceKind kind) => kind switch
     {

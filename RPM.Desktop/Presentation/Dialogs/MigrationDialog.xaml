@@ -119,7 +119,7 @@
           </Grid.RowDefinitions>
           <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="MusicBee">
             <StackPanel>
-              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf0fc;" FontSize="19" Foreground="#99FFFFFF"/>
+              <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf15b;" FontSize="19" Foreground="#99FFFFFF"/>
               <TextBlock Text="{loc:Str Key=Migration_SourceMusicBee}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
               <TextBlock Text="{loc:Str Key=Migration_HintFile}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
             </StackPanel>

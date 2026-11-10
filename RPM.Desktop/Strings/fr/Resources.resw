@@ -9991,7 +9991,7 @@
     <comment>Add music window: the tile that imports a library from another music app.</comment>
   </data>
   <data name="AddMusic_OtherAppHint" xml:space="preserve">
-    <value>MusicBee, iTunes, Jellyfin, Plex, Navidrome</value>
+    <value>MusicBee, iTunes, Plex et plus</value>
     <comment>Add music window: the line under 'From another app', naming the apps it can import from.</comment>
   </data>
   <data name="Migration_Title" xml:space="preserve">
@@ -10357,5 +10357,17 @@
   <data name="Migration_SkipNotMusic" xml:space="preserve">
     <value>Pas de la musique (podcast, livre audio ou vidéo)</value>
     <comment>Import from another app: why an item of the source was not imported.</comment>
+  </data>
+  <data name="Migration_SummaryTracksOne" xml:space="preserve">
+    <value>1 titre ({0})</value>
+    <comment>Import from another app: summary line for one track. {0} is a size.</comment>
+  </data>
+  <data name="Migration_SummaryPlaylistsOne" xml:space="preserve">
+    <value>1 playlist</value>
+    <comment>Import from another app: summary line for one playlist.</comment>
+  </data>
+  <data name="Migration_ReportPlaylistsOne" xml:space="preserve">
+    <value>1 playlist ajoutée</value>
+    <comment>Import from another app: report line for one playlist.</comment>
   </data>
 </root>

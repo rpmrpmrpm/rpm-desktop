@@ -83,6 +83,10 @@ public sealed class MigrationService : IDisposable
 
     public MigrationReport? LastReport { get; private set; }
 
+    /// <summary>The window has shown the last finished import's report. The next time it opens, it
+    /// starts at the list of apps instead of showing the same report again.</summary>
+    public bool ReportSeen { get; set; }
+
     /// <summary>What the last run needs to be continued (after a sign-in expired, for example).</summary>
     public MigrationConnection? LastConnection { get; private set; }
 
@@ -239,6 +243,7 @@ public sealed class MigrationService : IDisposable
         LastDestination = destination;
         LastEnd = null;
         LastReport = null;
+        ReportSeen = false;
         Progress = null;
         IsRunning = true;
         Raise();
