@@ -141,6 +141,14 @@ public sealed class MigrationRun(
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
     private LibraryIndex _index = null!;
+
+    // The tracks that are through (in rpm, or not imported with no attempts left) and their bytes, kept as
+    // tracks finish. Reading every finished row after each track would cost the square of the library size.
+    // The counts are kept the same way: within one run a track that is through does not change state again.
+    private readonly HashSet<string> _through = new(StringComparer.Ordinal);
+    private long _doneBytes;
+    private long _totalBytes;
+    private MigrationCounts _counts = new(0, 0, 0, 0, 0);
     private readonly List<(DateTime At, long Bytes)> _albumTimes = [];
     private string? _currentAlbum;
 
@@ -151,6 +159,7 @@ public sealed class MigrationRun(
         CleanStaging();
         record.AddFound(library.Tracks.Select(t => t.SourceId));
         record.ReopenFailed();
+        CountThrough();
         RefreshPlays();
         _index = LibraryIndex.Build(db);
         var albums = AlbumBatch.Group(library.Tracks);
@@ -301,6 +310,7 @@ public sealed class MigrationRun(
                 {
                     ct.ThrowIfCancellationRequested();
                     var step = await TrackAsync(track, plays, added, ct);
+                    Settle(track.SourceId);
                     Report(progress, MigrationStage.Tracks);
                     if (step.End is not null)
                         return step.End;
@@ -622,6 +632,7 @@ public sealed class MigrationRun(
             if (waiting.TrackId is not { } id || db.FindById(id) is not { } row)
             {
                 record.Note(waiting.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.Removed);
+                Settle(waiting.SourceId);
                 continue;
             }
 
@@ -629,6 +640,7 @@ public sealed class MigrationRun(
             {
                 // Noted first: a stop before the removal leaves the row in the library, which is safe.
                 record.Note(waiting.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.UploadFailed, detail: row.CloudError);
+                Settle(waiting.SourceId);
                 db.Remove(row.RelativePath);
                 TryDelete(Path.Combine(rules.Root, row.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
                 continue;
@@ -641,6 +653,7 @@ public sealed class MigrationRun(
 
             TryDelete(Path.Combine(rules.Root, row.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
             record.Note(waiting.SourceId, MigrationTrackState.Imported, row.Id);
+            Settle(waiting.SourceId);
         }
     }
 
@@ -736,14 +749,38 @@ public sealed class MigrationRun(
         catch (UnauthorizedAccessException) { }
     }
 
-    private void Report(IProgress<MigrationProgress> progress, MigrationStage stage)
+    private void Report(IProgress<MigrationProgress> progress, MigrationStage stage) =>
+        progress.Report(new MigrationProgress(stage, _counts, _counts.Found, _doneBytes, _totalBytes, _currentAlbum, TimeLeft(_totalBytes - _doneBytes)));
+
+    private static bool IsThrough(MigrationTrackRow row) =>
+        row.State is MigrationTrackState.Imported or MigrationTrackState.AlreadyInRpm
+        || row.State == MigrationTrackState.NotImported && row.Attempts >= CloudRetrySchedule.MaxAttempts;
+
+    /// <summary>Counts the tracks that are through at the start of a run, once.</summary>
+    private void CountThrough()
     {
-        var counts = record.Counts();
-        var total = library.Tracks.Sum(t => t.SizeBytes);
-        var doneIds = record.Rows(MigrationTrackState.Imported).Concat(record.Rows(MigrationTrackState.AlreadyInRpm))
-            .Concat(record.Rows(MigrationTrackState.NotImported).Where(r => r.Attempts >= CloudRetrySchedule.MaxAttempts));
-        var done = doneIds.Sum(r => _bySource.TryGetValue(r.SourceId, out var t) ? t.SizeBytes : 0);
-        progress.Report(new MigrationProgress(stage, counts, counts.Found, done, total, _currentAlbum, TimeLeft(total - done)));
+        _counts = record.Counts();
+        _totalBytes = _bySource.Values.Sum(t => t.SizeBytes);
+        foreach (var state in new[] { MigrationTrackState.Imported, MigrationTrackState.AlreadyInRpm, MigrationTrackState.NotImported })
+            foreach (var row in record.Rows(state).Where(IsThrough))
+                if (_through.Add(row.SourceId) && _bySource.TryGetValue(row.SourceId, out var track))
+                    _doneBytes += track.SizeBytes;
+    }
+
+    /// <summary>Adds a track to the bytes done once its row says it is through.</summary>
+    private void Settle(string sourceId)
+    {
+        if (_through.Contains(sourceId) || record.Track(sourceId) is not { } row || !IsThrough(row))
+            return;
+        _through.Add(sourceId);
+        if (_bySource.TryGetValue(sourceId, out var track))
+            _doneBytes += track.SizeBytes;
+        _counts = row.State switch
+        {
+            MigrationTrackState.Imported => _counts with { Imported = _counts.Imported + 1, Waiting = _counts.Waiting - 1 },
+            MigrationTrackState.AlreadyInRpm => _counts with { AlreadyInRpm = _counts.AlreadyInRpm + 1, Waiting = _counts.Waiting - 1 },
+            _ => _counts with { NotImported = _counts.NotImported + 1, Waiting = _counts.Waiting - 1 },
+        };
     }
 
     /// <summary>Bytes left divided by the speed over the last ten albums; null until three albums are done.</summary>

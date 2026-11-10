@@ -450,11 +450,24 @@ public sealed partial class MigrationDialog : ContentDialog
 
     // ── the run ──
 
-    private void OnServiceChanged(object? sender, EventArgs e) => _dispatcher.TryEnqueue(() =>
+    // At most one redraw waits on the UI thread. A fast import reports after every track; the redraw reads
+    // the service's latest state when it runs, so the reports in between are not needed.
+    private int _redrawQueued;
+
+    private void OnServiceChanged(object? sender, EventArgs e)
     {
+        if (Interlocked.Exchange(ref _redrawQueued, 1) == 1)
+            return;
+        if (!_dispatcher.TryEnqueue(Redraw))
+            Interlocked.Exchange(ref _redrawQueued, 0);
+    }
+
+    private void Redraw()
+    {
+        Interlocked.Exchange(ref _redrawQueued, 0);
         if (_face is Face.Progress or Face.Report)
             ShowRun();
-    });
+    }
 
     private void ShowRun()
     {

@@ -257,6 +257,10 @@ public sealed partial class LibraryDatabase
             """,
             ("$now", nowUtcTicks), ("$limit", limit));
 
+        /// <summary>One track's row, or null when the record does not list it.</summary>
+        public MigrationTrackRow? Track(string sourceId) =>
+            Read("WHERE migration_id = $m AND source_id = $s", ("$s", sourceId)).FirstOrDefault();
+
         /// <summary>Every row in one state, in source order.</summary>
         public IReadOnlyList<MigrationTrackRow> Rows(MigrationTrackState state) =>
             Read("WHERE migration_id = $m AND state = $state ORDER BY position", ("$state", (int)state));

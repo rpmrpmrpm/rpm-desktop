@@ -203,6 +203,27 @@ public class MigrationRunTests : IDisposable
     }
 
     [Fact]
+    public async Task Twenty_thousand_tracks_run_without_slowing_down_and_count_their_bytes()
+    {
+        // Every file is missing, so each track is one quick note: what is measured is the run's own work
+        // per track, which must not grow with the size of the library.
+        var tracks = Enumerable.Range(0, 20_000)
+            .Select(i => Local($"m{i}", $"Album {i / 100}", $"Song {i}", (uint)(i % 100 + 1), write: false))
+            .ToArray();
+        var library = Library(SourceKind.MusicBee, tracks);
+        MigrationProgress? last = null;
+        // About two seconds here; reading every row after each track took more than thirty.
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        var end = await Run(library, MigrationDestination.ThisComputer)
+            .RunAsync(new SyncProgress(p => { if (p.Stage == MigrationStage.Tracks) last = p; }), limit.Token);
+
+        Assert.Equal(RunEnd.Finished, end);
+        Assert.Equal(20_000, Record(library).Counts().NotImported);
+        Assert.Equal(tracks.Sum(t => t.SizeBytes), last!.BytesDone);
+    }
+
+    [Fact]
     public async Task Missing_file_is_reported_not_retried()
     {
         var gone = Local("s1", "Record", "One", write: false);
