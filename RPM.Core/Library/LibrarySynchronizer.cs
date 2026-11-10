@@ -85,6 +85,12 @@ public static class LibrarySynchronizer
             throw new DirectoryNotFoundException(
                 $"The library folder is not there: {db.Root}. Nothing was changed.");
 
+        // A kept library: no file in it is written, so ids are derived from the path and nothing is
+        // quarantined. The mode is read here, not passed in. It is a fact of the library, so no caller can
+        // read a kept folder as an organised one.
+        bool kept = FileKeeping.Read(db.Root, db) == FileHandling.Kept;
+        string? keptLibraryId = kept ? MirrorLocation.LibraryId.ReadOrCreate(db.Root) : null;
+
         // The inbox is not part of the collection. Everything in it is waiting to be imported. A row for it
         // would put unfiled music on the shelf. Also, once the import moved a file out, that row would look
         // like a track the user had deleted.
@@ -141,7 +147,7 @@ public static class LibrarySynchronizer
         // copied-in file looks like. Quarantining here would move somebody's whole collection into the
         // inbox on the first run. The first pass takes the folder as it is. From then on, anything that
         // appears in it is something that arrived.
-        bool quarantine = quarantineForeign && known.Count > 0;
+        bool quarantine = quarantineForeign && known.Count > 0 && !kept;
 
         // The folder is there, but every track that should be in it is gone. This is not a user deleting
         // their collection one file at a time. It is a mount that came up empty, a cloud drive still
@@ -346,8 +352,14 @@ public static class LibrarySynchronizer
 
                 if (itsCloudName is not null)
                 {
-                    keepId(file, itsCloudName);
+                    if (!kept)
+                        keepId(file, itsCloudName);
                     id = itsCloudName;
+                }
+                else if (keptLibraryId is not null)
+                {
+                    // Every computer that opens this folder derives the same id, and nothing is written.
+                    id = KeptIds.For(keptLibraryId, relative);
                 }
                 else
                 {
