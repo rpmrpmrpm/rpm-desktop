@@ -59,6 +59,15 @@ public sealed partial class SharingService : IDisposable
     /// address it was granted at, so it is worth keeping and worth dropping when either changes.</summary>
     private readonly Dictionary<string, Held> _clients = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Which NAS machines serve which computer's library, from each computer's catalogue.</summary>
+    private readonly RPM.Desktop.Services.Nas.NasRoutes _nasRoutes =
+        new(System.IO.Path.Combine(LocalData.Dir, "nas-routes.json"));
+
+    /// <summary>One client per NAS library, by its device id, kept while its address holds. Read and
+    /// written under <see cref="_gate"/>. A client replaced while a request is inside it fails that
+    /// request, which then falls back like any other NAS failure.</summary>
+    private readonly Dictionary<string, PeerClient> _nasClients = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The version of each peer's listing this machine last took, so the next ask is
     /// answered with "nothing changed" instead of the whole shelf.</summary>
     private readonly Dictionary<string, string> _catalogVersions = new(StringComparer.OrdinalIgnoreCase);
@@ -119,6 +128,7 @@ public sealed partial class SharingService : IDisposable
         _discovery = discovery;
         _nas = nas;
         _log = log;
+        _nas.Changed += OnNasChanged;
         _stream = stream;
         _cloud = cloud;
 
@@ -1189,7 +1199,7 @@ public sealed partial class SharingService : IDisposable
         using var borrowed = Borrow(deviceId);
         if (borrowed.Client is not { } client)
         {
-            Narrow(deviceId, cloudOnly: true);
+            Narrow(deviceId, cloudOnly: NasFor(deviceId) is null);
             return;
         }
 
@@ -1228,6 +1238,7 @@ public sealed partial class SharingService : IDisposable
             _library.ViewOwn();
 
         _guests.Forget(deviceId, _library.IsOpen ? _library.Root : null);
+        _nasRoutes.Forget(deviceId);
     }
 
     // ── what this machine borrows ──
@@ -1321,6 +1332,11 @@ public sealed partial class SharingService : IDisposable
         // The computer is not asked at all when the route is closed to it. Asking would do harm. A
         // computer that answers puts the record back on the network mid-song, and that is the seam this
         // code exists to stop. A computer that does not answer costs the listener the timeout.
+        // The NAS that serves this computer's library comes first: the files are there, and the
+        // computer would read them from the NAS anyway.
+        if (route.PeerAllowed && await NasTrackUrlAsync(deviceId, rpmId, cancellation) is { Length: > 0 } fromNas)
+            return fromNas;
+
         if (route.PeerAllowed)
         {
             // A client is borrowed only once the route is known to allow it. So a closed route does not
@@ -1574,7 +1590,8 @@ public sealed partial class SharingService : IDisposable
         }
 
         return _discovery.Seen.Any(p =>
-            string.Equals(p.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase));
+                   string.Equals(p.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase))
+               || NasFor(deviceId) is not null;
     }
 
     /// <summary>That computer did not answer. This is recorded once, here. Everything that asks about it
@@ -1587,7 +1604,8 @@ public sealed partial class SharingService : IDisposable
             Retire(deviceId);
         }
 
-        Narrow(deviceId, cloudOnly: true);
+        // A computer whose library is also on a NAS that is here can still play everything.
+        Narrow(deviceId, cloudOnly: NasFor(deviceId) is null);
         Changed?.Invoke();
     }
 
@@ -1903,7 +1921,10 @@ public sealed partial class SharingService : IDisposable
     private async Task PullAsync(TrustedPeer peer, CancellationToken cancellation)
     {
         using var borrowed = Borrow(peer.DeviceId);
-        if (borrowed.Client is not { } client)
+        // When the computer itself is not here, its library may still be on a NAS that is. The NAS holds
+        // the catalogue that computer last uploaded, which is the same listing with the same version.
+        var client = borrowed.Client ?? (NasFor(peer.DeviceId) is { } nas ? NasClient(nas) : null);
+        if (client is null)
             return;
 
         try
@@ -1915,6 +1936,9 @@ public sealed partial class SharingService : IDisposable
             if (await client.CatalogAsync(have, cancellation) is not { } catalog)
                 return;
 
+            // A catalogue from a computer this one trusts names the NAS machines that also serve it.
+            // A catalogue from that NAS carries the same list, uploaded by that computer.
+            LearnHosts(peer.DeviceId, catalog.Hosts);
             Back(peer.DeviceId);
 
             // The account that this peer is signed into is asked for once and written down. It is
@@ -2031,6 +2055,77 @@ public sealed partial class SharingService : IDisposable
             else
                 Said.Line("sharing", $"could not read a shared library (not on the network): {ex.Message}");
         }
+    }
+
+    // ── a library that is also on a NAS ──
+
+    /// <summary>The NAS to use for <paramref name="ownerDeviceId"/>'s library now, or null.</summary>
+    private DiscoveredNas? NasFor(string ownerDeviceId) =>
+        string.IsNullOrEmpty(ownerDeviceId) ? null : _nasRoutes.Reachable(ownerDeviceId, _nas.Found);
+
+    private PeerClient NasClient(DiscoveredNas nas)
+    {
+        var address = $"{nas.Host}:{nas.Port}";
+        lock (_gate)
+        {
+            if (_nasClients.TryGetValue(nas.DeviceId, out var known) && _nasAddresses.GetValueOrDefault(nas.DeviceId) == address)
+                return known;
+            known?.Dispose();
+            var made = new PeerClient(PeerKeyStore.Identity, nas.Host, nas.Port, nas.PublicKey, MyAccount);
+            _nasClients[nas.DeviceId] = made;
+            _nasAddresses[nas.DeviceId] = address;
+            return made;
+        }
+    }
+
+    private readonly Dictionary<string, string> _nasAddresses = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The address of a track on the NAS that serves its owner's library, or null. Null is silent: the
+    /// caller goes on to the owner's computer and then the cloud, and nothing is marked away or shown.
+    /// The NAS is asked first whether it has the file, so a track it does not hold never reaches the
+    /// player as an address that fails.
+    /// </summary>
+    private async Task<string?> NasTrackUrlAsync(string ownerDeviceId, string rpmId, CancellationToken cancellation)
+    {
+        if (NasFor(ownerDeviceId) is not { } nas)
+            return null;
+        try
+        {
+            var client = NasClient(nas);
+            return await client.HasTrackAsync(rpmId, cancellation)
+                ? await client.TrackUrlAsync(rpmId, cancellation)
+                : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Said.Line("nas", $"the NAS for {Who(ownerDeviceId)} did not answer: {ex.Message}");
+            return null;
+        }
+    }
+
+    private void LearnHosts(string ownerDeviceId, IReadOnlyList<PeerHost> hosts)
+    {
+        _nasRoutes.Learn(ownerDeviceId, hosts);
+        if (hosts.Count > 0)
+            _nas.Start();
+    }
+
+    /// <summary>A NAS appeared or went: a shelf whose owner is away may now play everything again, or
+    /// only what is in the cloud.</summary>
+    private void OnNasChanged()
+    {
+        foreach (var peer in _book.Peers)
+        {
+            if (_nasRoutes.HostsFor(peer.DeviceId).Count == 0)
+                continue;
+            var computerHere = _discovery.Seen.Any(p =>
+                string.Equals(p.DeviceId, peer.DeviceId, StringComparison.OrdinalIgnoreCase));
+            if (!computerHere)
+                Narrow(peer.DeviceId, cloudOnly: NasFor(peer.DeviceId) is null);
+        }
+
+        Changed?.Invoke();
     }
 
     // ── reacting to the world ──

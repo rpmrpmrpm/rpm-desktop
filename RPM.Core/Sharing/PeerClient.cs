@@ -427,6 +427,30 @@ public sealed partial class PeerClient : IDisposable
 
     /// <summary>A media URL for <paramref name="id"/> under <paramref name="route"/>, with the token's handle and
     /// a ticket for that route and id. The ticket is made over the unescaped id, as the server reads it.</summary>
+    /// <summary>
+    /// Whether this peer has the file for <paramref name="rpmId"/>: a HEAD request on the track. A NAS is
+    /// asked this before it is used, so a track it does not hold (one its owner keeps only in the cloud,
+    /// or a file that is gone) goes straight to the next source instead of failing in the player.
+    /// </summary>
+    public async Task<bool> HasTrackAsync(string rpmId, CancellationToken cancellation)
+    {
+        if (string.IsNullOrWhiteSpace(rpmId) || await TokenAsync(cancellation) is not { } token)
+            return false;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Head, $"{BaseUrl}{SharingProtocol.TrackRoute}{Uri.EscapeDataString(rpmId)}");
+        request.Headers.Add("Authorization", "Bearer " + token);
+        try
+        {
+            using var deadline = Deadline(Quick, cancellation);
+            using var response = await _http.SendAsync(request, deadline.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ObjectDisposedException)
+        {
+            return false;
+        }
+    }
+
     public static string MediaUrl(string baseUrl, string route, string id, string token) =>
         $"{baseUrl}{route}{Uri.EscapeDataString(id)}" +
         $"?s={Uri.EscapeDataString(PeerSessions.Handle(token))}" +
