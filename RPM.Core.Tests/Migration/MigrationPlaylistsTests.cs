@@ -135,6 +135,27 @@ public class MigrationPlaylistsTests : IDisposable
     }
 
     [Fact]
+    public void A_playlist_another_device_already_imported_is_linked_not_made_twice()
+    {
+        var (library, record) = Imported(SourceKind.MusicBee, [List("p1", "Mix", ["b", "a"])]);
+        _db.CreatePlaylist(null, "Mix");   // the person's own
+        var twin = _db.CreatePlaylist(null, "Mix (MusicBee)");   // taken in from the web's import of the same library
+        _db.AddSongsToPlaylist(twin, [Song("B"), Song("A")], AlreadyInPlaylist.AddAnother);
+
+        var outcome = Assert.Single(MigrationPlaylists.Apply(_db, library, record, "MusicBee"));
+
+        Assert.Equal(2, _db.GetPlaylistNodes().Count(n => n.Kind == PlaylistNodeKind.Playlist && !n.IsNowPlaying));
+        Assert.Equal(twin, record.Playlist("p1")?.PlaylistId);
+        Assert.Equal("Mix (MusicBee)", outcome.Name);
+    }
+
+    private (string? RpmId, string RelPath) Song(string title)
+    {
+        var row = _db.Query().Single(t => t.Title == title);
+        return (row.RpmId, row.RelativePath);
+    }
+
+    [Fact]
     public void Smart_playlist_becomes_plain_and_is_reported()
     {
         var (library, record) = Imported(SourceKind.ITunes, [List("p1", "Top Rated", ["a", "b"], smart: true)]);

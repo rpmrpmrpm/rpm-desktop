@@ -91,6 +91,21 @@ public static class MigrationPlaylists
 
             var parent = db.EnsurePlaylistFolder(playlist.Folder);
             var name = string.IsNullOrWhiteSpace(playlist.Name) ? sourceLabel : playlist.Name.Trim();
+
+            // Another device may have imported this playlist already (its record is its own), and the cloud
+            // sync took it in: a playlist in the same folder, under this name or with the source's name in
+            // brackets, holding exactly these songs in this order, is that one. It is linked instead of made
+            // a second time.
+            if (resolved.Count > 0 && nodes.FirstOrDefault(n => n.Kind == PlaylistNodeKind.Playlist && n.ParentId == parent
+                    && (string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(n.Name, $"{name} ({sourceLabel})", StringComparison.OrdinalIgnoreCase))
+                    && Holds(db.GetPlaylistItems(n.Id), resolved)) is { } twin)
+            {
+                record.NotePlaylist(playlist.SourceId, twin.Id, [.. resolved.Select(r => r.SourceId)]);
+                outcomes.Add(new PlaylistOutcome(twin.Name, resolved.Count, unmatched, playlist.Smart, false));
+                continue;
+            }
+
             var taken = nodes.Any(n => n.Kind == PlaylistNodeKind.Playlist && n.ParentId == parent
                 && string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase));
             if (taken)
@@ -120,6 +135,11 @@ public static class MigrationPlaylists
         }
         return true;
     }
+
+    /// <summary>Whether the playlist holds exactly these songs, in this order, and nothing else.</summary>
+    private static bool Holds(IReadOnlyList<PlaylistItem> items, IReadOnlyList<(string SourceId, (string? RpmId, string RelPath) Song)> resolved) =>
+        items.Count == resolved.Count
+        && items.Zip(resolved).All(p => p.First.ItemKind == PlaylistItemKind.Song && Same(p.First, p.Second.Song));
 
     private static bool Same(PlaylistItem item, (string? RpmId, string RelPath) song) =>
         item.RpmId is { Length: > 0 } id && song.RpmId is { Length: > 0 }
