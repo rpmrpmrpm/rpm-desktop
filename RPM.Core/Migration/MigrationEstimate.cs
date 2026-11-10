@@ -47,6 +47,18 @@ public static class MigrationEstimate
 
     private static string Norm(string? text) => (text ?? "").Trim().ToLowerInvariant();
 
+    /// <summary>A looser form for matching a song whose tags rpm corrected after its own import: lower
+    /// case, accents removed, and only letters and digits kept ("Beyoncé" and "Beyonce!" are the same).</summary>
+    public static string Loose(string? text)
+    {
+        var decomposed = (text ?? "").Normalize(System.Text.NormalizationForm.FormD);
+        var kept = new System.Text.StringBuilder(decomposed.Length);
+        foreach (var c in decomposed)
+            if (char.IsLetterOrDigit(c))
+                kept.Append(char.ToLowerInvariant(c));
+        return kept.ToString();
+    }
+
     private static bool Close(double a, double b) => Math.Abs(a - b) <= LengthTolerance;
 }
 

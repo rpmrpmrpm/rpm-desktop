@@ -168,6 +168,41 @@ public class MigrationRunTests : IDisposable
     }
 
     [Fact]
+    public async Task Song_whose_artist_rpm_corrected_is_matched_not_imported_again()
+    {
+        var existing = Existing("One", "Record", artist: "Beyoncé");
+        var library = Library(SourceKind.MusicBee, Local("s1", "Record", "One", artist: "Beyonce"));
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(existing.Id, Assert.Single(Record(library).Rows(MigrationTrackState.AlreadyInRpm)).TrackId);
+        Assert.Single(_db.Query());
+    }
+
+    [Fact]
+    public async Task Song_whose_album_rpm_corrected_is_matched_not_imported_again()
+    {
+        var existing = Existing("One!", "Record (Deluxe Edition)");
+        var library = Library(SourceKind.MusicBee, Local("s1", "Record", "One"));
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(existing.Id, Assert.Single(Record(library).Rows(MigrationTrackState.AlreadyInRpm)).TrackId);
+    }
+
+    [Fact]
+    public async Task Same_title_by_another_artist_on_another_album_is_not_matched()
+    {
+        Existing("Intro", "Elsewhere", artist: "Other Act");
+        var library = Library(SourceKind.MusicBee, Local("s1", "Record", "Intro"));
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(1, Record(library).Counts().Imported);
+        Assert.Equal(2, _db.Query().Count);
+    }
+
+    [Fact]
     public async Task Missing_file_is_reported_not_retried()
     {
         var gone = Local("s1", "Record", "One", write: false);

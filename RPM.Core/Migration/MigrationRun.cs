@@ -744,11 +744,12 @@ public sealed class MigrationRun(
         return seconds <= 0 || bytes <= 0 ? null : TimeSpan.FromSeconds(bytesLeft / (bytes / seconds));
     }
 
-    /// <summary>The library's songs, by what the matching asks: artist, album and title; and the
-    /// canonical audio hash of the tracks the cloud holds.</summary>
+    /// <summary>The library's songs, by what the matching asks: artist, album and title; the title alone,
+    /// in its loose form; and the canonical audio hash of the tracks the cloud holds.</summary>
     private sealed class LibraryIndex
     {
         private readonly Dictionary<string, List<LibraryTrack>> _byKey = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<LibraryTrack>> _byTitle = new(StringComparer.Ordinal);
         private readonly Dictionary<string, LibraryTrack> _byHash = new(StringComparer.Ordinal);
         private readonly SortedSet<double> _hashedLengths = [];
 
@@ -766,6 +767,13 @@ public sealed class MigrationRun(
             if (!_byKey.TryGetValue(key, out var rows))
                 _byKey[key] = rows = [];
             rows.Add(row);
+            var title = MigrationEstimate.Loose(row.Title);
+            if (title.Length > 0)
+            {
+                if (!_byTitle.TryGetValue(title, out var same))
+                    _byTitle[title] = same = [];
+                same.Add(row);
+            }
             if (row.ContentHash is { Length: > 0 } hash)
             {
                 _byHash.TryAdd(hash, row);
@@ -773,10 +781,28 @@ public sealed class MigrationRun(
             }
         }
 
-        public LibraryTrack? SameSong(TrackInfo info) =>
-            _byKey.TryGetValue(MigrationEstimate.Key(info.Artist, info.Album, info.Title), out var rows)
-                ? rows.FirstOrDefault(r => Math.Abs(r.DurationSeconds - info.DurationSeconds) <= MigrationEstimate.LengthTolerance)
-                : null;
+        /// <summary>
+        /// The row that is the same song, or null. First the same artist, album and title. Then, for a song
+        /// whose tags rpm corrected after its own import (an artist's spelling, an album found by the
+        /// identify step): the same title in its loose form, with the artist or the album still the same
+        /// in their loose forms, and the same track number when both have one. A title alone is not
+        /// enough: "Intro" is on many records.
+        /// </summary>
+        public LibraryTrack? SameSong(TrackInfo info)
+        {
+            bool Close(LibraryTrack r) => Math.Abs(r.DurationSeconds - info.DurationSeconds) <= MigrationEstimate.LengthTolerance;
+
+            if (_byKey.TryGetValue(MigrationEstimate.Key(info.Artist, info.Album, info.Title), out var rows) && rows.FirstOrDefault(Close) is { } exact)
+                return exact;
+
+            if (!_byTitle.TryGetValue(MigrationEstimate.Loose(info.Title), out var titled))
+                return null;
+            var artist = MigrationEstimate.Loose(info.Artist);
+            var album = MigrationEstimate.Loose(info.Album);
+            return titled.FirstOrDefault(r => Close(r)
+                && (artist.Length > 0 && MigrationEstimate.Loose(r.Artist) == artist || album.Length > 0 && MigrationEstimate.Loose(r.Album) == album)
+                && (info.TrackNumber == 0 || r.TrackNumber == 0 || r.TrackNumber == info.TrackNumber));
+        }
 
         public bool HasHashedNear(double seconds) =>
             _hashedLengths.GetViewBetween(seconds - MigrationEstimate.LengthTolerance, seconds + MigrationEstimate.LengthTolerance).Count > 0;
