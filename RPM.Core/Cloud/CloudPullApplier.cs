@@ -110,8 +110,9 @@ public sealed class CloudPullApplier
         var updated = CloudSyncPlan.Apply(row, pull.Cloud);
         var path = FullPath(row.RelativePath);
 
-        // A track that is only in the cloud has no file here, so for it the row is everything.
-        if (File.Exists(path))
+        // A track that is only in the cloud has no file here, so for it the row is everything. So is a file
+        // in a kept folder: it is never written, and its row keeps the edit.
+        if (File.Exists(path) && !KeptFiles.Covers(path))
         {
             try
             {
@@ -152,7 +153,8 @@ public sealed class CloudPullApplier
                 wanted = CloudSyncPlan.Over(sidecar.Over(before), pull.Cloud);
                 var art = sidecar.ArtOver(_files.LoadArt(path));
 
-                if (wanted != before || art is not null)
+                // A file in a kept folder is read, never written: the row below keeps the edit.
+                if ((wanted != before || art is not null) && !KeptFiles.Covers(path))
                 {
                     var mime = art is { Length: > 0 } ? sidecar.Sidecar.ArtMime ?? AlbumArt.SniffMime(art) : null;
                     _files.WriteAll(path, wanted with { PendingArt = art, PendingArtMime = mime });

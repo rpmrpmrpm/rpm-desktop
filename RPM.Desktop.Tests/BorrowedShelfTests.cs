@@ -221,4 +221,25 @@ public class StrandedMusicTests : IDisposable
         Assert.True(File.Exists(db));
         Assert.True(File.Exists(art));
     }
+
+    [Fact]
+    public void A_kept_library_has_no_inbox_so_stranded_music_stays_and_its_folder_is_not_deleted()
+    {
+        var one = Stranded("PEER1/library/A/Record/01 - Track.flac");
+        RPM.Core.Library.KeptFiles.Open(_library);
+        try
+        {
+            Assert.Equal(0, RPM.Desktop.Services.Sharing.PeerLibraryStore.Rescue(_library, _peers));
+        }
+        finally
+        {
+            RPM.Core.Library.KeptFiles.Close(_library);
+        }
+
+        Assert.True(File.Exists(one));
+        Assert.False(Directory.Exists(RPM.Core.Library.LibraryInbox.PathFor(_library)));
+        // Forget checks this before deleting the folder.
+        Assert.True(RPM.Desktop.Services.Sharing.PeerLibraryStore.HoldsMusic(Path.Combine(_peers, "PEER1")));
+        Assert.False(RPM.Desktop.Services.Sharing.PeerLibraryStore.HoldsMusic(Path.Combine(_peers, "NOBODY")));
+    }
 }

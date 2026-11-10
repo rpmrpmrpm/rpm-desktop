@@ -220,9 +220,18 @@ public sealed partial class PeerLibraryStore : IDisposable
         if (libraryRoot is { Length: > 0 } root)
             Rescue(root);
 
+        var folder = Path.Combine(LocalData.Dir, "peers", deviceId);
+        if (HoldsMusic(folder))
+        {
+            // The rescue could not carry everything out: a locked file, or a library whose files are kept
+            // as they are and so has no inbox. The folder may hold the only copy, so it stays.
+            RPM.Core.Diagnostics.Said.Line("sharing", $"kept {folder}: music in it could not be carried out");
+            return;
+        }
+
         try
         {
-            Directory.Delete(Path.Combine(LocalData.Dir, "peers", deviceId), recursive: true);
+            Directory.Delete(folder, recursive: true);
         }
         catch
         {
@@ -249,6 +258,21 @@ public sealed partial class PeerLibraryStore : IDisposable
     /// <returns>How many files were carried out.</returns>
     public static int Rescue(string libraryRoot) =>
         Rescue(libraryRoot, Path.Combine(LocalData.Dir, "peers"));
+
+    /// <summary>Whether a peer folder still holds music, so it must not be deleted.</summary>
+    internal static bool HoldsMusic(string folder)
+    {
+        try
+        {
+            return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                .Any(f => AudioFileScanner.AudioExtensions.Contains(Path.GetExtension(f)));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // What cannot be listed cannot be shown to be free of music.
+            return true;
+        }
+    }
 
     /// <summary>The same, over a given folder of peer mirrors. It is separate so that a test can run it
     /// without reaching into the user's own app data.</summary>

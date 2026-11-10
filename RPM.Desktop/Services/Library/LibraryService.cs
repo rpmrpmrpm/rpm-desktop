@@ -273,6 +273,14 @@ public sealed partial class LibraryService : IDisposable
     /// down.</summary>
     /// <exception cref="Exception">Whatever the mirror could not do: the folder is read-only, the
     /// volume went away, the migration failed. The open library is left as it was.</exception>
+    /// <summary>What rpm may do with the files of the open library. Read from the library when it is
+    /// opened (<see cref="FileKeeping"/>). A kept library's root is also registered with <see
+    /// cref="KeptFiles"/>, which refuses every change to its files.</summary>
+    public FileHandling FileHandling { get; private set; }
+
+    /// <summary>Whether the open library's files are kept as they are.</summary>
+    public bool KeepsFiles => FileHandling == FileHandling.Kept;
+
     public void Open(string libraryRoot)
     {
         // The new mirror is built before the old one is released. Building it reaches the disk: it creates
@@ -283,6 +291,12 @@ public sealed partial class LibraryService : IDisposable
         {
             LocalRowsOnly = !_auth.IsLoggedIn,
         };
+
+        // The guard knows a kept folder before anything can reach it: before the swap, the inbox, and the
+        // Opened event that starts the catalogue read and the background work.
+        var files = FileKeeping.Read(libraryRoot, opened);
+        if (files == FileHandling.Kept)
+            KeptFiles.Open(libraryRoot);
         Watch(opened);
 
         LibraryDatabase? previous;
@@ -290,6 +304,7 @@ public sealed partial class LibraryService : IDisposable
         {
             previous = _db;
             _db = opened;
+            FileHandling = files;
 
             // A borrowed shelf may be on screen beside the collection that is now gone. It is dropped, not
             // disposed, because the peer store owns it. The peer store opened it and will close it.
@@ -313,8 +328,9 @@ public sealed partial class LibraryService : IDisposable
             });
 
         // The inbox is created before anything else looks at the folder. A user who opens the library in a
-        // file manager can see where music should go, without being told.
-        if (!GalleryMode.Active)
+        // file manager can see where music should go, without being told. A kept folder has none: rpm adds
+        // nothing to it that the person did not import.
+        if (!GalleryMode.Active && files == FileHandling.Organised)
         {
             try { LibraryInbox.Ensure(libraryRoot); }
             catch { /* A read-only volume still opens. The inbox is optional. */ }

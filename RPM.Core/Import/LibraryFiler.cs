@@ -248,6 +248,10 @@ public static class LibraryFiler
     /// up to the set's disc count (disc 1 where they carry none). Best effort, per file.</summary>
     private static void BackfillAlbumDiscCounts(LibraryDatabase db, IReadOnlyList<TrackInfo> imported, string root)
     {
+        // The tracks already in a kept folder are never retagged, so a disc added to their album leaves
+        // their disc counts as they are.
+        if (KeptFiles.Covers(root))
+            return;
         var albums = imported
             .Where(t => t.DiscNumber > 0 && t.DiscCount > 1 && !string.IsNullOrWhiteSpace(t.Album))
             .GroupBy(t => (Album: AlbumResolver.NormalizeAlbum(t.Album!), t.AlbumArtist));

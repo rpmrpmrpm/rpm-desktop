@@ -106,7 +106,8 @@ public sealed partial class AnalysisTagService : IDisposable
     /// </summary>
     private void OnAnalyzed(TrackAnalysis analysis)
     {
-        if (!_settings.WriteAnalysisTags || GalleryMode.Active || !_library.IsOpen)
+        // A kept library's files are never written. The tempo and key stay in the database.
+        if (!_settings.WriteAnalysisTags || GalleryMode.Active || !_library.IsOpen || _library.KeepsFiles)
             return;
 
         // Refused once the library is about to close. The wait for a turn ends with that close too.
@@ -152,7 +153,7 @@ public sealed partial class AnalysisTagService : IDisposable
         bool overwrite = false, IProgress<AnalysisTagProgress>? progress = null,
         CancellationToken ct = default)
     {
-        if (!_library.IsOpen || GalleryMode.Active || _life.IsClosing)
+        if (!_library.IsOpen || GalleryMode.Active || _life.IsClosing || _library.KeepsFiles)
             return 0;
 
         // Stopped by the caller, by a newer backfill, and by the library being about to close.
@@ -268,7 +269,7 @@ public sealed partial class AnalysisTagService : IDisposable
 
     private TagOutcome WriteOne(string absolutePath, bool overwrite)
     {
-        if (_library.Root is not { } root || !File.Exists(absolutePath))
+        if (_library.Root is not { } root || !File.Exists(absolutePath) || KeptFiles.Covers(absolutePath))
             return TagOutcome.Skipped;
 
         var relative = Path.GetRelativePath(root, absolutePath).Replace(Path.DirectorySeparatorChar, '/');

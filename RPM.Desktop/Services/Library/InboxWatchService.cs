@@ -63,6 +63,10 @@ public sealed partial class InboxWatchService : IDisposable
         if (GalleryMode.Active)
             return;
 
+        // A kept folder has no inbox to watch.
+        if (KeptFiles.Covers(LibraryInbox.PathFor(libraryRoot)))
+            return;
+
         try
         {
             _inboxPath = LibraryInbox.Ensure(libraryRoot);

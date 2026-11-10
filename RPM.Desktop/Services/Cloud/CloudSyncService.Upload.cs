@@ -255,7 +255,9 @@ public sealed partial class CloudSyncService
             return false;
         }
 
-        if (!RPM.Core.Metadata.TagReader.WriteRpmId(path, theirs!))
+        // Taking that id means writing it into the file. A kept file is never written, so it is sent as
+        // itself.
+        if (RPM.Core.Library.KeptFiles.Covers(path) || !RPM.Core.Metadata.TagReader.WriteRpmId(path, theirs!))
             return false;
 
         db.SetRpmId(track.Id, theirs!);
