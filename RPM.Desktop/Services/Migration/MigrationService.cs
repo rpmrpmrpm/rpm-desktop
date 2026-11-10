@@ -332,6 +332,18 @@ public sealed class MigrationService : IDisposable
     public void Retry(SourceLibrary library, MigrationDestination destination, IEnumerable<string> sourceIds) =>
         _library.Db.OpenMigration(library, destination).Retry(sourceIds);
 
+    /// <summary>Forgets an unfinished import: its record, and the sign-in kept to continue it. What it
+    /// brought in stays in the library.</summary>
+    public void Forget(MigrationSummary import)
+    {
+        ArgumentNullException.ThrowIfNull(import);
+        if (IsRunning || !_library.IsOpen)
+            return;
+        _library.Db.ForgetMigration(import);
+        _auth.Secrets.Delete(SecretName(import.Kind, import.LibraryId));
+        Raise();
+    }
+
     private void KeepConnection(SourceLibrary library, string libraryKey, MigrationConnection connection)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(connection, MigrationServiceJson.Default.MigrationConnection);

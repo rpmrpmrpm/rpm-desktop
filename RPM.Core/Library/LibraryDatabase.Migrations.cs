@@ -157,6 +157,35 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>
+    /// Forgets an import: its record of tracks and playlists goes, so it is no longer offered and a later
+    /// import of the same library starts fresh. What it brought into the library stays, and a fresh import
+    /// finds those tracks as already in rpm.
+    /// </summary>
+    public void ForgetMigration(MigrationSummary import)
+    {
+        ArgumentNullException.ThrowIfNull(import);
+        using (_gate.Take())
+        {
+            using var tx = _connection.BeginTransaction();
+            foreach (var sql in new[]
+            {
+                "DELETE FROM migration_track WHERE migration_id IN (SELECT id FROM migration WHERE kind = $kind AND library_id = $key)",
+                "DELETE FROM migration_playlist WHERE migration_id IN (SELECT id FROM migration WHERE kind = $kind AND library_id = $key)",
+                "DELETE FROM migration WHERE kind = $kind AND library_id = $key",
+            })
+            {
+                using var cmd = _connection.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = sql;
+                cmd.Parameters.AddWithValue("$kind", import.Kind.ToString().ToLowerInvariant());
+                cmd.Parameters.AddWithValue("$key", import.LibraryId);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+    }
+
     /// <summary>The imports that have not finished, newest first, so the app can offer to continue them.</summary>
     public IReadOnlyList<MigrationSummary> UnfinishedMigrations()
     {

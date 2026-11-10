@@ -203,6 +203,23 @@ public class MigrationRecordTests : IDisposable
     }
 
     [Fact]
+    public void A_forgotten_import_is_no_longer_offered_and_starts_fresh()
+    {
+        var record = _db.OpenMigration(Library(playlists: "p1"), MigrationDestination.ThisComputer);
+        record.AddFound(["a", "b"]);
+        record.Note("a", MigrationTrackState.Imported, 1);
+        record.NotePlaylist("p1", 9, ["a"]);
+        var open = Assert.Single(_db.UnfinishedMigrations());
+
+        _db.ForgetMigration(open);
+
+        Assert.Empty(_db.UnfinishedMigrations());
+        var again = _db.OpenMigration(Library(playlists: "p1"), MigrationDestination.ThisComputer);
+        Assert.Equal(0, again.Counts().Found);
+        Assert.Null(again.Playlist("p1"));
+    }
+
+    [Fact]
     public void Counts_add_up_to_found()
     {
         var record = _db.OpenMigration(Library(), MigrationDestination.ThisComputer);

@@ -10046,6 +10046,14 @@
     <value>Continue import from {0}</value>
     <comment>Import from another app: button for an import that has not finished. {0} is the source, for example MusicBee.</comment>
   </data>
+  <data name="Migration_Forget" xml:space="preserve">
+    <value>Forget</value>
+    <comment>Import from another app, list of apps: button beside 'Continue import from ...' that forgets that unfinished import.</comment>
+  </data>
+  <data name="Migration_ForgetHint" xml:space="preserve">
+    <value>Forgets this unfinished import and its saved sign-in. What was imported stays in rpm.</value>
+    <comment>Import from another app, list of apps: tooltip of the Forget button.</comment>
+  </data>
   <data name="Migration_HowMusicBee" xml:space="preserve">
     <value>In MusicBee, open Edit &gt; Preferences &gt; Library and turn on "Save a copy of the library tags as an iTunes formatted XML file". Close MusicBee, then choose the file "iTunes Music Library.xml" in MusicBee's library folder.</value>
     <comment>Import from another app: how to get MusicBee's library file. MusicBee's menu names are in English in the app; keep them as they are.</comment>

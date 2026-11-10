@@ -120,9 +120,29 @@ public sealed partial class MigrationDialog : ContentDialog
                 Tag = open,
             };
             button.Click += Continue_Click;
-            ContinuePanel.Children.Add(button);
+            var forget = new Button
+            {
+                Content = Loc.Get("Migration_Forget"),
+                Style = (Style)Application.Current.Resources["GlassButtonStyle"],
+                Padding = new Thickness(14, 0, 14, 0),
+                Tag = open,
+            };
+            ToolTipService.SetToolTip(forget, Loc.Get("Migration_ForgetHint"));
+            forget.Click += Forget_Click;
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            row.Children.Add(button);
+            row.Children.Add(forget);
+            ContinuePanel.Children.Add(row);
         }
         Show(Face.Apps);
+    }
+
+    private void Forget_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: MigrationSummary open })
+            return;
+        _service.Forget(open);
+        ShowApps();
     }
 
     private void App_Click(object sender, RoutedEventArgs e)
