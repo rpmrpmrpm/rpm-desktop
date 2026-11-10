@@ -19,6 +19,15 @@ public sealed partial class LibrarySettingsPage
         ToolTipService.SetToolTip(BackfillButton, kept ? Loc.Get("Kept_Unavailable") : null);
     }
 
+    /// <summary>The line under the music folder: amber for a problem, the page's quiet white otherwise.</summary>
+    private void SayFolder(string text, bool problem)
+    {
+        FolderStatus.Text = text;
+        FolderStatus.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(problem
+            ? Windows.UI.Color.FromArgb(0xFF, 0xFF, 0xD4, 0x66)
+            : Windows.UI.Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF));
+    }
+
     private async void OnOrganiseKept(object sender, RoutedEventArgs e)
     {
         var answer = await PromptDialog.ShowAsync(
@@ -35,14 +44,14 @@ public sealed partial class LibrarySettingsPage
         {
             await _library.ReleaseKeptAsync();
             var progress = new Progress<RPM.Core.Library.RefileProgress>(p =>
-                FolderStatus.Text = Loc.Format("Library_Organising", p.Done, p.Total));
+                SayFolder(Loc.Format("Library_Organising", p.Done, p.Total), problem: false));
             if (await _library.OrganiseIfOwedAsync(_settings.DefaultTemplate, progress) is { } done)
-                FolderStatus.Text = Loc.Format("Library_Organised", done.Moved);
+                SayFolder(Loc.Format("Library_Organised", done.Moved), problem: false);
         }
         catch (Exception ex)
         {
             RPM.Core.Diagnostics.Scope.Said("library", $"organising the kept library stopped: {ex.Message}");
-            FolderStatus.Text = Loc.Get("Library_OrganiseStopped");
+            SayFolder(Loc.Get("Library_OrganiseStopped"), problem: true);
         }
         finally
         {

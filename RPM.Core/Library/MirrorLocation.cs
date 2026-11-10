@@ -288,7 +288,7 @@ public sealed class MirrorLocation
                 throw;
             }
 
-            Said.Line("db", $"wrote library id {id} into a music folder on a network volume");
+            Said.Line("db", $"wrote library id {id} into the music folder");
             return id;
         }
 

@@ -461,7 +461,13 @@ public sealed partial class LibraryService : IDisposable
             // which this machine has no files, is still a collection. The wall draws it and it can play.
             // Opening the setup wizard over it would ask the user to set up something that is already set
             // up.
-            return new LibraryOpening.Opened(configuredPath, Db.CountAlbumFolders(TrackScope.Anywhere));
+            var albums = Db.CountAlbumFolders(TrackScope.Anywhere);
+            // A library made from existing music (kept, or with its re-file still owed) whose first read has
+            // not finished. Its folder holds the music the database does not know yet.
+            var unread = albums == 0
+                && (KeepsFiles || Db.GetMeta(OrganiseOwedKey) == "owed")
+                && LibraryFolder.HoldsMusic(configuredPath);
+            return new LibraryOpening.Opened(configuredPath, albums, unread);
         }
         catch (Exception ex)
         {

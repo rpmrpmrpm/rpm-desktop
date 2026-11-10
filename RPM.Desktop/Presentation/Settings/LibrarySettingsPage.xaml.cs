@@ -433,7 +433,7 @@ public sealed partial class LibrarySettingsPage : Page
 
         if (change.StatusKey() is { } status)
         {
-            FolderStatus.Text = Loc.Get(status);
+            SayFolder(Loc.Get(status), problem: true);
             return;
         }
 

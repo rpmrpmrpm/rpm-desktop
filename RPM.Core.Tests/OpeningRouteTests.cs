@@ -15,7 +15,7 @@ public class OpeningRouteTests
     [Fact]
     public void AnEmptyLibraryGoesToTheImportStep()
         => Assert.Equal(OpeningRoute.ImportFirstMusic,
-            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 0)));
+            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 0, UnreadMusic: false)));
 
     /// <summary>One album is a collection. The import step is for a library with nothing in it, not
     /// for a small one: a listener who has imported a single record and come back must not be sent
@@ -23,12 +23,12 @@ public class OpeningRouteTests
     [Fact]
     public void OneAlbumIsEnoughToOpenTheLibrary()
         => Assert.Equal(OpeningRoute.Library,
-            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 1)));
+            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 1, UnreadMusic: false)));
 
     [Fact]
     public void AStockedLibraryOpens()
         => Assert.Equal(OpeningRoute.Library,
-            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 812)));
+            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 812, UnreadMusic: false)));
 
     /// <summary>
     /// An unmounted disk, a database from a newer build, and a database that will not open. None of
@@ -72,4 +72,9 @@ public class OpeningRouteTests
         new LibraryOpening.Trouble.TooNew("/Volumes/gone", Found: 71, Supported: 67),
         new LibraryOpening.Trouble.Unreadable("/Volumes/gone", "database disk image is malformed"),
     };
+
+    [Fact]
+    public void Existing_music_not_read_yet_opens_the_library_and_not_the_import_step() =>
+        Assert.Equal(OpeningRoute.Library,
+            OpeningScreen.Choose(new LibraryOpening.Opened("/Music", Albums: 0, UnreadMusic: true)));
 }

@@ -27,7 +27,10 @@ public abstract record LibraryOpening
     /// <param name="Albums">How many albums the database holds. This counts albums, not tracks. A folder
     /// with one loose file is not a collection. Counting tracks would send someone who imported a single
     /// song to the library page.</param>
-    public sealed record Opened(string Folder, int Albums) : LibraryOpening;
+    /// <param name="UnreadMusic">The folder is a library made from music the person already had, and that
+    /// music has not been read into the database yet: the app was closed before the first read finished.
+    /// It opens as the library, where the read runs, and not on the import step.</param>
+    public sealed record Opened(string Folder, int Albums, bool UnreadMusic) : LibraryOpening;
 
     /// <summary>
     /// A folder is configured, but its collection cannot be used. It carries the reason, with enough
@@ -98,7 +101,7 @@ public static class OpeningScreen
     public static OpeningRoute Choose(LibraryOpening opening) => opening switch
     {
         LibraryOpening.NoFolder => OpeningRoute.PickFolder,
-        LibraryOpening.Opened { Albums: > 0 } => OpeningRoute.Library,
+        LibraryOpening.Opened { Albums: > 0 } or LibraryOpening.Opened { UnreadMusic: true } => OpeningRoute.Library,
         LibraryOpening.Opened => OpeningRoute.ImportFirstMusic,
         LibraryOpening.Trouble => OpeningRoute.CannotOpen,
         _ => throw new ArgumentOutOfRangeException(nameof(opening), opening, "Unknown opening."),
