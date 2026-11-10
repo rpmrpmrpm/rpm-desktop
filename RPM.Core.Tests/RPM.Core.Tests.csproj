@@ -25,6 +25,8 @@
     <!-- The sample libraries for the import readers, copied in from the rpm repo by
          scripts/sync_fixtures.py there. Do not edit them here. -->
     <Content Include="Assets\Migration\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Values the collection daemon's tests also check. Keep the copy there equal to this file. -->
+    <Content Include="Assets\Sharing\peer-vectors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
