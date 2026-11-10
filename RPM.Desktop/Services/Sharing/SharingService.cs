@@ -619,7 +619,7 @@ public sealed partial class SharingService : IDisposable
     /// or the claim is written), so they are part of what a remembered version is checked against. The
     /// list compares by its content, so two reads of the same hosts are equal.
     /// </summary>
-    private sealed record HostList(IReadOnlyList<PeerHost> Items) : IReadOnlyList<PeerHost>
+    private sealed partial record HostList(IReadOnlyList<PeerHost> Items) : IReadOnlyList<PeerHost>
     {
         public PeerHost this[int index] => Items[index];
         public int Count => Items.Count;

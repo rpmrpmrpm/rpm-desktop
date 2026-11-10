@@ -20,7 +20,7 @@ namespace RPM.Desktop.Services.Nas;
 /// <para>One upload at a time. A trigger during an upload sets one flag; it never queues more than one
 /// more run.</para>
 /// </summary>
-public sealed class NasPublisher : IDisposable
+public sealed partial class NasPublisher : IDisposable
 {
     /// <summary>How often the NAS's copy is compared with the computer's, when nothing has asked sooner.</summary>
     public static readonly TimeSpan Tick = TimeSpan.FromSeconds(15);

@@ -14,7 +14,7 @@ namespace RPM.Desktop.Services.Nas;
 /// be found during first-run setup, before sharing is switched on. Several sockets on port 5353 are
 /// allowed on every system rpm runs on; the system's own responder is one of them.</para>
 /// </summary>
-public sealed class NasDiscovery : IDisposable
+public sealed partial class NasDiscovery : IDisposable
 {
     private static readonly TimeSpan AskEvery = TimeSpan.FromSeconds(30);
 

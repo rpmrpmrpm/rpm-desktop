@@ -39,7 +39,7 @@ public sealed record MigrationConnection(
 /// for the disk and the network. A second request while one runs is refused; the window shows the
 /// running import instead.</para>
 /// </summary>
-public sealed class MigrationService : IDisposable
+public sealed partial class MigrationService : IDisposable
 {
     private const string SecretPrefix = "migration:";
     private const string PlexClientName = "migration:plex-client";
