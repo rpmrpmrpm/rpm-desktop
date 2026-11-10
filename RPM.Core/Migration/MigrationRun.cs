@@ -324,12 +324,12 @@ public sealed class MigrationRun(
         switch (track.File)
         {
             case LocalFile local:
-                if (!File.Exists(local.Path))
+                if (LocalPaths.Find(local.Path) is not { } onDisk)
                 {
                     record.Note(track.SourceId, MigrationTrackState.NotImported, reason: MigrationReason.FileNotFound, detail: local.Path);
                     return Step.Next;
                 }
-                path = local.Path;
+                path = onDisk;
                 break;
 
             case RemoteFile remote:
