@@ -48,13 +48,20 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
     public async Task<SourceLibrary> ReadAsync(IProgress<int> found, CancellationToken ct)
     {
         var tracks = new List<SourceTrack>();
+        var skipped = new List<SourceSkip>();
         for (var offset = 0; ; offset += PageSize)
         {
             // An empty query lists every song, in pages. Navidrome and most other servers accept it.
             var page = await Expired(() => Subsonic.CallAsync(http, login, "search3",
                 $"query=&artistCount=0&albumCount=0&songCount={PageSize}&songOffset={offset}", ct));
             var songs = Items(Child(page, "searchResult3"), "song").ToList();
-            tracks.AddRange(songs.Select(TrackOf));
+            foreach (var song in songs)
+            {
+                if (TrackOf(song) is { } track)
+                    tracks.Add(track);
+                else
+                    skipped.Add(new SourceSkip(Str(song, "artist") is { Length: > 0 } a ? $"{a} - {Str(song, "title")}" : Str(song, "title"), SkipReason.NotMusic));
+            }
             found.Report(tracks.Count);
             if (songs.Count < PageSize)
                 break;
@@ -77,7 +84,7 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
             playlists.Add(new SourcePlaylist(id, Str(playlist, "name"), [], false, trackIds, unresolved));
         }
 
-        return new SourceLibrary(SourceKind.Navidrome, Subsonic.LibraryIdOf(login), login.Server.Authority, tracks, playlists, []);
+        return new SourceLibrary(SourceKind.Navidrome, Subsonic.LibraryIdOf(login), login.Server.Authority, tracks, playlists, skipped);
     }
 
     public async Task<Stream> OpenAsync(RemoteFile file, CancellationToken ct)
@@ -129,14 +136,17 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
         }
     }
 
-    private static SourceTrack TrackOf(JsonElement song)
+    /// <summary>The track, or null when its file is not audio rpm reads.</summary>
+    private static SourceTrack? TrackOf(JsonElement song)
     {
         var id = Str(song, "id");
-        var suffix = Str(song, "suffix");
+        var extension = ExtensionOf(Str(song, "path"), Str(song, "suffix"));
+        if (extension.Length == 0)
+            return null;
         var size = Num(song, "size");
         return new SourceTrack(
             SourceId: id,
-            File: new RemoteFile(id, suffix.Length > 0 ? "." + suffix.ToLowerInvariant() : "", size),
+            File: new RemoteFile(id, extension, size),
             Title: Str(song, "title"),
             Artist: Str(song, "artist"),
             Album: Str(song, "album"),

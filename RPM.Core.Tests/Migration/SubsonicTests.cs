@@ -63,6 +63,23 @@ public class SubsonicTests
     }
 
     [Fact]
+    public async Task File_type_comes_from_the_path_before_the_suffix()
+    {
+        const string page = """
+            {"subsonic-response":{"status":"ok","searchResult3":{"song":[
+              {"id":"n1","title":"A","suffix":"mp4","path":"Band/Record/01 A.m4a","size":10}
+            ]}}}
+            """;
+        var http = new FixtureHttp(r => r.RequestUri!.AbsolutePath == "/rest/search3"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(page, Encoding.UTF8, "application/json") }
+            : Answer(r));
+
+        var library = await ReadAsync(http);
+
+        Assert.Equal(".m4a", ((RemoteFile)Assert.Single(library.Tracks).File).Extension);
+    }
+
+    [Fact]
     public async Task Rating_is_doubled()
     {
         var library = await ReadAsync(new FixtureHttp(Answer));

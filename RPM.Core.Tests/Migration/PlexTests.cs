@@ -38,6 +38,27 @@ public class PlexTests
     }
 
     [Fact]
+    public async Task File_type_comes_from_the_file_name_and_an_mp4_container_reads_as_m4a()
+    {
+        const string tracks = """
+            {"MediaContainer":{"totalSize":4,"Metadata":[
+              {"ratingKey":"601","title":"A","Media":[{"container":"mp4","Part":[{"key":"/library/parts/1/a.m4a","file":"/data/music/a.m4a","size":10}]}]},
+              {"ratingKey":"602","title":"B","Media":[{"container":"mp4","Part":[{"key":"/library/parts/2/file","size":10}]}]},
+              {"ratingKey":"603","title":"Clip","grandparentTitle":"Band","Media":[{"container":"mkv","Part":[{"key":"/library/parts/3/file","file":"/data/music/clip.mkv","size":10}]}]},
+              {"ratingKey":"604","title":"Stream","grandparentTitle":"Band","Media":[{"container":"mp3"}]}
+            ]}}
+            """;
+        var http = new FixtureHttp(r => r.RequestUri!.AbsolutePath == "/library/sections/3/all"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(tracks, System.Text.Encoding.UTF8, "application/json") }
+            : ServerAnswer(r));
+
+        var library = await ReadAsync(http);
+
+        Assert.Equal([("601", ".m4a"), ("602", ".m4a")], library.Tracks.Select(t => (t.SourceId, ((RemoteFile)t.File).Extension)));
+        Assert.Equal([new SourceSkip("Band - Clip", SkipReason.NotMusic), new SourceSkip("Band - Stream", SkipReason.NotAFile)], library.Skipped);
+    }
+
+    [Fact]
     public async Task Smart_playlist_is_flagged()
     {
         var library = await ReadAsync(new FixtureHttp(ServerAnswer));

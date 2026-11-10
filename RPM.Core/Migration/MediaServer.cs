@@ -1,3 +1,4 @@
+using RPM.Core.Scanning;
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
@@ -123,6 +124,34 @@ internal static class MediaServerHttp
     }
 
     /// <summary>A body stream that disposes its response with it.</summary>
+    /// <summary>
+    /// The file type of a server's track, as the extension rpm's library reads (".m4a"), or "" when it is
+    /// not audio rpm reads. The extension of the file's own name comes first, because it is what the file
+    /// is. Without a name, the server's container name is mapped: Plex says "mp4" for .m4a files, and
+    /// Jellyfin may give ffprobe's list ("mov,mp4,m4a,3gp,3g2,mj2"). A file with an extension the library
+    /// does not read would be dropped by the next library scan, with its plays and rating.
+    /// </summary>
+    public static string ExtensionOf(string? path, string? container)
+    {
+        if (Path.GetExtension(path ?? "").ToLowerInvariant() is { Length: > 1 } named && AudioFileScanner.AudioExtensions.Contains(named))
+            return named;
+        foreach (var name in (container ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var mapped = name.ToLowerInvariant() switch
+            {
+                "mp4" or "m4a" or "m4b" or "mov" or "alac" => ".m4a",
+                "mpeg" or "mp3" => ".mp3",
+                "aif" or "aiff" => ".aiff",
+                "asf" or "wma" => ".wma",
+                "ogg" or "oga" or "vorbis" => ".ogg",
+                var other => "." + other,
+            };
+            if (AudioFileScanner.AudioExtensions.Contains(mapped))
+                return mapped;
+        }
+        return "";
+    }
+
     /// <summary>The media type of a body <see cref="StreamAsync"/> handed back, such as "audio/flac", or
     /// null when the server gave none.</summary>
     public static string? MediaTypeOf(Stream body) => (body as ResponseStream)?.MediaType;

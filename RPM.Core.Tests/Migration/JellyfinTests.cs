@@ -32,6 +32,26 @@ public class JellyfinTests
         Assert.Equal(SourceJson.Expected("jellyfin"), SourceJson.Of(await ReadAsync(new FixtureHttp(Answer))));
 
     [Fact]
+    public async Task File_type_comes_from_the_path_and_a_container_list_reads_as_one_type()
+    {
+        const string items = """
+            {"TotalRecordCount":3,"Items":[
+              {"Id":"j1","Name":"A","MediaSources":[{"Container":"mov,mp4,m4a,3gp,3g2,mj2","Path":"/media/music/a.m4a","Size":10}]},
+              {"Id":"j2","Name":"B","MediaSources":[{"Container":"mov,mp4,m4a,3gp,3g2,mj2","Size":10}]},
+              {"Id":"j3","Name":"Clip","AlbumArtist":"Band","MediaSources":[{"Container":"matroska,webm","Path":"/media/music/clip.mkv","Size":10}]}
+            ]}
+            """;
+        var http = new FixtureHttp(r => FixtureHttp.Query(r, "IncludeItemTypes") == "Audio"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(items, System.Text.Encoding.UTF8, "application/json") }
+            : Answer(r));
+
+        var library = await ReadAsync(http);
+
+        Assert.Equal([("j1", ".m4a"), ("j2", ".m4a")], library.Tracks.Select(t => (t.SourceId, ((RemoteFile)t.File).Extension)));
+        Assert.Equal([new SourceSkip("Band - Clip", SkipReason.NotMusic)], library.Skipped);
+    }
+
+    [Fact]
     public async Task Reads_every_page()
     {
         var http = new FixtureHttp(Answer);

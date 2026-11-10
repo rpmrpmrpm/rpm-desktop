@@ -107,12 +107,20 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
             sections = Child(await JsonAsync(http, request, ct), "MediaContainer");
 
         var tracks = new List<SourceTrack>();
+        var skipped = new List<SourceSkip>();
         foreach (var section in Items(sections, "Directory").Where(d => Str(d, "type") == "artist"))
         {
             await foreach (var item in PagesAsync($"library/sections/{Uri.EscapeDataString(Str(section, "key"))}/all?type=10", ct))
             {
-                if (TrackOf(item) is { } track)
-                    tracks.Add(track);
+                switch (TrackOf(item))
+                {
+                    case SourceTrack track:
+                        tracks.Add(track);
+                        break;
+                    case SourceSkip skip:
+                        skipped.Add(skip);
+                        break;
+                }
                 if (tracks.Count % PageSize == 0)
                     found.Report(tracks.Count);
             }
@@ -137,7 +145,7 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
             playlists.Add(new SourcePlaylist(key, Str(playlist, "title"), [], Flag(playlist, "smart"), trackIds, unresolved));
         }
 
-        return new SourceLibrary(SourceKind.Plex, server.MachineId, server.Name, tracks, playlists, []);
+        return new SourceLibrary(SourceKind.Plex, server.MachineId, server.Name, tracks, playlists, skipped);
     }
 
     public async Task<Stream> OpenAsync(RemoteFile file, CancellationToken ct)
@@ -169,26 +177,33 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
         }
     }
 
-    private static SourceTrack? TrackOf(JsonElement item)
+    /// <summary>The track, or why it is not imported: no file part (a stream from an online service), or
+    /// a file that is not audio rpm reads.</summary>
+    private static object TrackOf(JsonElement item)
     {
         var media = Items(item, "Media").FirstOrDefault();
         var part = Items(media, "Part").FirstOrDefault();
         var key = Str(part, "key");
-        if (key.Length == 0)
-            return null;
-
-        var container = Str(part, "container") is { Length: > 0 } c ? c : Str(media, "container");
-        var size = Num(part, "size");
         var albumArtist = Str(item, "grandparentTitle");
+        var artist = Str(item, "originalTitle") is { Length: > 0 } own ? own : albumArtist;
+        var what = artist.Length > 0 ? $"{artist} - {Str(item, "title")}" : Str(item, "title");
+        if (key.Length == 0)
+            return new SourceSkip(what, SkipReason.NotAFile);
+
+        var extension = ExtensionOf(Str(part, "file"), Str(part, "container") is { Length: > 0 } c ? c : Str(media, "container"));
+        if (extension.Length == 0)
+            return new SourceSkip(what, SkipReason.NotMusic);
+
+        var size = Num(part, "size");
         var lastViewed = Num(item, "lastViewedAt");
         var added = Num(item, "addedAt");
 
         return new SourceTrack(
             SourceId: Str(item, "ratingKey"),
-            File: new RemoteFile(key, container.Length > 0 ? "." + container.ToLowerInvariant() : "", size),
+            File: new RemoteFile(key, extension, size),
             Title: Str(item, "title"),
             // originalTitle is the track's own artist when it differs from the album artist.
-            Artist: Str(item, "originalTitle") is { Length: > 0 } own ? own : albumArtist,
+            Artist: artist,
             Album: Str(item, "parentTitle"),
             AlbumArtist: albumArtist,
             TrackNumber: (int)Num(item, "index"),

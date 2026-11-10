@@ -66,7 +66,9 @@ public class LiveServerTests
 
         var library = await server.ReadAsync(new Progress<int>(), CancellationToken.None);
 
-        Assert.Equal(5, library.Tracks.Count);
+        // The server may hold more than the five test tones (a larger library to watch the progress with).
+        Assert.InRange(library.Tracks.Count, 5, int.MaxValue);
+        Assert.All(library.Tracks, t => Assert.Contains(((RemoteFile)t.File).Extension, RPM.Core.Scanning.AudioFileScanner.AudioExtensions));
         var opening = library.Tracks.Single(t => t.Title == "Opening");
         Assert.True(opening.Favorite);
         Assert.Equal(3, opening.Plays);

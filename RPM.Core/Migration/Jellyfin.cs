@@ -89,10 +89,16 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
             name = Str(await JsonAsync(http, info, ct), "ServerName");
 
         var tracks = new List<SourceTrack>();
+        var skipped = new List<SourceSkip>();
         await foreach (var item in PagesAsync(
-            $"Users/{session.UserId}/Items?IncludeItemTypes=Audio&Recursive=true&Fields=DateCreated,MediaSources&EnableUserData=true",
+            $"Users/{session.UserId}/Items?IncludeItemTypes=Audio&Recursive=true&Fields=DateCreated,MediaSources,Path&EnableUserData=true",
             count => found.Report(count), ct))
-            tracks.Add(TrackOf(item));
+        {
+            if (TrackOf(item) is { } track)
+                tracks.Add(track);
+            else
+                skipped.Add(new SourceSkip(What(item), SkipReason.NotMusic));
+        }
 
         var known = tracks.Select(t => t.SourceId).ToHashSet(StringComparer.Ordinal);
         var playlists = new List<SourcePlaylist>();
@@ -109,7 +115,7 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
             playlists.Add(new SourcePlaylist(id, Str(playlist, "Name"), [], false, trackIds, unresolved));
         }
 
-        return new SourceLibrary(SourceKind.Jellyfin, session.ServerId, name, tracks, playlists, []);
+        return new SourceLibrary(SourceKind.Jellyfin, session.ServerId, name, tracks, playlists, skipped);
     }
 
     public async Task<Stream> OpenAsync(RemoteFile file, CancellationToken ct)
@@ -150,19 +156,30 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
         }
     }
 
-    private static SourceTrack TrackOf(JsonElement item)
+    private static string ArtistOf(JsonElement item) =>
+        Items(item, "Artists").Select(a => a.GetString() ?? "").FirstOrDefault(a => a.Length > 0) ?? Str(item, "AlbumArtist");
+
+    private static string What(JsonElement item) =>
+        ArtistOf(item) is { Length: > 0 } artist ? $"{artist} - {Str(item, "Name")}" : Str(item, "Name");
+
+    /// <summary>The track, or null when its file is not audio rpm reads.</summary>
+    private static SourceTrack? TrackOf(JsonElement item)
     {
         var id = Str(item, "Id");
         var source = Items(item, "MediaSources").FirstOrDefault();
-        var container = Str(source, "Container") is { Length: > 0 } c ? c : Str(item, "Container");
+        var extension = ExtensionOf(
+            Str(source, "Path") is { Length: > 0 } p ? p : Str(item, "Path"),
+            Str(source, "Container") is { Length: > 0 } c ? c : Str(item, "Container"));
+        if (extension.Length == 0)
+            return null;
         var size = Num(source, "Size");
         var user = Child(item, "UserData");
         var albumArtist = Str(item, "AlbumArtist");
-        var artist = Items(item, "Artists").Select(a => a.GetString() ?? "").FirstOrDefault(a => a.Length > 0) ?? albumArtist;
+        var artist = ArtistOf(item);
 
         return new SourceTrack(
             SourceId: id,
-            File: new RemoteFile(id, container.Length > 0 ? "." + container.Split(',')[0].ToLowerInvariant() : "", size),
+            File: new RemoteFile(id, extension, size),
             Title: Str(item, "Name"),
             Artist: artist,
             Album: Str(item, "Album"),
