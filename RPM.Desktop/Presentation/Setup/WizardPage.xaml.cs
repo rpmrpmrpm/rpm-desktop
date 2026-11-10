@@ -88,6 +88,13 @@ public sealed partial class WizardPage : Microsoft.UI.Xaml.Controls.Page
         LookStep.Finished += (_, _) => Show(WizardStep.Layout);
         LayoutStep.Finished += (_, _) =>
         {
+            if (_adopted)
+            {
+                DoneStep.ShowAdopted();
+                Show(WizardStep.Done);
+                return;
+            }
+
             DoneStep.Show(_outcome);
             Show(WizardStep.Done);
         };
@@ -295,9 +302,22 @@ public sealed partial class WizardPage : Microsoft.UI.Xaml.Controls.Page
     private void Folder_Chosen(object? sender, string path)
     {
         _libraryPath = path;
+
+        // The folder already held the person's music: there is nothing to import, so the step is skipped.
+        // The catalogue read that fills the library runs when the library opens.
+        if (FolderStep.AdoptedMusic)
+        {
+            _adopted = true;
+            Show(WizardStep.Look);
+            return;
+        }
+
         ImportStep.Begin(path);
         Show(WizardStep.Import);
     }
+
+    /// <summary>The library is a folder of music the person already had. See <see cref="Folder_Chosen"/>.</summary>
+    private bool _adopted;
 
     private void Import_Finished(object? sender, ImportOutcome outcome)
     {

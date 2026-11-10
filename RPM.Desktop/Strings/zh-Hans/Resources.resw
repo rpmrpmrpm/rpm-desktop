@@ -10610,4 +10610,8 @@
     <value>此文件夹中的文件保持原样</value>
     <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
+  <data name="Wizard_DoneAdopted" xml:space="preserve">
+    <value>打开资料库时，rpm 会在后台读取你的音乐。大型收藏可能需要几分钟。</value>
+    <comment>Setup, last step: shown instead of the album count when the library is a folder of music the person already had.</comment>
+  </data>
 </root>

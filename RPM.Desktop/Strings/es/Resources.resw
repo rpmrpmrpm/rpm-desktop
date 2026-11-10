@@ -10610,4 +10610,8 @@
     <value>Los archivos de esta carpeta se dejan como están</value>
     <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
+  <data name="Wizard_DoneAdopted" xml:space="preserve">
+    <value>rpm lee tu música en segundo plano cuando se abre la biblioteca. Una colección grande puede tardar unos minutos.</value>
+    <comment>Setup, last step: shown instead of the album count when the library is a folder of music the person already had.</comment>
+  </data>
 </root>

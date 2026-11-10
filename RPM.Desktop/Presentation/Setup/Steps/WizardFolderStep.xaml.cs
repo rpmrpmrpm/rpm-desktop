@@ -31,6 +31,10 @@ public sealed partial class WizardFolderStep : UserControl
     /// <summary>The folder was accepted and its library is open. Carries the path.</summary>
     public event EventHandler<string>? Chosen;
 
+    /// <summary>Whether the folder that was chosen already held music and was made the library as it is or
+    /// organised. Setup then has nothing to import, and skips that step. Set before <see cref="Chosen"/>.</summary>
+    public bool AdoptedMusic { get; private set; }
+
     /// <summary>The picker's own "nothing chosen yet" state, which comes before <see
     /// cref="LibraryFolderKind"/>. It also has OpenFailed, the one state the classifier cannot report,
     /// because it happens only when opening fails.</summary>
@@ -109,6 +113,7 @@ public sealed partial class WizardFolderStep : UserControl
         }
 
         App.Services.GetRequiredService<SettingsService>().LibraryPath = path;
+        AdoptedMusic = _state == FolderState.HasMusic;
         Chosen?.Invoke(this, path);
     }
 
@@ -268,6 +273,7 @@ public sealed partial class WizardFolderStep : UserControl
 
             if (service.Open(prepared) is NasOpenResult.Opened opened)
             {
+                AdoptedMusic = prepared.Adopted is not null;
                 Chosen?.Invoke(this, opened.Path);
                 return;
             }

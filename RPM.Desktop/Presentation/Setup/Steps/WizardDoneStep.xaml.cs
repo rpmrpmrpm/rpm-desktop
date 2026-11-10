@@ -62,6 +62,16 @@ public sealed partial class WizardDoneStep : UserControl
     /// yet" would only repeat the absence of the count. The second button carries that news instead, by
     /// being the action to take.</para>
     /// </summary>
+    /// <summary>For a library made from music the person already had. Nothing was imported, so there is
+    /// nothing to count yet: the catalogue read that fills the library starts when it opens.</summary>
+    public void ShowAdopted()
+    {
+        _empty = false;
+        AlbumsText.Text = Loc.Get("Wizard_DoneAdopted");
+        TracksText.Text = "";
+        FinishButton.Content = Loc.Get("Wizard_Finish");
+    }
+
     public void Show(ImportOutcome outcome)
     {
         _empty = outcome.Albums <= 0;

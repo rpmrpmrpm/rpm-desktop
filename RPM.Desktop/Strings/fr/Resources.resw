@@ -10610,4 +10610,8 @@
     <value>Les fichiers de ce dossier sont gardés tels quels</value>
     <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
+  <data name="Wizard_DoneAdopted" xml:space="preserve">
+    <value>rpm lit votre musique en arrière-plan à l'ouverture de la bibliothèque. Une grande collection peut prendre quelques minutes.</value>
+    <comment>Setup, last step: shown instead of the album count when the library is a folder of music the person already had.</comment>
+  </data>
 </root>
