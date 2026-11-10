@@ -85,7 +85,34 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
         // "download" gives the original file. "stream" could transcode, and a server may count it as a
         // play; "download" does neither.
         using var request = new HttpRequestMessage(HttpMethod.Get, Subsonic.Url(login, "download", "id=" + Uri.EscapeDataString(file.Key)));
-        return await StreamAsync(http, request, ct);
+        var body = await StreamAsync(http, request, ct);
+
+        // A refused download still has status 200: the body is a subsonic-response error, not the file.
+        if (MediaTypeOf(body) is "application/json" or "text/xml" or "application/xml")
+        {
+            await using (body)
+                throw await RefusalAsync(body, ct);
+        }
+        return body;
+    }
+
+    /// <summary>What a download answered with an error body means: error 40 or 41 is a sign-in that no
+    /// longer works; anything else is a failed read of this one file.</summary>
+    private static async Task<Exception> RefusalAsync(Stream body, CancellationToken ct)
+    {
+        try
+        {
+            using var document = await JsonDocument.ParseAsync(body, cancellationToken: ct);
+            var error = Child(Child(document.RootElement, "subsonic-response"), "error");
+            var code = (int)Num(error, "code");
+            return code is 40 or 41
+                ? new MediaServerSignInExpired()
+                : new IOException($"The server refused the download: {code} {Str(error, "message")}".TrimEnd());
+        }
+        catch (JsonException)
+        {
+            return new IOException("The server answered the download with text instead of the file.");
+        }
     }
 
     /// <summary>Error 40 (wrong credentials) or 41 (token sign-in not allowed) during a read means the

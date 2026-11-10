@@ -90,6 +90,29 @@ public class SubsonicTests
         await SubsonicCheck.CheckAsync(new FixtureHttp(Answer).Client(), Login, CancellationToken.None);
 
     [Fact]
+    public async Task Download_refused_with_error_40_is_an_expired_sign_in()
+    {
+        // Subsonic servers answer a refused download with status 200 and an error as the body.
+        var http = new FixtureHttp(_ => FixtureHttp.Sample("subsonic", "error-40.json"));
+
+        await Assert.ThrowsAsync<MediaServerSignInExpired>(() =>
+            new SubsonicServer(http.Client(), Login).OpenAsync(new RemoteFile("s1", ".flac", 3), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Download_refused_with_another_error_is_a_failed_read_not_a_file()
+    {
+        var http = new FixtureHttp(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Song not found"}}}""", Encoding.UTF8, "application/json"),
+        });
+
+        var refused = await Assert.ThrowsAsync<IOException>(() =>
+            new SubsonicServer(http.Client(), Login).OpenAsync(new RemoteFile("s1", ".flac", 3), CancellationToken.None));
+        Assert.Contains("Song not found", refused.Message);
+    }
+
+    [Fact]
     public async Task Download_uses_the_download_endpoint()
     {
         var http = new FixtureHttp(r => r.RequestUri!.AbsolutePath == "/rest/download" && FixtureHttp.Query(r, "id") == "s1"

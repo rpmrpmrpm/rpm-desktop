@@ -123,8 +123,14 @@ internal static class MediaServerHttp
     }
 
     /// <summary>A body stream that disposes its response with it.</summary>
+    /// <summary>The media type of a body <see cref="StreamAsync"/> handed back, such as "audio/flac", or
+    /// null when the server gave none.</summary>
+    public static string? MediaTypeOf(Stream body) => (body as ResponseStream)?.MediaType;
+
     private sealed class ResponseStream(HttpResponseMessage response, Stream inner) : Stream
     {
+        public string? MediaType => response.Content.Headers.ContentType?.MediaType;
+
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
