@@ -95,6 +95,15 @@ public sealed partial class LibrarySettingsPage
             return panel;
         }
 
+        // The NAS folder holds music and no library yet: it can become the library, kept or organised.
+        if (space.ExistingMusic)
+        {
+            line.Text = Loc.Format("Nas_ExistingMusicHint", nas.Name) + " " + spaceText;
+            panel.Children.Add(Action(Loc.Format("Nas_UseMusic", nas.Name), "\uf001", async button =>
+                await UseMusicAsync(nas, hello, button, line)));
+            return panel;
+        }
+
         if (_nasService!.OpenLibraryOn(space) is { } here)
         {
             line.Text = spaceText;
@@ -131,9 +140,10 @@ public sealed partial class LibrarySettingsPage
         try
         {
             NasPrepared? prepared = null;
-            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, [], async (credentials, _) =>
+            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas,
+                [new NasLibraryChoiceRow(here.Name, new NasTarget.Existing(here))], async (credentials, target) =>
             {
-                var (problem, ready) = await _nasService!.PrepareAsync(nas, hello, credentials, here);
+                var (problem, ready) = await _nasService!.PrepareAsync(nas, hello, credentials, target);
                 prepared = ready;
                 return problem;
             });
@@ -154,13 +164,55 @@ public sealed partial class LibrarySettingsPage
         }
     }
 
+    /// <summary>Makes the NAS folder's existing music the library, kept as it is or organised, as the
+    /// person chooses first. The library that was open stays where it is, untouched.</summary>
+    private async Task UseMusicAsync(DiscoveredNas nas, PeerHello hello, Button button, TextBlock line)
+    {
+        button.IsEnabled = false;
+        try
+        {
+            if (await ExistingMusicDialog.AskAsync(XamlRoot, nas.Name) is not { } files)
+                return;
+            NasPrepared? prepared = null;
+            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas,
+                [new NasLibraryChoiceRow(Loc.Format("Nas_UseExistingMusic", nas.Name), new NasTarget.ExistingMusic(files))],
+                async (credentials, target) =>
+                {
+                    var (problem, ready) = await _nasService!.PrepareAsync(nas, hello, credentials, target);
+                    prepared = ready;
+                    return problem;
+                });
+            if (login is null || prepared is null)
+                return;
+            if (_nasService!.Open(prepared) is NasOpenResult.Opened)
+            {
+                PathText.Text = _settings.LibraryPath;
+                await ShowNasAsync();
+                return;
+            }
+
+            line.Text = Loc.Format("Nas_OpenFailed", nas.Name);
+            line.Foreground = new SolidColorBrush(NasAmber);
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Scope.Said("nas", $"using the music on the NAS failed: {ex.Message}");
+            line.Text = Loc.Format("Nas_OpenFailed", nas.Name);
+            line.Foreground = new SolidColorBrush(NasAmber);
+        }
+        finally
+        {
+            button.IsEnabled = true;
+        }
+    }
+
     private async Task MoveAsync(DiscoveredNas nas, PeerHello hello, Button button, TextBlock line)
     {
         button.IsEnabled = false;
         var from = _settings.LibraryPath ?? "";
         try
         {
-            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, [],
+            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, [new NasLibraryChoiceRow("", new NasTarget.New())],
                 (credentials, _) => NasLibraryService.CheckLoginAsync(nas, hello, credentials));
             if (login is null)
                 return;

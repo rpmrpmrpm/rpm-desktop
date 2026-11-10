@@ -1554,7 +1554,7 @@
     <value>L’endroit où rpm range votre collection.</value>
   </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
-    <value>Ce dossier n'est pas vide. Choisissez un dossier vide, ou un dossier musical rpm existant pour l'ouvrir.</value>
+    <value>Ce dossier contient d'autres fichiers. Choisissez un dossier vide, un dossier de musique ou un dossier musical rpm existant.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>
   </data>
   <data name="Settings_MusicFolderOverlaps" xml:space="preserve">
@@ -1627,7 +1627,7 @@
     <value>C'est déjà un dossier musical rpm. rpm va l'ouvrir.</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
-    <value>Ce dossier n'est pas vide. Choisissez un dossier vide, ou un dossier musical rpm existant pour l'ouvrir.</value>
+    <value>Ce dossier contient d'autres fichiers. Choisissez un dossier vide, un dossier de musique ou un dossier musical rpm existant.</value>
     <comment>Shown under the folder picker when the chosen folder has visible content and no RPM mirror.</comment>
   </data>
   <data name="Shell_Help" xml:space="preserve">
@@ -10537,5 +10537,77 @@
   <data name="Nas_NotAvailable" xml:space="preserve">
     <value>{0} n'est pas disponible. Votre bibliothèque s'y trouve.</value>
     <comment>Problem screen at launch: the library is on a NAS that could not be mounted. {0} is the NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Title" xml:space="preserve">
+    <value>Musique déjà présente</value>
+    <comment>Existing music dialog: title. Shown when the chosen library folder already holds music.</comment>
+  </data>
+  <data name="ExistingMusic_Body" xml:space="preserve">
+    <value>{0} contient déjà de la musique. Comment rpm doit-il gérer ces fichiers ?</value>
+    <comment>Existing music dialog: body. {0} is the folder or NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Keep" xml:space="preserve">
+    <value>Garder les fichiers tels quels</value>
+    <comment>Existing music dialog: first choice.</comment>
+  </data>
+  <data name="ExistingMusic_KeepBody" xml:space="preserve">
+    <value>rpm lit votre musique là où elle se trouve. Il ne renomme, ne déplace, ne modifie les tags ni ne supprime jamais ces fichiers. Vos modifications dans rpm restent dans rpm.</value>
+    <comment>Existing music dialog: explanation under the first choice.</comment>
+  </data>
+  <data name="ExistingMusic_Organise" xml:space="preserve">
+    <value>Laisser rpm les organiser</value>
+    <comment>Existing music dialog: second choice. Also the button in Library settings for a kept library.</comment>
+  </data>
+  <data name="ExistingMusic_OrganiseBody" xml:space="preserve">
+    <value>rpm lit votre musique, puis la nomme et la range dans ses propres dossiers, comme tout ce que vous importez. Les tags que vous modifiez sont écrits dans les fichiers.</value>
+    <comment>Existing music dialog: explanation under the second choice.</comment>
+  </data>
+  <data name="Setup_HasMusicKept" xml:space="preserve">
+    <value>Ce dossier contient de la musique. rpm garde les fichiers tels quels.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Keep was chosen.</comment>
+  </data>
+  <data name="Setup_HasMusicOrganised" xml:space="preserve">
+    <value>Ce dossier contient de la musique. rpm va l'organiser.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Organise was chosen.</comment>
+  </data>
+  <data name="Library_Organising" xml:space="preserve">
+    <value>Organisation de votre musique : {0} sur {1}</value>
+    <comment>Status bar while a folder adopted with Organise is re-filed.</comment>
+  </data>
+  <data name="Library_Organised" xml:space="preserve">
+    <value>Votre musique est organisée ({0} fichiers déplacés)</value>
+    <comment>Status bar when that re-file has finished.</comment>
+  </data>
+  <data name="Library_OrganiseStopped" xml:space="preserve">
+    <value>L'organisation s'est arrêtée. rpm la termine à la prochaine ouverture de la bibliothèque.</value>
+    <comment>Status bar when that re-file failed part-way.</comment>
+  </data>
+  <data name="Nas_ExistingMusicHint" xml:space="preserve">
+    <value>{0} contient déjà de la musique. Utilisez-la comme collection, telle quelle ou organisée par rpm.</value>
+    <comment>Setup and Library settings: line on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseExistingMusic" xml:space="preserve">
+    <value>La musique déjà sur {0}</value>
+    <comment>NAS sign-in dialog: the choice that makes the NAS folder itself the library. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseMusic" xml:space="preserve">
+    <value>Utiliser la musique sur {0}</value>
+    <comment>Library settings: button on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Settings_FilesKept" xml:space="preserve">
+    <value>Les fichiers sont gardés tels quels. rpm ne les renomme pas, ne les déplace pas, ne modifie pas leurs tags et ne les supprime pas.</value>
+    <comment>Library settings: line for a library whose files are kept as they are.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirm" xml:space="preserve">
+    <value>rpm va écrire ses identifiants dans ces fichiers, puis les renommer et les déplacer dans ses propres dossiers. Cette action est irréversible.</value>
+    <comment>Library settings: confirmation shown after pressing Let rpm organise them for a kept library.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirmButton" xml:space="preserve">
+    <value>Organiser les fichiers</value>
+    <comment>Library settings: button that confirms organising a kept library.</comment>
+  </data>
+  <data name="Kept_Unavailable" xml:space="preserve">
+    <value>Les fichiers de ce dossier sont gardés tels quels</value>
+    <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
 </root>

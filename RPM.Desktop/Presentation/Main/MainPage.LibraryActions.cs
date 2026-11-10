@@ -236,6 +236,13 @@ public sealed partial class MainPage
         if (Model is not { } m || XamlRoot is null || _contextLibraryRow is not { } row)
             return;
 
+        // Splitting moves the album file into Originals. A kept library's files are never moved.
+        if (App.Services.GetRequiredService<LibraryService>().KeepsFiles)
+        {
+            m.SetStatus(Loc.Get("Kept_Unavailable"));
+            return;
+        }
+
         var folder = Path.GetDirectoryName(row.FilePath);
 
         var split = await SplitAlbumDialog.ShowAsync(

@@ -1554,7 +1554,7 @@
     <value>Where rpm keeps your collection.</value>
   </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
-    <value>This folder isn't empty. Pick an empty folder, or an existing rpm music folder to open it.</value>
+    <value>This folder holds other files. Pick an empty folder, a folder with music, or an existing rpm music folder.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>
   </data>
   <data name="Settings_MusicFolderOverlaps" xml:space="preserve">
@@ -1627,7 +1627,7 @@
     <value>This is already an rpm music folder. rpm will open it.</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
-    <value>This folder isn't empty. Pick an empty folder, or an existing rpm music folder to open it.</value>
+    <value>This folder holds other files. Pick an empty folder, a folder with music, or an existing rpm music folder.</value>
     <comment>Shown under the folder picker when the chosen folder has visible content and no RPM mirror.</comment>
   </data>
   <data name="Shell_Help" xml:space="preserve">
@@ -10537,5 +10537,77 @@
   <data name="Nas_NotAvailable" xml:space="preserve">
     <value>{0} is not available. Your library is on it.</value>
     <comment>Problem screen at launch: the library is on a NAS that could not be mounted. {0} is the NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Title" xml:space="preserve">
+    <value>Music already here</value>
+    <comment>Existing music dialog: title. Shown when the chosen library folder already holds music.</comment>
+  </data>
+  <data name="ExistingMusic_Body" xml:space="preserve">
+    <value>{0} already holds music. How should rpm handle these files?</value>
+    <comment>Existing music dialog: body. {0} is the folder or NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Keep" xml:space="preserve">
+    <value>Keep the files as they are</value>
+    <comment>Existing music dialog: first choice.</comment>
+  </data>
+  <data name="ExistingMusic_KeepBody" xml:space="preserve">
+    <value>rpm reads your music where it is. It never renames, moves, retags or deletes these files. Changes you make in rpm are kept in rpm.</value>
+    <comment>Existing music dialog: explanation under the first choice.</comment>
+  </data>
+  <data name="ExistingMusic_Organise" xml:space="preserve">
+    <value>Let rpm organise them</value>
+    <comment>Existing music dialog: second choice. Also the button in Library settings for a kept library.</comment>
+  </data>
+  <data name="ExistingMusic_OrganiseBody" xml:space="preserve">
+    <value>rpm reads your music, then names and files it in its own folders, like everything you import. Tags you change are written into the files.</value>
+    <comment>Existing music dialog: explanation under the second choice.</comment>
+  </data>
+  <data name="Setup_HasMusicKept" xml:space="preserve">
+    <value>This folder holds music. rpm keeps the files as they are.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Keep was chosen.</comment>
+  </data>
+  <data name="Setup_HasMusicOrganised" xml:space="preserve">
+    <value>This folder holds music. rpm will organise it.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Organise was chosen.</comment>
+  </data>
+  <data name="Library_Organising" xml:space="preserve">
+    <value>Organising your music: {0} of {1}</value>
+    <comment>Status bar while a folder adopted with Organise is re-filed.</comment>
+  </data>
+  <data name="Library_Organised" xml:space="preserve">
+    <value>Your music is organised ({0} files moved)</value>
+    <comment>Status bar when that re-file has finished.</comment>
+  </data>
+  <data name="Library_OrganiseStopped" xml:space="preserve">
+    <value>Organising stopped. rpm finishes it the next time the library opens.</value>
+    <comment>Status bar when that re-file failed part-way.</comment>
+  </data>
+  <data name="Nas_ExistingMusicHint" xml:space="preserve">
+    <value>{0} already holds music. Use it as your collection, as it is or organised by rpm.</value>
+    <comment>Setup and Library settings: line on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseExistingMusic" xml:space="preserve">
+    <value>The music already on {0}</value>
+    <comment>NAS sign-in dialog: the choice that makes the NAS folder itself the library. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseMusic" xml:space="preserve">
+    <value>Use the music on {0}</value>
+    <comment>Library settings: button on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Settings_FilesKept" xml:space="preserve">
+    <value>Files are kept as they are. rpm does not rename, move, retag or delete them.</value>
+    <comment>Library settings: line for a library whose files are kept as they are.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirm" xml:space="preserve">
+    <value>rpm will write its ids into these files, then rename and move them into its own folders. This cannot be undone.</value>
+    <comment>Library settings: confirmation shown after pressing Let rpm organise them for a kept library.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirmButton" xml:space="preserve">
+    <value>Organise files</value>
+    <comment>Library settings: button that confirms organising a kept library.</comment>
+  </data>
+  <data name="Kept_Unavailable" xml:space="preserve">
+    <value>Files in this folder are kept as they are</value>
+    <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
 </root>

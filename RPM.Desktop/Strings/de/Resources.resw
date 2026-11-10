@@ -1554,7 +1554,7 @@
     <value>Wo rpm deine Sammlung ablegt.</value>
   </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
-    <value>Dieser Ordner ist nicht leer. Wähle einen leeren Ordner, oder einen vorhandenen rpm-Musikordner, um ihn zu öffnen.</value>
+    <value>Dieser Ordner enthält andere Dateien. Wähle einen leeren Ordner, einen Ordner mit Musik oder einen vorhandenen rpm Musikordner.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>
   </data>
   <data name="Settings_MusicFolderOverlaps" xml:space="preserve">
@@ -1627,7 +1627,7 @@
     <value>Das ist bereits ein rpm-Musikordner. rpm öffnet ihn.</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
-    <value>Dieser Ordner ist nicht leer. Wähle einen leeren Ordner, oder einen vorhandenen rpm-Musikordner, um ihn zu öffnen.</value>
+    <value>Dieser Ordner enthält andere Dateien. Wähle einen leeren Ordner, einen Ordner mit Musik oder einen vorhandenen rpm Musikordner.</value>
     <comment>Shown under the folder picker when the chosen folder has visible content and no RPM mirror.</comment>
   </data>
   <data name="Shell_Help" xml:space="preserve">
@@ -10537,5 +10537,77 @@
   <data name="Nas_NotAvailable" xml:space="preserve">
     <value>{0} ist nicht erreichbar. Deine Bibliothek liegt darauf.</value>
     <comment>Problem screen at launch: the library is on a NAS that could not be mounted. {0} is the NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Title" xml:space="preserve">
+    <value>Musik schon vorhanden</value>
+    <comment>Existing music dialog: title. Shown when the chosen library folder already holds music.</comment>
+  </data>
+  <data name="ExistingMusic_Body" xml:space="preserve">
+    <value>{0} enthält bereits Musik. Wie soll rpm mit diesen Dateien umgehen?</value>
+    <comment>Existing music dialog: body. {0} is the folder or NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Keep" xml:space="preserve">
+    <value>Dateien so lassen, wie sie sind</value>
+    <comment>Existing music dialog: first choice.</comment>
+  </data>
+  <data name="ExistingMusic_KeepBody" xml:space="preserve">
+    <value>rpm liest deine Musik dort, wo sie liegt. Es benennt diese Dateien nie um, verschiebt sie nicht, ändert keine Tags und löscht nichts. Deine Änderungen in rpm bleiben in rpm.</value>
+    <comment>Existing music dialog: explanation under the first choice.</comment>
+  </data>
+  <data name="ExistingMusic_Organise" xml:space="preserve">
+    <value>rpm ordnen lassen</value>
+    <comment>Existing music dialog: second choice. Also the button in Library settings for a kept library.</comment>
+  </data>
+  <data name="ExistingMusic_OrganiseBody" xml:space="preserve">
+    <value>rpm liest deine Musik und benennt und sortiert sie dann in eigene Ordner, wie alles, was du importierst. Geänderte Tags werden in die Dateien geschrieben.</value>
+    <comment>Existing music dialog: explanation under the second choice.</comment>
+  </data>
+  <data name="Setup_HasMusicKept" xml:space="preserve">
+    <value>Dieser Ordner enthält Musik. rpm lässt die Dateien, wie sie sind.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Keep was chosen.</comment>
+  </data>
+  <data name="Setup_HasMusicOrganised" xml:space="preserve">
+    <value>Dieser Ordner enthält Musik. rpm wird sie ordnen.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Organise was chosen.</comment>
+  </data>
+  <data name="Library_Organising" xml:space="preserve">
+    <value>Musik wird geordnet: {0} von {1}</value>
+    <comment>Status bar while a folder adopted with Organise is re-filed.</comment>
+  </data>
+  <data name="Library_Organised" xml:space="preserve">
+    <value>Deine Musik ist geordnet ({0} Dateien verschoben)</value>
+    <comment>Status bar when that re-file has finished.</comment>
+  </data>
+  <data name="Library_OrganiseStopped" xml:space="preserve">
+    <value>Das Ordnen wurde angehalten. rpm beendet es beim nächsten Öffnen der Bibliothek.</value>
+    <comment>Status bar when that re-file failed part-way.</comment>
+  </data>
+  <data name="Nas_ExistingMusicHint" xml:space="preserve">
+    <value>{0} enthält bereits Musik. Nutze sie als deine Sammlung, so wie sie ist oder von rpm geordnet.</value>
+    <comment>Setup and Library settings: line on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseExistingMusic" xml:space="preserve">
+    <value>Die Musik auf {0}</value>
+    <comment>NAS sign-in dialog: the choice that makes the NAS folder itself the library. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseMusic" xml:space="preserve">
+    <value>Musik auf {0} verwenden</value>
+    <comment>Library settings: button on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Settings_FilesKept" xml:space="preserve">
+    <value>Die Dateien bleiben, wie sie sind. rpm benennt sie nicht um, verschiebt sie nicht, ändert keine Tags und löscht sie nicht.</value>
+    <comment>Library settings: line for a library whose files are kept as they are.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirm" xml:space="preserve">
+    <value>rpm schreibt seine IDs in diese Dateien und benennt sie dann um und verschiebt sie in eigene Ordner. Das lässt sich nicht rückgängig machen.</value>
+    <comment>Library settings: confirmation shown after pressing Let rpm organise them for a kept library.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirmButton" xml:space="preserve">
+    <value>Dateien ordnen</value>
+    <comment>Library settings: button that confirms organising a kept library.</comment>
+  </data>
+  <data name="Kept_Unavailable" xml:space="preserve">
+    <value>Die Dateien in diesem Ordner bleiben, wie sie sind</value>
+    <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
 </root>

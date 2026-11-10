@@ -95,6 +95,13 @@ public sealed partial class MainPage
         // computer too. The menus already leave the entry out there. This check is a second guard.
         if (library.IsPeerView || !library.IsOpen || library.Root is not { } root || XamlRoot is null)
             return;
+
+        // A kept library's files are never deleted by rpm.
+        if (library.KeepsFiles)
+        {
+            Model?.SetStatus(Loc.Get("Kept_Unavailable"));
+            return;
+        }
         var db = library.Db;
 
         // What this reach does, row by row. A row that the reach does nothing to is left out of the set.

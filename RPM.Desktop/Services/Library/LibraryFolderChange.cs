@@ -34,8 +34,11 @@ public static class LibraryFolderChange
     /// Asks for a folder and opens it as the collection. The open raises <c>Opened</c> and
     /// <c>Changed</c> on the calling thread, which is the interface thread for both callers.
     /// </summary>
+    /// <param name="askAboutMusic">Asks whether music already in the chosen folder is kept as it is or
+    /// organised. Given the folder's path; null means the person closed the question.</param>
     public static async Task<FolderChange> PickAndOpenAsync(
-        FolderPickerService picker, LibraryService library, SettingsService settings)
+        FolderPickerService picker, LibraryService library, SettingsService settings,
+        Func<string, Task<FileHandling?>> askAboutMusic)
     {
         // The picker's "New Folder" button lets the user make an empty folder on the spot. First-run setup
         // offers the same thing, and it is the answer to the rule below.
@@ -46,18 +49,31 @@ public static class LibraryFolderChange
         // First-run setup uses the same rule, from the same code. An empty folder becomes a new collection.
         // A folder with a mirror in it is reopened. Any other folder is someone's existing file tree. See
         // LibraryFolder for what adopting a file tree does to it.
-        if (!LibraryFolder.Adoptable(folder))
+        var kind = LibraryFolder.Classify(folder);
+        if (kind is not (LibraryFolderKind.Empty or LibraryFolderKind.ExistingLibrary or LibraryFolderKind.HasMusic))
             return FolderChange.NotEmpty;
 
         if (library.Root is { } current && LibraryFolder.Overlap(current, folder))
             return FolderChange.Overlaps;
+
+        // A folder of music the person already has: they choose what rpm may do with the files.
+        FileHandling? adopt = null;
+        if (kind == LibraryFolderKind.HasMusic)
+        {
+            adopt = await askAboutMusic(folder);
+            if (adopt is null)
+                return FolderChange.Cancelled;
+        }
 
         // Opening the new root builds or reuses its mirror. The old library's mirror is left where it is.
         // It lives inside that folder, so it is still there, and intact, if the app points back at it
         // later.
         try
         {
-            library.Open(folder);
+            if (adopt is { } files)
+                library.Adopt(folder, files);
+            else
+                library.Open(folder);
         }
         catch (Exception ex)
         {

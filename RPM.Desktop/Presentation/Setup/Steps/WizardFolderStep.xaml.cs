@@ -34,7 +34,10 @@ public sealed partial class WizardFolderStep : UserControl
     /// <summary>The picker's own "nothing chosen yet" state, which comes before <see
     /// cref="LibraryFolderKind"/>. It also has OpenFailed, the one state the classifier cannot report,
     /// because it happens only when opening fails.</summary>
-    private enum FolderState { None, Empty, ExistingLibrary, NotEmpty, OpenFailed }
+    private enum FolderState { None, Empty, ExistingLibrary, HasMusic, NotEmpty, OpenFailed }
+
+    /// <summary>For a folder that already holds music: what the person chose rpm may do with it.</summary>
+    private FileHandling? _adopt;
 
     private static readonly Windows.UI.Color Amber = Windows.UI.Color.FromArgb(0xFF, 0xFF, 0xD4, 0x66);
     private static readonly Windows.UI.Color Green = Windows.UI.Color.FromArgb(0xFF, 0x00, 0xF1, 0x5E);
@@ -60,11 +63,22 @@ public sealed partial class WizardFolderStep : UserControl
         if (path is null)
             return;
 
+        var kind = LibraryFolder.Classify(path);
+        FileHandling? adopt = null;
+        if (kind == LibraryFolderKind.HasMusic)
+        {
+            adopt = await ExistingMusicDialog.AskAsync(XamlRoot, Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar)));
+            if (adopt is null)
+                return;
+        }
+
         _path = path;
-        _state = LibraryFolder.Classify(path) switch
+        _adopt = adopt;
+        _state = kind switch
         {
             LibraryFolderKind.Empty => FolderState.Empty,
             LibraryFolderKind.ExistingLibrary => FolderState.ExistingLibrary,
+            LibraryFolderKind.HasMusic => FolderState.HasMusic,
             _ => FolderState.NotEmpty,
         };
         Dress();
@@ -80,7 +94,11 @@ public sealed partial class WizardFolderStep : UserControl
         // fails at again. So open first, and write second.
         try
         {
-            App.Services.GetRequiredService<LibraryService>().Open(path);
+            var library = App.Services.GetRequiredService<LibraryService>();
+            if (_state == FolderState.HasMusic && _adopt is { } files)
+                library.Adopt(path, files);
+            else
+                library.Open(path);
         }
         catch (Exception ex)
         {
@@ -94,7 +112,8 @@ public sealed partial class WizardFolderStep : UserControl
         Chosen?.Invoke(this, path);
     }
 
-    private bool Adoptable => _state is FolderState.Empty or FolderState.ExistingLibrary;
+    private bool Adoptable =>
+        _state is FolderState.Empty or FolderState.ExistingLibrary || (_state == FolderState.HasMusic && _adopt is not null);
 
     // ── a NAS as the place for the library ──
 
@@ -176,6 +195,7 @@ public sealed partial class WizardFolderStep : UserControl
                 VerticalAlignment = VerticalAlignment.Center,
             };
             choose.Click += async (_, _) => await ChooseNasAsync(nas, choose, hint);
+            _ = SayExistingMusicAsync(nas, hint);
             Grid.SetColumn(choose, 2);
             grid.Children.Add(choose);
         }
@@ -189,6 +209,21 @@ public sealed partial class WizardFolderStep : UserControl
             BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2B, 0xFF, 0xFF, 0xFF)),
             Child = grid,
         };
+    }
+
+    /// <summary>Changes the row's line when the NAS folder already holds music. The beacon does not say so,
+    /// only the NAS's hello, so the line is updated when the hello arrives.</summary>
+    private async Task SayExistingMusicAsync(DiscoveredNas nas, TextBlock hint)
+    {
+        try
+        {
+            if (await NasLibraryService.HelloAsync(nas, CancellationToken.None) is { Nas.ExistingMusic: true })
+                hint.Text = Loc.Format("Nas_ExistingMusicHint", nas.Name);
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Scope.Said("nas", $"the NAS hello could not be read: {ex.Message}");
+        }
     }
 
     /// <summary>The NAS login, then the library on it. The library becomes the collection only once it
@@ -206,8 +241,22 @@ public sealed partial class WizardFolderStep : UserControl
                 return;
             }
 
+            // Music already on the NAS: the person chooses what rpm may do with it before signing in, so
+            // the sign-in can make the NAS folder the library as chosen.
+            IReadOnlyList<NasLibraryChoiceRow> choices;
+            if (hello.Nas!.ExistingMusic)
+            {
+                if (await ExistingMusicDialog.AskAsync(XamlRoot, nas.Name) is not { } files)
+                    return;
+                choices = [new NasLibraryChoiceRow(Loc.Format("Nas_UseExistingMusic", nas.Name), new NasTarget.ExistingMusic(files))];
+            }
+            else
+            {
+                choices = NasLoginDialog.ChoicesFor(hello.Nas, service);
+            }
+
             NasPrepared? prepared = null;
-            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, NasLoginDialog.ChoicesFor(hello.Nas!, service),
+            var login = await NasLoginDialog.ShowAsync(XamlRoot, nas, choices,
                 async (credentials, chosen) =>
                 {
                     var (problem, ready) = await service.PrepareAsync(nas, hello, credentials, chosen);
@@ -249,6 +298,8 @@ public sealed partial class WizardFolderStep : UserControl
         {
             FolderState.Empty => (Cyan, Cyan, ""),
             FolderState.ExistingLibrary => (Green, Green, Loc.Get("Setup_ExistingLibrary")),
+            FolderState.HasMusic => (Green, Green, Loc.Get(
+                _adopt == FileHandling.Kept ? "Setup_HasMusicKept" : "Setup_HasMusicOrganised")),
             FolderState.NotEmpty => (Amber, Amber, Loc.Get("Setup_NotEmpty")),
             FolderState.OpenFailed => (Amber, Amber, Loc.Get("Wizard_FolderFailed")),
             _ => (Windows.UI.Color.FromArgb(0x2B, 0xFF, 0xFF, 0xFF), Cyan, ""),
@@ -261,7 +312,7 @@ public sealed partial class WizardFolderStep : UserControl
         // nothing is chosen. A ticked one is a folder that will be adopted. A warned one is a refusal.
         PickerGlyph.Glyph = _state switch
         {
-            FolderState.Empty or FolderState.ExistingLibrary => "\uf00c",
+            FolderState.Empty or FolderState.ExistingLibrary or FolderState.HasMusic => "\uf00c",
             FolderState.NotEmpty or FolderState.OpenFailed => "\uf071",
             _ => "\uf07c",
         };
@@ -269,7 +320,7 @@ public sealed partial class WizardFolderStep : UserControl
         StateText.Text = line;
         StateText.Visibility = line.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         StateText.Foreground = new SolidColorBrush(
-            _state is FolderState.ExistingLibrary ? Green : Amber);
+            _state is FolderState.ExistingLibrary or FolderState.HasMusic ? Green : Amber);
 
         NextButton.IsEnabled = Adoptable;
     }

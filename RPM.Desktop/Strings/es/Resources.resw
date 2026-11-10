@@ -1554,7 +1554,7 @@
     <value>Donde rpm guarda tu colección.</value>
   </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
-    <value>Esta carpeta no está vacía. Elige una carpeta vacía, o una carpeta de música de rpm existente para abrirla.</value>
+    <value>Esta carpeta contiene otros archivos. Elige una carpeta vacía, una carpeta con música o una carpeta de música de rpm existente.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>
   </data>
   <data name="Settings_MusicFolderOverlaps" xml:space="preserve">
@@ -1627,7 +1627,7 @@
     <value>Esta ya es una carpeta de música de rpm. rpm la abrirá.</value>
   </data>
   <data name="Setup_NotEmpty" xml:space="preserve">
-    <value>Esta carpeta no está vacía. Elige una carpeta vacía, o una carpeta de música de rpm existente para abrirla.</value>
+    <value>Esta carpeta contiene otros archivos. Elige una carpeta vacía, una carpeta con música o una carpeta de música de rpm existente.</value>
     <comment>Shown under the folder picker when the chosen folder has visible content and no RPM mirror.</comment>
   </data>
   <data name="Shell_Help" xml:space="preserve">
@@ -10537,5 +10537,77 @@
   <data name="Nas_NotAvailable" xml:space="preserve">
     <value>{0} no está disponible. Tu biblioteca está en él.</value>
     <comment>Problem screen at launch: the library is on a NAS that could not be mounted. {0} is the NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Title" xml:space="preserve">
+    <value>Ya hay música aquí</value>
+    <comment>Existing music dialog: title. Shown when the chosen library folder already holds music.</comment>
+  </data>
+  <data name="ExistingMusic_Body" xml:space="preserve">
+    <value>{0} ya contiene música. ¿Cómo debe tratar rpm estos archivos?</value>
+    <comment>Existing music dialog: body. {0} is the folder or NAS name.</comment>
+  </data>
+  <data name="ExistingMusic_Keep" xml:space="preserve">
+    <value>Dejar los archivos como están</value>
+    <comment>Existing music dialog: first choice.</comment>
+  </data>
+  <data name="ExistingMusic_KeepBody" xml:space="preserve">
+    <value>rpm lee tu música donde está. Nunca cambia el nombre, mueve, reetiqueta ni elimina estos archivos. Los cambios que hagas en rpm se guardan en rpm.</value>
+    <comment>Existing music dialog: explanation under the first choice.</comment>
+  </data>
+  <data name="ExistingMusic_Organise" xml:space="preserve">
+    <value>Dejar que rpm los organice</value>
+    <comment>Existing music dialog: second choice. Also the button in Library settings for a kept library.</comment>
+  </data>
+  <data name="ExistingMusic_OrganiseBody" xml:space="preserve">
+    <value>rpm lee tu música y después la nombra y la ordena en sus propias carpetas, como todo lo que importas. Las etiquetas que cambies se escriben en los archivos.</value>
+    <comment>Existing music dialog: explanation under the second choice.</comment>
+  </data>
+  <data name="Setup_HasMusicKept" xml:space="preserve">
+    <value>Esta carpeta contiene música. rpm deja los archivos como están.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Keep was chosen.</comment>
+  </data>
+  <data name="Setup_HasMusicOrganised" xml:space="preserve">
+    <value>Esta carpeta contiene música. rpm la organizará.</value>
+    <comment>Setup and Settings: status under a chosen folder with music, after Organise was chosen.</comment>
+  </data>
+  <data name="Library_Organising" xml:space="preserve">
+    <value>Organizando tu música: {0} de {1}</value>
+    <comment>Status bar while a folder adopted with Organise is re-filed.</comment>
+  </data>
+  <data name="Library_Organised" xml:space="preserve">
+    <value>Tu música está organizada ({0} archivos movidos)</value>
+    <comment>Status bar when that re-file has finished.</comment>
+  </data>
+  <data name="Library_OrganiseStopped" xml:space="preserve">
+    <value>La organización se detuvo. rpm la terminará la próxima vez que se abra la biblioteca.</value>
+    <comment>Status bar when that re-file failed part-way.</comment>
+  </data>
+  <data name="Nas_ExistingMusicHint" xml:space="preserve">
+    <value>{0} ya contiene música. Úsala como tu colección, tal como está u organizada por rpm.</value>
+    <comment>Setup and Library settings: line on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseExistingMusic" xml:space="preserve">
+    <value>La música que ya está en {0}</value>
+    <comment>NAS sign-in dialog: the choice that makes the NAS folder itself the library. {0} is the NAS name.</comment>
+  </data>
+  <data name="Nas_UseMusic" xml:space="preserve">
+    <value>Usar la música de {0}</value>
+    <comment>Library settings: button on a NAS row when the NAS folder already holds music. {0} is the NAS name.</comment>
+  </data>
+  <data name="Settings_FilesKept" xml:space="preserve">
+    <value>Los archivos se dejan como están. rpm no les cambia el nombre, no los mueve, no los reetiqueta ni los elimina.</value>
+    <comment>Library settings: line for a library whose files are kept as they are.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirm" xml:space="preserve">
+    <value>rpm escribirá sus identificadores en estos archivos y después les cambiará el nombre y los moverá a sus propias carpetas. No se puede deshacer.</value>
+    <comment>Library settings: confirmation shown after pressing Let rpm organise them for a kept library.</comment>
+  </data>
+  <data name="Settings_OrganiseKeptConfirmButton" xml:space="preserve">
+    <value>Organizar archivos</value>
+    <comment>Library settings: button that confirms organising a kept library.</comment>
+  </data>
+  <data name="Kept_Unavailable" xml:space="preserve">
+    <value>Los archivos de esta carpeta se dejan como están</value>
+    <comment>Tooltip on actions that would change files (Apply naming, Split album, Delete) in a library whose files are kept as they are.</comment>
   </data>
 </root>

@@ -76,6 +76,18 @@
           <!-- Why a folder was refused, or why one could not be opened. Empty the rest of the time. -->
           <TextBlock x:Name="FolderStatus" FontSize="12" Foreground="#FFD466" TextWrapping="Wrap" />
 
+          <!-- A library whose files are kept as they are: says so, and offers to let rpm organise them. Shown
+               in code (LibrarySettingsPage.Kept.cs). -->
+          <StackPanel x:Name="KeptPanel" Spacing="8" Visibility="Collapsed">
+            <TextBlock Text="{loc:Str Key=Settings_FilesKept}" FontSize="12" Foreground="#99FFFFFF" TextWrapping="Wrap" />
+            <ctl:RpmButton x:Name="OrganiseKeptButton" Click="OnOrganiseKept" HorizontalAlignment="Left" Padding="16,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07c;" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=ExistingMusic_Organise}" VerticalAlignment="Center" />
+              </StackPanel>
+            </ctl:RpmButton>
+          </StackPanel>
+
           <!-- Each rpm NAS on the network: where the library is when it is on one, or the way to move it
                there or to use the library already there. Filled in code (LibrarySettingsPage.Nas.cs). -->
           <StackPanel x:Name="NasPanel" Spacing="10" Margin="0,6,0,0" />

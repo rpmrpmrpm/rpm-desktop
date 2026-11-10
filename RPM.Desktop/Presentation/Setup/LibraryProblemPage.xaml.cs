@@ -200,7 +200,9 @@ public sealed partial class LibraryProblemPage : Page
                     var change = await LibraryFolderChange.PickAndOpenAsync(
                         App.Services.GetRequiredService<FolderPickerService>(),
                         App.Services.GetRequiredService<LibraryService>(),
-                        App.Services.GetRequiredService<SettingsService>());
+                        App.Services.GetRequiredService<SettingsService>(),
+                        folder => Dialogs.ExistingMusicDialog.AskAsync(
+                            XamlRoot, Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar))));
 
                     // Opened: the shell takes this screen down, as after Try again.
                     if (change.StatusKey() is { } status)

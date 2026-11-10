@@ -50,6 +50,7 @@ public sealed partial class LibrarySettingsPage : Page
         InitRequiredTags();
         InitSharing();
         InitNas();
+        ShowKept();
         RefreshFingerprintStatus();
         RefreshAnalysisTagStatus();
         InitNaming();
@@ -425,7 +426,8 @@ public sealed partial class LibrarySettingsPage : Page
     private async void OnChangeFolder(object sender, RoutedEventArgs e)
     {
         // The same step Choose another folder takes on the problem screen over the library.
-        var change = await LibraryFolderChange.PickAndOpenAsync(_picker, _library, _settings);
+        var change = await LibraryFolderChange.PickAndOpenAsync(_picker, _library, _settings,
+            folder => Dialogs.ExistingMusicDialog.AskAsync(XamlRoot, Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar))));
         if (change is FolderChange.Cancelled)
             return;
 
@@ -437,6 +439,7 @@ public sealed partial class LibrarySettingsPage : Page
 
         PathText.Text = _settings.LibraryPath;
         FolderStatus.Text = "";
+        ShowKept();
 
         // The pass over the new collection (reconcile, report, queue the inbox) is run by the library
         // page, when it is raised by Opened. Running it here as well would run two syncs over one
@@ -621,9 +624,10 @@ public sealed partial class LibrarySettingsPage : Page
         // Ask only when the answer could differ. The pattern decides where a file lands, so the pattern
         // is what is compared. Renaming a template, or editing one the library does not file by,
         // changes nothing on disk, so there is nothing to ask.
+        // A kept library's files stay where they are: the template only files music imported from now on.
         var after = _settings.DefaultTemplate;
         if (!string.Equals(before, after.Pattern, StringComparison.Ordinal)
-            && _library.IsOpen && XamlRoot is { } root)
+            && _library.IsOpen && !_library.KeepsFiles && XamlRoot is { } root)
             await Dialogs.ApplyNamingDialog.ShowAsync(root, _services, after);
     }
 
