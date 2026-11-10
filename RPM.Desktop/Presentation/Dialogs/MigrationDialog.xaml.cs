@@ -78,6 +78,8 @@ public sealed partial class MigrationDialog : ContentDialog
 
     private void Show(Face face)
     {
+        if (face != Face.Connect)
+            _finding?.Cancel();
         _face = face;
         AppsFace.Visibility = Vis(face == Face.Apps);
         ConnectFace.Visibility = Vis(face == Face.Connect);
@@ -152,7 +154,61 @@ public sealed partial class MigrationDialog : ContentDialog
 
         Show(Face.Connect);
         if (kind is SourceKind.Jellyfin or SourceKind.Navidrome)
+        {
             Primary("Migration_SignIn");
+            _ = FindServersAsync(kind);
+        }
+    }
+
+    private CancellationTokenSource? _finding;
+
+    /// <summary>Lists the servers of this kind found on the network under the address box. Finding none
+    /// hides the list; the person types the address as before.</summary>
+    private async Task FindServersAsync(SourceKind kind)
+    {
+        _finding?.Cancel();
+        var finding = _finding = new CancellationTokenSource();
+        FoundPanel.Children.Clear();
+        FoundPanel.Visibility = Visibility.Collapsed;
+        FoundLabel.Text = Loc.Get("Migration_Searching");
+        FoundLabel.Visibility = Visibility.Visible;
+
+        IReadOnlyList<FoundServer> found;
+        try
+        {
+            found = await _service.FindServersAsync(kind, finding.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        // The person may have gone to another app or face while the answers came in.
+        if (finding.IsCancellationRequested || _face != Face.Connect || _kind != kind)
+            return;
+
+        foreach (var server in found)
+        {
+            var button = new Button
+            {
+                Content = Loc.Format("Migration_FoundServer", server.Name, server.Address.GetLeftPart(UriPartial.Authority)),
+                Style = (Style)Application.Current.Resources["GlassButtonStyle"],
+                Padding = new Thickness(14, 0, 14, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Tag = server,
+            };
+            button.Click += FoundServer_Click;
+            FoundPanel.Children.Add(button);
+        }
+        FoundLabel.Text = Loc.Get("Migration_FoundServers");
+        FoundLabel.Visibility = FoundPanel.Visibility = Vis(found.Count > 0);
+    }
+
+    private void FoundServer_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: FoundServer server })
+            return;
+        AddressBox.Text = server.Address.GetLeftPart(UriPartial.Authority);
+        UserBox.Focus(FocusState.Programmatic);
     }
 
     // ── connect ──

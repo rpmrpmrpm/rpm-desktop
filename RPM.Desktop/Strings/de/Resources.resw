@@ -10070,6 +10070,18 @@
     <value>Serveradresse</value>
     <comment>Import from another app: label of the media server address box.</comment>
   </data>
+  <data name="Migration_Searching" xml:space="preserve">
+    <value>Suche nach Servern in Ihrem Netzwerk</value>
+    <comment>Import from another app, connect step (desktop): shown while the app looks for media servers on the local network.</comment>
+  </data>
+  <data name="Migration_FoundServers" xml:space="preserve">
+    <value>In Ihrem Netzwerk gefunden</value>
+    <comment>Import from another app, connect step (desktop): heading above the media servers found on the network. Clicking one fills in the server address.</comment>
+  </data>
+  <data name="Migration_FoundServer" xml:space="preserve">
+    <value>{0} ({1})</value>
+    <comment>Import from another app, connect step (desktop): a media server found on the network. {0} is its name, {1} its address.</comment>
+  </data>
   <data name="Migration_UserName" xml:space="preserve">
     <value>Benutzername</value>
     <comment>Import from another app: label of the user name box.</comment>
@@ -10353,6 +10365,10 @@
   <data name="Migration_ReportSkipped" xml:space="preserve">
     <value>Von Anfang an nicht importiert</value>
     <comment>Import from another app: heading of the items the source listed that are not music files.</comment>
+  </data>
+  <data name="Migration_ReportMore" xml:space="preserve">
+    <value>Und {0} weitere.</value>
+    <comment>Import from another app, report (web): under a list that shows its first lines, how many more there are.</comment>
   </data>
   <data name="Migration_TryAgain" xml:space="preserve">
     <value>Erneut versuchen</value>

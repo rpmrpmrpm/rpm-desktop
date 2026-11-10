@@ -185,6 +185,9 @@
         </StackPanel>
 
         <StackPanel x:Name="ServerPanel" Spacing="8" Visibility="Collapsed">
+          <!-- Servers found on the network: a click fills in the address. -->
+          <TextBlock x:Name="FoundLabel" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
+          <StackPanel x:Name="FoundPanel" Spacing="6" Visibility="Collapsed"/>
           <TextBlock Text="{loc:Str Key=Migration_ServerAddress}" Style="{StaticResource QuietLineStyle}"/>
           <TextBox x:Name="AddressBox" HeaderTemplate="{x:Null}"/>
           <TextBlock Text="{loc:Str Key=Migration_UserName}" Style="{StaticResource QuietLineStyle}"/>

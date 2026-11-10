@@ -39,7 +39,7 @@ public class LiveServerTests
 
         var library = await server.ReadAsync(new Progress<int>(), CancellationToken.None);
 
-        Assert.Equal(5, library.Tracks.Count);
+        Assert.InRange(library.Tracks.Count, 5, int.MaxValue);   // the test folder may hold more than the five tones
         var opening = library.Tracks.Single(t => t.Title == "Opening");
         Assert.True(opening.Favorite);
         Assert.True(opening.Plays >= 1);
@@ -54,6 +54,18 @@ public class LiveServerTests
 
         var again = await server.ReadAsync(new Progress<int>(), CancellationToken.None);
         Assert.Equal(opening.Plays, again.Tracks.Single(t => t.Title == "Opening").Plays);
+    }
+
+    [LiveFact]
+    public async Task Live_servers_on_this_computer_are_found()
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+
+        var jellyfin = await ServerDiscovery.FindAsync(SourceKind.Jellyfin, http, TimeSpan.FromSeconds(2), CancellationToken.None);
+        var navidrome = await ServerDiscovery.FindAsync(SourceKind.Navidrome, http, TimeSpan.FromSeconds(2), CancellationToken.None);
+
+        Assert.Contains(jellyfin, f => f.Address == new Uri("http://localhost:8096"));
+        Assert.Contains(navidrome, f => f.Address == new Uri("http://localhost:4533") && f.Name == "Navidrome");
     }
 
     [LiveFact]

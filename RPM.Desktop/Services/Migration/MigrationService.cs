@@ -122,6 +122,14 @@ public sealed class MigrationService : IDisposable
         ? new HttpClient(Wire.LocalSockets(connectTimeout: TimeSpan.FromSeconds(10))) { Timeout = TimeSpan.FromMinutes(10) }
         : Wire.Outside(Destination.Unaddressed, TimeSpan.FromMinutes(10));
 
+    /// <summary>The servers of this kind on the network or this computer, for the person to pick from.
+    /// Waits about two seconds for answers.</summary>
+    public async Task<IReadOnlyList<FoundServer>> FindServersAsync(SourceKind kind, CancellationToken ct)
+    {
+        using var http = new HttpClient(Wire.LocalSockets(connectTimeout: TimeSpan.FromSeconds(2))) { Timeout = TimeSpan.FromSeconds(3) };
+        return await Task.Run(() => ServerDiscovery.FindAsync(kind, http, TimeSpan.FromSeconds(2), ct), ct);
+    }
+
     /// <summary>plex.tv, for the Plex sign-in and the server list.</summary>
     public static HttpClient PlexTv() => Wire.Outside(Destination.Unaddressed, TimeSpan.FromSeconds(30));
 
