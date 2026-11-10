@@ -76,14 +76,21 @@ public sealed partial class CloudSyncService
         if (due.Count > 0)
             await SendPlaysAsync(db, mine, due, ct);
 
-        // The plays of imports from other apps that this machine ran: one device per source library,
-        // so one request per device. See LibraryDatabase.ApplyImportedPlays.
-        foreach (var device in db.ImportPlaysToSend(PlaysPerRun).GroupBy(r => r.Device))
+        // The plays of imports from other apps that this machine ran: one device per source library. A large
+        // import is sent whole in this pass, in requests of the store's size. See ImportedPlays.
+        await ImportedPlays.SendAllAsync(db, async (device, rows) =>
         {
-            if (ct.IsCancellationRequested)
-                return;
-            await SendPlaysAsync(db, device.Key, [.. device], ct);
-        }
+            try
+            {
+                await _cloud.PutTrackPlaysAsync(device, [.. rows.Select(r => (r.RpmId, r.Plays, PlayClock.Seconds(r.LastPlayedUtcTicks)))], ct);
+                return true;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogDebug(ex, "[Cloud] Could not send the play counts of an import");
+                return false;
+            }
+        }, ct);
     }
 
     private async Task SendPlaysAsync(LibraryDatabase db, string device, IReadOnlyList<LibraryDatabase.TrackPlayRow> due, CancellationToken ct)

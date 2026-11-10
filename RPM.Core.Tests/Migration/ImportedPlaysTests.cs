@@ -135,4 +135,37 @@ public class ImportedPlaysTests : IDisposable
 
         Assert.Equal(3_000, Row("one").AddedUtcTicks);
     }
+
+    [Fact]
+    public async Task All_imported_plays_go_out_in_one_pass_in_requests_of_two_hundred()
+    {
+        var rows = Enumerable.Range(0, 450).Select(i => new LibraryDatabase.TrackPlayRow(Add($"t{i}", $"rpm-{i}").RpmId!, MusicBee, i + 1, 1_000, 0)).ToList();
+        _db.ApplyImportedPlays(MusicBee, rows);
+        var requests = new List<int>();
+
+        var sent = await ImportedPlays.SendAllAsync(_db, (device, batch) =>
+        {
+            Assert.Equal(MusicBee, device);
+            requests.Add(batch.Count);
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+
+        Assert.Equal(450, sent);
+        Assert.Equal([200, 200, 50], requests);
+        Assert.Empty(_db.ImportPlaysToSend(200));
+    }
+
+    [Fact]
+    public async Task A_failed_request_ends_the_pass_and_leaves_the_rest_unsent()
+    {
+        var rows = Enumerable.Range(0, 300).Select(i => new LibraryDatabase.TrackPlayRow(Add($"t{i}", $"rpm-{i}").RpmId!, MusicBee, 1, 1_000, 0)).ToList();
+        _db.ApplyImportedPlays(MusicBee, rows);
+        var calls = 0;
+
+        var sent = await ImportedPlays.SendAllAsync(_db, (_, _) => Task.FromResult(++calls == 1), CancellationToken.None);
+
+        Assert.Equal(200, sent);
+        Assert.Equal(2, calls);
+        Assert.Equal(100, _db.ImportPlaysToSend(200).Count);
+    }
 }
