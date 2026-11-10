@@ -187,6 +187,22 @@ public class MigrationRecordTests : IDisposable
     }
 
     [Fact]
+    public void Other_libraries_imported_before_are_named_for_the_summary()
+    {
+        var itunes = new SourceLibrary(SourceKind.ITunes, "it-1", "iTunes", [], [], []);
+        var musicbee = Library();
+        Assert.Empty(_db.OtherImports(musicbee));
+
+        var record = _db.OpenMigration(itunes, MigrationDestination.ThisComputer);
+        record.AddFound(["a"]);
+        Assert.Empty(_db.OtherImports(musicbee));   // nothing came in from it yet
+
+        record.Note("a", MigrationTrackState.Imported, 1);
+        Assert.Equal(["iTunes"], _db.OtherImports(musicbee));
+        Assert.Empty(_db.OtherImports(itunes));   // not itself
+    }
+
+    [Fact]
     public void Counts_add_up_to_found()
     {
         var record = _db.OpenMigration(Library(), MigrationDestination.ThisComputer);

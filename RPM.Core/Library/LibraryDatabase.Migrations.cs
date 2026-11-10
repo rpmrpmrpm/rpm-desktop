@@ -129,6 +129,34 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>
+    /// The names of the other source libraries that brought tracks into this library. Each source library
+    /// counts its plays on a device of its own, so two that hold the same history (a MusicBee library built
+    /// from an iTunes import) count those plays twice; the summary says so.
+    /// </summary>
+    public IReadOnlyList<string> OtherImports(SourceLibrary library)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText =
+                """
+                SELECT m.name FROM migration m
+                WHERE NOT (m.kind = $kind AND m.library_id = $key)
+                  AND EXISTS (SELECT 1 FROM migration_track t WHERE t.migration_id = m.id AND t.state IN (2, 3))
+                ORDER BY m.started_utc_ticks, m.id
+                """;
+            cmd.Parameters.AddWithValue("$kind", library.Kind.ToString().ToLowerInvariant());
+            cmd.Parameters.AddWithValue("$key", LibraryKeyOf(library));
+            using var reader = cmd.ExecuteReader();
+            var names = new List<string>();
+            while (reader.Read())
+                names.Add(reader.GetString(0));
+            return names;
+        }
+    }
+
     /// <summary>The imports that have not finished, newest first, so the app can offer to continue them.</summary>
     public IReadOnlyList<MigrationSummary> UnfinishedMigrations()
     {

@@ -232,6 +232,7 @@
         <TextBlock x:Name="SummaryPlaylists" Style="{StaticResource LineStyle}"/>
         <TextBlock x:Name="SummaryAlready" Style="{StaticResource LineStyle}"/>
         <TextBlock x:Name="SummarySkipped" Style="{StaticResource QuietLineStyle}"/>
+        <TextBlock x:Name="SummaryOthers" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
 
         <StackPanel x:Name="WherePanel" Spacing="6" Margin="0,8,0,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=Migration_WhereKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>

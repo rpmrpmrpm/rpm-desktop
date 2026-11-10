@@ -457,6 +457,10 @@ public sealed partial class MigrationDialog : ContentDialog
         SummaryAlready.Visibility = Vis(estimate.AboutAlreadyInRpm > 0);
         SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", Count(library.Skipped.Count));
         SummarySkipped.Visibility = Vis(library.Skipped.Count > 0);
+        // Each library counts its plays on its own, so plays two libraries share are counted twice.
+        var others = _service.OtherImportsFor(library);
+        SummaryOthers.Text = Loc.Format("Migration_SummaryOtherImports", string.Join(", ", others));
+        SummaryOthers.Visibility = Vis(others.Count > 0);
         SummaryKeeps.Text = Keeps(library);
 
         var server = library.Kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome;

@@ -240,6 +240,10 @@ public sealed class MigrationService : IDisposable
     public LibraryDatabase.MigrationRecord? UnfinishedFor(SourceLibrary library) =>
         _library.IsOpen ? _library.Db.UnfinishedMigration(library) : null;
 
+    /// <summary>The other libraries imported into this one before, for the summary's note on plays counted twice.</summary>
+    public IReadOnlyList<string> OtherImportsFor(SourceLibrary library) =>
+        _library.IsOpen ? _library.Db.OtherImports(library) : [];
+
     /// <summary>Starts the import in the background. False when one is running already.</summary>
     /// <param name="how">Continue where an earlier import of this library stopped (or start fresh when there
     /// was none), or start over and check every track again.</param>

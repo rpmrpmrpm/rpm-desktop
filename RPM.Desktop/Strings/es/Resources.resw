@@ -10174,6 +10174,10 @@
     <value>{0} elementos no se importan (streams, vídeos, podcasts o archivos que no están en este ordenador)</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_SummaryOtherImports" xml:space="preserve">
+    <value>Ya importaste {0}. Las reproducciones que tienen ambas bibliotecas se cuentan dos veces.</value>
+    <comment>Import from another app, summary: other libraries were imported into rpm before ({0} is their names, joined by commas). Each library's plays are added, so plays that two libraries share (for example a MusicBee library built from an iTunes import) count twice.</comment>
+  </data>
   <data name="Migration_UnfinishedNote" xml:space="preserve">
     <value>Una importación anterior de esta biblioteca se detuvo en {0} de {1} pistas.</value>
     <comment>Import from another app, summary: an import of the same library did not finish. {0} tracks are through, of {1}. The person chooses Continue import or Start over.</comment>

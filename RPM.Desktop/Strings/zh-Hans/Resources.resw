@@ -10174,6 +10174,10 @@
     <value>{0} 个项目不会导入（流媒体、视频、播客，或不在这台电脑上的文件）</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_SummaryOtherImports" xml:space="preserve">
+    <value>你之前导入过 {0}。两个资料库中都有的播放次数会被计算两次。</value>
+    <comment>Import from another app, summary: other libraries were imported into rpm before ({0} is their names, joined by commas). Each library's plays are added, so plays that two libraries share (for example a MusicBee library built from an iTunes import) count twice.</comment>
+  </data>
   <data name="Migration_UnfinishedNote" xml:space="preserve">
     <value>此前导入该资料库时在 {1} 首曲目中的第 {0} 首停止。</value>
     <comment>Import from another app, summary: an import of the same library did not finish. {0} tracks are through, of {1}. The person chooses Continue import or Start over.</comment>
