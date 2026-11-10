@@ -1,0 +1,38 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.Transport.Controls.ImportChip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             RequestedTheme="Dark"
+             Visibility="Collapsed">
+
+  <!-- An import from another app, minimised. The import window can be hidden while the import runs, so
+       the deck shows the import icon with a ring around it. The ring is the import's progress. A click
+       opens the import window again. The chip is shown while an import runs or stands stopped, and once
+       more when it has finished, until its report has been seen. -->
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+  </UserControl.Resources>
+
+  <Button x:Name="ChipButton" VerticalAlignment="Stretch" Click="Chip_Click"
+          Background="{StaticResource OnGlassBrush}"
+          BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="6"
+          Padding="12,0" MinHeight="0" MinWidth="0">
+    <Button.Resources>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#33FFFFFF"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#33FFFFFF"/>
+    </Button.Resources>
+
+    <!-- The ring is a Polyline in a Canvas, as on the rip chip: code-built arc geometry draws nothing under
+         Uno-Skia. -->
+    <Grid Width="24" Height="24">
+      <Canvas Width="24" Height="24">
+        <Polyline x:Name="RingTrack" Stroke="#2EFFFFFF" StrokeThickness="2"/>
+        <Polyline x:Name="RingArc" Stroke="#04C8FF" StrokeThickness="2"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+      </Canvas>
+      <TextBlock x:Name="ImportGlyph" Text="&#xf56f;" FontFamily="{StaticResource Fa}" FontSize="10"
+                 Foreground="#F0FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Grid>
+  </Button>
+</UserControl>

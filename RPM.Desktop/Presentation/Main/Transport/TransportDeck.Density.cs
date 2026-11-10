@@ -139,12 +139,12 @@ internal sealed partial class TransportDeck
         return transport + (edge > 0 ? (edge + DeckClearance) * 2 : 0);
     }
 
-    /// <summary>The width the rip, share and cloud chips take from the right edge right now. A chip that has nothing
+    /// <summary>The width the rip, share, cloud and import chips take from the right edge right now. A chip that has nothing
     /// to show takes zero, which is most of the time.</summary>
     private double ChipsWidth()
     {
         var width = 0d;
-        foreach (var chip in new FrameworkElement[] { DeckRipChip, DeckShareChip, DeckCloudChip })
+        foreach (var chip in new FrameworkElement[] { DeckRipChip, DeckShareChip, DeckCloudChip, DeckImportChip })
         {
             if (chip.Visibility == Visibility.Visible && chip.ActualWidth > 0)
                 width += chip.ActualWidth + DeckPillSpacing;

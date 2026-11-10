@@ -185,9 +185,17 @@
         </StackPanel>
 
         <StackPanel x:Name="ServerPanel" Spacing="8" Visibility="Collapsed">
-          <!-- Servers found on the network: a click fills in the address. -->
-          <TextBlock x:Name="FoundLabel" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
-          <StackPanel x:Name="FoundPanel" Spacing="6" Visibility="Collapsed"/>
+          <!-- Servers found on the network: a click fills in the address. One row of a fixed height, so
+               nothing below it moves: first the turning record while it looks, then in its place the
+               servers found, or a line that says none were found. -->
+          <Grid Height="34">
+            <StackPanel x:Name="FindingRow" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <ctl:RecordSpinner x:Name="FindingSpinner" Width="16" Height="16" Spinning="False"/>
+              <TextBlock x:Name="FoundLabel" Style="{StaticResource QuietLineStyle}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="FoundPanel" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                        Visibility="Collapsed" Opacity="0"/>
+          </Grid>
           <TextBlock Text="{loc:Str Key=Migration_ServerAddress}" Style="{StaticResource QuietLineStyle}"/>
           <TextBox x:Name="AddressBox" HeaderTemplate="{x:Null}"/>
           <TextBlock Text="{loc:Str Key=Migration_UserName}" Style="{StaticResource QuietLineStyle}"/>

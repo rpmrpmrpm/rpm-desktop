@@ -10078,6 +10078,10 @@
     <value>In Ihrem Netzwerk gefunden</value>
     <comment>Import from another app, connect step (desktop): heading above the media servers found on the network. Clicking one fills in the server address.</comment>
   </data>
+  <data name="Migration_NoServersFound" xml:space="preserve">
+    <value>Keine Server in Ihrem Netzwerk gefunden. Geben Sie die Adresse unten ein.</value>
+    <comment>Import from another app, connect step (desktop): the search for media servers on the local network found none.</comment>
+  </data>
   <data name="Migration_FoundServer" xml:space="preserve">
     <value>{0} ({1})</value>
     <comment>Import from another app, connect step (desktop): a media server found on the network. {0} is its name, {1} its address.</comment>
@@ -10093,6 +10097,10 @@
   <data name="Migration_SignIn" xml:space="preserve">
     <value>Anmelden</value>
     <comment>Import from another app: button that signs in to the media server.</comment>
+  </data>
+  <data name="Migration_SigningIn" xml:space="preserve">
+    <value>Anmeldung läuft</value>
+    <comment>Import from another app (desktop): shown with a moving bar while the media server checks the user name and password.</comment>
   </data>
   <data name="Migration_QuickConnect" xml:space="preserve">
     <value>Quick Connect verwenden</value>

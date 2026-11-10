@@ -326,6 +326,10 @@
              menu and takes minutes, so it gets its own chip here, not only a badge on a tile. -->
         <local:CloudChip x:Name="DeckCloudChip"/>
 
+        <!-- An import from another app, minimised. Its window can be hidden while the import runs, which takes
+             hours for a large library, so the import needs a place on the deck. A click opens the window again. -->
+        <local:ImportChip x:Name="DeckImportChip"/>
+
         <!-- Send the audio to a Google speaker. Its picker is the same one the player popout has. It opens upwards
              from the deck. DataContext is set in code to the shared RPaMp model. The deck chrome would otherwise
              inherit the MainModel. -->

@@ -162,16 +162,21 @@ public sealed partial class MigrationDialog : ContentDialog
 
     private CancellationTokenSource? _finding;
 
-    /// <summary>Lists the servers of this kind found on the network under the address box. Finding none
-    /// hides the list; the person types the address as before.</summary>
+    /// <summary>Looks for servers of this kind on the network and shows them in the row above the address
+    /// box: the turning record while it looks, then the servers found as buttons, or a line saying none
+    /// were found. The row keeps its height, so nothing moves.</summary>
     private async Task FindServersAsync(SourceKind kind)
     {
         _finding?.Cancel();
         var finding = _finding = new CancellationTokenSource();
         FoundPanel.Children.Clear();
         FoundPanel.Visibility = Visibility.Collapsed;
+        FoundPanel.Opacity = 0;
+        FindingRow.Visibility = Visibility.Visible;
+        FindingRow.Opacity = 1;
+        FindingSpinner.Visibility = Visibility.Visible;
+        FindingSpinner.Spinning = true;
         FoundLabel.Text = Loc.Get("Migration_Searching");
-        FoundLabel.Visibility = Visibility.Visible;
 
         IReadOnlyList<FoundServer> found;
         try
@@ -182,10 +187,27 @@ public sealed partial class MigrationDialog : ContentDialog
         {
             return;
         }
+        finally
+        {
+            FindingSpinner.Spinning = false;
+        }
         // The person may have gone to another app or face while the answers came in.
         if (finding.IsCancellationRequested || _face != Face.Connect || _kind != kind)
             return;
 
+        FindingSpinner.Visibility = Visibility.Collapsed;
+        if (found.Count == 0)
+        {
+            FoundLabel.Text = Loc.Get("Migration_NoServersFound");
+            return;
+        }
+
+        FoundPanel.Children.Add(new TextBlock
+        {
+            Text = Loc.Get("Migration_FoundServers"),
+            Style = (Style)Resources["QuietLineStyle"],
+            VerticalAlignment = VerticalAlignment.Center,
+        });
         foreach (var server in found)
         {
             var button = new Button
@@ -193,14 +215,31 @@ public sealed partial class MigrationDialog : ContentDialog
                 Content = Loc.Format("Migration_FoundServer", server.Name, server.Address.GetLeftPart(UriPartial.Authority)),
                 Style = (Style)Application.Current.Resources["GlassButtonStyle"],
                 Padding = new Thickness(14, 0, 14, 0),
-                HorizontalAlignment = HorizontalAlignment.Left,
                 Tag = server,
             };
             button.Click += FoundServer_Click;
             FoundPanel.Children.Add(button);
         }
-        FoundLabel.Text = Loc.Get("Migration_FoundServers");
-        FoundLabel.Visibility = FoundPanel.Visibility = Vis(found.Count > 0);
+        // The servers fade in over the searching line, in the same place.
+        FindingRow.Visibility = Visibility.Collapsed;
+        FoundPanel.Visibility = Visibility.Visible;
+        Fade(FoundPanel);
+    }
+
+    private static void Fade(UIElement element)
+    {
+        var fade = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = new Duration(TimeSpan.FromMilliseconds(180)),
+        };
+        var story = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fade, element);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fade, "Opacity");
+        story.Children.Add(fade);
+        story.Completed += (_, _) => element.Opacity = 1;
+        story.Begin();
     }
 
     private void FoundServer_Click(object sender, RoutedEventArgs e)
@@ -306,7 +345,10 @@ public sealed partial class MigrationDialog : ContentDialog
             return;
         Cancel();
         var ct = _work!.Token;
-        PrimaryButton.IsEnabled = false;
+        // The reading face with its moving bar from the first moment: a server far away can take a while to
+        // answer, and a button that only greys out says nothing.
+        ReadingText.Text = Loc.Get("Migration_SigningIn");
+        Show(Face.Reading);
         try
         {
             using var http = MigrationService.HttpFor(server);
@@ -325,8 +367,13 @@ public sealed partial class MigrationDialog : ContentDialog
             await ReadAsync(connection);
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { Error(ex); }
-        finally { PrimaryButton.IsEnabled = true; }
+        catch (Exception ex)
+        {
+            // Back to the filled-in form, with the reason; the servers found stay listed.
+            Show(Face.Connect);
+            Primary("Migration_SignIn");
+            Error(ex);
+        }
     }
 
     private Uri? ServerAddress()
