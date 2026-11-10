@@ -54,7 +54,7 @@
          Sharpcaster is not referenced as a package. RPM.Cast contains a copy of version 3.0.0, so that it
          can carry a channel of its own and a heartbeat that cannot crash the app. These packages are
          what that source needs. -->
-    <PackageVersion Include="Google.Protobuf" Version="3.32.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.36.2" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
     <PackageVersion Include="Zeroconf" Version="3.7.16" />
