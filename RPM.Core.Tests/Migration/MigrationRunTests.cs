@@ -265,6 +265,25 @@ public class MigrationRunTests : IDisposable
     }
 
     [Fact]
+    public async Task A_file_inside_the_library_gets_its_plays_at_once_and_keeps_its_own_tags()
+    {
+        var inside = Path.Combine(_root, "Band", "Record", "02 Two.wav");
+        Directory.CreateDirectory(Path.GetDirectoryName(inside)!);
+        File.WriteAllBytes(inside, TestAudio.Wav(1, 5));   // no tags, no rpm id
+        var library = Library(SourceKind.MusicBee,
+            new SourceTrack("s1", new LocalFile(inside), "Two", "Band", "Record", "Band", 2, 1, 1, 16_044, 0, false, 7, Y2021, null));
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        var row = Assert.Single(_db.Query());
+        Assert.False(string.IsNullOrEmpty(row.RpmId));
+        Assert.Equal(7, row.Plays);
+        // The row says what the file says. The other app's tags are not written into its file, and a row
+        // that had them would lose them at the next library scan.
+        Assert.True(string.IsNullOrEmpty(row.Title));
+    }
+
+    [Fact]
     public async Task A_file_inside_the_library_is_taken_where_it_is()
     {
         var inside = Path.Combine(_root, "Band", "Record", "01 One.wav");

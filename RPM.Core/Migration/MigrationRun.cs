@@ -447,8 +447,12 @@ public sealed class MigrationRun(
             if (!staged && LibraryInbox.IsInside(rules.Root, path) is false && IsUnder(rules.Root, path))
             {
                 // Already inside the library folder: taken where it is and not renamed, because renaming
-                // it would break the other app's path.
-                db.Upsert(LibraryDatabase.FromTrackInfo(info, rules.Root));
+                // it would break the other app's path. The row says what the file says: the other app's tags
+                // are not written into its file, and a row that had them would lose them at the next library
+                // scan. The file gets its rpm id now, as the scan gives every file in the library one, so
+                // its plays and details apply on this run.
+                TagReader.StampRpmId(path);
+                db.Upsert(LibraryDatabase.FromTrackInfo(TagReader.Read(path), rules.Root));
                 row = db.FindByRelativePath(Path.GetRelativePath(rules.Root, path).Replace('\\', '/'))
                     ?? db.FindByRelativePath(Path.GetRelativePath(rules.Root, path))
                     ?? throw new InvalidOperationException("The row was not written.");
