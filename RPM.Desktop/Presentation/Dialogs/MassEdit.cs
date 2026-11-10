@@ -193,6 +193,36 @@ internal static class MassEdit
     /// <param name="perTrack">A change that differs per track, laid over each file's tags after the edits.
     /// The album editor's "(Live)" and "(Mixed)" tick uses it, because each track keeps its own title. Not applied where
     /// <paramref name="infoFor"/> is given, since that already says what each row is.</param>
+    /// <summary>A row with the edit's tags laid over it, filed at <paramref name="relativePath"/>. Used where
+    /// the row is the record: a track that is only in the cloud, and every track of a kept library.
+    /// Every field that the edit windows offer and that the row keeps is here. A field left out would be
+    /// written back as the row's old value by MoveMany, and the edit would look saved without being
+    /// saved. The fields are mapped the same way as LibraryDatabase.FromTrackInfo maps them for a local
+    /// file.</summary>
+    private static LibraryTrack Edited(LibraryTrack row, TrackInfo track, string relativePath) => row with
+    {
+        RelativePath = relativePath,
+        Folder = FolderOf(relativePath),
+        FileName = NameOf(relativePath),
+        Title = track.Title,
+        Artist = track.Artist,
+        AlbumArtist = track.AlbumArtist,
+        Album = track.Album,
+        Genre = track.Genre,
+        TrackNumber = track.TrackNumber,
+        DiscNumber = track.DiscNumber,
+        DiscCount = track.DiscCount,
+        DiscSubtitle = track.DiscSubtitle,
+        Year = track.Year,
+        Advisory = track.Advisory,
+        Subgenre = track.Subgenre,
+        ReleaseType = track.ReleaseType,
+        Composer = track.Composers,
+        Work = track.Work,
+        MovementName = track.MovementName,
+        MovementNumber = (int)track.MovementNumber,
+    };
+
     public static async Task<IReadOnlyList<string>> WriteToLibraryAsync(
         IReadOnlyList<TrackRow> rows, MassEditResult result, Func<TrackRow, TrackInfo>? infoFor = null,
         Func<TrackInfo, TrackInfo>? perTrack = null)
@@ -206,6 +236,10 @@ internal static class MassEdit
         }
         var db = library.Db;
         var template = App.Services.GetRequiredService<SettingsService>().DefaultTemplate;
+        // A kept library's files are never written. Each row takes the edit in place, as a cloud-only
+        // track's row does, and keeps its path, size and modified time, so the next catalogue read does not
+        // read the file's old tags back over it.
+        var keep = library.KeepsFiles;
         bool artChanged = result.ArtBytes is { Length: > 0 };
         bool discArtChanged = result.DiscArtBytes is { Length: > 0 };
 
@@ -259,7 +293,9 @@ internal static class MassEdit
         // shown at once, in its mirror row, and the file itself is written when the player has moved off
         // it (see PendingTagWrites). Every other file in the edit is written now.
         var playback = App.Services.GetService<PlaybackService>();
-        var heldBack = plan.Where(p => p.Cloud is null && playback?.HoldsOpen(p.Row.FilePath) == true).ToList();
+        var heldBack = keep
+            ? []
+            : plan.Where(p => p.Cloud is null && playback?.HoldsOpen(p.Row.FilePath) == true).ToList();
         if (heldBack.Count > 0)
         {
             plan.RemoveAll(heldBack.Contains);
@@ -331,36 +367,26 @@ internal static class MassEdit
                 // the template gives it. So the record is filed in the library the same way as a local
                 // one. The store learns the new location on the next catalogue pass. That keeps a later
                 // download in the right place.
+                // A kept library: the row takes the edit where it is, and the file is not touched.
+                if (keep)
+                {
+                    var current = plan[i].Cloud ?? db.FindByRelativePath(plan[i].OldRelative);
+                    if (current is null)
+                    {
+                        refused.Add($"{plan[i].OldRelative}: no row");
+                        continue;
+                    }
+                    var edited = Edited(current, s.Track, plan[i].OldRelative);
+                    moves.Add((plan[i].OldRelative, edited));
+                    if (plan[i].Cloud is { } keptCloudRow)
+                        cloudEdits.Add((keptCloudRow, s.Track, edited.RelativePath));
+                    landed.Add((plan[i].Row, plan[i].Row.FilePath));
+                    continue;
+                }
+
                 if (plan[i].Cloud is { } cloudRow)
                 {
-                    var refiled = cloudRow with
-                    {
-                        RelativePath = s.ProposedRelativePath,
-                        Folder = FolderOf(s.ProposedRelativePath),
-                        FileName = NameOf(s.ProposedRelativePath),
-                        Title = s.Track.Title,
-                        Artist = s.Track.Artist,
-                        AlbumArtist = s.Track.AlbumArtist,
-                        Album = s.Track.Album,
-                        Genre = s.Track.Genre,
-                        TrackNumber = s.Track.TrackNumber,
-                        DiscNumber = s.Track.DiscNumber,
-                        DiscCount = s.Track.DiscCount,
-                        DiscSubtitle = s.Track.DiscSubtitle,
-                        Year = s.Track.Year,
-                        // Every other field that the edit windows offer and that the row keeps. A field
-                        // left out here is written back as the row's old value by MoveMany. The edit
-                        // would then look saved, but it would not be. These are the explicit mark, the
-                        // subgenre, the release type and the classical block. They are mapped the same way as
-                        // LibraryDatabase.FromTrackInfo maps them for a local file.
-                        Advisory = s.Track.Advisory,
-                        Subgenre = s.Track.Subgenre,
-                        ReleaseType = s.Track.ReleaseType,
-                        Composer = s.Track.Composers,
-                        Work = s.Track.Work,
-                        MovementName = s.Track.MovementName,
-                        MovementNumber = (int)s.Track.MovementNumber,
-                    };
+                    var refiled = Edited(cloudRow, s.Track, s.ProposedRelativePath);
                     moves.Add((plan[i].OldRelative, refiled));
                     cloudEdits.Add((cloudRow, s.Track, refiled.RelativePath));
                     landed.Add((plan[i].Row, Path.Combine(
@@ -406,7 +432,8 @@ internal static class MassEdit
                     folderMoves[was] = destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 destinations.Add(track.Folder);
             }
-            LibraryRefiler.FollowFolders(db, root, folderMoves);
+            if (!keep)
+                LibraryRefiler.FollowFolders(db, root, folderMoves);
 
             // Every row the edit wrote records that a person edited it. A row whose audio is in the cloud
             // has no file whose modified time shows the edit, and the next catalogue read would otherwise

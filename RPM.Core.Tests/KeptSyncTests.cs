@@ -91,4 +91,28 @@ public class KeptSyncTests : IDisposable
 
         Assert.True(RpmTag.IsId(TagReader.Read(plain).RpmId));
     }
+
+    [Fact]
+    public void An_edit_kept_on_the_row_survives_the_next_read()
+    {
+        var song = Put("Artist/Album/01 Song.mp3", MinimalMp3());
+        using var db = new LibraryDatabase(MirrorLocation.InFolder(_root));
+        FileKeeping.Write(_root, db, FileHandling.Kept);
+        KeptFiles.Open(_root);
+        LibrarySynchronizer.Sync(db, quarantineForeign: true);
+        var bytes = File.ReadAllBytes(song);
+
+        // What the edit windows do in a kept library: the row takes the edit at its own path.
+        var row = db.FindByRelativePath("Artist/Album/01 Song.mp3")!;
+        db.MoveMany([(row.RelativePath, row with { Title = "Corrected", Album = "Right Album" })]);
+        db.NoteMetadataEdited([row.RelativePath], DateTime.UtcNow.Ticks);
+
+        LibrarySynchronizer.Sync(db, quarantineForeign: true);
+
+        var after = db.FindByRelativePath("Artist/Album/01 Song.mp3")!;
+        Assert.Equal("Corrected", after.Title);
+        Assert.Equal("Right Album", after.Album);
+        Assert.Equal(row.RpmId, after.RpmId);
+        Assert.Equal(bytes, File.ReadAllBytes(song));
+    }
 }
