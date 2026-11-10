@@ -24,6 +24,7 @@ public class MigrationRunTests : IDisposable
     private readonly LibraryDatabase _db;
     private readonly FakeCloud _cloud = new();
     private long _clock = 638_000_000_000_000_000;
+    private readonly List<int> _rowsAtNotice = [];
 
     public MigrationRunTests()
     {
@@ -71,6 +72,7 @@ public class MigrationRunTests : IDisposable
         var record = _db.OpenMigration(library, destination);
         return new MigrationRun(_db, library, record, Rules, server, _cloud, _staging)
         {
+            LibraryChanged = () => _rowsAtNotice.Add(_db.Query().Count),
             Hash = TestAudio.HashSamples,
             Now = () => _clock,
             Delay = (wait, ct) => { _clock += wait.Ticks; return Task.Delay(2, ct); },
@@ -221,6 +223,18 @@ public class MigrationRunTests : IDisposable
         Assert.Equal(RunEnd.Finished, end);
         Assert.Equal(20_000, Record(library).Counts().NotImported);
         Assert.Equal(tracks.Sum(t => t.SizeBytes), last!.BytesDone);
+    }
+
+    [Fact]
+    public async Task The_library_hears_of_the_new_tracks_at_most_every_few_seconds_and_at_the_end()
+    {
+        var tracks = Enumerable.Range(0, 6).Select(i => Local($"m{i}", $"Album {i}", $"Song {i}", 1, seed: i)).ToArray();
+        var library = Library(SourceKind.MusicBee, tracks);
+
+        await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
+
+        // The clock does not move, so after the first album only the last notice is due.
+        Assert.Equal([1, 6], _rowsAtNotice);
     }
 
     [Fact]

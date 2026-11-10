@@ -253,6 +253,7 @@ public sealed class MigrationService : IDisposable
         var run = new MigrationRun(db, library, record, rules, server, new Cloud(this), StagingRoot(root))
         {
             SourceLabel = label,
+            LibraryChanged = () => _library.NotifyChanged(),
         };
         var progress = new Reporter(this);
 

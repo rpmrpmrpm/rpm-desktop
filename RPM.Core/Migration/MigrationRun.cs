@@ -133,6 +133,13 @@ public sealed class MigrationRun(
     /// <summary>What happened to each source playlist, once the run has added them.</summary>
     public IReadOnlyList<PlaylistOutcome> Playlists { get; private set; } = [];
 
+    /// <summary>Tells the app's library views that rows were added, so the new tracks show. Each notice
+    /// makes the views read the library again, so the run sends one at most every
+    /// <see cref="LibraryNoticeInterval"/> and one when it ends.</summary>
+    public required Action LibraryChanged { get; init; }
+
+    internal TimeSpan LibraryNoticeInterval { get; init; } = TimeSpan.FromSeconds(10);
+
     /// <summary>The error that ended the run as <see cref="RunEnd.Failed"/>; null otherwise.</summary>
     public Exception? Failure { get; private set; }
 
@@ -149,12 +156,45 @@ public sealed class MigrationRun(
     private long _doneBytes;
     private long _totalBytes;
     private MigrationCounts _counts = new(0, 0, 0, 0, 0);
+
+    private long _lastNotice;
+    private bool _changedSinceNotice;
     private readonly List<(DateTime At, long Bytes)> _albumTimes = [];
     private string? _currentAlbum;
 
     public async Task<RunEnd> RunAsync(IProgress<MigrationProgress> progress, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(progress);
+        try
+        {
+            return await RunCoreAsync(progress, ct);
+        }
+        finally
+        {
+            // However the run ends, the views see what landed.
+            if (_changedSinceNotice)
+                NoticeLibrary();
+        }
+    }
+
+    /// <summary>The library changed (a track filed, merged or moved to the cloud); the views hear of it
+    /// now, or with the next notice when one was sent a moment ago.</summary>
+    private void LibraryTouched()
+    {
+        _changedSinceNotice = true;
+        if (Now() - _lastNotice >= LibraryNoticeInterval.Ticks)
+            NoticeLibrary();
+    }
+
+    private void NoticeLibrary()
+    {
+        _lastNotice = Now();
+        _changedSinceNotice = false;
+        LibraryChanged();
+    }
+
+    private async Task<RunEnd> RunCoreAsync(IProgress<MigrationProgress> progress, CancellationToken ct)
+    {
 
         CleanStaging();
         record.AddFound(library.Tracks.Select(t => t.SourceId));
@@ -224,7 +264,9 @@ public sealed class MigrationRun(
                     }
 
                     _currentAlbum = string.IsNullOrWhiteSpace(work[0].Album) ? work[0].Title : work[0].Album;
-                    if (await AlbumAsync(work, progress, ct) is { } end)
+                    var stopped = await AlbumAsync(work, progress, ct);
+                    LibraryTouched();
+                    if (stopped is { } end)
                         return Stop(end, progress);
                     _albumTimes.Add((DateTime.UtcNow, work.Sum(t => t.SizeBytes)));
                 }
@@ -285,6 +327,7 @@ public sealed class MigrationRun(
     {
         Report(progress, MigrationStage.Playlists);
         Playlists = MigrationPlaylists.Apply(db, library, record, SourceLabel);
+        _changedSinceNotice = true;   // the playlist panel hears of them with the run's last notice
 
         if (record.Destination != MigrationDestination.CloudOnly || cloud.CanUpload(0) == CloudUploads.Off)
             return;
