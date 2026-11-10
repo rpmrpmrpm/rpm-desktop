@@ -34,6 +34,16 @@ internal static class Landing
 #else
         var path = settings.LibraryPath;
 #endif
+        // A library on a NAS: mount the share first. A NAS that cannot be reached, or a mount that failed,
+        // gives the folder-missing screen, never an open of the empty mount folder.
+        if (settings.LibraryNas is { } nas)
+        {
+            path = Nas.NasStartup.Prepare(
+                settings, App.Services.GetRequiredService<Account.AuthService>(), Nas.NasMount.ForThisSystem());
+            if (path is null)
+                return new LibraryOpening.Trouble.FolderMissing(settings.LibraryPath ?? nas.Name);
+        }
+
         return App.Services.GetRequiredService<LibraryService>().OpenForLanding(path);
     }
 

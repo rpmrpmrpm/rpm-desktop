@@ -184,7 +184,9 @@ public sealed partial class SettingsService
         IReadOnlyList<string>? CoachmarksSeen = null,
         IReadOnlyList<string>? BetaWelcomed = null,
         RPM.Core.Crashes.CrashConsent CrashConsent = RPM.Core.Crashes.CrashConsent.NotAsked,
-        string? CrashInstallId = null);
+        string? CrashInstallId = null,
+        // The NAS the library is on, or null for a library on this computer or on a share mounted by hand.
+        RPM.Desktop.Services.Nas.NasLocation? LibraryNas = null);
 
     private Model _model = new(null);
 
@@ -225,6 +227,16 @@ public sealed partial class SettingsService
     {
         get => _model.LibraryPath;
         set => Update(_model with { LibraryPath = value });
+    }
+
+    /// <summary>
+    /// The NAS the library is on, or null. When it is set, <see cref="LibraryPath"/> is a folder under rpm's
+    /// own mount of the NAS share, and the share is mounted before the library is opened.
+    /// </summary>
+    public RPM.Desktop.Services.Nas.NasLocation? LibraryNas
+    {
+        get => _model.LibraryNas;
+        set => Update(_model with { LibraryNas = value });
     }
 
     /// <summary>
