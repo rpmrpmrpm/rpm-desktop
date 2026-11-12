@@ -5495,7 +5495,7 @@
   </data>
   <data name="Supporters_Karaoke" xml:space="preserve">
     <value>Der Karaoke-Modus steht nur Unterstützern von rpm zur Verfügung. Bitte unterstütze rpm.</value>
-    <comment>Supporters-only window: shown when word by word lyric timing is switched on by an account that is not a supporter.</comment>
+    <comment>Supporters-only window: shown when word by word lyric timing is switched on by an account that is not a supporter. On the iPhone app, the line under the greyed-out karaoke switch on the Profile page.</comment>
   </data>
   <data name="Cloud_BecomeSupporter" xml:space="preserve">
     <value>Unterstützer werden</value>
@@ -9335,7 +9335,7 @@
   </data>
   <data name="Tv_SettingsKaraoke" xml:space="preserve">
     <value>Karaoke-Liedtexte</value>
-    <comment>Row in the Android TV app's settings: whether the sung lyric line lights word by word.</comment>
+    <comment>Row in the Android TV app's settings, and a switch on the Profile page of the iPhone app: whether the sung lyric line lights word by word.</comment>
   </data>
   <data name="Settings_MixtapeAfterHint" xml:space="preserve">
     <value>Wenn ein Album, eine Playlist oder eine Single zu Ende ist, geht die Musik mit ähnlichen Songs aus deiner Sammlung weiter.</value>
