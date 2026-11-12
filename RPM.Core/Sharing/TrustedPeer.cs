@@ -59,9 +59,55 @@ public sealed record TrustedPeer
 
     public long PairedUtcTicks { get; init; }
 
+    /// <summary>The two accounts that the pairing was agreed between. Cloud copies are shared only between these two
+    /// accounts (<see cref="PeerTrust.GrantFor"/>). Null in a record from a file that does not have it. No cloud
+    /// copies are shared through such a pairing until the two computers pair again.</summary>
+    public PairedAccounts? PairedAs { get; init; }
+
     /// <summary>When this peer was last reachable. The "forget the one you never use" suggestion is made from
     /// this when the list is full.</summary>
     public long LastSeenUtcTicks { get; init; }
+}
+
+/// <summary>
+/// The accounts that were signed in on the two computers when they paired.
+///
+/// <para>The book of trusted peers belongs to this install, but a cloud share belongs to an account. The people who
+/// typed the code agreed to share between these two accounts and no others. Without this record, any account signed
+/// in later on either computer would get the pairing too. This machine would share that account's cloud copies with
+/// every guest, and a guest that signed into another account would be given this account's copies. Nobody typed a
+/// code for either of those.</para>
+/// </summary>
+public sealed record PairedAccounts
+{
+    /// <summary>This machine's account when the pairing was made. Empty when this machine was signed out. Such a
+    /// pairing shares no cloud copies from this side.</summary>
+    public required string Mine { get; init; }
+
+    /// <summary>The first account that the peer proved after the pairing, over a link pinned to its key. Empty when it
+    /// proved that it was signed out. Null until it has said anything. It is written once
+    /// (<see cref="PeerTrust.Proved"/>), and a later account does not replace it.</summary>
+    public string? Theirs { get; init; }
+}
+
+/// <summary>
+/// Permission to share this account's cloud copies with one other account. It is the only argument
+/// <c>RpmCloudClient.GrantShareAsync</c> takes, and only <see cref="PeerTrust.GrantFor"/> makes one. So a share cannot
+/// be posted without the check against <see cref="PairedAccounts"/>.
+/// </summary>
+public sealed class CloudGrant
+{
+    internal CloudGrant(string granteeId, string granteeName)
+    {
+        GranteeId = granteeId;
+        GranteeName = granteeName;
+    }
+
+    /// <summary>The account that may hear this account's cloud copies.</summary>
+    public string GranteeId { get; }
+
+    /// <summary>What the peer is called, stored with the share for the settings list.</summary>
+    public string GranteeName { get; }
 }
 
 /// <summary>Why an attempt to trust a peer did not simply happen.</summary>
@@ -128,6 +174,59 @@ public static class PeerTrust
         next.Add(peer);
         return (PeerTrustOutcome.Added, next);
     }
+
+    /// <summary>
+    /// The record after <paramref name="current"/> has said, over a link pinned to its key, that it is signed into
+    /// <paramref name="account"/>. Null when nothing changes.
+    ///
+    /// <para>The first proof after a pairing is also written into <see cref="TrustedPeer.PairedAs"/>, and only the
+    /// first. A record without <see cref="TrustedPeer.PairedAs"/> does not get one here. A proof cannot stand in for a
+    /// pairing.</para>
+    /// </summary>
+    /// <param name="account">The account the peer said it is in. Empty when it said it is signed out.</param>
+    /// <param name="nowTicks">The time of the proof, in UTC ticks.</param>
+    public static TrustedPeer? Proved(TrustedPeer current, string account, long nowTicks)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(account);
+
+        var pairedAs = current.PairedAs is { Theirs: null } waiting
+            ? waiting with { Theirs = account }
+            : current.PairedAs;
+
+        var unchanged = current.AccountProvedUtcTicks > 0
+            && string.Equals(current.AccountUserId, account, StringComparison.Ordinal)
+            && ReferenceEquals(pairedAs, current.PairedAs);
+
+        return unchanged
+            ? null
+            : current with { AccountUserId = account, AccountProvedUtcTicks = nowTicks, PairedAs = pairedAs };
+    }
+
+    /// <summary>
+    /// The share that this pairing allows, or null.
+    ///
+    /// <para>A share is allowed only while this machine is signed into the account it paired under, and the peer is
+    /// signed into the account it first proved after the pairing. Both must be accounts, and they must be different
+    /// accounts. An account always reaches its own cloud copies, and the server refuses a share to itself.</para>
+    /// </summary>
+    /// <param name="myAccount">The account signed in on this machine now, or empty.</param>
+    /// <param name="theirAccount">The account the peer said it is in, over a link pinned to its key.</param>
+    public static CloudGrant? GrantFor(TrustedPeer peer, string myAccount, string theirAccount)
+    {
+        ArgumentNullException.ThrowIfNull(peer);
+
+        if (peer.PairedAs is not { Mine.Length: > 0, Theirs.Length: > 0 } paired)
+            return null;
+
+        if (!SameAccount(paired.Mine, myAccount) || !SameAccount(paired.Theirs, theirAccount))
+            return null;
+
+        return SameAccount(myAccount, theirAccount) ? null : new CloudGrant(theirAccount, peer.Name);
+    }
+
+    private static bool SameAccount(string? a, string? b) =>
+        !string.IsNullOrEmpty(a) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<TrustedPeer> Remove(IReadOnlyList<TrustedPeer> peers, string deviceId)
     {

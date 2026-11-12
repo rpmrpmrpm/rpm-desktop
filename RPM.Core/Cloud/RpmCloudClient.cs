@@ -898,15 +898,18 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
     /// <summary>Lets another account hear this one's cloud-stored records. This is what keeps a friend's
     /// music playing once everybody has left the network it was arranged on.
     /// </summary>
+    /// <param name="grant">What the pairing allows (<see cref="Sharing.PeerTrust.GrantFor"/>). This is the only way to
+    /// name a grantee, so no share is posted without that check.</param>
     /// <returns>False when this collection already uses all five of its share places.</returns>
-    public async Task<bool> GrantShareAsync(
-        string granteeId, string granteeName, CancellationToken ct = default)
+    public async Task<bool> GrantShareAsync(Sharing.CloudGrant grant, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(grant);
+
         try
         {
             await SendAsync<object>(HttpMethod.Post, "cloud/shares",
                 JsonContent.Create(
-                    new ShareRequest(granteeId, granteeName), RpmCloudJson.Default.ShareRequest), ct);
+                    new ShareRequest(grant.GranteeId, grant.GranteeName), RpmCloudJson.Default.ShareRequest), ct);
             return true;
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)

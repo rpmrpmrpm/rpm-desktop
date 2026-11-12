@@ -1087,7 +1087,7 @@ public sealed partial class SharingService : IDisposable
     {
         var peer = pairing.Peer;
         Trust(peer.DeviceId, peer.PublicKey, peer.Name, peer.Face);
-        Shell.Background.Run(() => GrantAsync(peer.DeviceId, peer.Name));
+        Shell.Background.Run(() => GrantAsync(peer.DeviceId));
     }
 
     /// <summary>Stops following every request this computer made. The board shows each one as lost,
@@ -1131,12 +1131,12 @@ public sealed partial class SharingService : IDisposable
 
     /// <summary>Records the account <paramref name="peer"/> said it is in, over a link pinned to its key, and returns
     /// the record as it now stands. Applied to the book's current record under its lock (<see cref="PeerBook.Update"/>),
-    /// so it cannot put back an older copy of the rest of the record. Nothing is written when nothing changed.</summary>
+    /// so it cannot put back an older copy of the rest of the record. Nothing is written when nothing changed. The
+    /// first proof after a pairing also becomes the peer's half of <see cref="TrustedPeer.PairedAs"/>
+    /// (<see cref="PeerTrust.Proved"/>). Every proof goes through here, so whichever proof arrives first is the one
+    /// kept.</summary>
     private TrustedPeer Noted(TrustedPeer peer, string account) =>
-        _book.Update(peer.DeviceId, current =>
-            current.AccountProvedUtcTicks > 0 && string.Equals(current.AccountUserId, account, StringComparison.Ordinal)
-                ? null
-                : current with { AccountUserId = account, AccountProvedUtcTicks = DateTime.UtcNow.Ticks })
+        _book.Update(peer.DeviceId, current => PeerTrust.Proved(current, account, DateTime.UtcNow.Ticks))
         ?? peer;
 
     /// <summary>Writes a peer into the book, on whichever side of the question this machine was.</summary>
@@ -1156,6 +1156,10 @@ public sealed partial class SharingService : IDisposable
             Kind = mine ? PeerKind.Account : PeerKind.Guest,
             PairedUtcTicks = DateTime.UtcNow.Ticks,
             LastSeenUtcTicks = DateTime.UtcNow.Ticks,
+
+            // The account signed in here now is the one this pairing shares from. The peer's half is its first
+            // proof (Noted). A pairing again starts both halves again.
+            PairedAs = new PairedAccounts { Mine = MyAccount() },
         });
 
     }
@@ -1844,7 +1848,10 @@ public sealed partial class SharingService : IDisposable
             _library.NotifyChanged();
         }
 
-        _book.Add(peer with { Kind = mine ? PeerKind.Account : PeerKind.Guest });
+        // Changed in place under the book's lock. Writing back the copy read at the start of the pull would put back
+        // whatever another thread wrote since, such as the first proof in PairedAs.
+        var kind = mine ? PeerKind.Account : PeerKind.Guest;
+        _book.Update(peer.DeviceId, current => current.Kind == kind ? null : current with { Kind = kind });
         return mine;
     }
 
@@ -2370,11 +2377,12 @@ public sealed partial class SharingService : IDisposable
             var already = new HashSet<string>(
                 shares.Granted.Select(s => s.GranteeId), StringComparer.Ordinal);
 
-            foreach (var peer in guests)
+            foreach (var guest in guests)
             {
                 if (cancellation.IsCancellationRequested)
                     return;
 
+                var peer = guest;
                 var theirs = peer.AccountUserId;
 
                 // Whose account it is can only be asked of the machine itself, and only over a
@@ -2387,20 +2395,20 @@ public sealed partial class SharingService : IDisposable
                         continue;
 
                     theirs = account.UserId;
-                    Noted(peer, theirs);
+                    peer = Noted(peer, theirs);
                 }
 
                 if (already.Contains(theirs))
                     continue;
 
-                // A guest can be signed into this machine's own account: it proved the account, but it is
-                // not on the account's list of installs that this machine holds, which is what decides the
-                // kind (PeerAppraisal). It needs no grant. An account always reaches its own cloud records,
-                // and the server refuses a grant to itself.
-                if (string.Equals(theirs, MyAccount(), StringComparison.OrdinalIgnoreCase))
+                // Only between the two accounts the pairing was made under. The book belongs to this install,
+                // so without this check an account signed in later here would share with every guest, and a
+                // guest signed into another account would be shared with. A guest on this machine's own account
+                // also gets nothing: an account always reaches its own cloud records.
+                if (PeerTrust.GrantFor(peer, MyAccount(), theirs) is not { } grant)
                     continue;
 
-                if (await _cloud.GrantShareAsync(theirs, peer.Name, cancellation))
+                if (await _cloud.GrantShareAsync(grant, cancellation))
                     Said.Line("sharing", $"{Who(peer.DeviceId)} may now hear this collection's cloud copies");
                 else
                     Said.Line("sharing", "This collection already reaches five places");
@@ -2419,7 +2427,7 @@ public sealed partial class SharingService : IDisposable
     /// may be granted anything. It also needs both machines to be signed in. Two signed-out computers share
     /// only what is on their disks.</para>
     /// </summary>
-    private async Task GrantAsync(string deviceId, string name)
+    private async Task GrantAsync(string deviceId)
     {
         if (_cloud is null || !_auth.IsLoggedIn)
             return;
@@ -2442,15 +2450,17 @@ public sealed partial class SharingService : IDisposable
             // everybody has left the network. Asking again at that point is not possible. Written through
             // Noted, which changes the book's current record under its lock, so an older copy of the rest of
             // the record is not put back.
-            if (_book.Find(deviceId) is { } known)
-                Noted(known, theirs.UserId);
-
-            // Signed into this machine's own account: no grant is needed, and the server refuses one. See
-            // EnsureGrantsAsync.
-            if (string.Equals(theirs.UserId, MyAccount(), StringComparison.OrdinalIgnoreCase))
+            if (_book.Find(deviceId) is not { } known)
                 return;
 
-            if (!await _cloud.GrantShareAsync(theirs.UserId, name))
+            var peer = Noted(known, theirs.UserId);
+
+            // Only between the two accounts the pairing was made under, and not to this machine's own account.
+            // See EnsureGrantsAsync.
+            if (PeerTrust.GrantFor(peer, MyAccount(), theirs.UserId) is not { } grant)
+                return;
+
+            if (!await _cloud.GrantShareAsync(grant))
                 Said.Line("sharing", "This collection already reaches five places");
         }
         catch (Exception ex)
