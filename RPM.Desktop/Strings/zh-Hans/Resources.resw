@@ -68,11 +68,11 @@
   </data>
   <data name="AlbumSort_Artist" xml:space="preserve">
     <value>按艺人</value>
-    <comment>Album wall sort order: by album artist, then album name.</comment>
+    <comment>Album wall sort order, and iPhone library list view sort order: by album artist, then album name.</comment>
   </data>
   <data name="AlbumSort_Album" xml:space="preserve">
     <value>按专辑</value>
-    <comment>Album wall sort order: by the record's own name.</comment>
+    <comment>Album wall sort order, and iPhone library list view sort order: by the record's own name.</comment>
   </data>
   <data name="AlbumSort_Added" xml:space="preserve">
     <value>最近添加</value>
@@ -85,6 +85,10 @@
   <data name="AlbumSort_Plays" xml:space="preserve">
     <value>播放最多</value>
     <comment>Album wall sort order: most listened to first.</comment>
+  </data>
+  <data name="AlbumSort_Track" xml:space="preserve">
+    <value>按歌曲名</value>
+    <comment>iPhone library list view sort order: every song as its own row, by its title.</comment>
   </data>
   <data name="AlbumGrid_PlayAll" xml:space="preserve">
     <value>播放专辑</value>
@@ -978,7 +982,7 @@
   </data>
   <data name="Library_ViewGrid" xml:space="preserve">
     <value>专辑网格</value>
-    <comment>Tooltip on the grid button of the library view switch (wall of album covers).</comment>
+    <comment>Tooltip on the grid button of the library view switch (wall of album covers), and the same choice in the iPhone library's view menu.</comment>
   </data>
   <data name="Login_ActionRequired" xml:space="preserve">
     <value>此操作需要登录您的 rpm 账户。</value>
@@ -3258,11 +3262,11 @@
   </data>
   <data name="Rpm_Library_Sort" xml:space="preserve">
     <value>排序</value>
-    <comment>iPhone library header button: choose the order the album wall is in.</comment>
+    <comment>iPhone library header button: choose the order the album grid or the album list is in.</comment>
   </data>
   <data name="Rpm_Library_View" xml:space="preserve">
     <value>视图</value>
-    <comment>iPhone library header button: switch between the albums wall and the artists wall.</comment>
+    <comment>iPhone library header button: switch between views, such as the album grid and the album list, or the playlists' covers and rows.</comment>
   </data>
   <data name="Rpm_Playlist_PlayList" xml:space="preserve">
     <value>播放列表</value>
@@ -4475,6 +4479,7 @@
   </data>
   <data name="Library_ViewAlbums" xml:space="preserve">
     <value>专辑列表</value>
+    <comment>Library view switch: the records as a list, each with its songs. Also the choice in the iPhone library's view menu.</comment>
   </data>
   <data name="Library_ViewTable" xml:space="preserve">
     <value>数据表</value>

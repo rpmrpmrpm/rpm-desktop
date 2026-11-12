@@ -68,11 +68,11 @@
   </data>
   <data name="AlbumSort_Artist" xml:space="preserve">
     <value>Por artista</value>
-    <comment>Album wall sort order: by album artist, then album name.</comment>
+    <comment>Album wall sort order, and iPhone library list view sort order: by album artist, then album name.</comment>
   </data>
   <data name="AlbumSort_Album" xml:space="preserve">
     <value>Por álbum</value>
-    <comment>Album wall sort order: by the record's own name.</comment>
+    <comment>Album wall sort order, and iPhone library list view sort order: by the record's own name.</comment>
   </data>
   <data name="AlbumSort_Added" xml:space="preserve">
     <value>Añadidos recientemente</value>
@@ -85,6 +85,10 @@
   <data name="AlbumSort_Plays" xml:space="preserve">
     <value>Más reproducidos</value>
     <comment>Album wall sort order: most listened to first.</comment>
+  </data>
+  <data name="AlbumSort_Track" xml:space="preserve">
+    <value>Por título de canción</value>
+    <comment>iPhone library list view sort order: every song as its own row, by its title.</comment>
   </data>
   <data name="AlbumGrid_PlayAll" xml:space="preserve">
     <value>Reproducir álbum</value>
@@ -978,7 +982,7 @@
   </data>
   <data name="Library_ViewGrid" xml:space="preserve">
     <value>Cuadrícula de álbumes</value>
-    <comment>Tooltip on the grid button of the library view switch (wall of album covers).</comment>
+    <comment>Tooltip on the grid button of the library view switch (wall of album covers), and the same choice in the iPhone library's view menu.</comment>
   </data>
   <data name="Login_ActionRequired" xml:space="preserve">
     <value>Para esta acción necesitas iniciar sesión en tu cuenta rpm.</value>
@@ -3258,11 +3262,11 @@
   </data>
   <data name="Rpm_Library_Sort" xml:space="preserve">
     <value>Ordenar</value>
-    <comment>iPhone library header button: choose the order the album wall is in.</comment>
+    <comment>iPhone library header button: choose the order the album grid or the album list is in.</comment>
   </data>
   <data name="Rpm_Library_View" xml:space="preserve">
     <value>Vista</value>
-    <comment>iPhone library header button: switch between the albums wall and the artists wall.</comment>
+    <comment>iPhone library header button: switch between views, such as the album grid and the album list, or the playlists' covers and rows.</comment>
   </data>
   <data name="Rpm_Playlist_PlayList" xml:space="preserve">
     <value>Reproducir lista</value>
@@ -4475,6 +4479,7 @@
   </data>
   <data name="Library_ViewAlbums" xml:space="preserve">
     <value>Lista de álbumes</value>
+    <comment>Library view switch: the records as a list, each with its songs. Also the choice in the iPhone library's view menu.</comment>
   </data>
   <data name="Library_ViewTable" xml:space="preserve">
     <value>Tabla de datos</value>
