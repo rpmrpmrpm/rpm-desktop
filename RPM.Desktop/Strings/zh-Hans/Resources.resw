@@ -2118,7 +2118,7 @@
   </data>
   <data name="Playlists_GenerateNew" xml:space="preserve">
     <value>生成新列表</value>
-    <comment>Tooltip on the button in the automatic playlist header that builds a different selection of songs.</comment>
+    <comment>Tooltip on the button in the automatic playlist header that builds a different selection of songs. Also the item in the menu of an iPhone page for such a list.</comment>
   </data>
   <data name="Playlists_Generating" xml:space="preserve">
     <value>正在生成新播放列表</value>
@@ -6711,7 +6711,7 @@
   </data>
   <data name="Rpm_Playlist_AddSongs" xml:space="preserve">
     <value>添加歌曲</value>
-    <comment>Plus button in the header of an open playlist on the iPhone: opens the song picker to add more.</comment>
+    <comment>Item in the menu at the top right of an open playlist on the iPhone: opens the song picker to add songs to the playlist.</comment>
   </data>
   <data name="Rpm_PlaylistPick_Add" xml:space="preserve">
     <value>加入</value>
@@ -6845,6 +6845,34 @@
     <value>无法保存该顺序。</value>
     <comment>Error on the iPhone after dragging playlist rows into a new order.</comment>
   </data>
+  <data name="Rpm_PlaylistMenu_Edit" xml:space="preserve">
+    <value>编辑播放列表</value>
+    <comment>iPhone: item in the menu at the top right of a playlist page, and the title of the sheet it opens, where the playlist's name is changed.</comment>
+  </data>
+  <data name="Rpm_PlaylistMenu_Delete" xml:space="preserve">
+    <value>删除播放列表</value>
+    <comment>iPhone: item in the menu at the top right of a playlist page, and the key on the confirmation it opens.</comment>
+  </data>
+  <data name="Rpm_PlaylistDelete_Title" xml:space="preserve">
+    <value>删除“{0}”？</value>
+    <comment>iPhone: title of the confirmation before a playlist is deleted. {0} is the playlist's name.</comment>
+  </data>
+  <data name="Rpm_PlaylistDelete_Body" xml:space="preserve">
+    <value>播放列表将从云端移除。歌曲仍保留在你的收藏中，已有此播放列表的电脑会保留它的副本。</value>
+    <comment>iPhone: text of the confirmation before a playlist is deleted.</comment>
+  </data>
+  <data name="Rpm_Playlists_RenameFailed" xml:space="preserve">
+    <value>无法重命名播放列表。</value>
+    <comment>Error on the iPhone when changing a playlist's name fails and there is no reason to give.</comment>
+  </data>
+  <data name="Rpm_Playlists_DeleteFailed" xml:space="preserve">
+    <value>无法删除播放列表。</value>
+    <comment>Error on the iPhone when deleting a playlist fails and there is no reason to give.</comment>
+  </data>
+  <data name="Rpm_PlaylistWrite_NoName" xml:space="preserve">
+    <value>请输入播放列表名称。</value>
+    <comment>iPhone: a playlist rename was refused because the name was empty.</comment>
+  </data>
   <data name="Rpm_Playlists_LenHourOne" xml:space="preserve">
     <value>1 小时 {0} 分钟</value>
     <comment>Playlist total length between one and two hours. {0} = minutes.</comment>
@@ -6907,7 +6935,7 @@
   </data>
   <data name="Rpm_Queue_Rearrange" xml:space="preserve">
     <value>重新排序</value>
-    <comment>Key on the iPhone queue panel and Now playing page, and in the band of the desktop Now playing card, that turns row dragging on.</comment>
+    <comment>Key on the iPhone queue panel and Now playing page, item in the menu of an iPhone playlist page, and in the band of the desktop Now playing card, that turns row dragging on.</comment>
   </data>
   <data name="Rpm_Library_SearchCeiling" xml:space="preserve">
     <value>显示前 {0} 个结果。输入更多内容以缩小搜索范围。</value>

@@ -98,4 +98,85 @@ public static class CloudPlaylistIntake
 
         return readings;
     }
+
+    /// <summary>How far the store's clock and this machine's may disagree. A playlist published from
+    /// here less than this long before the listing was asked for is not judged by that listing.</summary>
+    public static readonly TimeSpan ClockSlack = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The playlists this machine keeps in the cloud that another device has deleted there, by node id.
+    ///
+    /// <para>A playlist counts only when all of this holds. This machine published it, so the store gave it a
+    /// stamp. That stamp is older than the moment the listing was asked for, less
+    /// <see cref="ClockSlack"/>: a playlist published while the listing was on its way is not in it yet, and is
+    /// not gone. It is still synced from here: one already let go has nothing left to decide. And the
+    /// listing does not name it.</para>
+    ///
+    /// <para>An empty listing decides nothing. It is the answer an account with no playlists gets, and also
+    /// the answer a fault on the store's side would give, and the two cannot be told apart. Letting every
+    /// playlist go on a fault would stop them all syncing, so an account whose last playlist was deleted
+    /// elsewhere keeps it marked here until the listing holds something again.</para>
+    ///
+    /// <para>The caller lets these go (<see cref="Library.LibraryDatabase.SetPlaylistOutOfCloud"/>). The
+    /// playlist stays on this machine. It is not deleted: the device that deleted it deleted the cloud's
+    /// copy, and this machine's copy is the user's own.</para>
+    /// </summary>
+    /// <param name="theirs">The whole listing, as read.</param>
+    /// <param name="published">What this machine has published, by cloud id:
+    /// <see cref="Library.LibraryDatabase.PlaylistCloudStamps"/>.</param>
+    /// <param name="synced">The nodes still synced to the cloud from here.</param>
+    /// <param name="listedAt">When the listing was asked for, in Unix milliseconds by this machine's clock.</param>
+    public static IReadOnlyList<long> GoneElsewhere(
+        IReadOnlyList<CloudPlaylist> theirs,
+        IReadOnlyDictionary<string, Library.PlaylistCloudState> published,
+        IReadOnlySet<long> synced,
+        long listedAt)
+    {
+        ArgumentNullException.ThrowIfNull(theirs);
+        ArgumentNullException.ThrowIfNull(published);
+        ArgumentNullException.ThrowIfNull(synced);
+
+        if (theirs.Count == 0) return [];
+
+        var listed = theirs.Select(p => p.PlaylistId).ToHashSet(StringComparer.Ordinal);
+        var before = listedAt - (long)ClockSlack.TotalMilliseconds;
+
+        return published
+            .Where(entry => entry.Value.Stamp > 0
+                         && entry.Value.Stamp < before
+                         && synced.Contains(entry.Value.NodeId)
+                         && !listed.Contains(entry.Key))
+            .Select(entry => entry.Value.NodeId)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The name this machine should take from a cloud copy that moved on, or null to keep its own.
+    ///
+    /// <para>It is the cloud's name when the cloud's name and folder are no longer what this machine last
+    /// agreed with, so another device renamed it, and this machine's own are still what it agreed with, so
+    /// nobody renamed it here since. A rename on both sides keeps this machine's name, and the push sends
+    /// it. Only the name is taken. A different folder is a move made on another computer; a phone does not
+    /// move playlists, and the folders of two computers are their own.</para>
+    /// </summary>
+    /// <param name="agreed">What this machine last published or agreed with:
+    /// <see cref="Library.PlaylistCloudState.SentMeta"/>. Null when nothing was recorded, and then nothing
+    /// is taken, because there is no way to tell who renamed it.</param>
+    public static string? NameToTake(
+        string? agreed, CloudPlaylist theirs, string localName, IReadOnlyList<string> localFolder)
+    {
+        ArgumentNullException.ThrowIfNull(theirs);
+        ArgumentNullException.ThrowIfNull(localFolder);
+
+        if (agreed is null) return null;
+
+        var theirMeta = Library.PlaylistCloudState.MetaOf(theirs.Name, theirs.FolderChain);
+        var localMeta = Library.PlaylistCloudState.MetaOf(localName, localFolder);
+
+        if (string.Equals(theirMeta, agreed, StringComparison.Ordinal)) return null;
+        if (!string.Equals(localMeta, agreed, StringComparison.Ordinal)) return null;
+        if (string.IsNullOrWhiteSpace(theirs.Name)) return null;
+
+        return string.Equals(theirs.Name, localName, StringComparison.Ordinal) ? null : theirs.Name;
+    }
 }

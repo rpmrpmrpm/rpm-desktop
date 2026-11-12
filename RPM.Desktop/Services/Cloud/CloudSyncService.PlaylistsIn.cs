@@ -48,6 +48,10 @@ public sealed partial class CloudSyncService
         if (!_auth.IsLoggedIn) return;
 
         IReadOnlyList<CloudPlaylist> theirs;
+
+        // Before the request, so a playlist published while it is on its way is not judged by its answer.
+        // See CloudPlaylistIntake.GoneElsewhere.
+        var listedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         try
         {
             theirs = await _cloud.ListPlaylistsAsync(CloudShelf.Own, ct);
@@ -103,7 +107,20 @@ public sealed partial class CloudSyncService
         // Playlists this machine already owns, whose cloud copy has moved on since we last wrote it.
         var reordered = await ApplyCloudOrdersAsync(db, theirs, Resolve, ct);
 
-        if (taken == 0 && reordered == 0) return;
+        // Playlists this machine keeps in the cloud that a phone deleted there. They stay here, and stop
+        // syncing: putting them back up would undo the delete. The note SetPlaylistOutOfCloud writes also
+        // keeps a copy still on its way out from being taken in again.
+        var synced = db.PlaylistCloudByNode().Where(n => n.Value.Selected).Select(n => n.Key).ToHashSet();
+        var gone = CloudPlaylistIntake.GoneElsewhere(theirs, db.PlaylistCloudStamps(), synced, listedAt);
+        foreach (var node in gone)
+            db.SetPlaylistOutOfCloud(node);
+
+        if (gone.Count > 0)
+            _log.LogInformation(
+                "[Cloud] {Count} playlist(s) were deleted from the cloud elsewhere; kept here, no longer synced",
+                gone.Count);
+
+        if (taken == 0 && reordered == 0 && gone.Count == 0) return;
 
         if (taken > 0)
             _log.LogInformation("[Cloud] Took in {Taken} playlist(s) made elsewhere", taken);
@@ -153,6 +170,7 @@ public sealed partial class CloudSyncService
         CancellationToken ct)
     {
         var held = db.PlaylistCloudStamps();
+        var names = db.GetPlaylistNodes().ToDictionary(n => n.Id, n => n.Name);
         var changed = 0;
 
         foreach (var playlist in theirs)
@@ -170,6 +188,18 @@ public sealed partial class CloudSyncService
                         PlaylistCloudState.MetaOf(playlist.Name, playlist.FolderChain));
 
                 continue;
+            }
+
+            // A rename made on another device. It is taken before the songs are looked at, because it does
+            // not depend on them: a playlist waiting for a song still has its new name.
+            if (names.TryGetValue(mine.NodeId, out var localName)
+                && CloudPlaylistIntake.NameToTake(
+                       mine.SentMeta, playlist, localName, db.PlaylistFolderChain(mine.NodeId))
+                   is { } renamed)
+            {
+                db.RenamePlaylistNode(mine.NodeId, renamed);
+                changed++;
+                _log.LogInformation("[Cloud] \"{Old}\" was renamed elsewhere to \"{New}\"", localName, renamed);
             }
 
             var items = db.GetPlaylistItems(mine.NodeId);
