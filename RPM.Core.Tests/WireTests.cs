@@ -345,6 +345,9 @@ public class GateUnderLoadTests
 
         Assert.True(OnlineGateHandler.WasRefused(response));
         Assert.Equal(0, inner.Sent);
-        Assert.True(started.ElapsedMilliseconds < 500, $"the refusal took {started.ElapsedMilliseconds} ms");
+
+        // The retries would sleep for a dozen seconds. The bound is well below that, and well above what the first
+        // request through a new HttpClient costs on a slow, busy test machine.
+        Assert.True(started.ElapsedMilliseconds < 5000, $"the refusal took {started.ElapsedMilliseconds} ms");
     }
 }

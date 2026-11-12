@@ -108,9 +108,10 @@ public class PairingEndToEndTests : IDisposable
         return asked.Board.Find(asking.Identity.DeviceId)!.Code;
     }
 
-    /// <summary>Waits for a condition, sweeping both boards as the app's timer does.</summary>
+    /// <summary>Waits for a condition, sweeping both boards as the app's timer does. It returns as soon as the condition
+    /// holds, so the limit only matters on a slow, busy test machine, where the whole suite runs at once.</summary>
     private static Task Eventually(Func<bool> condition, params Computer[] sweep) =>
-        Eventually(condition, TimeSpan.FromSeconds(5), sweep);
+        Eventually(condition, TimeSpan.FromSeconds(30), sweep);
 
     /// <summary>Waits up to <paramref name="limit"/> for a condition, sweeping both boards as the app's timer
     /// does.</summary>

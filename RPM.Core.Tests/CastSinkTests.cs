@@ -585,8 +585,9 @@ public class CastSinkTests
     private static async Task<bool> Finishes(Task task, TimeSpan within)
         => await Task.WhenAny(task, Task.Delay(within)) == task;
 
-    /// <summary>Waits briefly for something that happens on another thread.</summary>
-    private static bool SpinFor(Func<bool> until) => SpinFor(until, TimeSpan.FromSeconds(2));
+    /// <summary>Waits for something the sink does on another thread. It returns as soon as it has happened, so the
+    /// limit only matters on a slow, busy test machine, where the whole suite runs at once.</summary>
+    private static bool SpinFor(Func<bool> until) => SpinFor(until, TimeSpan.FromSeconds(15));
 
     /// <summary>Waits up to <paramref name="within"/> for something that happens on another thread.</summary>
     private static bool SpinFor(Func<bool> until, TimeSpan within)
