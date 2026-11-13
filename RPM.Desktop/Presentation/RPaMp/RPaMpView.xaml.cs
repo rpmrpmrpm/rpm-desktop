@@ -332,6 +332,12 @@ public sealed partial class RPaMpView : UserControl
     private int _pendingDx, _pendingDy;
     private bool _movePending;
 
+    /// <summary>Windows only: the cursor on the screen and the window's position, both read when the title
+    /// bar was pressed. See <see cref="ApplyPendingMove"/>.</summary>
+    private CursorPoint _grabCursor;
+    private Windows.Graphics.PointInt32 _grabWindow;
+    private bool _grabbedOnScreen;
+
     // 10-band presets (dB), in the order of `PlaybackService.EqBands`.
     /// <summary>The named curves. They belong to the equaliser, so they live with it, and the settings page
     /// offers the same list.</summary>
@@ -626,6 +632,22 @@ public sealed partial class RPaMpView : UserControl
         if (HostWindow is null) return;
         _dragging = true;
         _dragOrigin = e.GetCurrentPoint(this).Position;   // cursor offset inside the window at grab
+
+        // On Windows the drag follows the cursor on the SCREEN. See ApplyPendingMove.
+        _grabbedOnScreen = false;
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                if (GetCursorPos(out _grabCursor))
+                {
+                    _grabWindow = HostWindow.Position;
+                    _grabbedOnScreen = true;
+                }
+            }
+            catch { /* the delta path below is used instead */ }
+        }
+
         ((UIElement)sender).CapturePointer(e.Pointer);
     }
 
@@ -643,17 +665,58 @@ public sealed partial class RPaMpView : UserControl
         DispatcherQueue.TryEnqueue(ApplyPendingMove);
     }
 
+    /// <summary>
+    /// Moves the window to where the drag has taken it.
+    /// </summary>
+    /// <remarks>
+    /// On Windows the new position is the position at the grab plus how far the cursor has moved on the
+    /// SCREEN since then. Nothing is read from the window during the drag, so a move cannot affect the
+    /// next one.
+    ///
+    /// <para>The pointer position in a pointer event is NOT used there. It is relative to the window, and
+    /// the window can move after the event was made and before it is handled. The event then reports the
+    /// cursor where it was inside the window before the move. Moving by that offset moves the window a
+    /// second time, the next event moves it back too far, and so on. The window swings around the cursor
+    /// and does not settle, and for part of each swing it is far enough away that it seems to have gone.</para>
+    ///
+    /// <para>Other platforms keep the offset inside the window, because there is no screen position to
+    /// read here. macOS does not come here at all: it uses the native drag.</para>
+    /// </remarks>
     private void ApplyPendingMove()
     {
         _movePending = false;
-        if (HostWindow is null || (_pendingDx == 0 && _pendingDy == 0)) return;
+        if (HostWindow is null) return;
         try
         {
+            if (_grabbedOnScreen && OperatingSystem.IsWindows())
+            {
+                if (!_dragging || !GetCursorPos(out var now)) return;
+                HostWindow.Move(new Windows.Graphics.PointInt32
+                {
+                    X = _grabWindow.X + now.X - _grabCursor.X,
+                    Y = _grabWindow.Y + now.Y - _grabCursor.Y,
+                });
+                return;
+            }
+
+            if (_pendingDx == 0 && _pendingDy == 0) return;
             var pos = HostWindow.Position;
             HostWindow.Move(new Windows.Graphics.PointInt32 { X = pos.X + _pendingDx, Y = pos.Y + _pendingDy });
         }
         catch { /* window gone mid-drag */ }
     }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct CursorPoint
+    {
+        public int X, Y;
+    }
+
+    /// <summary>The cursor in screen pixels. The app is aware of the display density, so these are the
+    /// same physical pixels that <c>AppWindow.Move</c> takes.</summary>
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out CursorPoint point);
 
     private void TitleBar_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
