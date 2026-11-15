@@ -23,9 +23,9 @@ public class MigrationSecretsTests
     {
         var store = new MemoryStore();
         var secrets = new MigrationSecrets(store);
-        secrets.Keep(Name, Connection(First));
+        secrets.Keep(Name, () => Connection(First));
 
-        secrets.Replace(Name, c => WithGrant(c, Second));
+        Assert.IsType<SecretWrite.Done>(secrets.Replace(Name, c => WithGrant(c, Second)));
 
         var kept = secrets.Read(Name);
         Assert.NotNull(kept);
@@ -37,10 +37,10 @@ public class MigrationSecretsTests
     {
         var store = new MemoryStore();
         var secrets = new MigrationSecrets(store);
-        secrets.Keep(Name, Connection(First));
+        secrets.Keep(Name, () => Connection(First));
 
         secrets.Delete(Name);
-        secrets.Replace(Name, c => WithGrant(c, Second));
+        Assert.Null(secrets.Replace(Name, c => WithGrant(c, Second)));
 
         Assert.IsType<SecretRead.Absent>(store.Read(Name));
         Assert.Null(secrets.Read(Name));
@@ -52,7 +52,7 @@ public class MigrationSecretsTests
         var store = new MemoryStore { Answering = false };
         var secrets = new MigrationSecrets(store);
 
-        secrets.Replace(Name, c => WithGrant(c, Second));
+        Assert.Null(secrets.Replace(Name, c => WithGrant(c, Second)));
 
         Assert.Equal(0, store.Writes);
     }
@@ -62,7 +62,7 @@ public class MigrationSecretsTests
     {
         var store = new MemoryStore();
         var secrets = new MigrationSecrets(store);
-        secrets.Keep(Name, Connection(First));
+        secrets.Keep(Name, () => Connection(First));
         var hold = new ManualResetEventSlim();
         store.HoldNextWrite = hold;
 
@@ -76,11 +76,57 @@ public class MigrationSecretsTests
         Assert.IsType<SecretRead.Absent>(store.Read(Name));
     }
 
+    [Fact]
+    public void Replace_reports_a_failed_write()
+    {
+        var store = new MemoryStore();
+        var secrets = new MigrationSecrets(store);
+        secrets.Keep(Name, () => Connection(First));
+        store.FailWrites = true;
+
+        Assert.IsType<SecretWrite.Failed>(secrets.Replace(Name, c => WithGrant(c, Second)));
+    }
+
+    [Fact]
+    public void Take_gives_the_kept_connection_and_deletes_it()
+    {
+        var store = new MemoryStore();
+        var secrets = new MigrationSecrets(store);
+        secrets.Keep(Name, () => Connection(First));
+
+        Assert.Equal(First, secrets.Take(Name)?.IBroadcastGrant);
+        Assert.IsType<SecretRead.Absent>(store.Read(Name));
+        Assert.Null(secrets.Take(Name));
+    }
+
+    [Fact]
+    public void Keep_reads_the_connection_inside_the_lock()
+    {
+        var store = new MemoryStore();
+        var secrets = new MigrationSecrets(store);
+        secrets.Keep(Name, () => Connection(First));
+        var hold = new ManualResetEventSlim();
+        store.HoldNextWrite = hold;
+        var read = false;
+
+        var replace = Task.Run(() => secrets.Replace(Name, c => WithGrant(c, Second)));
+        SpinWait.SpinUntil(() => store.Holding, TimeSpan.FromSeconds(5));
+        var keep = Task.Run(() => secrets.Keep(Name, () => { read = true; return Connection(Second); }));
+        Thread.Sleep(50);
+        var readWhileHeld = read;
+        hold.Set();
+        Task.WaitAll(replace, keep);
+
+        Assert.False(readWhileHeld);
+        Assert.True(read);
+    }
+
     private sealed class MemoryStore : SecretStore
     {
         private readonly Dictionary<string, byte[]> _secrets = [];
 
         public bool Answering { get; init; } = true;
+        public bool FailWrites { get; set; }
         public int Writes { get; private set; }
         public ManualResetEventSlim? HoldNextWrite { get; set; }
         public volatile bool Holding;
@@ -103,6 +149,8 @@ public class MigrationSecretsTests
                 Holding = true;
                 hold.Wait(TimeSpan.FromSeconds(5));
             }
+            if (FailWrites)
+                return new SecretWrite.Failed("refused");
             lock (_secrets)
             {
                 Writes++;

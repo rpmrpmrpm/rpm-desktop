@@ -9,7 +9,12 @@ namespace RPM.Core.Migration;
 /// Reads an iBroadcast library: every track with its play count, thumbs up (a favourite) and upload date,
 /// the person's playlists, and the tags (each becomes a playlist in the folder <paramref name="tagsFolder"/>).
 /// Files come from the streaming server: the original for a Premium account, a 128 kbps MP3 for a free
-/// one. Every call only reads; nothing sent here counts as a play.
+/// one, and for a Premium track whose type rpm does not read. Every call only reads; nothing sent here
+/// counts as a play.
+///
+/// <para>iBroadcast's tags replace the file's (<see cref="TagRule.SourceFirst"/>). It keeps featured artists
+/// and extra genres in lists of their own, which this reader does not join into one tag. So a track with
+/// such a list gives no artist or no genre, and the file's own tag, which still has them, stays.</para>
 /// </summary>
 /// <param name="http">For the library and streaming servers. Not disposed here.</param>
 /// <param name="tagsFolder">The name of the playlist folder the tags go into, in the person's language.</param>
@@ -26,6 +31,10 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
 
     /// <summary>The wait before asking again after the streaming server answered 429. Replaced in tests.</summary>
     internal Func<TimeSpan, CancellationToken, Task> Delay { get; init; } = Task.Delay;
+
+    /// <summary>The library's name, the same for every account: the user name would read as nothing in
+    /// brackets after a playlist or in the list of earlier imports.</summary>
+    internal const string LibraryName = "iBroadcast";
 
     public async Task<SourceLibrary> ReadAsync(IProgress<int> found, CancellationToken ct)
     {
@@ -49,15 +58,13 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
             names[row.Id] = what;
 
             var file = row.Text("file");
-            var extension = account.Premium ? ExtensionOf(null, ContainerOf(row.Text("type"))) : ".mp3";
             if (row.Flag("trashed") || album?.Flag("trashed") == true || inTrash.Contains(row.Id))
                 skipped.Add(new SourceSkip(what, SkipReason.InTrash));
             else if (!file.StartsWith('/'))
                 skipped.Add(new SourceSkip(what, SkipReason.NotAFile));
-            else if (extension.Length == 0)
-                skipped.Add(new SourceSkip(what, SkipReason.NotMusic));
             else
-                read.Add(TrackOf(row, album, title, artist, album is null ? "" : ArtistName(album.Number("artist_id")), file, extension));
+                read.Add(TrackOf(row, album, title, row.Count("artists_additional") > 0 ? "" : artist,
+                    album is null ? "" : ArtistName(album.Number("artist_id")), file));
         }
         found.Report(read.Count);
 
@@ -72,13 +79,18 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
 
         var playlists = new List<SourcePlaylist>();
         // A list iBroadcast fills itself ("Most Recent Uploads", "Thumbs Up") has a type, or is marked as
-        // made by the system. Only the lists the person made come along.
-        foreach (var row in Table.Of(Child(library, "playlists")).Rows.Where(r => !r.Flag("system_created") && r.Text("type").Length == 0))
-            playlists.Add(ListOf(Id(row.Id), row.Text("name"), [], row));
+        // made by the system. Only the lists the person made come along; the others are listed as skipped.
+        foreach (var row in Table.Of(Child(library, "playlists")).Rows)
+        {
+            if (row.Flag("system_created") || row.Text("type").Length > 0)
+                skipped.Add(new SourceSkip(row.Text("name"), SkipReason.IBroadcastList));
+            else
+                playlists.Add(ListOf(Id(row.Id), row.Text("name"), [], row));
+        }
         foreach (var row in Table.Of(Child(library, "tags")).Rows.Where(r => !r.Flag("archived")))
             playlists.Add(ListOf("tag:" + Id(row.Id), row.Text("name"), [tagsFolder], row));
 
-        return new SourceLibrary(SourceKind.IBroadcast, account.UserId, account.UserName, read, playlists, skipped);
+        return new SourceLibrary(SourceKind.IBroadcast, account.UserId, LibraryName, read, playlists, skipped);
     }
 
     public async Task<Stream> OpenAsync(RemoteFile file, CancellationToken ct)
@@ -105,9 +117,16 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
                 renewed = true;
                 continue;
             }
-            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            // Busy: 429, or 503 with a time to come back.
+            if (response.StatusCode == HttpStatusCode.TooManyRequests
+                || response.StatusCode == HttpStatusCode.ServiceUnavailable && response.Headers.RetryAfter is not null)
             {
-                var wait = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(30);
+                var wait = response.Headers.RetryAfter switch
+                {
+                    { Delta: { } delta } => delta,
+                    { Date: { } date } => date - DateTimeOffset.UtcNow,
+                    _ => TimeSpan.FromSeconds(30),
+                };
                 response.Dispose();
                 if (busy++ >= MostBusyAnswers)
                     throw new HttpRequestException("The iBroadcast streaming server is busy.", null, HttpStatusCode.TooManyRequests);
@@ -118,13 +137,17 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
         }
     }
 
-    private SourceTrack TrackOf(Row row, Row? album, string title, string artist, string albumArtist, string file, string extension)
+    private SourceTrack TrackOf(Row row, Row? album, string title, string artist, string albumArtist, string file)
     {
         var id = Id(row.Id);
         var seconds = (double)row.Number("length");
-        var size = account.Premium ? row.Number("size") : (long)Math.Round(seconds * FreeBytesPerSecond);
+        // The original when the account is Premium and rpm reads its type; else the 128 kbps MP3, which
+        // iBroadcast keeps of every track.
+        var original = account.Premium ? ExtensionOf(null, ContainerOf(row.Text("type"))) : "";
+        var extension = original.Length > 0 ? original : ".mp3";
+        var size = original.Length > 0 ? row.Number("size") : (long)Math.Round(seconds * FreeBytesPerSecond);
         // The first part of the path is the copy asked for: "orig", or a bitrate such as "128".
-        var stream = Quality().IsMatch(file) ? Quality().Replace(file, account.Premium ? "/orig/" : "/128/", 1) : file;
+        var stream = Quality().IsMatch(file) ? Quality().Replace(file, original.Length > 0 ? "/orig/" : "/128/", 1) : file;
         return new SourceTrack(
             SourceId: id,
             // The size is not known: the streamed file can differ from the size the library gives, so a
@@ -137,7 +160,7 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
             TrackNumber: (int)row.Number("track"),
             DiscNumber: (int)(album?.Number("disc") ?? 0),
             Year: (int)(row.Number("year") is > 0 and var year ? year : album?.Number("year") ?? 0),
-            Genre: row.Text("genre"),
+            Genre: row.Count("genres_additional") > 0 ? "" : row.Text("genre"),
             DurationSeconds: seconds,
             SizeBytes: size,
             Rating: 0,
@@ -233,6 +256,9 @@ public sealed partial class IBroadcastServer(HttpClient http, IBroadcastSession 
         };
 
         public bool Flag(string name) => Field(name) is { ValueKind: JsonValueKind.True } || Number(name) == 1 && Field(name).ValueKind == JsonValueKind.Number;
+
+        /// <summary>The number of items in a list field, 0 when it is not a list.</summary>
+        public int Count(string name) => Field(name) is { ValueKind: JsonValueKind.Array } list ? list.GetArrayLength() : 0;
 
         public IEnumerable<long> Ids(string name) => Field(name) is { ValueKind: JsonValueKind.Array } list
             ? list.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.Number && e.TryGetInt64(out _)).Select(e => e.GetInt64())

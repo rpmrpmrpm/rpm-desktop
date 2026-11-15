@@ -135,4 +135,7 @@ public static class SkipReason
 
     /// <summary>The track, or its album, is in the other app's trash (iBroadcast).</summary>
     public const string InTrash = "Migration_SkipInTrash";
+
+    /// <summary>A playlist iBroadcast fills by itself, such as its most recent uploads.</summary>
+    public const string IBroadcastList = "Migration_SkipIBroadcastList";
 }

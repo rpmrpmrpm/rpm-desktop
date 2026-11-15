@@ -165,6 +165,67 @@ public class IBroadcastTests
         Assert.Equal([TimeSpan.FromSeconds(30)], waits);
     }
 
+    /// <summary>The answer the online gate gives when the network is away: no request was sent.</summary>
+    private static HttpResponseMessage Offline()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new ByteArrayContent([]) };
+        response.Headers.TryAddWithoutValidation(RPM.Core.Net.OnlineGateHandler.RefusedHeader, "1");
+        return response;
+    }
+
+    [Fact]
+    public async Task Network_away_is_no_answer_not_a_failure()
+    {
+        var (server, _) = Server(new FixtureHttp(_ => Offline()), Premium);
+
+        var open = await Assert.ThrowsAsync<HttpRequestException>(() => server.OpenAsync(Opening, CancellationToken.None));
+        var read = await Assert.ThrowsAsync<HttpRequestException>(() => server.ReadAsync(new Progress<int>(), CancellationToken.None));
+
+        Assert.Null(open.StatusCode);
+        Assert.Null(read.StatusCode);
+    }
+
+    [Fact]
+    public async Task Busy_answer_with_a_date_waits_until_then()
+    {
+        var at = DateTimeOffset.UtcNow.AddSeconds(40);
+        var busy = true;
+        var http = new FixtureHttp(r =>
+        {
+            if (!busy)
+                return Answer(r);
+            busy = false;
+            var answer = FixtureHttp.Status(HttpStatusCode.TooManyRequests);
+            answer.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(at);
+            return answer;
+        });
+        var (server, waits) = Server(http, Premium);
+
+        await using var body = await server.OpenAsync(Opening, CancellationToken.None);
+
+        Assert.InRange(Assert.Single(waits).TotalSeconds, 35, 41);
+    }
+
+    [Fact]
+    public async Task Unavailable_with_retry_after_waits_like_busy()
+    {
+        var unavailable = true;
+        var http = new FixtureHttp(r =>
+        {
+            if (!unavailable)
+                return Answer(r);
+            unavailable = false;
+            var answer = FixtureHttp.Status(HttpStatusCode.ServiceUnavailable);
+            answer.Headers.TryAddWithoutValidation("Retry-After", "12");
+            return answer;
+        });
+        var (server, waits) = Server(http, Premium);
+
+        await using var body = await server.OpenAsync(Opening, CancellationToken.None);
+
+        Assert.Equal([TimeSpan.FromSeconds(12)], waits);
+    }
+
     [Fact]
     public async Task Unauthenticated_answer_renews_then_stops()
     {

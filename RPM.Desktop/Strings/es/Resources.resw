@@ -10095,6 +10095,10 @@
     <value>En la papelera de iBroadcast</value>
     <comment>Import from another app: why a skipped track is not imported; it is in the iBroadcast trash. Shown after the track name and a colon.</comment>
   </data>
+  <data name="Migration_SkipIBroadcastList" xml:space="preserve">
+    <value>Una lista que iBroadcast llena por sí mismo</value>
+    <comment>Import from another app: why a playlist is not imported; iBroadcast fills it by itself (such as its most recent uploads). Shown after the playlist name and a colon.</comment>
+  </data>
   <data name="Migration_IBroadcastTagsFolder" xml:space="preserve">
     <value>Etiquetas</value>
     <comment>Import from another app: the name of the playlist folder that holds the iBroadcast tags, one playlist per tag.</comment>
@@ -10256,7 +10260,7 @@
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
   <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
-    <value>{0} canciones no se importan (en la papelera de iBroadcast, o no son un archivo que rpm pueda leer)</value>
+    <value>{0} elementos no se importan (en la papelera de iBroadcast, sin archivo, o listas que iBroadcast llena por sí mismo)</value>
     <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
   </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">

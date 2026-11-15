@@ -178,6 +178,53 @@ public class IBroadcastSignInTests
     }
 
     [Fact]
+    public async Task Network_away_during_a_renewal_is_no_answer()
+    {
+        var http = new FixtureHttp(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new ByteArrayContent([]) };
+            response.Headers.TryAddWithoutValidation(RPM.Core.Net.OnlineGateHandler.RefusedHeader, "1");
+            return response;
+        });
+
+        var failed = await Assert.ThrowsAsync<HttpRequestException>(() => Session(http).RenewAsync("access-token-0001", CancellationToken.None));
+        Assert.Null(failed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Renewal_that_was_sent_finishes_when_the_caller_cancels()
+    {
+        using var sent = new ManualResetEventSlim();
+        var slow = new SlowServer(sent);
+        IBroadcastGrant? kept = null;
+        var session = new IBroadcastSession(new HttpClient(slow), new IBroadcastGrant("access-token-0001", "refresh-token-0001", Noon.AddHours(1)), g => kept = g)
+        {
+            Now = () => Noon,
+        };
+        using var pause = new CancellationTokenSource();
+
+        var renewing = Task.Run(() => session.RenewAsync("access-token-0001", pause.Token));
+        sent.Wait(TimeSpan.FromSeconds(5));
+        pause.Cancel();
+        try { await renewing; } catch (OperationCanceledException) { }
+
+        Assert.Equal("refresh-token-0002", kept?.RefreshToken);
+        Assert.Equal("refresh-token-0002", session.Grant.RefreshToken);
+    }
+
+    /// <summary>A sign-in server that answers after 200 ms and stops when the request is cancelled, as a
+    /// real connection does.</summary>
+    private sealed class SlowServer(ManualResetEventSlim sent) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            sent.Set();
+            await Task.Delay(200, ct);
+            return FixtureHttp.Sample("ibroadcast", "token-refreshed.json");
+        }
+    }
+
+    [Fact]
     public async Task Token_renews_a_minute_before_it_expires()
     {
         var http = new FixtureHttp(_ => FixtureHttp.Sample("ibroadcast", "token-refreshed.json"));

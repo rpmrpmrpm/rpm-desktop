@@ -110,6 +110,7 @@ public static class IBroadcastSignIn
             Content = new FormUrlEncodedContent(fields.Select(f => KeyValuePair.Create(f.Name, f.Value))),
         };
         using var response = await http.SendAsync(request, ct);
+        ThrowIfOffline(response);
         var text = await response.Content.ReadAsStringAsync(ct);
         try
         {
@@ -168,8 +169,10 @@ public sealed class IBroadcastSession(HttpClient http, IBroadcastGrant grant, Ac
             if (current.AccessToken != stale)
                 return current.AccessToken;
 
+            // Not cancelled by the caller once it is sent: iBroadcast may already have spent the old refresh
+            // token, and an answer dropped half-way would lose the new one. The client's timeout bounds it.
             var (status, answer) = await IBroadcastSignIn.FormAsync(http, "token",
-                [("grant_type", "refresh_token"), ("refresh_token", current.RefreshToken), ("client_id", IBroadcastSignIn.ClientId)], ct);
+                [("grant_type", "refresh_token"), ("refresh_token", current.RefreshToken), ("client_id", IBroadcastSignIn.ClientId)], CancellationToken.None);
             if (status == HttpStatusCode.OK && Str(answer, "access_token").Length > 0)
             {
                 var fresh = IBroadcastSignIn.GrantOf(answer, current.RefreshToken, Now());

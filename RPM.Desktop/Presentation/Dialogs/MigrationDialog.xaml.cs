@@ -870,10 +870,9 @@ public sealed partial class MigrationDialog : ContentDialog
         kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome or SourceKind.IBroadcast;
 
     /// <summary>The source as the windows name it: the library's own name (a server's name), else the
-    /// app's name. Playlist files have no name of their own, and an iBroadcast library is named by its
-    /// user name, which reads as nothing in brackets after a playlist, so both use the app's name.</summary>
+    /// app's name; playlist files have no name of their own.</summary>
     private static string Label(SourceKind kind, string name) =>
-        kind is not (SourceKind.PlaylistFiles or SourceKind.IBroadcast) && name.Length > 0 ? name : Loc.Get(SourceKey(kind));
+        kind != SourceKind.PlaylistFiles && name.Length > 0 ? name : Loc.Get(SourceKey(kind));
 
     private static string Keeps(SourceLibrary library) => library.Kind switch
     {

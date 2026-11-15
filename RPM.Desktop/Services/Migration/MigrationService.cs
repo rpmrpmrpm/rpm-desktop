@@ -149,58 +149,64 @@ public sealed partial class MigrationService : IDisposable
     public static HttpClient IBroadcastHttp() => Wire.Outside(Destination.Unaddressed, TimeSpan.FromMinutes(10));
 
     /// <summary>The connection for a new iBroadcast sign-in: reads the account with the new tokens and
-    /// makes them the live session for that account.</summary>
+    /// makes them the live session for that account, in place of any session it had before. A new sign-in
+    /// is the only thing that replaces a live session.</summary>
     public async Task<MigrationConnection> IBroadcastConnectionAsync(IBroadcastGrant grant, CancellationToken ct)
     {
         var http = IBroadcastHttp();
         var reading = new IBroadcastSession(http, grant, _ => { });
         var account = await IBroadcastSignIn.AccountAsync(http, reading, ct);
-        IBroadcastSessionFor(account, reading.Grant);
+        lock (_sessionsLock)
+            _ibroadcast[account.UserId] = NewIBroadcastSession(account, reading.Grant);
         return new MigrationConnection(SourceKind.IBroadcast, [], IBroadcast: account, IBroadcastGrant: reading.Grant);
     }
 
     /// <summary>
-    /// The live token holder for an iBroadcast account. The one already live is kept unless
-    /// <paramref name="grant"/> expires later, which only a new sign-in gives: a grant read back from the
-    /// keychain may be older than the live one, and its refresh token may already be spent.
+    /// The live token holder for an iBroadcast account, made from <paramref name="grant"/> when there is
+    /// none (after a restart, from the keychain). A live session is always used as it is: it is renewed in
+    /// place, so its tokens are the newest, and a grant read back from a connection may already be spent.
     /// </summary>
     private IBroadcastSession IBroadcastSessionFor(IBroadcastAccount account, IBroadcastGrant grant)
     {
         lock (_sessionsLock)
         {
-            if (_ibroadcast.TryGetValue(account.UserId, out var live) && live.Grant.ExpiresAt >= grant.ExpiresAt)
-                return live;
-            var name = SecretName(SourceKind.IBroadcast, account.UserId);
-            var session = new IBroadcastSession(IBroadcastHttp(), grant,
-                fresh => _secrets.Value.Replace(name, kept => kept with { IBroadcastGrant = fresh }));
-            _ibroadcast[account.UserId] = session;
+            if (!_ibroadcast.TryGetValue(account.UserId, out var session))
+                _ibroadcast[account.UserId] = session = NewIBroadcastSession(account, grant);
             return session;
         }
     }
 
-    /// <summary>The connection with the newest iBroadcast tokens: those of the live session when it holds
-    /// newer ones. Other connections are returned as they are.</summary>
-    private MigrationConnection WithLiveGrant(MigrationConnection connection)
+    /// <summary>A token holder whose renewals are written over the kept sign-in, when one is kept.</summary>
+    private IBroadcastSession NewIBroadcastSession(IBroadcastAccount account, IBroadcastGrant grant)
     {
-        if (connection is not { IBroadcast: { } account, IBroadcastGrant: { } grant })
-            return connection;
-        lock (_sessionsLock)
-            return _ibroadcast.TryGetValue(account.UserId, out var live) && live.Grant.ExpiresAt > grant.ExpiresAt
-                ? connection with { IBroadcastGrant = live.Grant }
-                : connection;
+        var name = SecretName(SourceKind.IBroadcast, account.UserId);
+        return new IBroadcastSession(IBroadcastHttp(), grant, fresh =>
+        {
+            if (_secrets.Value.Replace(name, kept => kept with { IBroadcastGrant = fresh }) is SecretWrite.Failed { Detail: var detail })
+                _log.LogWarning("[Migration] The renewed iBroadcast sign-in was not kept ({Detail}); continuing after a restart asks for the sign-in again", detail);
+        });
     }
 
-    /// <summary>Ends an iBroadcast sign-in that is no longer needed: drops the live session and revokes its
-    /// refresh token on iBroadcast's side. Best effort: a revoke that fails leaves a token that expires.</summary>
-    private void EndIBroadcast(string userId)
+    /// <summary>The connection with the tokens of the live session of its iBroadcast account, when there is
+    /// one. Other connections are returned as they are.</summary>
+    private MigrationConnection WithLiveGrant(MigrationConnection connection)
+    {
+        if (connection is not { IBroadcast: { } account })
+            return connection;
+        lock (_sessionsLock)
+            return _ibroadcast.TryGetValue(account.UserId, out var live) ? connection with { IBroadcastGrant = live.Grant } : connection;
+    }
+
+    /// <summary>Ends an iBroadcast sign-in that is no longer needed: drops the live session and revokes the
+    /// newest refresh token on iBroadcast's side, the live one or else <paramref name="kept"/> (after a
+    /// restart there is no live session). Best effort: a revoke that fails leaves a token that expires.</summary>
+    private void EndIBroadcast(string userId, IBroadcastGrant? kept)
     {
         IBroadcastSession? session;
         lock (_sessionsLock)
-        {
-            if (!_ibroadcast.Remove(userId, out session))
-                return;
-        }
-        var refreshToken = session.Grant.RefreshToken;
+            _ibroadcast.Remove(userId, out session);
+        if ((session?.Grant ?? kept)?.RefreshToken is not { Length: > 0 } refreshToken)
+            return;
         _ = Task.Run(async () =>
         {
             try
@@ -332,8 +338,9 @@ public sealed partial class MigrationService : IDisposable
         var record = db.OpenMigration(library, destination);
         if (how == ImportStart.StartOver)
             record.StartOver();
-        connection = WithLiveGrant(connection);
+        // The kept copy takes the live tokens inside the keychain lock (see MigrationSecrets.Keep).
         KeepConnection(library, record.LibraryKey, connection);
+        connection = WithLiveGrant(connection);
 
         var cts = new CancellationTokenSource();
         _cts = cts;
@@ -382,7 +389,7 @@ public sealed partial class MigrationService : IDisposable
                     _secrets.Value.Delete(SecretName(library.Kind, record.LibraryKey));
                 // The live iBroadcast session stays while the report lists tracks that "Try again" can import.
                 if (end == RunEnd.Finished && connection.IBroadcast is { } account && LastReport.NotImported.Count == 0)
-                    EndIBroadcast(account.UserId);
+                    EndIBroadcast(account.UserId, kept: null);
                 if (destination == MigrationDestination.ThisComputer || CloudReady)
                     _ = _cloudSync.KickAsync();
             }
@@ -418,16 +425,16 @@ public sealed partial class MigrationService : IDisposable
         if (IsRunning || !_library.IsOpen)
             return;
         _library.Db.ForgetMigration(import);
-        _secrets.Value.Delete(SecretName(import.Kind, import.LibraryId));
+        var kept = _secrets.Value.Take(SecretName(import.Kind, import.LibraryId));
         if (import.Kind == SourceKind.IBroadcast)
-            EndIBroadcast(import.LibraryId);
+            EndIBroadcast(import.LibraryId, kept?.IBroadcastGrant);
         Raise();
     }
 
     private void KeepConnection(SourceLibrary library, string libraryKey, MigrationConnection connection)
     {
         var name = SecretName(library.Kind, libraryKey);
-        if (_secrets.Value.Keep(name, connection) is not SecretWrite.Done)
+        if (_secrets.Value.Keep(name, () => WithLiveGrant(connection)) is not SecretWrite.Done)
             _log.LogInformation("[Migration] The sign-in for {Source} is not kept; continuing later asks again", library.Name);
     }
 

@@ -1,7 +1,7 @@
 {
   "kind": "ibroadcast",
   "libraryId": "7654321",
-  "name": "testlistener",
+  "name": "iBroadcast",
   "tracks": [
     {
       "sourceId": "101",
@@ -73,6 +73,29 @@
       "added": "2019-04-02T08:15:30Z"
     },
     {
+      "sourceId": "107",
+      "file": {
+        "remote": "107|/128/b2c/d40/107",
+        "extension": ".mp3",
+        "size": 0
+      },
+      "title": "Strange Format",
+      "artist": "Artist Two",
+      "album": "Loose Ends",
+      "albumArtist": "Artist Two",
+      "trackNumber": 3,
+      "discNumber": 0,
+      "year": 2015,
+      "genre": "Rock",
+      "durationSeconds": 120.0,
+      "sizeBytes": 1920000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-04-02T08:15:30Z"
+    },
+    {
       "sourceId": "108",
       "file": {
         "remote": "108|/orig/b2c/d41/108",
@@ -94,6 +117,29 @@
       "plays": 7,
       "lastPlayed": null,
       "added": "2021-11-30T23:59:59Z"
+    },
+    {
+      "sourceId": "109",
+      "file": {
+        "remote": "109|/orig/b2c/d42/109",
+        "extension": ".mp3",
+        "size": 0
+      },
+      "title": "Duet",
+      "artist": "",
+      "album": "Loose Ends",
+      "albumArtist": "Artist Two",
+      "trackNumber": 5,
+      "discNumber": 0,
+      "year": 2015,
+      "genre": "",
+      "durationSeconds": 201.0,
+      "sizeBytes": 4823040,
+      "rating": 0,
+      "favorite": false,
+      "plays": 2,
+      "lastPlayed": null,
+      "added": "2021-12-01T10:00:00Z"
     }
   ],
   "playlists": [
@@ -140,8 +186,12 @@
       "reasonKey": "Migration_SkipNotAFile"
     },
     {
-      "what": "Artist Two - Strange Format",
-      "reasonKey": "Migration_SkipNotMusic"
+      "what": "Most Recent Uploads",
+      "reasonKey": "Migration_SkipIBroadcastList"
+    },
+    {
+      "what": "Thumbs Up",
+      "reasonKey": "Migration_SkipIBroadcastList"
     }
   ]
 }

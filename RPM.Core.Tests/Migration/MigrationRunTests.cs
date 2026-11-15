@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using RPM.Core.Cloud;
 using RPM.Core.Import;
 using RPM.Core.Library;
+using RPM.Core.Metadata;
 using RPM.Core.Migration;
 using RPM.Core.Models;
 
@@ -144,6 +145,23 @@ public class MigrationRunTests : IDisposable
         var info = MigrationRun.WithSourceTags(FileTags with { Year = 0, Genre = null }, Tagged("", "", "", "", 0, 0, 2004, "Jazz"), TagRule.FileFirst);
 
         Assert.Equal((2004u, "Jazz", MetadataSource.Manual), (info.Year, info.Genre, info.Source));
+    }
+
+    [Fact]
+    public async Task Ibroadcast_tags_reach_the_filed_copy()
+    {
+        var server = new FakeServer();
+        var track = Remote("i1", "Record", "One") with { Title = "New title", Artist = "New artist", Year = 2004, Genre = "Jazz" };
+        server.Add(track);
+        var library = Library(SourceKind.IBroadcast, track);
+
+        var end = await Run(library, MigrationDestination.ThisComputer, server).RunAsync(Quiet, CancellationToken.None);
+
+        Assert.Equal(RunEnd.Finished, end);
+        var row = Row("New title");
+        Assert.Equal(("New artist", 2004u, "Jazz"), (row.Artist, row.Year, row.Genre));
+        var copy = TagReader.Read(Path.Combine(_root, row.RelativePath));
+        Assert.Equal(("New title", "New artist", 2004u, "Jazz"), (copy.Title, copy.Artist, copy.Year, copy.Genre));
     }
 
     [Fact]

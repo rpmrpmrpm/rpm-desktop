@@ -48,6 +48,7 @@ internal static class MediaServerHttp
     public static async Task<JsonElement> JsonAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct)
     {
         using var response = await http.SendAsync(request, ct);
+        ThrowIfOffline(response);
         if (response.StatusCode == HttpStatusCode.Unauthorized)
             throw new MediaServerSignInExpired();
         if (!response.IsSuccessStatusCode)
@@ -69,6 +70,7 @@ internal static class MediaServerHttp
     {
         try
         {
+            ThrowIfOffline(response);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new MediaServerSignInExpired();
             if (!response.IsSuccessStatusCode)
@@ -80,6 +82,17 @@ internal static class MediaServerHttp
             response.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// The online gate answers 503 itself when the network is away, and no request is sent. That is no
+    /// answer, not a server's refusal: it is thrown as an <see cref="HttpRequestException"/> with no status,
+    /// so the run waits and tries the same track again instead of counting a failed attempt against it.
+    /// </summary>
+    public static void ThrowIfOffline(HttpResponseMessage response)
+    {
+        if (RPM.Core.Net.OnlineGateHandler.WasRefused(response))
+            throw new HttpRequestException("The network is away.", null, statusCode: null);
     }
 
     public static string Str(JsonElement e, string name) =>

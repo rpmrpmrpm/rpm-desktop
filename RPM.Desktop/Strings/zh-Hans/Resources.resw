@@ -10095,6 +10095,10 @@
     <value>在 iBroadcast 回收站中</value>
     <comment>Import from another app: why a skipped track is not imported; it is in the iBroadcast trash. Shown after the track name and a colon.</comment>
   </data>
+  <data name="Migration_SkipIBroadcastList" xml:space="preserve">
+    <value>由 iBroadcast 自动填充的列表</value>
+    <comment>Import from another app: why a playlist is not imported; iBroadcast fills it by itself (such as its most recent uploads). Shown after the playlist name and a colon.</comment>
+  </data>
   <data name="Migration_IBroadcastTagsFolder" xml:space="preserve">
     <value>标签</value>
     <comment>Import from another app: the name of the playlist folder that holds the iBroadcast tags, one playlist per tag.</comment>
@@ -10256,7 +10260,7 @@
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
   <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
-    <value>{0} 首曲目不会导入（在 iBroadcast 回收站中，或不是 rpm 能读取的文件）</value>
+    <value>{0} 个项目不会导入（在 iBroadcast 回收站中、没有文件，或由 iBroadcast 自动填充的列表）</value>
     <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
   </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
