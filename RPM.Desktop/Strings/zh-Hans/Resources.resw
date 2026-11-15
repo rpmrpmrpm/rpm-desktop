@@ -10255,6 +10255,10 @@
     <value>{0} 个项目不会导入（流媒体、视频、播客，或不在这台电脑上的文件）</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
+    <value>{0} 首曲目不会导入（在 iBroadcast 回收站中，或不是 rpm 能读取的文件）</value>
+    <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
+  </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
     <value>你之前导入过 {0}。两个资料库中都有的播放次数会被计算两次。</value>
     <comment>Import from another app, summary: other libraries were imported into rpm before ({0} is their names, joined by commas). Each library's plays are added, so plays that two libraries share (for example a MusicBee library built from an iTunes import) count twice.</comment>

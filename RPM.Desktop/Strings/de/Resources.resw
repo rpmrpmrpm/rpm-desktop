@@ -10255,6 +10255,10 @@
     <value>{0} Elemente werden nicht importiert (Streams, Videos, Podcasts oder Dateien, die nicht auf diesem Computer liegen)</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
+    <value>{0} Titel werden nicht importiert (im iBroadcast-Papierkorb oder keine Datei, die rpm lesen kann)</value>
+    <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
+  </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
     <value>Sie haben {0} bereits importiert. Wiedergaben, die beide Mediatheken enthalten, werden doppelt gezählt.</value>
     <comment>Import from another app, summary: other libraries were imported into rpm before ({0} is their names, joined by commas). Each library's plays are added, so plays that two libraries share (for example a MusicBee library built from an iTunes import) count twice.</comment>

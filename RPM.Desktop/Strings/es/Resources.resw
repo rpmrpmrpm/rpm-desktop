@@ -10255,6 +10255,10 @@
     <value>{0} elementos no se importan (streams, vídeos, podcasts o archivos que no están en este ordenador)</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
   </data>
+  <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
+    <value>{0} canciones no se importan (en la papelera de iBroadcast, o no son un archivo que rpm pueda leer)</value>
+    <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
+  </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
     <value>Ya importaste {0}. Las reproducciones que tienen ambas bibliotecas se cuentan dos veces.</value>
     <comment>Import from another app, summary: other libraries were imported into rpm before ({0} is their names, joined by commas). Each library's plays are added, so plays that two libraries share (for example a MusicBee library built from an iTunes import) count twice.</comment>

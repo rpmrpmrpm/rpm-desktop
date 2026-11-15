@@ -49,7 +49,8 @@ public sealed partial class MigrationDialog : ContentDialog
         _dispatcher = DispatcherQueue.GetForCurrentThread();
 
         InitializeComponent();
-        Shell.AttachResize(this, minWidth: 560, minHeight: 440, maxWidth: 860, defaultHeight: 540);
+        // The default height shows the three rows of app tiles without scrolling.
+        Shell.AttachResize(this, minWidth: 560, minHeight: 440, maxWidth: 860, defaultHeight: 620);
 
         _service.Changed += OnServiceChanged;
         Closed += (_, _) =>
@@ -537,7 +538,8 @@ public sealed partial class MigrationDialog : ContentDialog
         SummaryPlaylists.Visibility = Vis(library.Playlists.Count > 0);
         SummaryAlready.Text = Loc.Format("Migration_SummaryAlready", Count(estimate.AboutAlreadyInRpm));
         SummaryAlready.Visibility = Vis(estimate.AboutAlreadyInRpm > 0);
-        SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", Count(library.Skipped.Count));
+        SummarySkipped.Text = Loc.Format(library.Kind == SourceKind.IBroadcast ? "Migration_SummarySkippedIBroadcast" : "Migration_SummarySkipped",
+            Count(library.Skipped.Count));
         SummarySkipped.Visibility = Vis(library.Skipped.Count > 0);
         // Each library counts its plays on its own, so plays two libraries share are counted twice.
         var others = _service.OtherImportsFor(library);
