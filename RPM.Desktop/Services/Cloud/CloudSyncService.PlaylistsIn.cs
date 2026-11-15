@@ -67,11 +67,19 @@ public sealed partial class CloudSyncService
         // This is one lookup per rpm id, and the results are kept. The alternative would be a set of every
         // id in the library. What is being asked about is the songs these playlists name, which is a few
         // hundred at most. The rows found here are the same rows the items are written from a moment later.
+        //
+        // An id the library does not know may be one a song had before: another device can still hold a
+        // playlist written before the song took over another copy's cloud id. It is looked up again under
+        // the id the song has now (see LibraryDatabase.IdAliases), so that playlist is not left waiting
+        // for a song that is already here.
         var found = new Dictionary<string, LibraryTrack?>(StringComparer.Ordinal);
         LibraryTrack? Resolve(string rpmId)
         {
             if (found.TryGetValue(rpmId, out var known)) return known;
-            return found[rpmId] = db.FindByRpmId(rpmId);
+            var track = db.FindByRpmId(rpmId);
+            if (track is null && db.CurrentRpmId(rpmId) is var now && !string.Equals(now, rpmId, StringComparison.Ordinal))
+                track = db.FindByRpmId(now);
+            return found[rpmId] = track;
         }
 
         var readings = CloudPlaylistIntake.Read(
@@ -219,8 +227,13 @@ public sealed partial class CloudSyncService
                 continue;
             }
 
-            var local = items.Select(item => item.RpmId!).ToList();
-            var merged = PlaylistMerge.Songs(mine.Published, local, playlist.TrackIds);
+            // All three lists in the ids the songs have now. A cloud copy written by a device that still had a
+            // song's old id would otherwise read as that song removed and another one added. The merge is
+            // compared with the cloud's own ids below, so a copy that held an old id is written back with
+            // the new one.
+            var local = db.CurrentRpmIds([.. items.Select(item => item.RpmId!)]);
+            var theirIds = db.CurrentRpmIds(playlist.TrackIds);
+            var merged = PlaylistMerge.Songs(mine.Published.Translated(db.CurrentRpmId), local, theirIds);
 
             // Every song in the merge has to be one this library actually holds. Nothing is done until they
             // all are.

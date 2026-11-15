@@ -29,6 +29,15 @@ public readonly record struct PlaylistBase
 
     public bool IsKnown => Ids is not null;
 
+    /// <summary>The same published list, with each id replaced by <paramref name="now"/>'s answer for it.
+    /// A song whose id changed after the list was published is then the same song in the merge, and not a
+    /// removal of one song and an addition of another. An unknown base stays unknown.</summary>
+    public PlaylistBase Translated(Func<string, string> now)
+    {
+        ArgumentNullException.ThrowIfNull(now);
+        return Ids is { } ids ? new PlaylistBase([.. ids.Select(now)]) : Unknown;
+    }
+
     /// <summary>Whether a list is exactly what was published: the same songs in the same order.
     ///
     /// <para>This check is kept here, not at the caller, and the ids stay hidden behind the type. A

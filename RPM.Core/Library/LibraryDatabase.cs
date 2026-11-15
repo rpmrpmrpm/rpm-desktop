@@ -821,6 +821,11 @@ public sealed partial class LibraryDatabase : IDisposable
             cmd.ExecuteNonQuery();
         }
 
+        // Playlist entries that name a song by an id it no longer has. An older build left them when a song
+        // took over another copy's cloud id. See LibraryDatabase.IdAliases. Outside the migration's
+        // transaction, because it opens one of its own.
+        RepairPlaylistIds();
+
         // Last, because it reads a note through the connection opened just above and writes it back.
         // Starting the app is one of the two things that give the generated lists different songs.
         NoteLaunchForGeneratedLists();
@@ -1889,6 +1894,10 @@ public sealed partial class LibraryDatabase : IDisposable
         // The record of imports from other music apps (see LibraryDatabase.Migrations). Created on every
         // open and not behind a version step, for the same reason as release_type above.
         CreateMigrationTables();
+
+        // The ids a song had before (see LibraryDatabase.IdAliases). Created on every open and not behind
+        // a version step, for the same reason as release_type above.
+        CreateIdAliasTable();
 
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into

@@ -486,16 +486,42 @@ public sealed partial class LibraryDatabase
     /// <para>Use it only after the canonical hashes have been found to match, which proves the two
     /// are the same recording. See <see cref="Metadata.TagReader.WriteRpmId"/>, which writes the same
     /// id into the file so that the mirror and the file keep agreeing.</para>
+    ///
+    /// <para>The playlist entries that named the song by its old id move to the new one, and the old id
+    /// is kept as an alias of the new one (see LibraryDatabase.IdAliases). Without that, every playlist
+    /// holding the song would name a song that no longer exists, and every other screen would count it
+    /// as a song it cannot find.</para>
     /// </summary>
     public void SetRpmId(long trackId, string rpmId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(rpmId);
+
         using (_gate.Take())
         {
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "UPDATE tracks SET rpm_id = $gid WHERE id = $id";
-            cmd.Parameters.AddWithValue("$gid", rpmId);
-            cmd.Parameters.AddWithValue("$id", trackId);
-            cmd.ExecuteNonQuery();
+            using var tx = _connection.BeginTransaction();
+
+            string? oldId;
+            using (var read = _connection.CreateCommand())
+            {
+                read.Transaction = tx;
+                read.CommandText = "SELECT rpm_id FROM tracks WHERE id = $id";
+                read.Parameters.AddWithValue("$id", trackId);
+                oldId = read.ExecuteScalar() as string;
+            }
+
+            using (var cmd = _connection.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE tracks SET rpm_id = $gid WHERE id = $id";
+                cmd.Parameters.AddWithValue("$gid", rpmId);
+                cmd.Parameters.AddWithValue("$id", trackId);
+                cmd.ExecuteNonQuery();
+            }
+
+            if (!string.IsNullOrEmpty(oldId) && !string.Equals(oldId, rpmId, StringComparison.Ordinal))
+                FollowIdChangeLocked(tx, oldId, rpmId);
+
+            tx.Commit();
         }
     }
 
