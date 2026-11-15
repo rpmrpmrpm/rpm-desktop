@@ -10059,6 +10059,46 @@
     <value>Navidrome or Subsonic</value>
     <comment>Import from another app: the Navidrome / Subsonic server choice.</comment>
   </data>
+  <data name="Migration_SourceIBroadcast" xml:space="preserve">
+    <value>iBroadcast</value>
+    <comment>Import from another app: the iBroadcast choice. A product name.</comment>
+  </data>
+  <data name="Migration_HintOnline" xml:space="preserve">
+    <value>Signs in to your account</value>
+    <comment>Import from another app: the line under an online service's choice (iBroadcast).</comment>
+  </data>
+  <data name="Migration_IBroadcastSignIn" xml:space="preserve">
+    <value>Sign in to iBroadcast</value>
+    <comment>Import from another app: the button that starts the iBroadcast sign-in in the browser.</comment>
+  </data>
+  <data name="Migration_IBroadcastWaiting" xml:space="preserve">
+    <value>Approve rpm in your browser. If iBroadcast asks for a code, enter {0}. This window continues when you are done.</value>
+    <comment>Import from another app: shown while waiting for the iBroadcast sign-in in the browser. {0} is the sign-in code, such as BPJWDQTV.</comment>
+  </data>
+  <data name="Migration_IBroadcastOpenAgain" xml:space="preserve">
+    <value>Open iBroadcast again</value>
+    <comment>Import from another app: the sign-in button while a code waits; it opens the iBroadcast page with the code again.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsIBroadcast" xml:space="preserve">
+    <value>rpm only reads from your iBroadcast library. Nothing in it is changed or removed.</value>
+    <comment>Import from another app: shown on the summary and while importing from iBroadcast.</comment>
+  </data>
+  <data name="Migration_IBroadcastFree" xml:space="preserve">
+    <value>Your iBroadcast account is free, so iBroadcast gives 128 kbps MP3 copies of your music, not your original files. With iBroadcast Premium, rpm imports the originals.</value>
+    <comment>Import from another app: shown on the summary when the iBroadcast account is free.</comment>
+  </data>
+  <data name="Migration_IBroadcastNotCarried" xml:space="preserve">
+    <value>Thumbs down and album and artist ratings are not imported. iBroadcast does not keep when a song was last played.</value>
+    <comment>Import from another app: shown on the summary of an iBroadcast import, listing what does not come along.</comment>
+  </data>
+  <data name="Migration_SkipInTrash" xml:space="preserve">
+    <value>In the iBroadcast trash</value>
+    <comment>Import from another app: why a skipped track is not imported; it is in the iBroadcast trash. Shown after the track name and a colon.</comment>
+  </data>
+  <data name="Migration_IBroadcastTagsFolder" xml:space="preserve">
+    <value>Tags</value>
+    <comment>Import from another app: the name of the playlist folder that holds the iBroadcast tags, one playlist per tag.</comment>
+  </data>
   <data name="Migration_SourcePlaylistFiles" xml:space="preserve">
     <value>Playlist files</value>
     <comment>Import from another app: the choice for .m3u/.pls playlist files. Also the name shown for this source in the report.</comment>

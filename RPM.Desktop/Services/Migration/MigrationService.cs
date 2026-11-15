@@ -14,13 +14,15 @@ using RPM.Core.Net;
 using RPM.Desktop.Services.Account;
 using RPM.Desktop.Services.Cloud;
 using RPM.Desktop.Services.Shell;
+using RPM.Desktop.Strings;
 
 namespace RPM.Desktop.Services.Migration;
 
 /// <summary>
 /// How to reach a source again: the library file or playlist files, or a signed-in media server. It is
 /// kept in the keychain (it can hold a server token or a Subsonic password) for as long as the import
-/// is unfinished, so it can be continued after the app was closed, and deleted when it finishes.
+/// is unfinished, so it can be continued after the app was closed, and deleted when it finishes. An
+/// iBroadcast grant in it is rewritten each time the tokens are renewed.
 /// </summary>
 public sealed record MigrationConnection(
     SourceKind Kind,
@@ -28,7 +30,9 @@ public sealed record MigrationConnection(
     JellyfinSession? Jellyfin = null,
     PlexServerChoice? Plex = null,
     Uri? PlexConnection = null,
-    SubsonicLogin? Subsonic = null);
+    SubsonicLogin? Subsonic = null,
+    IBroadcastAccount? IBroadcast = null,
+    IBroadcastGrant? IBroadcastGrant = null);
 
 /// <summary>
 /// Imports from other music apps on the desktop. Owns the one import that may run at a time (a
@@ -51,6 +55,12 @@ public sealed partial class MigrationService : IDisposable
     private readonly AuthService _auth;
     private readonly ILogger<MigrationService> _log;
     private readonly SemaphoreSlim _one = new(1, 1);
+    private readonly Lazy<MigrationSecrets> _secrets;
+
+    // One live token holder per iBroadcast user, shared by every server object made for that user (the
+    // window's read and the run), so a renewal by one is seen by the other. See IBroadcastSessionFor.
+    private readonly Lock _sessionsLock = new();
+    private readonly Dictionary<string, IBroadcastSession> _ibroadcast = new(StringComparer.Ordinal);
 
     private CancellationTokenSource? _cts;
 
@@ -64,6 +74,7 @@ public sealed partial class MigrationService : IDisposable
         _cloud = cloud;
         _auth = auth;
         _log = log;
+        _secrets = new Lazy<MigrationSecrets>(() => new MigrationSecrets(auth.Secrets));
     }
 
     /// <summary>The running import's progress or end changed. Raised on a worker thread.</summary>
@@ -133,6 +144,77 @@ public sealed partial class MigrationService : IDisposable
     /// <summary>plex.tv, for the Plex sign-in and the server list.</summary>
     public static HttpClient PlexTv() => Wire.Outside(Destination.Unaddressed, TimeSpan.FromSeconds(30));
 
+    /// <summary>iBroadcast's sign-in, API, library and streaming servers. Downloads can be long, so the
+    /// client's own timeout only bounds the wait for an answer.</summary>
+    public static HttpClient IBroadcastHttp() => Wire.Outside(Destination.Unaddressed, TimeSpan.FromMinutes(10));
+
+    /// <summary>The connection for a new iBroadcast sign-in: reads the account with the new tokens and
+    /// makes them the live session for that account.</summary>
+    public async Task<MigrationConnection> IBroadcastConnectionAsync(IBroadcastGrant grant, CancellationToken ct)
+    {
+        var http = IBroadcastHttp();
+        var reading = new IBroadcastSession(http, grant, _ => { });
+        var account = await IBroadcastSignIn.AccountAsync(http, reading, ct);
+        IBroadcastSessionFor(account, reading.Grant);
+        return new MigrationConnection(SourceKind.IBroadcast, [], IBroadcast: account, IBroadcastGrant: reading.Grant);
+    }
+
+    /// <summary>
+    /// The live token holder for an iBroadcast account. The one already live is kept unless
+    /// <paramref name="grant"/> expires later, which only a new sign-in gives: a grant read back from the
+    /// keychain may be older than the live one, and its refresh token may already be spent.
+    /// </summary>
+    private IBroadcastSession IBroadcastSessionFor(IBroadcastAccount account, IBroadcastGrant grant)
+    {
+        lock (_sessionsLock)
+        {
+            if (_ibroadcast.TryGetValue(account.UserId, out var live) && live.Grant.ExpiresAt >= grant.ExpiresAt)
+                return live;
+            var name = SecretName(SourceKind.IBroadcast, account.UserId);
+            var session = new IBroadcastSession(IBroadcastHttp(), grant,
+                fresh => _secrets.Value.Replace(name, kept => kept with { IBroadcastGrant = fresh }));
+            _ibroadcast[account.UserId] = session;
+            return session;
+        }
+    }
+
+    /// <summary>The connection with the newest iBroadcast tokens: those of the live session when it holds
+    /// newer ones. Other connections are returned as they are.</summary>
+    private MigrationConnection WithLiveGrant(MigrationConnection connection)
+    {
+        if (connection is not { IBroadcast: { } account, IBroadcastGrant: { } grant })
+            return connection;
+        lock (_sessionsLock)
+            return _ibroadcast.TryGetValue(account.UserId, out var live) && live.Grant.ExpiresAt > grant.ExpiresAt
+                ? connection with { IBroadcastGrant = live.Grant }
+                : connection;
+    }
+
+    /// <summary>Ends an iBroadcast sign-in that is no longer needed: drops the live session and revokes its
+    /// refresh token on iBroadcast's side. Best effort: a revoke that fails leaves a token that expires.</summary>
+    private void EndIBroadcast(string userId)
+    {
+        IBroadcastSession? session;
+        lock (_sessionsLock)
+        {
+            if (!_ibroadcast.Remove(userId, out session))
+                return;
+        }
+        var refreshToken = session.Grant.RefreshToken;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var http = IBroadcastHttp();
+                await IBroadcastSignIn.RevokeAsync(http, refreshToken, CancellationToken.None);
+            }
+            catch (Exception e) when (e is HttpRequestException or OperationCanceledException or IOException)
+            {
+                _log.LogDebug(e, "[Migration] The iBroadcast sign-in was not revoked; its token expires by itself");
+            }
+        });
+    }
+
     private static bool IsLocal(Uri server)
     {
         if (IPAddress.TryParse(server.Host, out var ip))
@@ -171,12 +253,15 @@ public sealed partial class MigrationService : IDisposable
         }
     }
 
-    /// <summary>The media server a connection names, or null for a library file.</summary>
-    public static IMediaServer? ServerFor(MigrationConnection c) => c.Kind switch
+    /// <summary>The media server a connection names, or null for a library file. An iBroadcast server
+    /// uses the live token holder of its account (see <see cref="IBroadcastSessionFor"/>).</summary>
+    public IMediaServer? ServerFor(MigrationConnection c) => c.Kind switch
     {
         SourceKind.Jellyfin when c.Jellyfin is { } j => new JellyfinServer(HttpFor(j.Server), j),
         SourceKind.Plex when c.Plex is { } p && c.PlexConnection is { } at => new PlexServer(HttpFor(at), p, at),
         SourceKind.Navidrome when c.Subsonic is { } s => new SubsonicServer(HttpFor(s.Server), s),
+        SourceKind.IBroadcast when c.IBroadcast is { } account && c.IBroadcastGrant is { } grant => new IBroadcastServer(
+            IBroadcastHttp(), IBroadcastSessionFor(account, grant), account, Loc.Get("Migration_IBroadcastTagsFolder")),
         _ => null,
     };
 
@@ -219,19 +304,8 @@ public sealed partial class MigrationService : IDisposable
         _library.IsOpen ? _library.Db.UnfinishedMigrations() : [];
 
     /// <summary>How to reach an unfinished import's source again, or null when it was not kept.</summary>
-    public MigrationConnection? SavedConnection(MigrationSummary summary)
-    {
-        if (_auth.Secrets.Read(SecretName(summary.Kind, summary.LibraryId)) is not SecretRead.Found { Bytes: var bytes })
-            return null;
-        try
-        {
-            return JsonSerializer.Deserialize(bytes, MigrationServiceJson.Default.MigrationConnection);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    public MigrationConnection? SavedConnection(MigrationSummary summary) =>
+        _secrets.Value.Read(SecretName(summary.Kind, summary.LibraryId)) is { } kept ? WithLiveGrant(kept) : null;
 
     // ── the run ──
 
@@ -258,6 +332,7 @@ public sealed partial class MigrationService : IDisposable
         var record = db.OpenMigration(library, destination);
         if (how == ImportStart.StartOver)
             record.StartOver();
+        connection = WithLiveGrant(connection);
         KeepConnection(library, record.LibraryKey, connection);
 
         var cts = new CancellationTokenSource();
@@ -304,7 +379,10 @@ public sealed partial class MigrationService : IDisposable
             {
                 LastReport = MigrationReports.Build(library, record, run.Playlists);
                 if (end == RunEnd.Finished)
-                    _auth.Secrets.Delete(SecretName(library.Kind, record.LibraryKey));
+                    _secrets.Value.Delete(SecretName(library.Kind, record.LibraryKey));
+                // The live iBroadcast session stays while the report lists tracks that "Try again" can import.
+                if (end == RunEnd.Finished && connection.IBroadcast is { } account && LastReport.NotImported.Count == 0)
+                    EndIBroadcast(account.UserId);
                 if (destination == MigrationDestination.ThisComputer || CloudReady)
                     _ = _cloudSync.KickAsync();
             }
@@ -340,15 +418,16 @@ public sealed partial class MigrationService : IDisposable
         if (IsRunning || !_library.IsOpen)
             return;
         _library.Db.ForgetMigration(import);
-        _auth.Secrets.Delete(SecretName(import.Kind, import.LibraryId));
+        _secrets.Value.Delete(SecretName(import.Kind, import.LibraryId));
+        if (import.Kind == SourceKind.IBroadcast)
+            EndIBroadcast(import.LibraryId);
         Raise();
     }
 
     private void KeepConnection(SourceLibrary library, string libraryKey, MigrationConnection connection)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(connection, MigrationServiceJson.Default.MigrationConnection);
         var name = SecretName(library.Kind, libraryKey);
-        if (_auth.Secrets.Write(name, bytes) is not SecretWrite.Done)
+        if (_secrets.Value.Keep(name, connection) is not SecretWrite.Done)
             _log.LogInformation("[Migration] The sign-in for {Source} is not kept; continuing later asks again", library.Name);
     }
 
@@ -367,6 +446,8 @@ public sealed partial class MigrationService : IDisposable
     }
 
     // The semaphore is not disposed: the background run releases it when it ends, which can be after this.
+    // A live iBroadcast session is not revoked at quit: an unfinished import keeps it in the keychain to
+    // continue, and a finished one with tracks left to try again lets its token expire.
     public void Dispose() => _cts?.Cancel();
 
     private sealed class Reporter(MigrationService service) : IProgress<MigrationProgress>
