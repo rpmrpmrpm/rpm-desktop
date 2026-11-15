@@ -3249,12 +3249,12 @@
     <comment>Empty state on the iPhone playlist page. Not the queue, which has its own line (Rpm_Queue_Empty) and no plus button.</comment>
   </data>
   <data name="Rpm_Playlist_Missing" xml:space="preserve">
-    <value>{0} morceaux ne sont pas encore dans le cloud</value>
-    <comment>iPhone playlist header: how many of a playlist's tracks the cloud store does not hold yet. {0} = count.</comment>
+    <value>{0} morceaux introuvables</value>
+    <comment>Playlist header on the phone, Apple TV and web apps: how many songs the playlist names that the collection cannot find. A song can be missing because the computer has not uploaded it yet, or because the playlist names it by an id the collection no longer has, so the text must not promise that it will arrive. {0} = count, 2 or more.</comment>
   </data>
   <data name="Rpm_Playlist_MissingOne" xml:space="preserve">
-    <value>1 morceau n'est pas encore dans le cloud</value>
-    <comment>iPhone playlist header: the same as Rpm_Playlist_Missing when exactly one track is not in the cloud store yet.</comment>
+    <value>1 morceau introuvable</value>
+    <comment>The same as Rpm_Playlist_Missing when exactly one song cannot be found.</comment>
   </data>
   <data name="Rpm_Queue_Empty" xml:space="preserve">
     <value>La file est vide. Lancez un morceau et il apparaîtra ici.</value>
