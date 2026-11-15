@@ -1,0 +1,453 @@
+{
+  "result": true,
+  "message": "ok",
+  "library": {
+    "tracks": {
+      "map": {
+        "title": 0,
+        "album_id": 1,
+        "track": 2,
+        "type": 3,
+        "length": 4,
+        "artist_id": 5,
+        "file": 6,
+        "genre": 7,
+        "year": 8,
+        "plays": 9,
+        "rating": 10,
+        "uploaded_on": 11,
+        "uploaded_time": 12,
+        "size": 13,
+        "trashed": 14,
+        "path": 15,
+        "uid": 16,
+        "codec": 17,
+        "artwork_id": 18,
+        "icatid": 19,
+        "replay_gain": 20,
+        "artists_additional": 21,
+        "genres_additional": 22,
+        "artists_additional_map": {
+          "artist_id": 0,
+          "phrase": 1,
+          "type": 2
+        }
+      },
+      "101": [
+        "Opening",
+        10,
+        1,
+        "audio/flac",
+        241,
+        1,
+        "/128/a1b/c2d/101",
+        "Jazz",
+        2001,
+        12,
+        5,
+        "2019-04-02",
+        "08:15:30",
+        31457280,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "102": [
+        "Second Song",
+        10,
+        2,
+        "audio/mpeg3",
+        198,
+        3,
+        "/128/a1b/c2e/102",
+        "Jazz",
+        0,
+        0,
+        1,
+        "2019-04-03",
+        "21:40:05",
+        7340032,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "103": [
+        "Disc Two Opener",
+        11,
+        1,
+        "audio/x-m4a",
+        305,
+        1,
+        "/128/a1b/c2f/103",
+        "Jazz",
+        2001,
+        3,
+        0,
+        "2019-04-02",
+        "08:15:30",
+        9437184,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "104": [
+        "Thrown Away",
+        13,
+        1,
+        "audio/mpeg",
+        180,
+        2,
+        "/128/b2c/d3e/104",
+        "Rock",
+        2010,
+        0,
+        0,
+        "2019-04-02",
+        "08:15:30",
+        4194304,
+        true,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "105": [
+        "Lost Album Song",
+        12,
+        1,
+        "audio/mpeg",
+        200,
+        2,
+        "/128/b2c/d3f/105",
+        "Rock",
+        2010,
+        0,
+        0,
+        "2019-04-02",
+        "08:15:30",
+        4718592,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "106": [
+        "No File Yet",
+        13,
+        2,
+        "audio/mpeg",
+        150,
+        2,
+        "",
+        "Rock",
+        2015,
+        0,
+        0,
+        "2019-04-02",
+        "08:15:30",
+        3145728,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "107": [
+        "Strange Format",
+        13,
+        3,
+        "audio/x-unknown",
+        120,
+        2,
+        "/128/b2c/d40/107",
+        "Rock",
+        2015,
+        0,
+        0,
+        "2019-04-02",
+        "08:15:30",
+        2097152,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ],
+      "108": [
+        "Closing Time",
+        13,
+        4,
+        "audio/ogg",
+        222,
+        2,
+        "/128/b2c/d41/108",
+        "Rock",
+        2015,
+        7,
+        0,
+        "2021-11-30",
+        "23:59:59",
+        5242880,
+        false,
+        "",
+        1234,
+        null,
+        null,
+        null,
+        "0.0",
+        [],
+        []
+      ]
+    },
+    "albums": {
+      "map": {
+        "name": 0,
+        "tracks": 1,
+        "artist_id": 2,
+        "trashed": 3,
+        "rating": 4,
+        "disc": 5,
+        "year": 6,
+        "artists_additional": 7,
+        "icatid": 8,
+        "artists_additional_map": {
+          "type": 2,
+          "phrase": 1,
+          "artist_id": 0
+        }
+      },
+      "10": [
+        "First Record",
+        [
+          101,
+          102
+        ],
+        1,
+        false,
+        4,
+        1,
+        2001,
+        [],
+        null
+      ],
+      "11": [
+        "First Record",
+        [
+          103
+        ],
+        1,
+        false,
+        0,
+        2,
+        2001,
+        [],
+        null
+      ],
+      "12": [
+        "Second Record",
+        [
+          105
+        ],
+        2,
+        true,
+        0,
+        0,
+        2010,
+        [],
+        null
+      ],
+      "13": [
+        "Loose Ends",
+        [
+          104,
+          106,
+          107,
+          108
+        ],
+        2,
+        false,
+        0,
+        0,
+        0,
+        [],
+        null
+      ]
+    },
+    "artists": {
+      "map": {
+        "name": 0,
+        "tracks": 1,
+        "trashed": 2,
+        "rating": 3,
+        "artwork_id": 4,
+        "icatid": 5
+      },
+      "1": [
+        "Artist One",
+        [
+          101,
+          103
+        ],
+        false,
+        0,
+        null,
+        null
+      ],
+      "2": [
+        "Artist Two",
+        [
+          104,
+          105,
+          106,
+          107,
+          108
+        ],
+        false,
+        3,
+        null,
+        null
+      ],
+      "3": [
+        "Guest Singer",
+        [
+          102
+        ],
+        false,
+        0,
+        null,
+        null
+      ]
+    },
+    "playlists": {
+      "map": {
+        "name": 0,
+        "tracks": 1,
+        "uid": 2,
+        "system_created": 3,
+        "public_id": 4,
+        "type": 5,
+        "description": 6,
+        "artwork_id": 7,
+        "sort": 8
+      },
+      "501": [
+        "Road Trip",
+        [
+          101,
+          103,
+          101,
+          104,
+          999
+        ],
+        1234,
+        false,
+        null,
+        null,
+        "",
+        null,
+        0
+      ],
+      "502": [
+        "Most Recent Uploads",
+        [
+          108,
+          103,
+          102,
+          101
+        ],
+        1234,
+        false,
+        null,
+        "recently-uploaded",
+        null,
+        null,
+        0
+      ],
+      "503": [
+        "Thumbs Up",
+        [
+          101
+        ],
+        1234,
+        true,
+        null,
+        "thumbsup",
+        null,
+        null,
+        0
+      ]
+    },
+    "tags": {
+      "map": {
+        "name": 0,
+        "archived": 1,
+        "tracks": 2
+      },
+      "601": [
+        "Workout",
+        false,
+        [
+          101,
+          108
+        ]
+      ],
+      "602": [
+        "Old Stuff",
+        true,
+        []
+      ]
+    },
+    "trash": {
+      "map": {
+        "name": 0,
+        "tracks": 1
+      },
+      "1": [
+        "Trash",
+        [
+          104
+        ]
+      ]
+    },
+    "expires": 1824679085
+  },
+  "status": {
+    "lastmodified": "2024-05-01 10:00:00"
+  },
+  "settings": {}
+}

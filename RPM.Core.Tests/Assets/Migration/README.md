@@ -12,3 +12,6 @@ projects.
   `/Users/test/Playlists/`.
 - `jellyfin/`, `plex/`, `subsonic/`: JSON answers of the servers' APIs. The Navidrome samples are read
   as the server `http://nas.local:4533` with the user `test`.
+- `ibroadcast/`: JSON answers of iBroadcast's sign-in, `status` and library servers. `status.json` is
+  a Premium account, `status-free.json` a free one. The library lists its tables in iBroadcast's
+  compact form: rows as lists, read through each table's `map`.

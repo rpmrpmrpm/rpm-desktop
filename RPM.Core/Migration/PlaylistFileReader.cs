@@ -74,6 +74,8 @@ public static partial class PlaylistFileReader
             AlbumArtist: "",
             TrackNumber: 0,
             DiscNumber: 0,
+            Year: 0,
+            Genre: "",
             DurationSeconds: entry.Seconds,
             SizeBytes: 0,
             Rating: 0,

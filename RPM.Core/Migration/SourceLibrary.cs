@@ -9,6 +9,19 @@ public enum SourceKind
     Plex,
     Navidrome,
     PlaylistFiles,
+    IBroadcast,
+}
+
+/// <summary>Whose tags a track gets when the file's tags and the other app's tags differ.</summary>
+public enum TagRule
+{
+    /// <summary>The file's tags stay. The other app only fills tags the file does not have. This is the
+    /// rule for apps that read their tags from the file, so the two agree.</summary>
+    FileFirst,
+
+    /// <summary>The other app's tags replace the file's, wherever the other app gives a value. This is the
+    /// rule for an app that keeps edited tags apart from the file it stores (iBroadcast).</summary>
+    SourceFirst,
 }
 
 /// <summary>Where a source track's audio is. It is a file on this computer, or a file on a media
@@ -30,6 +43,8 @@ public sealed record RemoteFile(string Key, string Extension, long Size) : Sourc
 /// </summary>
 /// <param name="SourceId">The other app's own id for the track, stable between two reads of the same
 /// library.</param>
+/// <param name="Year">The year, or 0 when the app does not say.</param>
+/// <param name="Genre">The genre, or "" when the app does not say.</param>
 /// <param name="Rating">0 to 10 (half stars), 0 meaning not rated.</param>
 /// <param name="DurationSeconds">0 when the app does not say.</param>
 /// <param name="SizeBytes">0 when the app does not say.</param>
@@ -42,6 +57,8 @@ public sealed record SourceTrack(
     string AlbumArtist,
     int TrackNumber,
     int DiscNumber,
+    int Year,
+    string Genre,
     double DurationSeconds,
     long SizeBytes,
     int Rating,
@@ -91,6 +108,16 @@ public sealed record SourceLibrary(
     /// <summary>The device name the library's play counts are stored under. Each source library is
     /// one device, so importing it again replaces its plays and does not add them a second time.</summary>
     public string DeviceId => $"import:{Kind.ToString().ToLowerInvariant()}:{LibraryId}";
+
+    /// <summary>Whose tags the imported tracks get. It follows from the kind alone, so every library of
+    /// a kind is imported the same way.</summary>
+    public TagRule Tags => Kind switch
+    {
+        SourceKind.IBroadcast => TagRule.SourceFirst,
+        SourceKind.MusicBee or SourceKind.ITunes or SourceKind.Jellyfin or SourceKind.Plex
+            or SourceKind.Navidrome or SourceKind.PlaylistFiles => TagRule.FileFirst,
+        _ => throw new ArgumentOutOfRangeException(nameof(Kind), Kind, "A source kind with no tag rule."),
+    };
 }
 
 /// <summary>The <c>Migration_*</c> string keys the readers use for skipped items.</summary>

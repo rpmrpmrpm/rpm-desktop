@@ -190,6 +190,8 @@ public sealed class JellyfinServer(HttpClient http, JellyfinSession session) : I
             AlbumArtist: albumArtist,
             TrackNumber: (int)Num(item, "IndexNumber"),
             DiscNumber: (int)Num(item, "ParentIndexNumber"),
+            Year: 0,
+            Genre: "",
             DurationSeconds: Num(item, "RunTimeTicks") / 10_000_000.0,
             SizeBytes: size,
             Rating: 0,

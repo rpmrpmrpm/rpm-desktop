@@ -426,7 +426,7 @@ public sealed class MigrationRun(
             TrackInfo info;
             try
             {
-                info = WithSourceTags(TagReader.Read(path), track);
+                info = WithSourceTags(TagReader.Read(path), track, library.Tags);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -765,25 +765,34 @@ public sealed class MigrationRun(
     // ── small rules ──
 
     /// <summary>
-    /// Tags the file does not have are taken from what the other app says. When anything was taken, the
-    /// track is marked so the filer writes the tags into rpm's copy (<see cref="MetadataSource.Manual"/>);
-    /// otherwise the copy would land with no title, and the library row read from it would have none.
-    /// The other app's own file is never written.
+    /// Puts the other app's tags on the file's, by the library's <see cref="TagRule"/>. With
+    /// <see cref="TagRule.FileFirst"/> only the tags the file does not have are taken; with
+    /// <see cref="TagRule.SourceFirst"/> every tag the other app gives replaces the file's. The length is
+    /// always the file's. When anything was taken, the track is marked so the filer writes the tags into
+    /// rpm's copy (<see cref="MetadataSource.Manual"/>); otherwise the copy would keep the file's tags, and
+    /// the library row read from it would have them. The other app's own file is never written.
     /// </summary>
-    private static TrackInfo WithSourceTags(TrackInfo info, SourceTrack track)
+    internal static TrackInfo WithSourceTags(TrackInfo info, SourceTrack track, TagRule rule)
     {
+        var replace = rule == TagRule.SourceFirst;
+        string? Text(string? file, string source) => Blank(file) ? NullIfBlank(source) : replace && !Blank(source) ? source : file;
+        uint Number(uint file, int source) => (replace || file == 0) && source > 0 ? (uint)source : file;
+
         var filled = info with
         {
-            Title = Blank(info.Title) ? NullIfBlank(track.Title) : info.Title,
-            Artist = Blank(info.Artist) ? NullIfBlank(track.Artist) : info.Artist,
-            Album = Blank(info.Album) ? NullIfBlank(track.Album) : info.Album,
-            AlbumArtist = Blank(info.AlbumArtist) ? NullIfBlank(track.AlbumArtist) : info.AlbumArtist,
-            TrackNumber = info.TrackNumber == 0 && track.TrackNumber > 0 ? (uint)track.TrackNumber : info.TrackNumber,
-            DiscNumber = info.DiscNumber == 0 && track.DiscNumber > 0 ? (uint)track.DiscNumber : info.DiscNumber,
+            Title = Text(info.Title, track.Title),
+            Artist = Text(info.Artist, track.Artist),
+            Album = Text(info.Album, track.Album),
+            AlbumArtist = Text(info.AlbumArtist, track.AlbumArtist),
+            TrackNumber = Number(info.TrackNumber, track.TrackNumber),
+            DiscNumber = Number(info.DiscNumber, track.DiscNumber),
+            Year = Number(info.Year, track.Year),
+            Genre = Text(info.Genre, track.Genre),
             DurationSeconds = info.DurationSeconds > 0 ? info.DurationSeconds : track.DurationSeconds,
         };
         var changed = filled.Title != info.Title || filled.Artist != info.Artist || filled.Album != info.Album
-            || filled.AlbumArtist != info.AlbumArtist || filled.TrackNumber != info.TrackNumber || filled.DiscNumber != info.DiscNumber;
+            || filled.AlbumArtist != info.AlbumArtist || filled.TrackNumber != info.TrackNumber || filled.DiscNumber != info.DiscNumber
+            || filled.Year != info.Year || filled.Genre != info.Genre;
         return changed ? filled with { Source = MetadataSource.Manual } : filled;
     }
 

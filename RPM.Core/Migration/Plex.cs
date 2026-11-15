@@ -212,6 +212,8 @@ public sealed class PlexServer(HttpClient http, PlexServerChoice server, Uri con
             AlbumArtist: albumArtist,
             TrackNumber: (int)Num(item, "index"),
             DiscNumber: (int)Num(item, "parentIndex"),
+            Year: 0,
+            Genre: "",
             DurationSeconds: Num(item, "duration") / 1000.0,
             SizeBytes: size,
             Rating: Math.Clamp((int)Math.Round(Real(item, "userRating")), 0, 10),

@@ -58,11 +58,11 @@ public class MigrationRunTests : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllBytes(path, TestAudio.Wav(1, seed));
         }
-        return new SourceTrack(id, new LocalFile(path), title, artist, album, artist, (int)track, 1, 1.0, 16_044, rating, favorite, plays, last, added);
+        return new SourceTrack(id, new LocalFile(path), title, artist, album, artist, (int)track, 1, 0, "", 1.0, 16_044, rating, favorite, plays, last, added);
     }
 
     private static SourceTrack Remote(string id, string album, string title, uint track = 1, int plays = 0, string artist = "Band") =>
-        new(id, new RemoteFile(id, ".wav", TestAudio.Wav(1, id.GetHashCode() & 0xff).Length), title, artist, album, artist, (int)track, 1, 1.0,
+        new(id, new RemoteFile(id, ".wav", TestAudio.Wav(1, id.GetHashCode() & 0xff).Length), title, artist, album, artist, (int)track, 1, 0, "", 1.0,
             TestAudio.Wav(1, id.GetHashCode() & 0xff).Length, 0, false, plays, null, Y2015);
 
     private static SourceLibrary Library(SourceKind kind, params SourceTrack[] tracks) => new(kind, "lib-1", "MusicBee", tracks, [], []);
@@ -97,6 +97,60 @@ public class MigrationRunTests : IDisposable
             DurationSeconds = seconds, RpmId = Guid.NewGuid().ToString("D"), AddedUtcTicks = Y2021.UtcTicks,
         });
         return _db.FindByRelativePath(rel)!;
+    }
+
+    // ── whose tags win ──
+
+    private static readonly TrackInfo FileTags = new()
+    {
+        FilePath = "/tmp/a.flac", Extension = ".flac", DurationSeconds = 200, Title = "Old title", Artist = "Old artist",
+        Album = "Old album", AlbumArtist = "Old album artist", TrackNumber = 3, DiscNumber = 2, Year = 1999, Genre = "Rock",
+    };
+
+    private static SourceTrack Tagged(string title, string artist, string album, string albumArtist, int track, int disc, int year, string genre) =>
+        new("s1", new RemoteFile("s1", ".flac", 0), title, artist, album, albumArtist, track, disc, year, genre, 100, 0, 0, false, 0, null, null);
+
+    [Fact]
+    public void Source_first_tags_replace_the_file_tags()
+    {
+        var info = MigrationRun.WithSourceTags(FileTags, Tagged("New title", "New artist", "New album", "New album artist", 5, 1, 2004, "Jazz"), TagRule.SourceFirst);
+
+        Assert.Equal(("New title", "New artist", "New album", "New album artist"), (info.Title, info.Artist, info.Album, info.AlbumArtist));
+        Assert.Equal((5u, 1u, 2004u, "Jazz"), (info.TrackNumber, info.DiscNumber, info.Year, info.Genre));
+        Assert.Equal(200, info.DurationSeconds);
+        Assert.Equal(MetadataSource.Manual, info.Source);
+    }
+
+    [Fact]
+    public void Source_first_keeps_the_file_value_where_the_source_gives_none()
+    {
+        var info = MigrationRun.WithSourceTags(FileTags, Tagged("New title", "", "", "", 0, 0, 0, ""), TagRule.SourceFirst);
+
+        Assert.Equal(("New title", "Old artist", "Old album", "Old album artist"), (info.Title, info.Artist, info.Album, info.AlbumArtist));
+        Assert.Equal((3u, 2u, 1999u, "Rock"), (info.TrackNumber, info.DiscNumber, info.Year, info.Genre));
+    }
+
+    [Fact]
+    public void File_first_keeps_the_file_tags()
+    {
+        var info = MigrationRun.WithSourceTags(FileTags, Tagged("New title", "New artist", "New album", "New album artist", 5, 1, 2004, "Jazz"), TagRule.FileFirst);
+
+        Assert.Equal(FileTags, info);
+    }
+
+    [Fact]
+    public void File_first_fills_a_blank_year_and_genre()
+    {
+        var info = MigrationRun.WithSourceTags(FileTags with { Year = 0, Genre = null }, Tagged("", "", "", "", 0, 0, 2004, "Jazz"), TagRule.FileFirst);
+
+        Assert.Equal((2004u, "Jazz", MetadataSource.Manual), (info.Year, info.Genre, info.Source));
+    }
+
+    [Fact]
+    public void Only_ibroadcast_makes_its_tags_win()
+    {
+        foreach (var kind in Enum.GetValues<SourceKind>())
+            Assert.Equal(kind == SourceKind.IBroadcast ? TagRule.SourceFirst : TagRule.FileFirst, new SourceLibrary(kind, "", "", [], [], []).Tags);
     }
 
     // ── this computer ──
@@ -271,7 +325,7 @@ public class MigrationRunTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(inside)!);
         File.WriteAllBytes(inside, TestAudio.Wav(1, 5));   // no tags, no rpm id
         var library = Library(SourceKind.MusicBee,
-            new SourceTrack("s1", new LocalFile(inside), "Two", "Band", "Record", "Band", 2, 1, 1, 16_044, 0, false, 7, Y2021, null));
+            new SourceTrack("s1", new LocalFile(inside), "Two", "Band", "Record", "Band", 2, 1, 0, "", 1, 16_044, 0, false, 7, Y2021, null));
 
         await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
 
@@ -290,7 +344,7 @@ public class MigrationRunTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(inside)!);
         File.WriteAllBytes(inside, TestAudio.Wav(1, 4));
         var library = Library(SourceKind.MusicBee,
-            new SourceTrack("s1", new LocalFile(inside), "One", "Band", "Record", "Band", 1, 1, 1, 16_044, 4, false, 0, null, null));
+            new SourceTrack("s1", new LocalFile(inside), "One", "Band", "Record", "Band", 1, 1, 0, "", 1, 16_044, 4, false, 0, null, null));
 
         await Run(library, MigrationDestination.ThisComputer).RunAsync(Quiet, CancellationToken.None);
 

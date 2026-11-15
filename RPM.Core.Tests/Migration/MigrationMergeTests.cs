@@ -10,7 +10,7 @@ public class MigrationMergeTests
     private static readonly DateTimeOffset Y2024 = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     private static SourceTrack Source(int rating = 0, bool favorite = false, DateTimeOffset? added = null, DateTimeOffset? last = null) =>
-        new("s1", new LocalFile("/m/a.mp3"), "T", "A", "Al", "A", 1, 1, 200, 1000, rating, favorite, 3, last, added);
+        new("s1", new LocalFile("/m/a.mp3"), "T", "A", "Al", "A", 1, 1, 0, "", 200, 1000, rating, favorite, 3, last, added);
 
     private static RpmSide Rpm(int rating = 0, bool favorite = false, long favoritedAt = 0, long added = 0, long last = 0) =>
         new(rating, favorite, favoritedAt, added, last);
