@@ -132,4 +132,7 @@ public static class SkipReason
 
     /// <summary>A podcast, an audiobook or a video.</summary>
     public const string NotMusic = "Migration_SkipNotMusic";
+
+    /// <summary>The track, or its album, is in the other app's trash (iBroadcast).</summary>
+    public const string InTrash = "Migration_SkipInTrash";
 }

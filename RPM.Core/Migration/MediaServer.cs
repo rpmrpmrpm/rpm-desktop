@@ -59,9 +59,14 @@ internal static class MediaServerHttp
 
     /// <summary>Sends the request and hands back the body as a stream, which the caller disposes. The
     /// response is read as it arrives, never buffered whole: a file can be several hundred megabytes.</summary>
-    public static async Task<Stream> StreamAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct)
+    public static async Task<Stream> StreamAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct) =>
+        await BodyAsync(await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct), ct);
+
+    /// <summary>The body of a response read with <see cref="HttpCompletionOption.ResponseHeadersRead"/>, as a
+    /// stream that disposes the response with it. 401 is <see cref="MediaServerSignInExpired"/>, any other
+    /// failure an <see cref="HttpRequestException"/> with the status; the response is disposed then.</summary>
+    public static async Task<Stream> BodyAsync(HttpResponseMessage response, CancellationToken ct)
     {
-        var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         try
         {
             if (response.StatusCode == HttpStatusCode.Unauthorized)
