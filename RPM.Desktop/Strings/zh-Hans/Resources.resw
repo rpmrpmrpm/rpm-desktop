@@ -1429,6 +1429,22 @@
     <value>在封面展示背后显示艺人照片。关闭后，rpm 不下载任何照片，改用专辑的颜色。</value>
     <comment>Settings &gt; Display: hint under the artist photo toggle.</comment>
   </data>
+  <data name="Settings_DiscStandIn" xml:space="preserve">
+    <value>没有唱片图的专辑</value>
+    <comment>Settings &gt; Display: label for the choice of what the record looks like when an album has no picture of its own disc.</comment>
+  </data>
+  <data name="Settings_DiscStandInHint" xml:space="preserve">
+    <value>专辑还没有唱片图时，选择转动的是什么：印着封面的黑胶唱片，或一张素面 CD。</value>
+    <comment>Settings &gt; Display: hint under the 'Albums without disc art' choice.</comment>
+  </data>
+  <data name="Settings_DiscStandInVinyl" xml:space="preserve">
+    <value>黑胶唱片</value>
+    <comment>Settings &gt; Display: 'Albums without disc art' option. The app's own drawn vinyl, with the album cover on its label. The default.</comment>
+  </data>
+  <data name="Settings_DiscStandInCd" xml:space="preserve">
+    <value>CD</value>
+    <comment>Settings &gt; Display: 'Albums without disc art' option. A plain silver CD with the rpm hub.</comment>
+  </data>
   <data name="Settings_MultiDisc" xml:space="preserve">
     <value>多碟专辑</value>
     <comment>Settings &gt; Collection: title of the card choosing how multi-disc releases are handled.</comment>
@@ -3434,6 +3450,498 @@
   <data name="Rpm_Tab_Home" xml:space="preserve">
     <value>主页</value>
     <comment>Phone tab bar label for the home screen. The page itself uses Home_Heading, in lower case.</comment>
+  </data>
+  <data name="Rpm_Settings_General" xml:space="preserve">
+    <value>通用</value>
+    <comment>Phone settings page: tab with the app version, crash reports and the cover cache.</comment>
+  </data>
+  <data name="Rpm_Settings_Appearance" xml:space="preserve">
+    <value>外观</value>
+    <comment>Phone settings page: tab with the background, night mode and the disc stand-in.</comment>
+  </data>
+  <data name="Rpm_Settings_Account" xml:space="preserve">
+    <value>我的账户</value>
+    <comment>Phone settings page: tab with the account, cloud storage and the plan.</comment>
+  </data>
+  <data name="Rpm_Profile_ListeningTo" xml:space="preserve">
+    <value>{0} 正在听 {2} 的《{1}》</value>
+    <comment>Phone profile page: line under the name. {0} the person, {1} the song, {2} the artist.</comment>
+  </data>
+  <data name="Rpm_Profile_MemberSince" xml:space="preserve">
+    <value>{0} 加入</value>
+    <comment>Phone profile page: when the account was made. {0} is a month and year.</comment>
+  </data>
+  <data name="Rpm_Profile_PostPrompt" xml:space="preserve">
+    <value>在想什么？</value>
+    <comment>Phone profile page: placeholder in the box for a new post on your own page.</comment>
+  </data>
+  <data name="Rpm_Profile_WithSong" xml:space="preserve">
+    <value>附上正在播放的歌曲</value>
+    <comment>Phone profile page: switch under the post box that adds the current song to the post.</comment>
+  </data>
+  <data name="Rpm_Profile_Reply" xml:space="preserve">
+    <value>回复</value>
+    <comment>Phone profile page: key under a post or reply.</comment>
+  </data>
+  <data name="Rpm_Profile_RepliesOne" xml:space="preserve">
+    <value>1 条回复</value>
+    <comment>Phone profile page: count of replies under a post, one.</comment>
+  </data>
+  <data name="Rpm_Profile_Replies" xml:space="preserve">
+    <value>{0} 条回复</value>
+    <comment>Phone profile page: count of replies under a post.</comment>
+  </data>
+  <data name="Rpm_Profile_ReplyPrompt" xml:space="preserve">
+    <value>写回复</value>
+    <comment>Phone profile page: placeholder in the reply box.</comment>
+  </data>
+  <data name="Rpm_Profile_ReplyDeleted" xml:space="preserve">
+    <value>回复已删除</value>
+    <comment>Phone profile page: shown in place of a deleted reply that still has replies under it.</comment>
+  </data>
+  <data name="Rpm_Profile_FeedEmptyOwn" xml:space="preserve">
+    <value>这里还什么都没有。在上方写下你的第一条动态。</value>
+    <comment>Phone profile page: your own page with no posts or reviews.</comment>
+  </data>
+  <data name="Rpm_Profile_FeedEmpty" xml:space="preserve">
+    <value>还没有动态或评论。</value>
+    <comment>Phone profile page: someone else's page with no posts or reviews.</comment>
+  </data>
+  <data name="Rpm_Profile_OpenAlbum" xml:space="preserve">
+    <value>打开专辑</value>
+    <comment>Phone profile page: key on a review in the feed, shown when the album is in your collection.</comment>
+  </data>
+  <data name="Rpm_Profile_Offline" xml:space="preserve">
+    <value>无法加载此个人主页。请检查网络连接后重试。</value>
+    <comment>Phone profile page: the page could not be read.</comment>
+  </data>
+  <data name="Rpm_Profile_Menu" xml:space="preserve">
+    <value>菜单</value>
+    <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
+  </data>
+  <data name="Rpm_Profile_Back" xml:space="preserve">
+    <value>返回</value>
+    <comment>Phone profile page: accessibility label of the round back key at the top left of someone else's page.</comment>
+  </data>
+  <data name="Rpm_Profile_EditPage" xml:space="preserve">
+    <value>编辑主页</value>
+    <comment>Phone profile page: menu item that opens the name editor.</comment>
+  </data>
+  <data name="Rpm_Profile_Name" xml:space="preserve">
+    <value>显示名称</value>
+    <comment>Phone profile page: label of the name field on the edit page.</comment>
+  </data>
+  <data name="Rpm_Profile_Save" xml:space="preserve">
+    <value>保存</value>
+    <comment>Phone profile page: key that saves the edit page.</comment>
+  </data>
+  <data name="Rpm_Profile_ChangePhoto" xml:space="preserve">
+    <value>更换头像</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_RemovePhoto" xml:space="preserve">
+    <value>移除头像</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_ChooseBanner" xml:space="preserve">
+    <value>选择横幅</value>
+    <comment>Phone profile page: menu item that picks the wide picture at the top of the page.</comment>
+  </data>
+  <data name="Rpm_Profile_RemoveBanner" xml:space="preserve">
+    <value>移除横幅</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_PictureFailed" xml:space="preserve">
+    <value>无法上传图片，请换一张试试。</value>
+    <comment>Phone profile page: a photo or banner upload failed.</comment>
+  </data>
+  <data name="Rpm_Profile_AddFriend" xml:space="preserve">
+    <value>加为好友</value>
+    <comment>Phone profile page: key under someone else's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Requested" xml:space="preserve">
+    <value>已发送请求</value>
+    <comment>Phone profile page: key under someone else's name after you asked to be friends.</comment>
+  </data>
+  <data name="Rpm_Profile_CancelRequest" xml:space="preserve">
+    <value>取消请求</value>
+    <comment>Phone profile page: menu item while your friend request waits.</comment>
+  </data>
+  <data name="Rpm_Profile_Accept" xml:space="preserve">
+    <value>接受</value>
+    <comment>Phone profile page: key that accepts a friend request.</comment>
+  </data>
+  <data name="Rpm_Profile_Decline" xml:space="preserve">
+    <value>拒绝</value>
+    <comment>Phone profile page: key that declines a friend request.</comment>
+  </data>
+  <data name="Rpm_Profile_Friends" xml:space="preserve">
+    <value>好友</value>
+    <comment>Phone profile page: key under the name of someone who is your friend.</comment>
+  </data>
+  <data name="Rpm_Profile_RemoveFriend" xml:space="preserve">
+    <value>删除好友</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_Block" xml:space="preserve">
+    <value>屏蔽</value>
+    <comment>Phone profile page: menu item and confirm key.</comment>
+  </data>
+  <data name="Rpm_Profile_Unblock" xml:space="preserve">
+    <value>取消屏蔽</value>
+    <comment>Phone profile page: menu item and key on the page of someone you blocked.</comment>
+  </data>
+  <data name="Rpm_Profile_BlockConfirm" xml:space="preserve">
+    <value>屏蔽 {0}？你们将看不到对方的动态和回复，好友关系也会解除。</value>
+    <comment>Phone profile page: question before blocking. {0} is the person's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Blocked" xml:space="preserve">
+    <value>你已屏蔽此人。</value>
+    <comment>Phone profile page: shown in place of the feed on the page of someone you blocked.</comment>
+  </data>
+  <data name="Rpm_Profile_DeletePost" xml:space="preserve">
+    <value>删除动态</value>
+    <comment>Phone profile page: menu item on your own post.</comment>
+  </data>
+  <data name="Rpm_Profile_DeleteReply" xml:space="preserve">
+    <value>删除回复</value>
+    <comment>Phone profile page: menu item on a reply you can delete.</comment>
+  </data>
+  <data name="Rpm_Profile_ReportReply" xml:space="preserve">
+    <value>举报此回复</value>
+    <comment>Phone profile page: menu item on someone else's reply.</comment>
+  </data>
+  <data name="Rpm_Profile_UnreadCount" xml:space="preserve">
+    <value>{0} 条未读通知</value>
+    <comment>Phone profile page: accessibility text for the badge on the menu key.</comment>
+  </data>
+  <data name="Rpm_Notify_Title" xml:space="preserve">
+    <value>通知</value>
+    <comment>Phone notifications page: title, and the menu item on your own page that opens it.</comment>
+  </data>
+  <data name="Rpm_Notify_Empty" xml:space="preserve">
+    <value>还没有通知。回复、投票和好友请求会显示在这里。</value>
+    <comment>Phone notifications page: empty list.</comment>
+  </data>
+  <data name="Rpm_Notify_Reply" xml:space="preserve">
+    <value>{0} 回复了你</value>
+    <comment>Phone notifications page: someone replied to your post or reply.</comment>
+  </data>
+  <data name="Rpm_Notify_Vote" xml:space="preserve">
+    <value>{0} 给你的动态投了票</value>
+    <comment>Phone notifications page: one vote on your post or reply.</comment>
+  </data>
+  <data name="Rpm_Notify_Votes" xml:space="preserve">
+    <value>你的动态有 {0} 个新投票</value>
+    <comment>Phone notifications page: several votes on one post or reply. {0} is the number.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendRequest" xml:space="preserve">
+    <value>{0} 想加你为好友</value>
+    <comment>Phone notifications page: a friend request, with Accept and Decline keys.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendAccepted" xml:space="preserve">
+    <value>{0} 接受了你的好友请求</value>
+    <comment>Phone notifications page: a request you sent was accepted.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendReview" xml:space="preserve">
+    <value>{0} 评论了《{1}》</value>
+    <comment>Phone notifications page: a friend wrote a review. {1} is the album title.</comment>
+  </data>
+  <data name="Rpm_Settings_ShareListening" xml:space="preserve">
+    <value>显示我正在听的歌</value>
+    <comment>Phone settings, My account: switch.</comment>
+  </data>
+  <data name="Rpm_Settings_ShareListeningHint" xml:space="preserve">
+    <value>任何打开你主页的人都能看到你正在播放的歌曲。</value>
+    <comment>Phone settings, My account: hint under the switch.</comment>
+  </data>
+  <data name="Rpm_Profile_ChooseBackground" xml:space="preserve">
+    <value>选择背景</value>
+    <comment>Phone profile page: menu item that picks what the page is drawn on, a colour or one of the app's backgrounds.</comment>
+  </data>
+  <data name="Rpm_Profile_Colours" xml:space="preserve">
+    <value>颜色</value>
+    <comment>Phone profile page: heading over the solid colours in the background picker.</comment>
+  </data>
+  <data name="Rpm_Profile_SampleNote" xml:space="preserve">
+    <value>示例动态。个人主页尚未上线。</value>
+    <comment>Phone profile page: line above the feed in a test build when the server has no profile pages yet, so sample posts are shown.</comment>
+  </data>
+  <data name="Rpm_Search_Recent" xml:space="preserve">
+    <value>最近搜索</value>
+    <comment>Phone collection search: heading over the earlier searches, shown while the search box is empty.</comment>
+  </data>
+  <data name="Rpm_Search_ClearRecent" xml:space="preserve">
+    <value>清除</value>
+    <comment>Phone collection search: key beside 'Recent searches' that removes them all.</comment>
+  </data>
+  <data name="Rpm_Search_Forget" xml:space="preserve">
+    <value>从最近搜索中移除</value>
+    <comment>Phone collection search: accessibility label of the cross on one earlier search.</comment>
+  </data>
+  <data name="Rpm_Profile_Post" xml:space="preserve">
+    <value>发布</value>
+    <comment>Phone profile page: key beside the box for a new post.</comment>
+  </data>
+  <data name="Rpm_Profile_NowPlaying" xml:space="preserve">
+    <value>{1} 的《{0}》</value>
+    <comment>Phone profile page: the bar under the name with what the person is playing. {0} the song, {1} the artist.</comment>
+  </data>
+  <data name="Rpm_Profile_Likes" xml:space="preserve">
+    <value>{0} 个赞</value>
+    <comment>Phone profile page: accessibility text of the thumbs-up count on a post or reply.</comment>
+  </data>
+  <data name="Rpm_Profile_Dislikes" xml:space="preserve">
+    <value>{0} 个踩</value>
+    <comment>Phone profile page: accessibility text of the thumbs-down count on a post or reply.</comment>
+  </data>
+  <data name="Rpm_Badge_FirstSpin" xml:space="preserve">
+    <value>初次转动</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_FirstSpin_Need" xml:space="preserve">
+    <value>添加第一张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_CrateDigger" xml:space="preserve">
+    <value>淘碟达人</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_CrateDigger_Need" xml:space="preserve">
+    <value>拥有 50 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_RecordCollector" xml:space="preserve">
+    <value>唱片收藏家</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_RecordCollector_Need" xml:space="preserve">
+    <value>拥有 250 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Connoisseur" xml:space="preserve">
+    <value>音乐鉴赏家</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Connoisseur_Need" xml:space="preserve">
+    <value>拥有 1,000 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_LivingArchive" xml:space="preserve">
+    <value>活体档案馆</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_LivingArchive_Need" xml:space="preserve">
+    <value>拥有 2,500 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_MuseumCurator" xml:space="preserve">
+    <value>博物馆馆长</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_MuseumCurator_Need" xml:space="preserve">
+    <value>拥有 5,000 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_TenThousand" xml:space="preserve">
+    <value>万首歌曲</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_TenThousand_Need" xml:space="preserve">
+    <value>拥有 10,000 首曲目</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Rock" xml:space="preserve">
+    <value>摇滚铁粉</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Rock_Need" xml:space="preserve">
+    <value>五分之一的专辑是摇滚，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Jazz" xml:space="preserve">
+    <value>爵士猫</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Jazz_Need" xml:space="preserve">
+    <value>五分之一的专辑是爵士，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Classical" xml:space="preserve">
+    <value>大师</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Classical_Need" xml:space="preserve">
+    <value>五分之一的专辑是古典，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_HipHop" xml:space="preserve">
+    <value>节拍控</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_HipHop_Need" xml:space="preserve">
+    <value>五分之一的专辑是嘻哈，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Electronic" xml:space="preserve">
+    <value>合成器巫师</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Electronic_Need" xml:space="preserve">
+    <value>五分之一的专辑是电子，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Metal" xml:space="preserve">
+    <value>甩头族</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Metal_Need" xml:space="preserve">
+    <value>五分之一的专辑是金属，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Pop" xml:space="preserve">
+    <value>流行之星</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Pop_Need" xml:space="preserve">
+    <value>五分之一的专辑是流行，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Soul" xml:space="preserve">
+    <value>灵魂探索者</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Soul_Need" xml:space="preserve">
+    <value>五分之一的专辑是灵魂乐、R&amp;B 或放克，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Folk" xml:space="preserve">
+    <value>民谣英雄</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Folk_Need" xml:space="preserve">
+    <value>五分之一的专辑是民谣或乡村，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Blues" xml:space="preserve">
+    <value>蓝调音符</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Blues_Need" xml:space="preserve">
+    <value>五分之一的专辑是蓝调，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Reggae" xml:space="preserve">
+    <value>海岛时光</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Reggae_Need" xml:space="preserve">
+    <value>五分之一的专辑是雷鬼，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Latin" xml:space="preserve">
+    <value>拉丁热浪</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Latin_Need" xml:space="preserve">
+    <value>五分之一的专辑是拉丁，至少 25 张</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_GenreHopper" xml:space="preserve">
+    <value>流派漫游者</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_GenreHopper_Need" xml:space="preserve">
+    <value>在 10 个流派中各有 5 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Omnivore" xml:space="preserve">
+    <value>杂食者</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Omnivore_Need" xml:space="preserve">
+    <value>在 20 个流派中各有 5 张专辑</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badges_Title" xml:space="preserve">
+    <value>徽章</value>
+    <comment>Phone profile page: menu item and title of the page where the person picks the badge under their name.</comment>
+  </data>
+  <data name="Rpm_Badges_Colour" xml:space="preserve">
+    <value>颜色</value>
+    <comment>Phone badges page: heading over the colours of the badge.</comment>
+  </data>
+  <data name="Rpm_Badges_Unlocked" xml:space="preserve">
+    <value>已解锁</value>
+    <comment>Phone badges page: heading over the badges the person has.</comment>
+  </data>
+  <data name="Rpm_Badges_Locked" xml:space="preserve">
+    <value>待解锁</value>
+    <comment>Phone badges page: heading over the badges the person does not have yet.</comment>
+  </data>
+  <data name="Rpm_Badges_NoBadge" xml:space="preserve">
+    <value>不显示徽章</value>
+    <comment>Phone badges page: choice that shows no badge under the name.</comment>
+  </data>
+  <data name="Rpm_Notify_Badge" xml:space="preserve">
+    <value>你解锁了徽章「{0}」</value>
+    <comment>Phone notifications page: a badge was unlocked. {0} is the badge's name.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerPhoto" xml:space="preserve">
+    <value>选择照片</value>
+    <comment>Phone profile page: choice under Choose banner that picks a photo from the phone.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerPlaying" xml:space="preserve">
+    <value>正在播放的艺人图片</value>
+    <comment>Phone profile page: choice under Choose banner. The banner then shows a photo of the artist the person is playing.</comment>
+  </data>
+  <data name="Rpm_Tab_Feed" xml:space="preserve">
+    <value>动态</value>
+    <comment>Phone tab bar label for everyone's posts, in place of Profile.</comment>
+  </data>
+  <data name="Rpm_Feed_Empty" xml:space="preserve">
+    <value>这里还什么都没有。所有人的动态会显示在这里。</value>
+    <comment>Phone Feed tab: no posts yet.</comment>
+  </data>
+  <data name="Rpm_Feed_MyProfile" xml:space="preserve">
+    <value>我的主页</value>
+    <comment>Phone Feed tab: accessibility label of the key at the top right that opens the reader's own profile page.</comment>
+  </data>
+  <data name="Rpm_Profile_UnsavedTitle" xml:space="preserve">
+    <value>应用你的更改？</value>
+    <comment>Phone profile edit page: asked when the page is closed with changes not yet saved. The two answers are Rpm_Profile_ApplyChanges and Rpm_Profile_Discard.</comment>
+  </data>
+  <data name="Rpm_Profile_ApplyChanges" xml:space="preserve">
+    <value>应用更改</value>
+    <comment>Phone profile edit page: answer that saves the changes and closes the page.</comment>
+  </data>
+  <data name="Rpm_Profile_Discard" xml:space="preserve">
+    <value>放弃</value>
+    <comment>Phone profile edit page: answer that closes the page without saving the changes.</comment>
+  </data>
+  <data name="Rpm_Profile_PhotoTitle" xml:space="preserve">
+    <value>头像</value>
+    <comment>Phone profile edit page: heading of the card with the profile photo.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerTitle" xml:space="preserve">
+    <value>横幅</value>
+    <comment>Phone profile edit page: heading of the card with the picture across the top of the page.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerOwn" xml:space="preserve">
+    <value>你自己的照片</value>
+    <comment>Phone profile edit page: choice in the Banner card for a photo the person picks, beside Rpm_Profile_BannerPlaying.</comment>
+  </data>
+  <data name="Rpm_Profile_ReadReview" xml:space="preserve">
+    <value>阅读完整评论</value>
+    <comment>Phone profile page and Feed tab: link under a review card that opens the whole review.</comment>
+  </data>
+  <data name="Rpm_Profile_JustNow" xml:space="preserve">
+    <value>刚刚</value>
+    <comment>Phone profile page, threads and Feed tab: when a post, reply or review was written less than a minute ago, beside the author's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Quoted" xml:space="preserve">
+    <value>“{0}”</value>
+    <comment>Phone profile page and Feed tab: a review's text in quotation marks. {0} is the text. Use the language's own quotation marks.</comment>
   </data>
   <data name="Rpm_Profile_Subtitle" xml:space="preserve">
     <value>你的账户、存储空间，以及应用的行为方式。</value>
@@ -10059,6 +10567,50 @@
     <value>Navidrome 或 Subsonic</value>
     <comment>Import from another app: the Navidrome / Subsonic server choice.</comment>
   </data>
+  <data name="Migration_SourceIBroadcast" xml:space="preserve">
+    <value>iBroadcast</value>
+    <comment>Import from another app: the iBroadcast choice. A product name.</comment>
+  </data>
+  <data name="Migration_HintOnline" xml:space="preserve">
+    <value>登录你的账户</value>
+    <comment>Import from another app: the line under an online service's choice (iBroadcast).</comment>
+  </data>
+  <data name="Migration_IBroadcastSignIn" xml:space="preserve">
+    <value>登录 iBroadcast</value>
+    <comment>Import from another app: the button that starts the iBroadcast sign-in in the browser.</comment>
+  </data>
+  <data name="Migration_IBroadcastWaiting" xml:space="preserve">
+    <value>请在浏览器中允许 rpm。如果 iBroadcast 要求输入代码，请输入 {0}。完成后此窗口会继续。</value>
+    <comment>Import from another app: shown while waiting for the iBroadcast sign-in in the browser. {0} is the sign-in code, such as BPJWDQTV.</comment>
+  </data>
+  <data name="Migration_IBroadcastOpenAgain" xml:space="preserve">
+    <value>再次打开 iBroadcast</value>
+    <comment>Import from another app: the sign-in button while a code waits; it opens the iBroadcast page with the code again.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsIBroadcast" xml:space="preserve">
+    <value>rpm 只读取你的 iBroadcast 音乐库，不会更改或删除其中的任何内容。</value>
+    <comment>Import from another app: shown on the summary and while importing from iBroadcast.</comment>
+  </data>
+  <data name="Migration_IBroadcastFree" xml:space="preserve">
+    <value>你的 iBroadcast 账户是免费账户，因此 iBroadcast 只提供 128 kbps 的 MP3 副本，而不是你的原始文件。使用 iBroadcast Premium 时，rpm 会导入原始文件。</value>
+    <comment>Import from another app: shown on the summary when the iBroadcast account is free.</comment>
+  </data>
+  <data name="Migration_IBroadcastNotCarried" xml:space="preserve">
+    <value>不会导入“踩”以及专辑和艺人的评分。iBroadcast 不记录歌曲上次播放的时间。</value>
+    <comment>Import from another app: shown on the summary of an iBroadcast import, listing what does not come along.</comment>
+  </data>
+  <data name="Migration_SkipInTrash" xml:space="preserve">
+    <value>在 iBroadcast 回收站中</value>
+    <comment>Import from another app: why a skipped track is not imported; it is in the iBroadcast trash. Shown after the track name and a colon.</comment>
+  </data>
+  <data name="Migration_SkipIBroadcastList" xml:space="preserve">
+    <value>由 iBroadcast 自动填充的列表</value>
+    <comment>Import from another app: why a playlist is not imported; iBroadcast fills it by itself (such as its most recent uploads). Shown after the playlist name and a colon.</comment>
+  </data>
+  <data name="Migration_IBroadcastTagsFolder" xml:space="preserve">
+    <value>标签</value>
+    <comment>Import from another app: the name of the playlist folder that holds the iBroadcast tags, one playlist per tag.</comment>
+  </data>
   <data name="Migration_SourcePlaylistFiles" xml:space="preserve">
     <value>播放列表文件</value>
     <comment>Import from another app: the choice for .m3u/.pls playlist files. Also the name shown for this source in the report.</comment>
@@ -10214,6 +10766,10 @@
   <data name="Migration_SummarySkipped" xml:space="preserve">
     <value>{0} 个项目不会导入（流媒体、视频、播客，或不在这台电脑上的文件）</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
+    <value>{0} 个项目不会导入（在 iBroadcast 回收站中、没有文件，或由 iBroadcast 自动填充的列表）</value>
+    <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
   </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
     <value>你之前导入过 {0}。两个资料库中都有的播放次数会被计算两次。</value>

@@ -1429,6 +1429,22 @@
     <value>Muestra una foto del artista detrás de la pantalla de carátulas. Desactívalo y rpm no descarga fotos: usa los colores del álbum en su lugar.</value>
     <comment>Settings &gt; Display: hint under the artist photo toggle.</comment>
   </data>
+  <data name="Settings_DiscStandIn" xml:space="preserve">
+    <value>Álbumes sin imagen de disco</value>
+    <comment>Settings &gt; Display: label for the choice of what the record looks like when an album has no picture of its own disc.</comment>
+  </data>
+  <data name="Settings_DiscStandInHint" xml:space="preserve">
+    <value>Elige qué gira cuando un álbum aún no tiene imagen de su disco: un vinilo con la carátula o un CD sencillo.</value>
+    <comment>Settings &gt; Display: hint under the 'Albums without disc art' choice.</comment>
+  </data>
+  <data name="Settings_DiscStandInVinyl" xml:space="preserve">
+    <value>Vinilo</value>
+    <comment>Settings &gt; Display: 'Albums without disc art' option. The app's own drawn vinyl, with the album cover on its label. The default.</comment>
+  </data>
+  <data name="Settings_DiscStandInCd" xml:space="preserve">
+    <value>CD</value>
+    <comment>Settings &gt; Display: 'Albums without disc art' option. A plain silver CD with the rpm hub.</comment>
+  </data>
   <data name="Settings_MultiDisc" xml:space="preserve">
     <value>Álbumes de varios discos</value>
     <comment>Settings &gt; Collection: title of the card choosing how multi-disc releases are handled.</comment>
@@ -3434,6 +3450,498 @@
   <data name="Rpm_Tab_Home" xml:space="preserve">
     <value>Inicio</value>
     <comment>Phone tab bar label for the home screen. The page itself uses Home_Heading, in lower case.</comment>
+  </data>
+  <data name="Rpm_Settings_General" xml:space="preserve">
+    <value>General</value>
+    <comment>Phone settings page: tab with the app version, crash reports and the cover cache.</comment>
+  </data>
+  <data name="Rpm_Settings_Appearance" xml:space="preserve">
+    <value>Apariencia</value>
+    <comment>Phone settings page: tab with the background, night mode and the disc stand-in.</comment>
+  </data>
+  <data name="Rpm_Settings_Account" xml:space="preserve">
+    <value>Mi cuenta</value>
+    <comment>Phone settings page: tab with the account, cloud storage and the plan.</comment>
+  </data>
+  <data name="Rpm_Profile_ListeningTo" xml:space="preserve">
+    <value>{0} está escuchando {1} de {2}</value>
+    <comment>Phone profile page: line under the name. {0} the person, {1} the song, {2} the artist.</comment>
+  </data>
+  <data name="Rpm_Profile_MemberSince" xml:space="preserve">
+    <value>Miembro desde {0}</value>
+    <comment>Phone profile page: when the account was made. {0} is a month and year.</comment>
+  </data>
+  <data name="Rpm_Profile_PostPrompt" xml:space="preserve">
+    <value>¿Qué estás pensando?</value>
+    <comment>Phone profile page: placeholder in the box for a new post on your own page.</comment>
+  </data>
+  <data name="Rpm_Profile_WithSong" xml:space="preserve">
+    <value>Añadir la canción que suena</value>
+    <comment>Phone profile page: switch under the post box that adds the current song to the post.</comment>
+  </data>
+  <data name="Rpm_Profile_Reply" xml:space="preserve">
+    <value>Responder</value>
+    <comment>Phone profile page: key under a post or reply.</comment>
+  </data>
+  <data name="Rpm_Profile_RepliesOne" xml:space="preserve">
+    <value>1 respuesta</value>
+    <comment>Phone profile page: count of replies under a post, one.</comment>
+  </data>
+  <data name="Rpm_Profile_Replies" xml:space="preserve">
+    <value>{0} respuestas</value>
+    <comment>Phone profile page: count of replies under a post.</comment>
+  </data>
+  <data name="Rpm_Profile_ReplyPrompt" xml:space="preserve">
+    <value>Escribe una respuesta</value>
+    <comment>Phone profile page: placeholder in the reply box.</comment>
+  </data>
+  <data name="Rpm_Profile_ReplyDeleted" xml:space="preserve">
+    <value>Respuesta eliminada</value>
+    <comment>Phone profile page: shown in place of a deleted reply that still has replies under it.</comment>
+  </data>
+  <data name="Rpm_Profile_FeedEmptyOwn" xml:space="preserve">
+    <value>Aún no hay nada. Escribe tu primera publicación arriba.</value>
+    <comment>Phone profile page: your own page with no posts or reviews.</comment>
+  </data>
+  <data name="Rpm_Profile_FeedEmpty" xml:space="preserve">
+    <value>Aún no hay publicaciones ni reseñas.</value>
+    <comment>Phone profile page: someone else's page with no posts or reviews.</comment>
+  </data>
+  <data name="Rpm_Profile_OpenAlbum" xml:space="preserve">
+    <value>Abrir álbum</value>
+    <comment>Phone profile page: key on a review in the feed, shown when the album is in your collection.</comment>
+  </data>
+  <data name="Rpm_Profile_Offline" xml:space="preserve">
+    <value>No se pudo cargar este perfil. Comprueba tu conexión e inténtalo de nuevo.</value>
+    <comment>Phone profile page: the page could not be read.</comment>
+  </data>
+  <data name="Rpm_Profile_Menu" xml:space="preserve">
+    <value>Menú</value>
+    <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
+  </data>
+  <data name="Rpm_Profile_Back" xml:space="preserve">
+    <value>Atrás</value>
+    <comment>Phone profile page: accessibility label of the round back key at the top left of someone else's page.</comment>
+  </data>
+  <data name="Rpm_Profile_EditPage" xml:space="preserve">
+    <value>Editar página</value>
+    <comment>Phone profile page: menu item that opens the name editor.</comment>
+  </data>
+  <data name="Rpm_Profile_Name" xml:space="preserve">
+    <value>Nombre visible</value>
+    <comment>Phone profile page: label of the name field on the edit page.</comment>
+  </data>
+  <data name="Rpm_Profile_Save" xml:space="preserve">
+    <value>Guardar</value>
+    <comment>Phone profile page: key that saves the edit page.</comment>
+  </data>
+  <data name="Rpm_Profile_ChangePhoto" xml:space="preserve">
+    <value>Cambiar foto de perfil</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_RemovePhoto" xml:space="preserve">
+    <value>Quitar foto</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_ChooseBanner" xml:space="preserve">
+    <value>Elegir portada</value>
+    <comment>Phone profile page: menu item that picks the wide picture at the top of the page.</comment>
+  </data>
+  <data name="Rpm_Profile_RemoveBanner" xml:space="preserve">
+    <value>Quitar portada</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_PictureFailed" xml:space="preserve">
+    <value>No se pudo subir la imagen. Prueba con otra.</value>
+    <comment>Phone profile page: a photo or banner upload failed.</comment>
+  </data>
+  <data name="Rpm_Profile_AddFriend" xml:space="preserve">
+    <value>Añadir amigo</value>
+    <comment>Phone profile page: key under someone else's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Requested" xml:space="preserve">
+    <value>Solicitud enviada</value>
+    <comment>Phone profile page: key under someone else's name after you asked to be friends.</comment>
+  </data>
+  <data name="Rpm_Profile_CancelRequest" xml:space="preserve">
+    <value>Cancelar solicitud</value>
+    <comment>Phone profile page: menu item while your friend request waits.</comment>
+  </data>
+  <data name="Rpm_Profile_Accept" xml:space="preserve">
+    <value>Aceptar</value>
+    <comment>Phone profile page: key that accepts a friend request.</comment>
+  </data>
+  <data name="Rpm_Profile_Decline" xml:space="preserve">
+    <value>Rechazar</value>
+    <comment>Phone profile page: key that declines a friend request.</comment>
+  </data>
+  <data name="Rpm_Profile_Friends" xml:space="preserve">
+    <value>Amigos</value>
+    <comment>Phone profile page: key under the name of someone who is your friend.</comment>
+  </data>
+  <data name="Rpm_Profile_RemoveFriend" xml:space="preserve">
+    <value>Eliminar amigo</value>
+    <comment>Phone profile page: menu item.</comment>
+  </data>
+  <data name="Rpm_Profile_Block" xml:space="preserve">
+    <value>Bloquear</value>
+    <comment>Phone profile page: menu item and confirm key.</comment>
+  </data>
+  <data name="Rpm_Profile_Unblock" xml:space="preserve">
+    <value>Desbloquear</value>
+    <comment>Phone profile page: menu item and key on the page of someone you blocked.</comment>
+  </data>
+  <data name="Rpm_Profile_BlockConfirm" xml:space="preserve">
+    <value>¿Bloquear a {0}? No veréis las publicaciones ni las respuestas del otro, y cualquier amistad entre vosotros termina.</value>
+    <comment>Phone profile page: question before blocking. {0} is the person's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Blocked" xml:space="preserve">
+    <value>Has bloqueado a esta persona.</value>
+    <comment>Phone profile page: shown in place of the feed on the page of someone you blocked.</comment>
+  </data>
+  <data name="Rpm_Profile_DeletePost" xml:space="preserve">
+    <value>Eliminar publicación</value>
+    <comment>Phone profile page: menu item on your own post.</comment>
+  </data>
+  <data name="Rpm_Profile_DeleteReply" xml:space="preserve">
+    <value>Eliminar respuesta</value>
+    <comment>Phone profile page: menu item on a reply you can delete.</comment>
+  </data>
+  <data name="Rpm_Profile_ReportReply" xml:space="preserve">
+    <value>Denunciar esta respuesta</value>
+    <comment>Phone profile page: menu item on someone else's reply.</comment>
+  </data>
+  <data name="Rpm_Profile_UnreadCount" xml:space="preserve">
+    <value>{0} notificaciones sin leer</value>
+    <comment>Phone profile page: accessibility text for the badge on the menu key.</comment>
+  </data>
+  <data name="Rpm_Notify_Title" xml:space="preserve">
+    <value>Notificaciones</value>
+    <comment>Phone notifications page: title, and the menu item on your own page that opens it.</comment>
+  </data>
+  <data name="Rpm_Notify_Empty" xml:space="preserve">
+    <value>Aún no hay notificaciones. Aquí aparecen las respuestas, los votos y las solicitudes de amistad.</value>
+    <comment>Phone notifications page: empty list.</comment>
+  </data>
+  <data name="Rpm_Notify_Reply" xml:space="preserve">
+    <value>{0} te ha respondido</value>
+    <comment>Phone notifications page: someone replied to your post or reply.</comment>
+  </data>
+  <data name="Rpm_Notify_Vote" xml:space="preserve">
+    <value>{0} ha votado tu publicación</value>
+    <comment>Phone notifications page: one vote on your post or reply.</comment>
+  </data>
+  <data name="Rpm_Notify_Votes" xml:space="preserve">
+    <value>{0} votos nuevos en tu publicación</value>
+    <comment>Phone notifications page: several votes on one post or reply. {0} is the number.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendRequest" xml:space="preserve">
+    <value>{0} quiere ser tu amigo</value>
+    <comment>Phone notifications page: a friend request, with Accept and Decline keys.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendAccepted" xml:space="preserve">
+    <value>{0} ha aceptado tu solicitud de amistad</value>
+    <comment>Phone notifications page: a request you sent was accepted.</comment>
+  </data>
+  <data name="Rpm_Notify_FriendReview" xml:space="preserve">
+    <value>{0} ha reseñado {1}</value>
+    <comment>Phone notifications page: a friend wrote a review. {1} is the album title.</comment>
+  </data>
+  <data name="Rpm_Settings_ShareListening" xml:space="preserve">
+    <value>Mostrar lo que escucho</value>
+    <comment>Phone settings, My account: switch.</comment>
+  </data>
+  <data name="Rpm_Settings_ShareListeningHint" xml:space="preserve">
+    <value>Tu perfil muestra la canción que suena a cualquiera que lo abra.</value>
+    <comment>Phone settings, My account: hint under the switch.</comment>
+  </data>
+  <data name="Rpm_Profile_ChooseBackground" xml:space="preserve">
+    <value>Elegir fondo</value>
+    <comment>Phone profile page: menu item that picks what the page is drawn on, a colour or one of the app's backgrounds.</comment>
+  </data>
+  <data name="Rpm_Profile_Colours" xml:space="preserve">
+    <value>Colores</value>
+    <comment>Phone profile page: heading over the solid colours in the background picker.</comment>
+  </data>
+  <data name="Rpm_Profile_SampleNote" xml:space="preserve">
+    <value>Publicaciones de ejemplo. Los perfiles aún no están activos.</value>
+    <comment>Phone profile page: line above the feed in a test build when the server has no profile pages yet, so sample posts are shown.</comment>
+  </data>
+  <data name="Rpm_Search_Recent" xml:space="preserve">
+    <value>Búsquedas recientes</value>
+    <comment>Phone collection search: heading over the earlier searches, shown while the search box is empty.</comment>
+  </data>
+  <data name="Rpm_Search_ClearRecent" xml:space="preserve">
+    <value>Borrar</value>
+    <comment>Phone collection search: key beside 'Recent searches' that removes them all.</comment>
+  </data>
+  <data name="Rpm_Search_Forget" xml:space="preserve">
+    <value>Quitar de búsquedas recientes</value>
+    <comment>Phone collection search: accessibility label of the cross on one earlier search.</comment>
+  </data>
+  <data name="Rpm_Profile_Post" xml:space="preserve">
+    <value>Publicar</value>
+    <comment>Phone profile page: key beside the box for a new post.</comment>
+  </data>
+  <data name="Rpm_Profile_NowPlaying" xml:space="preserve">
+    <value>{0} de {1}</value>
+    <comment>Phone profile page: the bar under the name with what the person is playing. {0} the song, {1} the artist.</comment>
+  </data>
+  <data name="Rpm_Profile_Likes" xml:space="preserve">
+    <value>{0} me gusta</value>
+    <comment>Phone profile page: accessibility text of the thumbs-up count on a post or reply.</comment>
+  </data>
+  <data name="Rpm_Profile_Dislikes" xml:space="preserve">
+    <value>{0} no me gusta</value>
+    <comment>Phone profile page: accessibility text of the thumbs-down count on a post or reply.</comment>
+  </data>
+  <data name="Rpm_Badge_FirstSpin" xml:space="preserve">
+    <value>Primera vuelta</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_FirstSpin_Need" xml:space="preserve">
+    <value>Añade tu primer álbum</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_CrateDigger" xml:space="preserve">
+    <value>Buscador de vinilos</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_CrateDigger_Need" xml:space="preserve">
+    <value>Tener 50 álbumes</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_RecordCollector" xml:space="preserve">
+    <value>Coleccionista</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_RecordCollector_Need" xml:space="preserve">
+    <value>Tener 250 álbumes</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Connoisseur" xml:space="preserve">
+    <value>Melómano experto</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Connoisseur_Need" xml:space="preserve">
+    <value>Tener 1000 álbumes</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_LivingArchive" xml:space="preserve">
+    <value>Archivo viviente</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_LivingArchive_Need" xml:space="preserve">
+    <value>Tener 2500 álbumes</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_MuseumCurator" xml:space="preserve">
+    <value>Curador de museo</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_MuseumCurator_Need" xml:space="preserve">
+    <value>Tener 5000 álbumes</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_TenThousand" xml:space="preserve">
+    <value>Diez mil canciones</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_TenThousand_Need" xml:space="preserve">
+    <value>Tener 10 000 canciones</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Rock" xml:space="preserve">
+    <value>Roca firme</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Rock_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea rock, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Jazz" xml:space="preserve">
+    <value>Gato de jazz</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Jazz_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea jazz, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Classical" xml:space="preserve">
+    <value>Maestro</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Classical_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea clásica, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_HipHop" xml:space="preserve">
+    <value>Cabeza de ritmo</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_HipHop_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea hip-hop, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Electronic" xml:space="preserve">
+    <value>Mago del sintetizador</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Electronic_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea electrónica, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Metal" xml:space="preserve">
+    <value>Headbanger</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Metal_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea metal, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Pop" xml:space="preserve">
+    <value>Estrella del pop</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Pop_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea pop, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Soul" xml:space="preserve">
+    <value>Buscador de soul</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Soul_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea soul, R&amp;B o funk, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Folk" xml:space="preserve">
+    <value>Héroe folk</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Folk_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea folk o country, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Blues" xml:space="preserve">
+    <value>Nota azul</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Blues_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea blues, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Reggae" xml:space="preserve">
+    <value>Ritmo isleño</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Reggae_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea reggae, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Latin" xml:space="preserve">
+    <value>Calor latino</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Latin_Need" xml:space="preserve">
+    <value>Que una quinta parte de tus álbumes sea latina, al menos 25</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_GenreHopper" xml:space="preserve">
+    <value>Saltagéneros</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_GenreHopper_Need" xml:space="preserve">
+    <value>Tener 5 álbumes en 10 géneros</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badge_Omnivore" xml:space="preserve">
+    <value>Omnívoro</value>
+    <comment>Phone profile badge name, shown in a coloured pill under the person's name. Short and playful.</comment>
+  </data>
+  <data name="Rpm_Badge_Omnivore_Need" xml:space="preserve">
+    <value>Tener 5 álbumes en 20 géneros</value>
+    <comment>Phone badges page: what unlocks this badge, under a badge not yet unlocked.</comment>
+  </data>
+  <data name="Rpm_Badges_Title" xml:space="preserve">
+    <value>Insignias</value>
+    <comment>Phone profile page: menu item and title of the page where the person picks the badge under their name.</comment>
+  </data>
+  <data name="Rpm_Badges_Colour" xml:space="preserve">
+    <value>Color</value>
+    <comment>Phone badges page: heading over the colours of the badge.</comment>
+  </data>
+  <data name="Rpm_Badges_Unlocked" xml:space="preserve">
+    <value>Desbloqueadas</value>
+    <comment>Phone badges page: heading over the badges the person has.</comment>
+  </data>
+  <data name="Rpm_Badges_Locked" xml:space="preserve">
+    <value>Por desbloquear</value>
+    <comment>Phone badges page: heading over the badges the person does not have yet.</comment>
+  </data>
+  <data name="Rpm_Badges_NoBadge" xml:space="preserve">
+    <value>Sin insignia</value>
+    <comment>Phone badges page: choice that shows no badge under the name.</comment>
+  </data>
+  <data name="Rpm_Notify_Badge" xml:space="preserve">
+    <value>Has desbloqueado la insignia {0}</value>
+    <comment>Phone notifications page: a badge was unlocked. {0} is the badge's name.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerPhoto" xml:space="preserve">
+    <value>Elegir una foto</value>
+    <comment>Phone profile page: choice under Choose banner that picks a photo from the phone.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerPlaying" xml:space="preserve">
+    <value>Imagen del artista que suena</value>
+    <comment>Phone profile page: choice under Choose banner. The banner then shows a photo of the artist the person is playing.</comment>
+  </data>
+  <data name="Rpm_Tab_Feed" xml:space="preserve">
+    <value>Novedades</value>
+    <comment>Phone tab bar label for everyone's posts, in place of Profile.</comment>
+  </data>
+  <data name="Rpm_Feed_Empty" xml:space="preserve">
+    <value>Aún no hay nada. Aquí aparecen las publicaciones de todos.</value>
+    <comment>Phone Feed tab: no posts yet.</comment>
+  </data>
+  <data name="Rpm_Feed_MyProfile" xml:space="preserve">
+    <value>Mi perfil</value>
+    <comment>Phone Feed tab: accessibility label of the key at the top right that opens the reader's own profile page.</comment>
+  </data>
+  <data name="Rpm_Profile_UnsavedTitle" xml:space="preserve">
+    <value>¿Aplicar tus cambios?</value>
+    <comment>Phone profile edit page: asked when the page is closed with changes not yet saved. The two answers are Rpm_Profile_ApplyChanges and Rpm_Profile_Discard.</comment>
+  </data>
+  <data name="Rpm_Profile_ApplyChanges" xml:space="preserve">
+    <value>Aplicar cambios</value>
+    <comment>Phone profile edit page: answer that saves the changes and closes the page.</comment>
+  </data>
+  <data name="Rpm_Profile_Discard" xml:space="preserve">
+    <value>Descartar</value>
+    <comment>Phone profile edit page: answer that closes the page without saving the changes.</comment>
+  </data>
+  <data name="Rpm_Profile_PhotoTitle" xml:space="preserve">
+    <value>Foto de perfil</value>
+    <comment>Phone profile edit page: heading of the card with the profile photo.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerTitle" xml:space="preserve">
+    <value>Banner</value>
+    <comment>Phone profile edit page: heading of the card with the picture across the top of the page.</comment>
+  </data>
+  <data name="Rpm_Profile_BannerOwn" xml:space="preserve">
+    <value>Tu propia foto</value>
+    <comment>Phone profile edit page: choice in the Banner card for a photo the person picks, beside Rpm_Profile_BannerPlaying.</comment>
+  </data>
+  <data name="Rpm_Profile_ReadReview" xml:space="preserve">
+    <value>Leer la reseña completa</value>
+    <comment>Phone profile page and Feed tab: link under a review card that opens the whole review.</comment>
+  </data>
+  <data name="Rpm_Profile_JustNow" xml:space="preserve">
+    <value>ahora mismo</value>
+    <comment>Phone profile page, threads and Feed tab: when a post, reply or review was written less than a minute ago, beside the author's name.</comment>
+  </data>
+  <data name="Rpm_Profile_Quoted" xml:space="preserve">
+    <value>«{0}»</value>
+    <comment>Phone profile page and Feed tab: a review's text in quotation marks. {0} is the text. Use the language's own quotation marks.</comment>
   </data>
   <data name="Rpm_Profile_Subtitle" xml:space="preserve">
     <value>Tu cuenta, tu almacenamiento y cómo se comporta la app.</value>
@@ -10059,6 +10567,50 @@
     <value>Navidrome o Subsonic</value>
     <comment>Import from another app: the Navidrome / Subsonic server choice.</comment>
   </data>
+  <data name="Migration_SourceIBroadcast" xml:space="preserve">
+    <value>iBroadcast</value>
+    <comment>Import from another app: the iBroadcast choice. A product name.</comment>
+  </data>
+  <data name="Migration_HintOnline" xml:space="preserve">
+    <value>Inicia sesión en tu cuenta</value>
+    <comment>Import from another app: the line under an online service's choice (iBroadcast).</comment>
+  </data>
+  <data name="Migration_IBroadcastSignIn" xml:space="preserve">
+    <value>Iniciar sesión en iBroadcast</value>
+    <comment>Import from another app: the button that starts the iBroadcast sign-in in the browser.</comment>
+  </data>
+  <data name="Migration_IBroadcastWaiting" xml:space="preserve">
+    <value>Autoriza rpm en tu navegador. Si iBroadcast pide un código, introduce {0}. Esta ventana continúa cuando termines.</value>
+    <comment>Import from another app: shown while waiting for the iBroadcast sign-in in the browser. {0} is the sign-in code, such as BPJWDQTV.</comment>
+  </data>
+  <data name="Migration_IBroadcastOpenAgain" xml:space="preserve">
+    <value>Abrir iBroadcast de nuevo</value>
+    <comment>Import from another app: the sign-in button while a code waits; it opens the iBroadcast page with the code again.</comment>
+  </data>
+  <data name="Migration_KeepsOriginalsIBroadcast" xml:space="preserve">
+    <value>rpm solo lee tu biblioteca de iBroadcast. No se cambia ni se elimina nada en ella.</value>
+    <comment>Import from another app: shown on the summary and while importing from iBroadcast.</comment>
+  </data>
+  <data name="Migration_IBroadcastFree" xml:space="preserve">
+    <value>Tu cuenta de iBroadcast es gratuita, así que iBroadcast da copias MP3 a 128 kbps de tu música, no tus archivos originales. Con iBroadcast Premium, rpm importa los originales.</value>
+    <comment>Import from another app: shown on the summary when the iBroadcast account is free.</comment>
+  </data>
+  <data name="Migration_IBroadcastNotCarried" xml:space="preserve">
+    <value>Los pulgares abajo y las valoraciones de álbumes y artistas no se importan. iBroadcast no guarda cuándo se reprodujo una canción por última vez.</value>
+    <comment>Import from another app: shown on the summary of an iBroadcast import, listing what does not come along.</comment>
+  </data>
+  <data name="Migration_SkipInTrash" xml:space="preserve">
+    <value>En la papelera de iBroadcast</value>
+    <comment>Import from another app: why a skipped track is not imported; it is in the iBroadcast trash. Shown after the track name and a colon.</comment>
+  </data>
+  <data name="Migration_SkipIBroadcastList" xml:space="preserve">
+    <value>Una lista que iBroadcast llena por sí mismo</value>
+    <comment>Import from another app: why a playlist is not imported; iBroadcast fills it by itself (such as its most recent uploads). Shown after the playlist name and a colon.</comment>
+  </data>
+  <data name="Migration_IBroadcastTagsFolder" xml:space="preserve">
+    <value>Etiquetas</value>
+    <comment>Import from another app: the name of the playlist folder that holds the iBroadcast tags, one playlist per tag.</comment>
+  </data>
   <data name="Migration_SourcePlaylistFiles" xml:space="preserve">
     <value>Archivos de lista</value>
     <comment>Import from another app: the choice for .m3u/.pls playlist files. Also the name shown for this source in the report.</comment>
@@ -10214,6 +10766,10 @@
   <data name="Migration_SummarySkipped" xml:space="preserve">
     <value>{0} elementos no se importan (streams, vídeos, podcasts o archivos que no están en este ordenador)</value>
     <comment>Import from another app: summary line. {0} is a number.</comment>
+  </data>
+  <data name="Migration_SummarySkippedIBroadcast" xml:space="preserve">
+    <value>{0} elementos no se importan (en la papelera de iBroadcast, sin archivo, o listas que iBroadcast llena por sí mismo)</value>
+    <comment>Import from another app: summary line for an iBroadcast library, in place of Migration_SummarySkipped. {0} is a number.</comment>
   </data>
   <data name="Migration_SummaryOtherImports" xml:space="preserve">
     <value>Ya importaste {0}. Las reproducciones que tienen ambas bibliotecas se cuentan dos veces.</value>
