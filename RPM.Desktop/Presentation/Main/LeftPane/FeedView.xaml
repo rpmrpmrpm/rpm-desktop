@@ -15,39 +15,59 @@
     <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
   </UserControl.Resources>
 
-  <!-- The Feed: everyone's posts and album reviews, newest first, as on the phone's Feed tab. The column
-       is the phone's width (FeedCards.PhoneWidth) and every card has the phone's sizes. A wider pane
-       centres the column. A narrower pane makes it narrower, as a smaller phone would. The cards are
-       built in code (FeedCards), because a review card runs its text round the cover, which a template
-       cannot do. -->
+  <!-- The Feed: everyone's posts and album reviews, newest first, as on the phone's Feed tab, and the
+       pages it opens (a person's page, a review read in full). The cards run from the heading's left
+       edge to the same 16 px margin at the right, so the column grows with the pane. The space inside a
+       card is the phone's. The cards are built in code (FeedCards), because a review card runs its text
+       round the cover, which a template cannot do.
+
+       There is no subtitle strip under the heading here: the list starts 7 px under the heading box. -->
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <StackPanel Grid.Row="0" Margin="16,12,16,0">
-      <Grid Style="{StaticResource RpmPaneHeadingBox}">
-        <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
-      </Grid>
-      <!-- Empty on purpose: the strip is kept so the first card starts on the same line as the content
-           of the other panes. -->
-      <TextBlock Style="{StaticResource RpmPaneSubheading}"/>
-    </StackPanel>
+    <!-- The heading row. The key at the right is the reader's own page on the feed, and the way back on
+         every page the feed opens. Both end on the cards' right edge. -->
+    <Grid Grid.Row="0" Margin="16,12,16,0" Style="{StaticResource RpmPaneHeadingBox}">
+      <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
+
+      <Button x:Name="ProfileKey" Click="ProfileKey_Click" HorizontalAlignment="Right"
+              Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="16"
+              Background="#1FFFFFFF" BorderThickness="0" Visibility="Collapsed"
+              ToolTipService.ToolTip="{loc:Str Key=Rpm_Feed_MyProfile}"
+              AutomationProperties.Name="{loc:Str Key=Rpm_Feed_MyProfile}">
+        <FontIcon Glyph="&#xf007;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#EEFFFFFF"/>
+      </Button>
+
+      <Button x:Name="BackKey" Click="BackKey_Click" HorizontalAlignment="Right"
+              Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
+              HorizontalContentAlignment="Right"
+              Background="Transparent" BorderThickness="0" Visibility="Collapsed"
+              ToolTipService.ToolTip="{loc:Str Key=Window_Close}"
+              AutomationProperties.Name="{loc:Str Key=Window_Close}">
+        <FontIcon Glyph="&#xf00d;" FontFamily="{StaticResource Fa}" FontSize="15" Foreground="#DDFFFFFF"/>
+      </Button>
+    </Grid>
 
     <ScrollViewer x:Name="Scroller" Grid.Row="1" HorizontalScrollMode="Disabled"
-                  VerticalScrollBarVisibility="Auto" ViewChanged="Scroller_ViewChanged">
-      <StackPanel x:Name="Column" Spacing="12" Padding="20,4,20,40">
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel x:Name="Column" Spacing="12" Padding="16,7,16,40">
         <TextBlock x:Name="QuietLine" FontSize="13" Foreground="#88FFFFFF" TextWrapping="Wrap"
                    Visibility="Collapsed"/>
       </StackPanel>
     </ScrollViewer>
 
+    <!-- A person's page. Its scroller and column are built for each page (FeedView.OpenPerson), so a page
+         that is left takes its list and its handlers with it. -->
+    <Grid x:Name="PersonHost" Grid.Row="1" Visibility="Collapsed"/>
+
     <!-- A review read in full. It takes the list's place in the pane, and the list keeps its scroll
          position underneath. -->
     <ScrollViewer x:Name="Reader" Grid.Row="1" HorizontalScrollMode="Disabled"
                   VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-      <StackPanel x:Name="ReaderColumn" Spacing="14" Padding="20,4,20,24"/>
+      <StackPanel x:Name="ReaderColumn" Spacing="14" Padding="16,7,16,24"/>
     </ScrollViewer>
   </Grid>
 </UserControl>

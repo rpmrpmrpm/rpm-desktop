@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Cloud;
-using RPM.Desktop.Presentation.Main.Library.Models;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -14,18 +13,13 @@ namespace RPM.Desktop.Presentation.Main.LeftPane;
 /// and the reply count) and a review (the author, the record's title, artist, year and stars, the cover
 /// at the right with the text run round it, votes and Read full review).
 ///
-/// <para>The sizes are the phone's points, used as the desktop's pixels, so a card here is the size of
-/// the same card on a phone. Change them together with <c>ProfileScreen.kt</c> and <c>ReviewCards.kt</c>
-/// in rpm-android and <c>ReviewCards.swift</c> in rpm-apple.</para>
+/// <para>The sizes inside a card are the phone's points, used as the desktop's pixels. Change them
+/// together with <c>ProfileScreen.kt</c> and <c>ReviewCards.kt</c> in rpm-android and
+/// <c>ReviewCards.swift</c> in rpm-apple. The cards themselves are as wide as the pane allows, from the
+/// heading's left edge to the same margin at the right (see <c>FeedView.xaml</c>).</para>
 /// </summary>
 internal static class FeedCards
 {
-    /// <summary>The width of the feed's column: the width of the iPhone screen the phone layout is drawn
-    /// for. The cards are this less the two margins.</summary>
-    public const double PhoneWidth = 393;
-
-    /// <summary>The space left and right of the cards, as on the phone (<c>RPMLayout.margin</c>).</summary>
-    public const double Margin = 20;
 
     /// <summary>The cover on a review card.</summary>
     public const double ReviewCover = 120;
@@ -38,11 +32,11 @@ internal static class FeedCards
 
     private static readonly FontFamily Fa = new("ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro");
 
-    private const string Like = "";
-    private const string Dislike = "";
-    private const string Comment = "";
-    private const string Play = "";
-    private const string Record = "";
+    private const string Like = "\uF164";
+    private const string Dislike = "\uF165";
+    private const string Comment = "\uF075";
+    private const string Play = "\uF04B";
+    private const string Record = "\uF51F";
 
     /// <summary>The supporter's gold for a name, the phone's <c>Ink.gold</c>.</summary>
     private static readonly Color Gold = Color.FromArgb(0xFF, 0xEB, 0xC6, 0x5A);
@@ -53,12 +47,15 @@ internal static class FeedCards
 
     /// <summary>A post as a card. Its votes are drawn by <paramref name="votes"/>, which the caller keeps
     /// so an answer to a vote can redraw the counts in place.</summary>
-    public static FrameworkElement Post(RpmPost post, VoteKeys votes)
+    /// <param name="onPerson">Opens the author's page from their photo or name; null on that page itself,
+    /// where both stay still.</param>
+    public static FrameworkElement Post(RpmPost post, VoteKeys votes, Action<string>? onPerson)
     {
         var name = post.AuthorDeleted ? Loc.Get("Community_DeletedUser") : post.AuthorName;
+        var open = post.AuthorDeleted || onPerson is null ? null : (Action)(() => onPerson(post.OwnerId));
 
         var text = new StackPanel { Spacing = 6 };
-        text.Children.Add(Byline(name, post.CreatedAt, post.AuthorSupporter));
+        text.Children.Add(Pressable(Byline(name, post.CreatedAt, post.AuthorSupporter), open, name));
         text.Children.Add(new TextBlock
         {
             Text = post.Body,
@@ -95,7 +92,7 @@ internal static class FeedCards
         var row = new Grid { ColumnSpacing = 10 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var photo = Photo(post.AuthorDeleted ? null : post.OwnerId, post.HasAvatar, name, 40);
+        var photo = Pressable(Photo(post.AuthorDeleted ? null : post.OwnerId, post.HasAvatar, 0, name, 40), open, name);
         photo.VerticalAlignment = VerticalAlignment.Top;
         row.Children.Add(photo);
         Grid.SetColumn(text, 1);
@@ -106,15 +103,22 @@ internal static class FeedCards
 
     // ── a review ──
 
-    /// <summary>A review as a card, with its author above the record. <paramref name="onRead"/> opens the
-    /// whole review, from Read full review and from a press anywhere on the card that is not a key.</summary>
-    public static FrameworkElement Review(RpmFeedReview review, VoteKeys votes, Image cover, Action onRead)
+    /// <summary>A review as a card. <paramref name="onRead"/> opens the whole review, from Read full review
+    /// and from a press anywhere on the card that is not a key.</summary>
+    /// <param name="showAuthor">Draw the author's line above the record, as on everyone's feed. On the
+    /// author's own page the line is left out and the time stands beside the stars instead.</param>
+    /// <param name="onPerson">Opens the author's page from their line; null where it is not drawn.</param>
+    public static FrameworkElement Review(
+        RpmFeedReview review, VoteKeys votes, Image cover, Action onRead, bool showAuthor, Action<string>? onPerson)
     {
         var stack = new StackPanel();
-        var author = Author(review);
-        author.Margin = new Thickness(0, 0, 0, 12);
-        stack.Children.Add(author);
-        stack.Children.Add(new WrappedReview(Head(review, showTime: false), Quoted(review.Body), CoverFrame(cover, ReviewCover)));
+        if (showAuthor)
+        {
+            var author = Author(review, onPerson);
+            author.Margin = new Thickness(0, 0, 0, 12);
+            stack.Children.Add(author);
+        }
+        stack.Children.Add(new WrappedReview(Head(review, showTime: !showAuthor), Quoted(review.Body), CoverFrame(cover, ReviewCover)));
 
         var foot = new Grid { Margin = new Thickness(0, 6, 0, 0) };
         foot.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -136,22 +140,13 @@ internal static class FeedCards
 
     /// <summary>A review read in full: the author, the cover beside the record's title, artist, year and
     /// stars, every line of the review, the votes, and Open album when the record is in the reader's
-    /// collection (<paramref name="onOpenAlbum"/> not null).</summary>
+    /// collection (<paramref name="onOpenAlbum"/> not null). The key that closes it is in the pane's
+    /// heading row.</summary>
     public static IEnumerable<UIElement> ReaderParts(
-        RpmFeedReview review, VoteKeys votes, Image cover, Action onClose, Action? onOpenAlbum)
+        RpmFeedReview review, VoteKeys votes, Image cover, Action? onOpenAlbum, bool showAuthor, Action<string>? onPerson)
     {
-        var close = new Button
-        {
-            Style = Key(),
-            Width = 34,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Content = Glyph("", 15, White(0xDD)),
-        };
-        IconName.Set(close, Loc.Get("Window_Close"));
-        close.Click += (_, _) => onClose();
-        yield return close;
-
-        yield return Author(review);
+        if (showAuthor)
+            yield return Author(review, onPerson);
 
         var top = new Grid { ColumnSpacing = 14 };
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -222,16 +217,38 @@ internal static class FeedCards
         return head;
     }
 
-    /// <summary>The author's photo and name over a review, with when it was written.</summary>
-    private static FrameworkElement Author(RpmFeedReview review)
+    /// <summary>The author's photo and name over a review, with when it was written. It opens their page.</summary>
+    private static FrameworkElement Author(RpmFeedReview review, Action<string>? onPerson)
     {
         var name = review.AuthorDeleted ? Loc.Get("Community_DeletedUser") : review.AuthorName;
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        row.Children.Add(Photo(review.AuthorDeleted ? null : review.UserId, review.HasAvatar, name, 32));
+        row.Children.Add(Photo(review.AuthorDeleted ? null : review.UserId, review.HasAvatar, 0, name, 32));
         var byline = Byline(name, review.CreatedAt, review.AuthorSupporter);
         byline.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(byline);
-        return row;
+        var open = review.AuthorDeleted || onPerson is null ? null : (Action)(() => onPerson(review.UserId));
+        var pressable = Pressable(row, open, name);
+        pressable.HorizontalAlignment = HorizontalAlignment.Left;
+        return pressable;
+    }
+
+    /// <summary>The element as a key that runs <paramref name="onPress"/>, or the element itself when there is
+    /// nothing to run. A key, so a press on it does not also open the review card it is on.</summary>
+    private static FrameworkElement Pressable(FrameworkElement content, Action? onPress, string name)
+    {
+        if (onPress is null)
+            return content;
+        var key = new Button
+        {
+            Style = Key(),
+            Height = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Content = content,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, name);
+        key.Click += (_, _) => onPress();
+        return key;
     }
 
     /// <summary>The cover square: the record glyph, with the picture over it once there is one. The
@@ -289,7 +306,9 @@ internal static class FeedCards
     }
 
     /// <summary>A person's photo in a circle, or the first letter of their name while they have none.</summary>
-    private static FrameworkElement Photo(string? userId, bool hasAvatar, string name, double size)
+    /// <param name="stamp">The photo's <c>avatarUpdatedAt</c> where it is known, so a changed photo has a new
+    /// address; 0 where the answer does not carry it.</param>
+    internal static FrameworkElement Photo(string? userId, bool hasAvatar, long stamp, string name, double size)
     {
         var round = new CornerRadius(size / 2);
         var box = new Grid { Width = size, Height = size, CornerRadius = round, Background = White(0x26) };
@@ -303,8 +322,8 @@ internal static class FeedCards
             VerticalAlignment = VerticalAlignment.Center,
         });
         var api = App.Services.GetRequiredService<RpmCommunityClient>().BaseAddress;
-        if (userId is { Length: > 0 } && ReviewRow.BuildAvatarUrl(api, userId, hasAvatar) is { } address)
-            box.Children.Add(new AvatarPicture { CornerRadius = round, Source = address });
+        if (userId is { Length: > 0 } && hasAvatar && api is not null)
+            box.Children.Add(new AvatarPicture { CornerRadius = round, Source = new Uri(api, RpmCommunityClient.AvatarPath(userId, stamp)) });
         return box;
     }
 
@@ -448,8 +467,8 @@ internal sealed partial class VoteKeys : StackPanel
     public void Show(int ups, int downs, int mine)
     {
         _mine = mine;
-        Paint(_up, "", ups, mine == 1, Loc.Format("Rpm_Profile_Likes", ups));
-        Paint(_down, "", downs, mine == -1, Loc.Format("Rpm_Profile_Dislikes", downs));
+        Paint(_up, "\uF164", ups, mine == 1, Loc.Format("Rpm_Profile_Likes", ups));
+        Paint(_down, "\uF165", downs, mine == -1, Loc.Format("Rpm_Profile_Dislikes", downs));
     }
 
     private static Button Make(bool first) => new()
@@ -523,7 +542,8 @@ internal sealed partial class WrappedReview : Panel
 
     protected override Size MeasureOverride(Size available)
     {
-        var full = double.IsInfinity(available.Width) ? FeedCards.PhoneWidth - 2 * FeedCards.Margin - 28 : available.Width;
+        // Never infinite inside a card; the fallback is a card in the widest pane.
+        var full = double.IsInfinity(available.Width) ? 376 : available.Width;
         var edge = FeedCards.ReviewCover;
         var narrow = Math.Max(1, full - edge - Gap);
 

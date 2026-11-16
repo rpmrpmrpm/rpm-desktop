@@ -248,6 +248,46 @@ public sealed record RpmFeedPage(
         .ToList();
 }
 
+/// <summary>What a person is playing now, and since when (Unix milliseconds).</summary>
+public sealed record RpmListening(
+    [property: JsonPropertyName("artist")] string Artist,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("album")] string Album,
+    [property: JsonPropertyName("albumId")] string? AlbumId = null,
+    [property: JsonPropertyName("at")] long At = 0);
+
+/// <summary>The size of a person's collection, as their app last reported it.</summary>
+public sealed record RpmCollectionCounts(
+    [property: JsonPropertyName("albums")] int Albums,
+    [property: JsonPropertyName("tracks")] int Tracks,
+    [property: JsonPropertyName("updatedAt")] long UpdatedAt = 0);
+
+/// <summary>A person's profile as their page reads it, from <c>profiles/{userId}</c>. It is a larger answer
+/// than <see cref="RpmProfile"/>, which the review rows read from the same route.</summary>
+/// <param name="Listening">Null when nothing plays, when it is old, or when the person turned sharing off.</param>
+/// <param name="Friendship">"self", "none", "requested", "incoming" or "friends", as the reader sees it.</param>
+/// <param name="BannerSource">"photo" (the uploaded banner; also what an empty value means) or "listening"
+/// (the photo of the artist in <see cref="Listening"/>).</param>
+/// <param name="Badge">The badge shown under the name, by id, or empty.</param>
+/// <param name="BadgeColour">The badge's colour as <c>#RRGGBB</c>, or empty for the default.</param>
+public sealed record RpmPersonProfile(
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("displayName")] string DisplayName,
+    [property: JsonPropertyName("hasAvatar")] bool HasAvatar,
+    [property: JsonPropertyName("avatarUpdatedAt")] long AvatarUpdatedAt,
+    [property: JsonPropertyName("createdAt")] long CreatedAt,
+    [property: JsonPropertyName("supporter")] bool Supporter = false,
+    [property: JsonPropertyName("hasBanner")] bool HasBanner = false,
+    [property: JsonPropertyName("bannerUpdatedAt")] long BannerUpdatedAt = 0,
+    [property: JsonPropertyName("listening")] RpmListening? Listening = null,
+    [property: JsonPropertyName("counts")] RpmCollectionCounts? Counts = null,
+    [property: JsonPropertyName("friendship")] string? Friendship = null,
+    [property: JsonPropertyName("blocked")] bool Blocked = false,
+    [property: JsonPropertyName("bannerSource")] string? BannerSource = null,
+    [property: JsonPropertyName("badges")] IReadOnlyList<string>? Badges = null,
+    [property: JsonPropertyName("badge")] string? Badge = null,
+    [property: JsonPropertyName("badgeColour")] string? BadgeColour = null);
+
 /// <summary>How a review list is ordered. The values are the sort tabs on the album page.</summary>
 public enum RpmReviewSort
 {
@@ -504,6 +544,37 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
         return await SendAsync<RpmFeedPage>(HttpMethod.Get, url, null, requireToken: false, ct);
     }
 
+    /// <summary>The largest page the server gives for <see cref="GetPersonFeedAsync"/>.</summary>
+    public const int LongestPersonFeedPage = 20;
+
+    /// <summary>A person's page: their profile with banner, counts, what they play and their badge. It
+    /// needs no token. Null when the person has no profile.</summary>
+    public async Task<RpmPersonProfile?> GetPersonAsync(string userId, CancellationToken ct = default)
+        => string.IsNullOrEmpty(userId)
+            ? null
+            : await SendAsync<RpmPersonProfile>(
+                HttpMethod.Get, $"profiles/{Uri.EscapeDataString(userId)}", null, false, ct);
+
+    /// <summary>A person's own posts and album reviews, newest first. It needs no token.</summary>
+    /// <param name="before">The <see cref="RpmFeedPage.Next"/> of the page before; null for the first
+    /// page.</param>
+    /// <returns>Null when the server has no such feed.</returns>
+    public async Task<RpmFeedPage?> GetPersonFeedAsync(
+        string userId, long? before, int limit, CancellationToken ct = default)
+    {
+        var url = $"profiles/{Uri.EscapeDataString(userId)}/feed?limit={Math.Clamp(limit, 1, LongestPersonFeedPage)}";
+        if (before is { } b) url += $"&before={b}";
+        return await SendAsync<RpmFeedPage>(HttpMethod.Get, url, null, requireToken: false, ct);
+    }
+
+    /// <summary>Where somebody's banner is drawn from, relative to the API base, stamped as the avatar
+    /// is.</summary>
+    public static string BannerPath(string userId, long bannerUpdatedAt = 0)
+    {
+        var path = $"profiles/{Uri.EscapeDataString(userId)}/banner";
+        return bannerUpdatedAt > 0 ? $"{path}?v={bannerUpdatedAt}" : path;
+    }
+
     /// <param name="value">1 to vote it up, -1 down, 0 to withdraw. Not on your own post.</param>
     public async Task<RpmPost?> VotePostAsync(
         string ownerId, string postId, int value, CancellationToken ct = default)
@@ -732,6 +803,7 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
     [JsonSerializable(typeof(RpmAlbum))]
     [JsonSerializable(typeof(RpmArtist))]
     [JsonSerializable(typeof(RpmFeedPage))]
+    [JsonSerializable(typeof(RpmPersonProfile))]
     [JsonSerializable(typeof(RpmPost))]
     [JsonSerializable(typeof(RpmComment))]
     [JsonSerializable(typeof(RpmProfile))]

@@ -76,6 +76,53 @@ public sealed class RpmCommunityFeedTests
     }
 
     [Fact]
+    public async Task A_person_page_reads_the_profile_with_its_banner_counts_listening_and_badge()
+    {
+        var handler = new Answering(
+            """
+            { "userId": "u1", "displayName": "Ann", "hasAvatar": true, "avatarUpdatedAt": 5, "createdAt": 1700000000000,
+              "supporter": true, "hasBanner": true, "bannerUpdatedAt": 9,
+              "listening": { "artist": "Can", "title": "Vitamin C", "album": "Ege Bamyasi", "at": 1700000001000 },
+              "counts": { "albums": 1610, "tracks": 23329, "updatedAt": 1 },
+              "friendship": "self", "blocked": false, "bannerSource": "photo",
+              "badges": ["first-spin", "rock"], "badge": "rock", "badgeColour": "#2563EB" }
+            """);
+
+        var person = await Client(handler).GetPersonAsync("u1");
+
+        Assert.NotNull(person);
+        Assert.Equal("/profiles/u1", handler.Asked);
+        Assert.True(person.Supporter);
+        Assert.Equal(1610, person.Counts?.Albums);
+        Assert.Equal("Vitamin C", person.Listening?.Title);
+        Assert.Equal("rock", person.Badge);
+        Assert.Equal(["first-spin", "rock"], person.Badges);
+        Assert.Equal("profiles/u1/banner?v=9", RpmCommunityClient.BannerPath("u1", person.BannerUpdatedAt));
+    }
+
+    [Fact]
+    public async Task A_profile_without_the_page_fields_still_reads()
+    {
+        var person = await Client(new Answering(
+            """{ "userId": "u1", "displayName": "Ann", "hasAvatar": false, "avatarUpdatedAt": 0, "createdAt": 0 }"""))
+            .GetPersonAsync("u1");
+
+        Assert.NotNull(person);
+        Assert.Null(person.Counts);
+        Assert.Null(person.Listening);
+        Assert.False(person.HasBanner);
+    }
+
+    [Fact]
+    public async Task A_person_feed_is_asked_by_id_with_its_own_cap()
+    {
+        var handler = new Answering("""{ "items": [], "next": null }""");
+        await Client(handler).GetPersonFeedAsync("a b", before: 77, limit: 100);
+
+        Assert.Equal($"/profiles/a%20b/feed?limit={RpmCommunityClient.LongestPersonFeedPage}&before=77", handler.Asked);
+    }
+
+    [Fact]
     public void A_vote_answer_moves_the_counts_onto_the_feed_review()
     {
         var shown = new RpmFeedReview("a1", "u2", "Bo", false, 9, "Great", 1, 1, 0, 0, 0, 0,
