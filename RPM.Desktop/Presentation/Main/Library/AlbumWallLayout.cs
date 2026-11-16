@@ -102,6 +102,11 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
     /// </remarks>
     public double RowWidth { get; set; }
 
+    /// <summary>Called with a row's index before the row's element is asked for, on every pass and for
+    /// every row in range, so that the view can give a row its cards late. See
+    /// <c>AlbumWallView.DealRowBeforeRealizing</c>.</summary>
+    public Action<int>? Realizing { get; set; }
+
     /// <summary>The row that holds the open drawer, or -1 when no record is open. The view writes this on
     /// every open, close and re-seat.</summary>
     public int BandRow
@@ -207,6 +212,7 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         if (_rowHeight <= 0)
         {
             var probeAt = _bandRow == 0 && count > 1 ? 1 : 0;
+            Realizing?.Invoke(probeAt);
             var probe = context.GetOrCreateElementAt(probeAt);
             held.Rows[probeAt] = probe;
             probe.Measure(room);
@@ -236,6 +242,7 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
 
         for (var i = first; i <= last; i++)
         {
+            Realizing?.Invoke(i);
             var element = context.GetOrCreateElementAt(i);
             held.Rows[i] = element;
             element.Measure(room);
@@ -261,6 +268,7 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         // is not dirty answers a repeated constraint without traversing.
         if (band >= 0 && (band < first || band > last))
         {
+            Realizing?.Invoke(band);
             var open = context.GetOrCreateElementAt(band);
             held.Rows[band] = open;
             open.Measure(room);

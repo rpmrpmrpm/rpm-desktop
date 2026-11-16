@@ -2036,7 +2036,10 @@ public sealed partial class MainPage
             _heldLive = live;
 
             if (live)
+            {
                 p.AlbumWall.BeginLiveResize();
+                p.ArtistsWall.BeginLiveResize();
+            }
             else
                 p.AlbumWall.HoldReflow();
 
@@ -2059,7 +2062,10 @@ public sealed partial class MainPage
             _holdsScene = false;
 
             if (_heldLive)
+            {
                 p.AlbumWall.EndLiveResize();
+                p.ArtistsWall.EndLiveResize();
+            }
             else
                 p.AlbumWall.ReleaseReflow();
 

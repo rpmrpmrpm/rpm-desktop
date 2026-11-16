@@ -79,6 +79,7 @@ public sealed partial class AlbumWallView : UserControl
     {
         InitializeComponent();
         _band = new BandConductor(this);
+        RowsLayout.Realizing = DealRowBeforeRealizing;
         _lineBreath = new Common.CloudLineBreath(() => _band.Current?.Lines ?? []);
         RowsRepeater.ItemsSource = _rows;
         RowsRepeater.ElementPrepared += Row_ElementPrepared;
@@ -806,6 +807,7 @@ public sealed partial class AlbumWallView : UserControl
 
         private async void Open(AlbumCard card)
         {
+            b.DealStaleRows();   // the search below needs every row to hold its own cards
             var owner = b._rows.FirstOrDefault(r => r.Cards.Contains(card));
             if (owner is null)
                 return;

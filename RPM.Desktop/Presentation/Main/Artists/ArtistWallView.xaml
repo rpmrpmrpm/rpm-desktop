@@ -80,12 +80,19 @@
            measure throws a DivideByZeroException. This is the floor for the first pass only. The tile
            grows and shrinks with the wall. After that, Relayout sets this and MinItemWidth together.
            They must be the same number, or neither is a floor. -->
-      <ItemsRepeater x:Name="Tiles" MinWidth="260" ItemTemplate="{StaticResource ArtistTemplate}">
-        <ItemsRepeater.Layout>
-          <UniformGridLayout x:Name="TileLayout" MinItemWidth="260" MinItemHeight="146"
-                             MinColumnSpacing="14" MinRowSpacing="14"/>
-        </ItemsRepeater.Layout>
-      </ItemsRepeater>
+      <!-- The repeater sits in a Grid of its own, and is not the scroller's content itself. A pane move
+           draws the repeater scaled through its composition visual (see ArtistWallView.BeginLiveResize).
+           The scroller moves its content through the content's composition visual, so a scale set on
+           the content would replace the scroll, and the wall would show its top rows wherever it was
+           scrolled to. -->
+      <Grid>
+        <ItemsRepeater x:Name="Tiles" MinWidth="260" ItemTemplate="{StaticResource ArtistTemplate}">
+          <ItemsRepeater.Layout>
+            <UniformGridLayout x:Name="TileLayout" MinItemWidth="260" MinItemHeight="146"
+                               MinColumnSpacing="14" MinRowSpacing="14"/>
+          </ItemsRepeater.Layout>
+        </ItemsRepeater>
+      </Grid>
     </ScrollViewer>
 
     <!-- The index sits down the right edge and over the wall, not beside it. It moves the wall. It is

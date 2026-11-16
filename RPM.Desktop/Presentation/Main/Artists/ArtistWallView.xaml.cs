@@ -373,6 +373,15 @@ public sealed partial class ArtistWallView : UserControl
             return;
 
         _columns = columns;
+
+        // While a pane moves, the boxes keep the size the move began at, and the wall is drawn to fit.
+        // See BeginLiveResize.
+        if (ScaleLive(available, columns))
+        {
+            ReadStandingLetter();
+            return;
+        }
+
         _metrics.Set(width);
 
         // The layout is given the same numbers the boxes are drawn at. So the layout and the rail's
@@ -397,6 +406,91 @@ public sealed partial class ArtistWallView : UserControl
 
     /// <summary>One row's worth of vertical travel.</summary>
     private double RowStride => _metrics.Height + Gap;
+
+    // ── a pane moving beside the wall ──
+
+    /// <summary>
+    /// A pane is about to resize the wall live, one frame at a time. Until <see cref="EndLiveResize"/>,
+    /// the boxes keep the size they have now, and the whole wall is drawn larger or smaller to fill the
+    /// width it is given.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why.</b> A new box width on every frame makes every realized box dirty: its size, its photograph
+    /// and its name, which wraps again. That is about fifty boxes, and each frame of a move took about
+    /// 45 ms of the drawing thread. Here a frame writes one scale to the repeater's composition visual,
+    /// which dirties nothing. The column count still follows the width, so the boxes are dealt into the
+    /// new number of columns during the move. Moving a box costs an arrange, not a measure, because its
+    /// size does not change.
+    ///
+    /// <para>The album wall does the same, row by row (see <c>AlbumWallView.BeginLiveResize</c>). This
+    /// wall is one flat grid, so one scale on the repeater is enough. It is scaled about the top of the
+    /// viewport, so the row the reader is on stays where it is.</para>
+    ///
+    /// <para>WinUI only. On the Skia head the wall keeps re-flowing every frame.</para>
+    /// </remarks>
+    public void BeginLiveResize()
+    {
+#if RPM_WINUI
+        // RPM_PANE_FREEZE=none turns this off along with the album wall's scale, for measuring.
+        if (_liveWidth > 0
+            || Library.AlbumWallView.Freeze != Library.AlbumWallView.WallFreeze.Scale)
+            return;
+        _liveWidth = _metrics.Width;
+#endif
+    }
+
+    /// <summary>The move has landed. The real box width is written once, at the width the wall
+    /// keeps.</summary>
+    public void EndLiveResize()
+    {
+#if RPM_WINUI
+        if (_liveWidth <= 0)
+            return;
+        _liveWidth = 0;
+
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(Tiles).TransformMatrix =
+            System.Numerics.Matrix4x4.Identity;
+        Tiles.Width = double.NaN;
+        Tiles.HorizontalAlignment = HorizontalAlignment.Stretch;
+        Relayout();
+#endif
+    }
+
+    /// <summary>The box width a live resize holds, or zero when no move is running.</summary>
+    private double _liveWidth;
+
+    /// <summary>
+    /// Lays the wall out at <paramref name="columns"/> boxes of the held width and draws it scaled to
+    /// <paramref name="available"/>. Returns false when no live resize is running, and the caller then
+    /// lays the wall out normally.
+    /// </summary>
+    private bool ScaleLive(double available, int columns)
+    {
+#if RPM_WINUI
+        if (_liveWidth <= 0)
+            return false;
+
+        // The repeater is given exactly the width of the held columns. UniformGridLayout then fits that
+        // many boxes, and nothing in a box changes. Half a point more than the sum keeps a rounding
+        // error from losing a column.
+        var laid = (columns * _liveWidth) + ((columns - 1) * Gap);
+        Tiles.HorizontalAlignment = HorizontalAlignment.Left;
+        Tiles.Width = laid + 0.5;
+
+        // Scaled about the top of the viewport, in the repeater's own space. The scroll offset is where
+        // the viewport's top edge meets the content. The scale is on the repeater, not on the Grid the
+        // scroller moves: see the note in ArtistWallView.xaml.
+        var k = (float)(available / laid);
+        var top = (float)Scroller.VerticalOffset;
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(Tiles).TransformMatrix =
+            System.Numerics.Matrix4x4.CreateTranslation(0, -top, 0)
+            * System.Numerics.Matrix4x4.CreateScale(k, k, 1)
+            * System.Numerics.Matrix4x4.CreateTranslation(0, top, 0);
+        return true;
+#else
+        return false;
+#endif
+    }
 
     private void Scroller_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e) => ReadStandingLetter();
 

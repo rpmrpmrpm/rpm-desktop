@@ -119,6 +119,7 @@ public sealed partial class AlbumWallView
         // must match what is on screen right now. A move redirected mid-flight takes over from wherever
         // the last one left off. Starting from a fresh calculation would cause a jump on the first frame.
         _liveStride = _metrics.Stride;
+        _liveDeals.Counting = true;
     }
 
     /// <summary>The move has landed. The passengers are spent once, here, at the width the wall is
@@ -128,6 +129,10 @@ public sealed partial class AlbumWallView
         if (!_liveResize)
             return;
         _liveResize = false;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        // The rows that were not dealt during the move are dealt first. Everything below reads the rows.
+        DealStaleRows();
 
         RowsRepeater.VerticalCacheLength = _cacheRows;
 
@@ -155,6 +160,8 @@ public sealed partial class AlbumWallView
         // rows those are. CheckAnchorLater queues behind the layout pass requested above, because it runs
         // at low priority.
         CheckAnchorLater();
+
+        _liveDeals.Say(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
     }
 
     private bool _liveResize;
@@ -509,6 +516,9 @@ public sealed partial class AlbumWallView
         {
             _band.RefreshPointers();
         }
+
+        // One row on screen gets its cards on each pass of a live move. See _staleChunks.
+        DealOneOnScreen();
     }
 
     /// <summary>
@@ -621,7 +631,14 @@ public sealed partial class AlbumWallView
         if (!_viewportReady)
             return;   // no viewport yet: see Scroller_SizeChanged. The first real size regroups.
 
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var chunks = AlbumGridLayout.Chunk(_cards, _columns);
+
+        // During a live move, no row that already exists is dealt here. See _staleChunks.
+        var defer = _liveResize && SpreadDeal && _band.Current is null;
+        _staleChunks = defer ? chunks : null;
+        _staleRows = defer ? new bool[chunks.Count] : null;
+        var deferred = 0;
 
         // Reflow without a blank frame. Rows and their card collections stay alive across the reflow.
         // Each row's ObservableCollection is diffed to its new chunk, so only the cards that moved are
@@ -632,7 +649,16 @@ public sealed partial class AlbumWallView
         for (var i = 0; i < chunks.Count; i++)
         {
             if (i < _rows.Count)
+            {
+                if (_staleRows is not null)
+                {
+                    _staleRows[i] = true;
+                    deferred++;
+                    moved = true;
+                    continue;
+                }
                 moved |= SyncRow(_rows[i].Cards, chunks[i]);
+            }
             else
             {
                 var row = new AlbumRow();
@@ -647,6 +673,10 @@ public sealed partial class AlbumWallView
             _rows.RemoveAt(i);
             moved = true;
         }
+
+        if (_liveResize)
+            _liveDeals.Add(_columns, chunks.Count - deferred, deferred,
+                System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
         // Nothing actually moved. This happens when a feed returns the same albums in the same order.
         // Re-seating would rebind the open drawer's element for no reason. That is a visible blink on a
@@ -690,5 +720,149 @@ public sealed partial class AlbumWallView
             }
         }
         return changed;
+    }
+
+    // ── rows dealt late, during a live move ──
+
+    /// <summary>
+    /// The chunks of the last re-deal, kept while some rows have not been given theirs. Null when every
+    /// row is up to date, which is always the case outside a live move.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why.</b> A column change puts a different record in nearly every slot on screen: about five rows
+    /// of nine cards. Each card is bound again, its two lines of text are shaped again and its pictures
+    /// are swapped. In one pass that took about 30 ms of the drawing thread, twice in every pane move, and
+    /// those two frames were the stutter. So during a live move the rows are dealt late:
+    ///
+    /// <list type="bullet">
+    /// <item>A row on screen gets its cards one row a pass, top first (<see cref="DealOneOnScreen"/>).
+    /// Until its turn it shows its old cards in the new row width, so for a frame or two a row can have
+    /// one card too many (cut off at the edge) or one too few.</item>
+    /// <item>A row that is realized during the move gets its cards just before its element is made
+    /// (<see cref="DealRowBeforeRealizing"/>, called by <see cref="AlbumWallLayout.Realizing"/>), so a
+    /// new row never shows old cards.</item>
+    /// <item>Every other row gets its cards when the move lands (<see cref="DealStaleRows"/>). Nobody sees
+    /// them before that.</item>
+    /// </list>
+    ///
+    /// <para>It is used only while no drawer is open. The drawer finds its row by searching the rows for
+    /// its card, and a row that still holds its old cards would give the wrong answer.</para>
+    /// </remarks>
+    private List<IReadOnlyList<AlbumCard>>? _staleChunks;
+
+    /// <summary>Which rows still wait for their chunk in <see cref="_staleChunks"/>.</summary>
+    private bool[]? _staleRows;
+
+    /// <summary>The layout calls this before it asks for row <paramref name="index"/>'s element, on every
+    /// pass and for every row in its range. A row that already has an element is left to
+    /// <see cref="DealOneOnScreen"/>. A row about to get one is given its cards first, so that it never
+    /// shows the old ones.</summary>
+    private void DealRowBeforeRealizing(int index)
+    {
+        if (_staleRows is null || index < 0 || index >= _rows.Count || _onScreen.Contains(_rows[index]))
+            return;
+        DealRow(index);
+    }
+
+    /// <summary>Gives row <paramref name="index"/> its cards from the last re-deal, if it is still
+    /// waiting for them.</summary>
+    private void DealRow(int index)
+    {
+        if (_staleRows is not { } stale || _staleChunks is not { } chunks
+            || index < 0 || index >= stale.Length || index >= _rows.Count || !stale[index])
+            return;
+        stale[index] = false;
+        SyncRow(_rows[index].Cards, chunks[index]);
+    }
+
+    /// <summary>Gives every waiting row its cards. This runs when the move lands, and before anything
+    /// that searches the rows for a card.</summary>
+    private void DealStaleRows()
+    {
+        if (_staleRows is not { } stale || _staleChunks is not { } chunks)
+            return;
+        _staleRows = null;
+        _staleChunks = null;
+        var count = Math.Min(stale.Length, _rows.Count);
+        for (var i = 0; i < count; i++)
+        {
+            if (!stale[i])
+                continue;
+            if (_liveDeals.Counting && _onScreen.Contains(_rows[i]))
+                _liveDeals.LandedOnScreen++;
+            SyncRow(_rows[i].Cards, chunks[i]);
+        }
+    }
+
+    /// <summary>
+    /// Whether a live move deals its rows late (see <see cref="_staleChunks"/>). <c>RPM_WALL_SPREAD=0</c>
+    /// in a Debug build deals every row in the pass that changed the count, so the two can be measured
+    /// against each other.
+    /// </summary>
+    internal static readonly bool SpreadDeal =
+        RPM.Core.Diagnostics.DevSwitch.Read("RPM_WALL_SPREAD")?.Trim() is not ("0" or "false");
+
+    /// <summary>Gives the topmost row on screen that is still waiting for its cards. See
+    /// <see cref="_staleChunks"/>.</summary>
+    private void DealOneOnScreen()
+    {
+        if (_staleRows is not { } stale || _onScreen.Count == 0)
+            return;
+        var best = -1;
+        foreach (var row in _onScreen)
+        {
+            var index = _rows.IndexOf(row);
+            if (index >= 0 && index < stale.Length && stale[index] && (best < 0 || index < best))
+                best = index;
+        }
+        if (best < 0)
+            return;
+        DealRow(best);
+        _liveDeals.SpreadRows++;
+    }
+
+    /// <summary>What the re-deals of one live move cost. It is said on the <c>panes</c> channel when
+    /// the move lands, after the line for the move itself. "Rows dealt" counts the rows made new by the
+    /// re-deal, "later" the rows left for <see cref="DealOneOnScreen"/> and the landing.</summary>
+    private readonly LiveDeals _liveDeals = new();
+
+    private sealed class LiveDeals
+    {
+        private readonly System.Text.StringBuilder _line = new();
+        private int _count;
+
+        /// <summary>Rows on screen dealt one a pass during the move.</summary>
+        public int SpreadRows;
+
+        /// <summary>Rows on screen that were still waiting when the move landed.</summary>
+        public int LandedOnScreen;
+
+        /// <summary>True between the start of a move and its report.</summary>
+        public bool Counting;
+
+        public void Add(int columns, int dealt, int deferred, double ms)
+        {
+            _line.Append(_count++ == 0 ? "" : ", ")
+                .Append($"{columns} columns: {dealt} rows dealt, {deferred} later, {ms:F1}ms");
+        }
+
+        public void Say(double landingMs)
+        {
+            // A wall that is not on screen is still told about every move, and it has nothing to say.
+            if (_count == 0 && SpreadRows == 0 && LandedOnScreen == 0)
+            {
+                Counting = false;
+                return;
+            }
+            RPM.Core.Diagnostics.Scope.Said("panes",
+                $"wall re-dealt {_count}x during the move ({(_count == 0 ? "none" : _line.ToString())}), "
+                + $"{SpreadRows} rows on screen dealt a pass at a time, {LandedOnScreen} still waiting at the "
+                + $"landing, landing {landingMs:F1}ms");
+            _line.Clear();
+            _count = 0;
+            SpreadRows = 0;
+            LandedOnScreen = 0;
+            Counting = false;
+        }
     }
 }
