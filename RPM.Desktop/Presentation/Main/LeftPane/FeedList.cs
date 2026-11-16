@@ -362,13 +362,25 @@ internal static class FeedCovers
     }
 
     /// <summary>The record's cover: the reader's own copy's when it is in the collection, else the first
-    /// the cover search finds, else the record glyph stays.</summary>
+    /// the cover search finds, else the record glyph stays.
+    ///
+    /// <para>The folder from the collection is relative to the library's root, as every wall holds it, so
+    /// the cover is read through <see cref="AlbumCovers"/>, as every wall reads it: the picture beside the
+    /// files, the art inside them, or the cloud library's.</para></summary>
     public static async Task ShowAsync(Image target, RpmFeedReview review)
     {
         if (await FolderOfAsync(review) is { } folder)
         {
-            var bytes = await Task.Run(() =>
-                FolderArtWriter.FindFolderImage(folder) is { } image ? ThumbCache.GetFile(image, ArtScaler.RowEdge) : null);
+            byte[]? bytes = null;
+            try
+            {
+                bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, ArtScaler.RowEdge);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                // A file that went, or a library that closed. The search below may still find one.
+            }
+            Say($"cover of {review.AlbumTitle}: in the collection at {folder}, {(bytes is { Length: > 0 } ? "drawn from it" : "no picture there")}");
             if (bytes is { Length: > 0 })
             {
                 try
@@ -385,12 +397,69 @@ internal static class FeedCovers
             }
         }
 
-        if (await FoundAsync(review.AlbumArtist, review.AlbumTitle) is { } address
-            && Uri.TryCreate(address, UriKind.Absolute, out var uri))
-        {
+        var address = await FoundAsync(review.AlbumArtist, review.AlbumTitle);
+        Say($"cover of {review.AlbumTitle}: cover search {(address is null ? "found none" : "found one")}");
+        if (address is not null && Uri.TryCreate(address, UriKind.Absolute, out var uri))
             target.Source = new BitmapImage(uri) { DecodePixelWidth = ArtScaler.RowEdge };
+    }
+
+    private static void Say(string line)
+    {
+        if (RPM.Core.Diagnostics.Scope.On)
+            RPM.Core.Diagnostics.Scope.Said("profile", line);
+    }
+
+    /// <summary>
+    /// The cover search, through the app's disk cache: one answer per record is kept for a month (a "none"
+    /// for a week), so a record is searched once and not on every launch. The search is the API's
+    /// <c>artwork/search</c>, which counts against a daily allowance per account (it pays for a web search
+    /// behind it), the same one the import's cover picker spends.
+    ///
+    /// <para>Only real answers are kept (see <c>HttpCacheHandler</c>): a refusal or a failure is not stored
+    /// as "no cover".</para>
+    /// </summary>
+    private static async Task<Asked<CoverSearchResponse>> SearchCachedAsync(string artist, string title)
+    {
+        try
+        {
+            var token = await App.Services.GetRequiredService<AuthService>().GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                return Asked.Failed<CoverSearchResponse>("not signed in");
+            var url = $"artwork/search?limit=1&artist={Uri.EscapeDataString(artist)}&album={Uri.EscapeDataString(title)}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            using var response = await Searches.Value.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                return Asked.Failed<CoverSearchResponse>($"HTTP {(int)response.StatusCode}");
+            var found = await System.Net.Http.Json.HttpContentJsonExtensions.ReadFromJsonAsync(
+                response.Content, CatalogWireJson.Default.CoverSearchResponse);
+            return found is null
+                ? Asked.Failed<CoverSearchResponse>("the answer had no body")
+                : Asked.Answer(found);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return Asked.Failed<CoverSearchResponse>($"{ex.GetType().Name}: {ex.Message}");
         }
     }
+
+    /// <summary>The client <see cref="SearchCachedAsync"/> asks through: the API, behind the disk cache.</summary>
+    private static readonly Lazy<HttpClient> Searches = new(() =>
+    {
+        var config = App.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RPM.Desktop.Models.AppConfig>>();
+        var api = RPM.Core.Net.RpmApi.At(config.Value.IdentificationApiUrl) ?? RPM.Core.Net.RpmApi.Deployed;
+        var policy = new RPM.Core.Net.WebCachePolicy("art", TimeSpan.FromDays(30), TimeSpan.FromDays(7)) { Vary = "feed-cover" };
+        return Services.Platform.AppCache.Client(policy, api, TimeSpan.FromSeconds(20));
+    });
+
+    /// <summary>Lets one cover search run at a time.</summary>
+    private static readonly SemaphoreSlim OneSearch = new(1, 1);
+
+    /// <summary>How long the searches rest after one was refused or failed.</summary>
+    private static readonly TimeSpan Quiet = TimeSpan.FromMinutes(1);
+
+    /// <summary>Until when no search is sent. Read and written only while <see cref="OneSearch"/> is held.</summary>
+    private static DateTimeOffset _quietUntil;
 
     private static Task<string?> FoundAsync(string artist, string title)
     {
@@ -401,8 +470,29 @@ internal static class FeedCovers
 
         static async Task<string?> SearchAsync(string key, string artist, string title)
         {
-            var search = App.Services.GetRequiredService<ICoverSearchApi>();
-            var asked = await search.SearchAsync(new CoverSearchQuery(Album: title, Artist: artist, Limit: 1));
+            // One search at a time, and none for a while after a refusal: a feed page asks for a cover for
+            // every review of a record the reader does not own, all at once, and the server answers a burst
+            // with 429. A cover not found now is asked for again when the card is drawn again.
+            await OneSearch.WaitAsync();
+            Asked<CoverSearchResponse> asked;
+            try
+            {
+                if (DateTimeOffset.UtcNow < _quietUntil)
+                {
+                    Found.TryRemove(key, out var _);
+                    return null;
+                }
+                asked = await SearchCachedAsync(artist, title);
+                if (!asked.Answers(out _, out var why))
+                {
+                    _quietUntil = DateTimeOffset.UtcNow + Quiet;
+                    Say($"cover search for {title} did not answer: {why}; no searches for a minute");
+                }
+            }
+            finally
+            {
+                OneSearch.Release();
+            }
             return asked.Match<string?>(
                 found => found.Results.FirstOrDefault() is { } first
                     ? (string.IsNullOrEmpty(first.ThumbUrl) ? first.FullUrl : first.ThumbUrl)
