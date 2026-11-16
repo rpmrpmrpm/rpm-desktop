@@ -225,6 +225,10 @@
                when the pane is first put up, and until it does every {Binding} inside would otherwise
                resolve against MainModel. -->
           <pane:RadioView x:Name="RadioBody" Visibility="Collapsed" DataContext="{x:Null}"/>
+
+          <!-- View: the Feed, everyone's posts and album reviews, at the phone's width and sizes. It
+               reads the feed itself when it is put up (FeedView.Shown). -->
+          <pane:FeedView x:Name="FeedBody" Visibility="Collapsed"/>
         </Grid>
 
           <!-- The pane's message band: what went wrong, said once, across the foot of the CONTENT column

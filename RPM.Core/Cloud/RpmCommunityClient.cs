@@ -168,6 +168,86 @@ public sealed record RpmProfile(
     /// failing to parse.</summary>
     [property: JsonPropertyName("supporter")] bool Supporter = false);
 
+/// <summary>A song attached to a post: what the author was playing when they wrote it.</summary>
+public sealed record RpmSong(
+    [property: JsonPropertyName("artist")] string Artist,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("album")] string Album,
+    [property: JsonPropertyName("albumId")] string? AlbumId = null);
+
+/// <summary>A post on a person's profile page. The author is always the page's owner.</summary>
+/// <param name="MyVote">1, -1 or 0: how the signed-in reader voted. Always 0 when signed out.</param>
+/// <param name="AuthorDeleted">As on <see cref="RpmReview"/>.</param>
+/// <param name="AuthorSupporter">The author supports rpm. The app draws the name in gold.</param>
+public sealed record RpmPost(
+    [property: JsonPropertyName("ownerId")] string OwnerId,
+    [property: JsonPropertyName("postId")] string PostId,
+    [property: JsonPropertyName("authorName")] string AuthorName,
+    [property: JsonPropertyName("hasAvatar")] bool HasAvatar,
+    [property: JsonPropertyName("body")] string Body,
+    [property: JsonPropertyName("song")] RpmSong? Song,
+    [property: JsonPropertyName("createdAt")] long CreatedAt,
+    [property: JsonPropertyName("ups")] int Ups,
+    [property: JsonPropertyName("downs")] int Downs,
+    [property: JsonPropertyName("score")] int Score,
+    [property: JsonPropertyName("myVote")] int MyVote,
+    [property: JsonPropertyName("replyCount")] int ReplyCount,
+    [property: JsonPropertyName("authorDeleted")] bool AuthorDeleted = false,
+    [property: JsonPropertyName("authorSupporter")] bool AuthorSupporter = false);
+
+/// <summary>A review as a feed carries it: the review's own fields and the album's, in one object.</summary>
+/// <param name="Rating">Halves of a star, doubled: 1 to 10. Zero when the review has no rating.</param>
+public sealed record RpmFeedReview(
+    [property: JsonPropertyName("albumId")] string AlbumId,
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("authorName")] string AuthorName,
+    [property: JsonPropertyName("hasAvatar")] bool HasAvatar,
+    [property: JsonPropertyName("rating")] int Rating,
+    [property: JsonPropertyName("body")] string Body,
+    [property: JsonPropertyName("createdAt")] long CreatedAt,
+    [property: JsonPropertyName("updatedAt")] long UpdatedAt,
+    [property: JsonPropertyName("ups")] int Ups,
+    [property: JsonPropertyName("downs")] int Downs,
+    [property: JsonPropertyName("score")] int Score,
+    [property: JsonPropertyName("myVote")] int MyVote,
+    [property: JsonPropertyName("authorDeleted")] bool AuthorDeleted = false,
+    [property: JsonPropertyName("albumArtist")] string AlbumArtist = "",
+    [property: JsonPropertyName("albumTitle")] string AlbumTitle = "",
+    [property: JsonPropertyName("albumYear")] int AlbumYear = 0,
+    [property: JsonPropertyName("authorSupporter")] bool AuthorSupporter = false)
+{
+    /// <summary>The rating as stars, halves included.</summary>
+    public double Stars => Rating / 2d;
+
+    /// <summary>The same entry with the counts and the reader's vote from a vote's answer.</summary>
+    public RpmFeedReview With(RpmReview changed) =>
+        this with { Ups = changed.Ups, Downs = changed.Downs, Score = changed.Score, MyVote = changed.MyVote };
+}
+
+/// <summary>One entry of a feed: a post or a review, as <see cref="Kind"/> says.</summary>
+/// <param name="Kind">"post" or "review". Read through <see cref="Post"/> and <see cref="Review"/>, so an
+/// entry of a kind this build does not know is left out rather than drawn wrongly.</param>
+public sealed record RpmFeedItem(
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("createdAt")] long CreatedAt,
+    [property: JsonPropertyName("post")] RpmPost? Post = null,
+    [property: JsonPropertyName("review")] RpmFeedReview? Review = null);
+
+/// <summary>A page of a feed, newest first.</summary>
+/// <param name="Next">The <c>before</c> for the next page; null at the end. A page can be empty while this
+/// is set, when every entry on it was by a person the reader blocked. The reader keeps paging.</param>
+public sealed record RpmFeedPage(
+    [property: JsonPropertyName("items")] IReadOnlyList<RpmFeedItem>? Items,
+    [property: JsonPropertyName("next")] long? Next = null)
+{
+    /// <summary>The entries this build can draw, in order: posts with a post and reviews with a review.</summary>
+    public IReadOnlyList<RpmFeedItem> Known =>
+        (Items ?? []).Where(i =>
+            (string.Equals(i.Kind, "post", StringComparison.OrdinalIgnoreCase) && i.Post is not null) ||
+            (string.Equals(i.Kind, "review", StringComparison.OrdinalIgnoreCase) && i.Review is not null))
+        .ToList();
+}
+
 /// <summary>How a review list is ordered. The values are the sort tabs on the album page.</summary>
 public enum RpmReviewSort
 {
@@ -407,6 +487,32 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
             $"artists/{Uri.EscapeDataString(artistId)}/wall/{Uri.EscapeDataString(entryId)}",
             null, true, ct);
 
+    // ── everyone's feed ──
+
+    /// <summary>The largest page the server gives for <see cref="GetFeedAsync"/>.</summary>
+    public const int LongestFeedPage = 30;
+
+    /// <summary>Everyone's posts and album reviews, newest first. It needs no token, but a signed-in reader
+    /// gets their own votes filled in, and people they blocked left out.</summary>
+    /// <param name="before">The <see cref="RpmFeedPage.Next"/> of the page before; null for the first
+    /// page.</param>
+    /// <returns>Null when the server has no feed.</returns>
+    public async Task<RpmFeedPage?> GetFeedAsync(long? before, int limit, CancellationToken ct = default)
+    {
+        var url = $"feed?limit={Math.Clamp(limit, 1, LongestFeedPage)}";
+        if (before is { } b) url += $"&before={b}";
+        return await SendAsync<RpmFeedPage>(HttpMethod.Get, url, null, requireToken: false, ct);
+    }
+
+    /// <param name="value">1 to vote it up, -1 down, 0 to withdraw. Not on your own post.</param>
+    public async Task<RpmPost?> VotePostAsync(
+        string ownerId, string postId, int value, CancellationToken ct = default)
+        => await SendAsync<RpmPost>(
+            HttpMethod.Post,
+            $"profiles/{Uri.EscapeDataString(ownerId)}/posts/{Uri.EscapeDataString(postId)}/vote",
+            JsonContent.Create(new VoteRequest(value), RpmCommunityJson.Default.VoteRequest),
+            requireToken: true, ct);
+
     // ── profile ──
 
     public async Task<RpmProfile> GetProfileAsync(CancellationToken ct = default)
@@ -625,6 +731,8 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
     [JsonSerializable(typeof(IReadOnlyList<RpmTrackPlays>))]
     [JsonSerializable(typeof(RpmAlbum))]
     [JsonSerializable(typeof(RpmArtist))]
+    [JsonSerializable(typeof(RpmFeedPage))]
+    [JsonSerializable(typeof(RpmPost))]
     [JsonSerializable(typeof(RpmComment))]
     [JsonSerializable(typeof(RpmProfile))]
     [JsonSerializable(typeof(RpmReview))]

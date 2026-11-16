@@ -1,0 +1,53 @@
+<UserControl x:Class="RPM.Desktop.Presentation.Main.LeftPane.FeedView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:RPM.Desktop.Strings">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+
+    <!-- The keys on the cards draw no plate (FeedCards.Key), so hover and press leave it clear. -->
+    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
+  </UserControl.Resources>
+
+  <!-- The Feed: everyone's posts and album reviews, newest first, as on the phone's Feed tab. The column
+       is the phone's width (FeedCards.PhoneWidth) and every card has the phone's sizes. A wider pane
+       centres the column. A narrower pane makes it narrower, as a smaller phone would. The cards are
+       built in code (FeedCards), because a review card runs its text round the cover, which a template
+       cannot do. -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Margin="16,12,16,0">
+      <Grid Style="{StaticResource RpmPaneHeadingBox}">
+        <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
+      </Grid>
+      <!-- Empty on purpose: the strip is kept so the first card starts on the same line as the content
+           of the other panes. -->
+      <TextBlock Style="{StaticResource RpmPaneSubheading}"/>
+    </StackPanel>
+
+    <ScrollViewer x:Name="Scroller" Grid.Row="1" HorizontalScrollMode="Disabled"
+                  VerticalScrollBarVisibility="Auto" ViewChanged="Scroller_ViewChanged">
+      <StackPanel x:Name="Column" Spacing="12" Padding="20,4,20,40">
+        <TextBlock x:Name="QuietLine" FontSize="13" Foreground="#88FFFFFF" TextWrapping="Wrap"
+                   Visibility="Collapsed"/>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- A review read in full. It takes the list's place in the pane, and the list keeps its scroll
+         position underneath. -->
+    <ScrollViewer x:Name="Reader" Grid.Row="1" HorizontalScrollMode="Disabled"
+                  VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+      <StackPanel x:Name="ReaderColumn" Spacing="14" Padding="20,4,20,24"/>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

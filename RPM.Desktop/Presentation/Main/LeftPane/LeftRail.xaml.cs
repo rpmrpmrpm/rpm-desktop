@@ -3,7 +3,7 @@
 namespace RPM.Desktop.Presentation.Main.LeftPane;
 
 /// <summary>
-/// The left pane's function rail: the four views it can show, and the button that folds it away.
+/// The left pane's function rail: the views it can show, and the button that folds it away.
 /// It holds no state of its own. It reports which button was pressed and paints the view that
 /// <see cref="SetActive"/> marks as current, so the pane itself decides which view is up.
 /// </summary>
@@ -75,6 +75,7 @@ internal sealed partial class LeftRail : UserControl
         SelectedSegment.Paint(RailImport, importActive);
         SelectedSegment.Paint(RailViz, tab == LeftTab.Visualization);
         SelectedSegment.Paint(RailRadio, tab == LeftTab.Radio);
+        SelectedSegment.Paint(RailFeed, tab == LeftTab.Feed);
     }
 
     /// <summary>Greys Track info out, and stops it answering, while a station plays: a station sends a line
@@ -88,6 +89,7 @@ internal sealed partial class LeftRail : UserControl
     private void RailTrackInfo_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.TrackInfo);
     private void RailViz_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Visualization);
     private void RailRadio_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Radio);
+    private void RailFeed_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Feed);
     private void RailImport_Click(object sender, RoutedEventArgs e) => TabRequested?.Invoke(LeftTab.Import);
     private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke();
 }

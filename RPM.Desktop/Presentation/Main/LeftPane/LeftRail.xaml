@@ -75,6 +75,14 @@
                        TextWrapping="Wrap" LineHeight="12"/>
           </StackPanel>
         </Button>
+        <Button x:Name="RailFeed" Style="{StaticResource RailButton}" Click="RailFeed_Click">
+          <StackPanel Spacing="5">
+            <!-- newspaper: the glyph of the Feed tab in the phone apps. -->
+            <FontIcon Glyph="&#xf1ea;" FontFamily="{StaticResource Fa}" FontSize="16"/>
+            <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" FontSize="10" TextAlignment="Center"
+                       TextWrapping="Wrap" LineHeight="12"/>
+          </StackPanel>
+        </Button>
         <!-- Import is at the foot of the rail. It is where music comes in, not one of the ways to listen
              to what is already in the library. -->
         <Button x:Name="RailImport" Style="{StaticResource RailButton}" Click="RailImport_Click">

@@ -10,4 +10,8 @@ internal enum LeftTab
     Import,
     Visualization,
     Radio,
+
+    /// <summary>Everyone's posts and album reviews, newest first, as on the phone apps' Feed tab. Last in
+    /// the list because the session stores the tab by name and older sessions do not know it.</summary>
+    Feed,
 }
