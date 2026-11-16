@@ -686,8 +686,29 @@ public sealed partial class MainPage
         /// while it is already the tab changes nothing about the column.</summary>
         private void GoingToImport(LeftTab tab)
         {
-            if (tab == LeftTab.Import && Tab != LeftTab.Import)
-                _openBeneath = Shown && _open;
+            if (tab != LeftTab.Import || Tab == LeftTab.Import)
+                return;
+            _openBeneath = Shown && _open;
+            _tabBeneath = Tab;
+        }
+
+        /// <summary>The tab that was up before Import, for <see cref="CloseImport"/>. Taken on the way in,
+        /// with <see cref="_openBeneath"/>.</summary>
+        private LeftTab _tabBeneath = LeftTab.TrackInfo;
+
+        /// <summary>
+        /// The workbench's own close key. The pane goes back to the tab it showed before Import, open or
+        /// folded as it was, so the workbench slides off the row and leaves the window as it found it. This
+        /// is the same move as pressing that tab on the rail. The queue is kept: the rail's Import key opens
+        /// the workbench again.
+        /// </summary>
+        public void CloseImport()
+        {
+            if (Tab != LeftTab.Import)
+                return;
+            Tab = _tabBeneath == LeftTab.Import ? LeftTab.TrackInfo : _tabBeneath;
+            _open = _openBeneath;
+            Apply();
         }
 
         /// <summary>

@@ -151,4 +151,6 @@ public sealed partial class ImportWorkbenchView : UserControl
     /// through here. The popup belongs to the page. It goes on to open the disc and vinyl windows, and only
     /// one dialog can be open at a time.</summary>
     private void AddMusic_Click(object sender, RoutedEventArgs e) => Host?.RequestAddMusic();
+
+    private void Close_Click(object sender, RoutedEventArgs e) => Host?.CloseWorkbench();
 }

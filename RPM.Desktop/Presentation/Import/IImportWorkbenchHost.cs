@@ -47,4 +47,8 @@ public interface IImportWorkbenchHost
     /// <summary>Asks for the add-music popup. The page owns it because it goes on to open the disc and
     /// vinyl windows, and only one dialog can be up at a time.</summary>
     void RequestAddMusic();
+
+    /// <summary>Closes the workbench: the pane goes back to what it showed before Import was opened. The
+    /// queue is kept.</summary>
+    void CloseWorkbench();
 }
