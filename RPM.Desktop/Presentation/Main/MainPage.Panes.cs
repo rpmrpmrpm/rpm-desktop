@@ -545,6 +545,14 @@ public sealed partial class MainPage
         private const double HeavyStepMs = 33;
 
         /// <summary>
+        /// A gap between two frames of a live move longer than this means the layout behind the move did
+        /// not fit in a frame, so the move falls back to <see cref="HeavyStepMs"/> for the rest of its
+        /// length. Forty milliseconds is two frames and a bit at 60 Hz: one late frame on a light screen
+        /// does not trip it, a wall that needs 50 ms a write does.
+        /// </summary>
+        private const double HeavyGapMs = 40;
+
+        /// <summary>
         /// The floor each head ships with. The Skia head writes on every frame the display offers; WinUI
         /// keeps <see cref="HeavyStepMs"/> until it has been measured on Uno 6.8.
         /// </summary>
@@ -1554,6 +1562,16 @@ public sealed partial class MainPage
             // display is a frame and a bit.
             var bar = stepMs > 0 ? stepMs + FrameGapBarMs : FrameGapBarMs;
 
+            // A live move on the head's own floor starts at the display's rate and falls back to the floor
+            // only once a frame shows the layout cannot keep up (see HeavyGapMs). Home lays out in a few
+            // milliseconds and gets every frame; the album wall overruns on its first frame and gets the
+            // floor's steadier steps for the rest of the move. A floor asked for by RPM_PANE_STEP_MS is
+            // kept as asked, so a measurement is not changed by this.
+            var adaptive = live && stepMs > 0 && _stepAsked is null;
+            var floor = adaptive ? 0 : stepMs;
+            if (adaptive)
+                bar = FrameGapBarMs;
+
             _widthTick = (_, _) =>
             {
                 double now = sw.Elapsed.TotalMilliseconds;
@@ -1564,7 +1582,7 @@ public sealed partial class MainPage
                 // Under the floor, and not yet at the landing: this frame is skipped, which is the whole
                 // of what the rate cap does. The landing and everything after it always run, or the
                 // columns would be left a step short of their target with no tick left to finish them.
-                if (stepMs > 0 && lastFrameMs >= 0 && now - lastFrameMs < stepMs && at < moveEnds)
+                if (floor > 0 && lastFrameMs >= 0 && now - lastFrameMs < floor && at < moveEnds)
                     return;
 
                 frames++;
@@ -1575,6 +1593,13 @@ public sealed partial class MainPage
                         worstGap = gap;
                     if (gap > bar)
                         late++;
+                    // The first gap is not counted: it carries the move's one-off work (the view put up,
+                    // the scene held), not what each frame of the move costs.
+                    if (adaptive && floor == 0 && frames > 2 && gap > HeavyGapMs)
+                    {
+                        floor = stepMs;
+                        bar = stepMs + FrameGapBarMs;
+                    }
                 }
                 lastFrameMs = now;
 
@@ -1611,7 +1636,7 @@ public sealed partial class MainPage
                 }
 
                 SetViewOpacity(fadeLeft, fadeRight, 1);
-                SayGlide(inEnds, now - startMs, frames, worstGap, late, bar, live, stepMs);
+                SayGlide(inEnds, now - startMs, frames, worstGap, late, bar, live, floor);
                 DetachWidthTick();
             };
             CompositionTarget.Rendering += _widthTick;
@@ -2020,6 +2045,10 @@ public sealed partial class MainPage
             if (live && AtHome)
                 p.Home.BeginLiveResize();
 
+            // The drifting card rooms take about 8 ms of the UI thread every 31 ms. A move needs those
+            // frames more than a soft background needs to drift for a quarter of a second.
+            Presentation.Common.CardRoomBeat.Hush(true);
+
             FrostPlate.Current.Hold(FrostHold.PaneMove);
         }
 
@@ -2036,6 +2065,7 @@ public sealed partial class MainPage
 
             p.Home.EndLiveResize();   // a no-op unless a live move was held over home
 
+            Presentation.Common.CardRoomBeat.Hush(false);
             FrostPlate.Current.Release(FrostHold.PaneMove);
         }
 

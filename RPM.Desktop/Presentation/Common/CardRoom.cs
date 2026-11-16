@@ -941,9 +941,11 @@ internal static class CardRoomBeat
     /// the one expression that decides it. <see cref="Reconsider"/> reads it. A new reason is another term
     /// here, and whatever raises that reason must call Reconsider.
     /// </summary>
-    /// <remarks> One fact is used: the window is minimised (<c>WindowSight</c>). A minimised
-    /// window stops the beat, which lowers the home screen's cost from about 30% of a core to about 12%.
-    /// <c>WindowSight.Changed</c> is subscribed below.
+    /// <remarks> Two facts are used. The window is minimised (<c>WindowSight</c>): a minimised window stops
+    /// the beat, which lowers the home screen's cost from about 30% of a core to about 12%.
+    /// <c>WindowSight.Changed</c> is subscribed below. And a pane is moving (<see cref="Hush"/>): a frame of
+    /// rooms costs about 8 ms of the drawing thread, which a pane move needs for its own frames, and a
+    /// soft background that stops drifting for a quarter of a second is not seen to stop.
     ///
     /// <para><b>Pegasus covering the shell is not a term here.</b> Such a term would stop every room in
     /// the app, including Pegasus's own home. That home is a second <c>HomeView</c> on this same beat, so
@@ -951,7 +953,19 @@ internal static class CardRoomBeat
     /// instead. <c>ShellPage.Cover</c> sets <c>HomeView.Covered</c> on the main window's home. That home's cards are
     /// told they are not shown, so they leave the beat, and Pegasus's cards stay on it.</para>
     /// </remarks>
-    private static bool Held => Services.Shell.WindowSight.Minimised;
+    private static bool Held => Services.Shell.WindowSight.Minimised || _hushes > 0;
+
+    /// <summary>How many holders asked the beat to wait. See <see cref="Hush"/>.</summary>
+    private static int _hushes;
+
+    /// <summary>Asks the beat to wait (<paramref name="on"/> true) or lets it go again (false), in pairs.
+    /// The pane conductor holds it for the length of every pane move and view switch. UI thread
+    /// only.</summary>
+    public static void Hush(bool on)
+    {
+        _hushes = Math.Max(0, _hushes + (on ? 1 : -1));
+        Reconsider();
+    }
 
     static CardRoomBeat() => Services.Shell.WindowSight.Changed += Reconsider;
 

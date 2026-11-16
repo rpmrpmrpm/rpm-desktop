@@ -94,6 +94,7 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
                 return;
             _scale = value;
             OnChanged(nameof(Scale));
+            Reshaped?.Invoke();
         }
     }
 
@@ -116,6 +117,7 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
                 return;
             _moving = value;
             OnChanged();
+            Reshaped?.Invoke();
         }
     }
 
@@ -138,6 +140,7 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
             OnChanged(nameof(NameWidth));
             OnChanged(nameof(NameHeight));
             OnChanged(nameof(PictureWidth));
+            Reshaped?.Invoke();
         }
     }
 
@@ -219,6 +222,15 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
 
     public void Set(double width) => Width = width;
 
+    /// <summary>
+    /// Raised once for every change a card's drawing depends on: the width (after all nine of its
+    /// notifications), the display scale, and <see cref="Moving"/>. A card listens to this, not to
+    /// <see cref="PropertyChanged"/>, so a width write costs each card one answer instead of nine.
+    /// On the genres wall, during a pane move, that was about twenty cards times twenty-seven
+    /// notifications on every frame.
+    /// </summary>
+    public event Action? Reshaped;
+
     private void OnChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -256,7 +268,7 @@ public sealed partial class GenreTile : INotifyPropertyChanged
         // The card's shape comes from the wall and the name's shape comes from the typeface. The box
         // the letters are drawn in is where the two meet, so it moves when the wall is resized, and the
         // card has to be told.
-        metrics.PropertyChanged += (_, _) =>
+        metrics.Reshaped += () =>
         {
             OnChanged(nameof(NameBoxWidth));
             OnChanged(nameof(NameBoxHeight));
