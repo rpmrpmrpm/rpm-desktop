@@ -337,8 +337,10 @@ public sealed partial class MainPage
         OnAir();
         radio.Changed += () => DispatcherQueue.TryEnqueue(OnAir);
         VizBody.LaunchRequested += id => ShellPage.Current?.ShowVisualizer(id);
-        // "Open album" on a review in the Feed leaves the pane, onto whichever page the reader is on.
-        FeedBody.AlbumRequested += folder => NavigateToAlbumPage(folder, WhereTheReaderIs);
+        // "Open album" on a review in the Feed opens the record over whatever the right side shows. Home is
+        // asked first: WhereTheReaderIs does not know it, and the record's back button must return there.
+        FeedBody.AlbumRequested += folder =>
+            NavigateToAlbumPage(folder, Panes.AtHome ? AlbumFrom.HomeScreen : WhereTheReaderIs);
 
         // A play written to the log does not mark the home screen stale. Every row on home is a
         // question about what has been played, so a play could change a row. But a re-read costs more
