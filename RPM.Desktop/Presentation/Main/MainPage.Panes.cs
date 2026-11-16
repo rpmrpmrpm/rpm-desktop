@@ -1396,6 +1396,7 @@ public sealed partial class MainPage
                 // it overhanging the row. Undo that, and put the column at the width the move has
                 // actually reached, so the first tick carries on from there instead of jumping.
                 Undress();
+                PinDrawer(Math.Max(from, target));
                 WritePixels(from);
             }
 
@@ -2096,6 +2097,69 @@ public sealed partial class MainPage
         {
             p.LeftCol.Width = new GridLength(Math.Max(0, px));
             p.RightCol.Width = new GridLength(_curRight, GridUnitType.Star);
+            PlaceDrawer(px);
+        }
+
+        /// <summary>The width the left pane's view keeps while its column moves; null while it follows the
+        /// column. See <see cref="PinDrawer"/>.</summary>
+        private double? _drawerWidth;
+
+        /// <summary>The pane's card border, on both sides of the view: the view is the column less the rail
+        /// and this.</summary>
+        private const double CardEdges = 2;
+
+        /// <summary>
+        /// Keeps the left pane's view at its open width for a live move, so it slides in and out under the
+        /// rail as one piece, as the import workbench slides over the row, instead of being laid out again
+        /// at every width the column passes through. Its cards and text keep their places for the whole
+        /// move; it is laid out at its new width once, at the landing (<see cref="Undress"/> lets go).
+        ///
+        /// <para>The view is pinned to the left of its cell, at the width it has with the column at the
+        /// wider of the move's two ends. Each width write then moves it left by what the column has given up
+        /// and clips it at the rail, so its right edge travels with the pane's edge
+        /// (<see cref="PlaceDrawer"/>).</para>
+        ///
+        /// <para>Not for the import workbench, which lies over the whole row and has a slide of its own, and
+        /// not for a view that is not up.</para>
+        /// </summary>
+        private void PinDrawer(double wide)
+        {
+            if (p.LeftViews.Visibility != Visibility.Visible || Tab == LeftTab.Import || p.RowCovered)
+                return;
+            var width = Math.Max(0, wide - RailWidth - CardEdges);
+            if (width <= 0)
+                return;
+            _drawerWidth = width;
+            p.LeftViews.Width = width;
+            p.LeftViews.HorizontalAlignment = HorizontalAlignment.Left;
+            p.LeftViews.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform();
+            p.LeftViews.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry();
+        }
+
+        /// <summary>Slides the pinned view for a column <paramref name="px"/> wide: what shows of it ends on the
+        /// pane's edge, and the rest is under the rail.</summary>
+        private void PlaceDrawer(double px)
+        {
+            if (_drawerWidth is not { } width
+                || p.LeftViews.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform slide
+                || p.LeftViews.Clip is not { } clip)
+                return;
+            var shown = Math.Clamp(px - RailWidth - CardEdges, 0, width);
+            var hidden = width - shown;
+            slide.X = -hidden;
+            clip.Rect = new Windows.Foundation.Rect(hidden, 0, shown, Math.Max(1, p.LeftViews.ActualHeight > 0 ? p.LeftViews.ActualHeight : 100_000));
+        }
+
+        /// <summary>Lets the view follow its column again.</summary>
+        private void UnpinDrawer()
+        {
+            if (_drawerWidth is null)
+                return;
+            _drawerWidth = null;
+            p.LeftViews.Width = double.NaN;
+            p.LeftViews.HorizontalAlignment = HorizontalAlignment.Stretch;
+            p.LeftViews.RenderTransform = null;
+            p.LeftViews.Clip = null;
         }
 
         /// <summary>At rest. Stars while the pane's share is under the ceiling, so the pair keeps
@@ -2148,6 +2212,7 @@ public sealed partial class MainPage
         /// </remarks>
         private void Undress()
         {
+            UnpinDrawer();
             p.LeftPanel.Margin = default;
             p.LibraryPanel.Margin = default;
             PinHeading(0);
