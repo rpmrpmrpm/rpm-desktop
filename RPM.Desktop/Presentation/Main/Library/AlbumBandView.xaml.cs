@@ -135,6 +135,22 @@ public sealed partial class AlbumBandView : UserControl
     /// <para>Public because a host that creates a drawer already knows how wide its drawers are. A drawer
     /// that waited for its own first SizeChanged would show one frame in the wrong mode.</para>
     /// </summary>
+    /// <summary>
+    /// The colour this drawer's ground shows on its top edge, <paramref name="x"/> across from its left
+    /// edge, in the drawer's own units. This is where a pointer triangle meets the drawer, and it is the
+    /// colour the triangle must be to look like part of it. Null until the sleeve has been read and the
+    /// drawer has a size. See <see cref="SleeveGround.FlatAt"/>.
+    /// </summary>
+    public Windows.UI.Color? EdgeColourAt(double x)
+    {
+        if (Band?.Sleeve is not { } sleeve || BandPlate.ActualWidth < 1 || BandPlate.ActualHeight < 1)
+            return null;
+        var width = BandPlate.ActualWidth;
+        // One unit down, inside the edge. The triangle's base runs two units past the edge, so this row
+        // is the one it is drawn against.
+        return sleeve.FlatAt(Math.Clamp(x, 0, width), 1, width, BandPlate.ActualHeight);
+    }
+
     public void SetColumns(bool twoColumns)
     {
         _twoColumns = twoColumns;

@@ -440,19 +440,18 @@ public sealed partial class AlbumBand : INotifyPropertyChanged
     public int ColumnIndex { get; private set; }
 
     // ── visual state (recycle-proof) ──
-    // The drawer's open or closed VISUAL state lives on the model, not on the element. So a recycled or
-    // re-seated element always applies the right state when it is realized (BandRoot_Loaded,
-    // DataContextChanged). This stops a resize from leaving the drawer's row reserved but blank.
-    // Owned by BandConductor.
+    // How far the drawer is open lives on the model, not on the element. Every element that shows this band
+    // applies these two numbers when it is realized, and the one motion that moves the drawer writes them on
+    // every frame (AlbumWallView.ApplyDrawer). An element recycled or re-seated in the middle of a move
+    // therefore shows the move where it is, not either end of it. Written only by the wall's BandConductor.
 
-    /// <summary>One-shot. The next time the drawer element is realized, it plays the unfold, and then
-    /// this is cleared. A fresh open sets it. A reflow re-seat leaves it false, so the element snaps
-    /// straight to open.</summary>
-    public bool AnimateOpen { get; set; } = true;
+    /// <summary>The drawer's height, written on its element. NaN once it has opened, so it lays out at the
+    /// height its content asks for. A band starts shut: attached at nought, then measured, then
+    /// unfolded.</summary>
+    public double DrawerHeight { get; set; }
 
-    /// <summary>True while the drawer is folding shut. The close animation owns the element, so the
-    /// realize-time visual sync leaves it alone.</summary>
-    public bool IsClosing { get; set; }
+    /// <summary>The drawer's opacity, from 0 to 1. It moves with <see cref="DrawerHeight"/>.</summary>
+    public double DrawerOpacity { get; set; }
 
     /// <summary>Moves a fully loaded band into its new row and column after a reflow (the column count
     /// changed). Its cover, tint and tracks are kept. Nothing is reloaded, so there is no flash of the
@@ -572,6 +571,11 @@ public sealed partial class AlbumBand : INotifyPropertyChanged
     /// <summary>How much flat black is drawn inside the wash, from 0 to 1. It takes back the sleeve's own
     /// exposure, so white text can sit on it. See <see cref="CoverColor.Veil"/>.</summary>
     public double Veil { get => _veil; set { _veil = value; OnChanged(); } }
+
+    /// <summary>The reading that <see cref="Ground"/>, <see cref="Wash"/> and <see cref="Veil"/> were taken
+    /// from, or null until the sleeve has been read. The pointer triangle reads its colour from it, at the
+    /// place where the triangle meets the drawer (see <see cref="SleeveGround.FlatAt"/>).</summary>
+    public SleeveGround? Sleeve { get; set; }
 
     private Brush? _pointerBrush;
     /// <summary>

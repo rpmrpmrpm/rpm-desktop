@@ -156,21 +156,30 @@
     <!-- The drawer that opens under a row: the tint from the cover, the large cover on the right, and the
          tracks in two columns. -->
     <DataTemplate x:Key="BandTemplate" x:DataType="model:AlbumBand">
-      <!-- The drawer syncs its unfold and snap from the band model on BOTH realize AND rebind.
+      <!-- The drawer takes how far it is open from the band model on BOTH realize AND rebind.
            DataContextChanged catches a re-seat into a RECYCLED container. Loaded does not fire again for
            that, so without it the row stays reserved but blank after a resize. See ApplyBandVisual and
-           BandConductor. -->
-      <Grid Margin="0,2,0,8" RenderTransformOrigin="0.5,0"
+           ApplyDrawer.
+
+           Padding, not Margin, for the gaps above and below. A margin stays outside the height the
+           drawer is opened by, so a shut drawer would still push the rows below it down by ten units the
+           moment it is attached. Padding is inside that height and opens with it. -->
+      <Grid x:Name="BandRoot" Padding="0,2,0,8"
             Loaded="BandRoot_Loaded" DataContextChanged="BandRoot_DataContextChanged">
-        <Grid.RenderTransform>
-          <ScaleTransform ScaleY="1"/>
-        </Grid.RenderTransform>
+        <!-- A StackPanel, because it gives its child as much height as the child asks for, whatever height
+             the drawer has been opened to. So the content is always laid out at its full length, and the
+             drawer's clip shows the part of it that is open. Without it the content is laid out at the
+             height the drawer has reached: the sleeve sizes itself from a tracklist squeezed to nothing,
+             the measure taken for the unfold is too short, and the blurred sleeve and the triangle's
+             colour shift on every frame of the unfold. -->
+        <StackPanel>
+        <Grid>
         <!-- The pointer triangle sits over the owning card, in the drawer's own colour (PointerBrush). It
              fades to nothing at its point, so it rises out of the wall instead of standing on it as a hard
              arrow. Its base runs 2 px PAST the top of the drawer (into the Border with the 10 px margin,
              which draws over it). So the join has no sub-pixel gap. The ramp reaches full colour at that
              join, not at the bottom of the shape. See BandPointer.Ramp. -->
-        <Polygon Points="0,12 10,0 20,12" Fill="{Binding PointerBrush}" Width="20" Height="12"
+        <Polygon x:Name="BandPoint" Points="0,12 10,0 20,12" Fill="{Binding PointerBrush}" Width="20" Height="12"
                  HorizontalAlignment="Left" VerticalAlignment="Top"
                  Margin="{Binding PointerMargin}"/>
 
@@ -182,6 +191,8 @@
              looks like. That is why an artist's page shows the same drawer and not a copy of it. Its hooks
              are wired on realize, in ApplyBandVisual. -->
         <lib:AlbumBandView x:Name="BandView" Band="{Binding}" Margin="8,10,8,0"/>
+        </Grid>
+        </StackPanel>
       </Grid>
     </DataTemplate>
 
@@ -200,15 +211,16 @@
             <StackLayout Orientation="Horizontal"/>
           </ItemsRepeater.Layout>
         </ItemsRepeater>
-        <!-- The drawer's slot. The DataContext is set to the band OUTRIGHT, not left to follow the Content.
-             A ContentControl with null Content does not clear the context it inherited. It hands the
-             template the ROW. BandTemplate's {Binding} would then try to put an AlbumRow into
-             AlbumBandView.Band, which is a typed property. It would report that once per closed row in the
-             log. Set here, a row with nothing open gives the template null, which is what it means.
+        <!-- The drawer's slot. It is filled from code, not bound to the row (see AlbumWallView.ShowBandIn).
+             The repeater keeps a recycled row element in the tree, still bound to the row it last showed.
+             Bound to AlbumRow.Band, every such element would grow a copy of the open drawer: the live one
+             and each stale one. They would then compete for the one unfold. So only the element the
+             repeater has prepared for the row is given the drawer, and a cleared element gives it back.
 
-             The visibility test needs the row, so it is moved to a wrapper that still has the row. -->
-        <Grid Visibility="{Binding HasBand, Converter={StaticResource BoolToVisible}}">
-          <ContentControl DataContext="{Binding Band}" Content="{Binding}"
+             The DataContext is set with the Content. A ContentControl with null Content does not clear
+             the context it inherited, and it would hand the template the ROW. -->
+        <Grid x:Name="BandSlotHost" Visibility="Collapsed">
+          <ContentControl x:Name="BandSlot"
                           ContentTemplate="{StaticResource BandTemplate}"
                           HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"/>
         </Grid>

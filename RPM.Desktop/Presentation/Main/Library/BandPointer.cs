@@ -26,6 +26,12 @@ public static class BandPointer
     /// templates.</summary>
     private const double Join = 10.0 / 12.0;
 
+    /// <summary>Where the ramp reaches full colour: two pixels above <see cref="Join"/>. A ramp that
+    /// reaches full colour exactly at the join leaves the rows just above it a few percent short, because
+    /// a pixel row is sampled at its middle. The last row before the drawer then draws at about 97%, which
+    /// shows as a faint line across the join. Full a little earlier, those rows are solid.</summary>
+    private const double Solid = 8.0 / 12.0;
+
     /// <summary>
     /// The fill of the pointer triangle: its colour, faded to nothing at the point.
     ///
@@ -39,10 +45,10 @@ public static class BandPointer
     /// is at full colour by half its height. The fade is only on the top few pixels, where there is
     /// nothing underneath to meet.</para>
     ///
-    /// <para>Full colour is reached at <see cref="Join"/>, not at the bottom. The triangle's base runs
-    /// two pixels past the drawer's top edge, and the drawer draws over it. So the junction has no
-    /// sub-pixel gap. If the ramp reached full colour at the bottom of the shape, the visible part would
-    /// meet the drawer a sixth short of its colour, and the seam would show.</para>
+    /// <para>Full colour is reached at <see cref="Solid"/>, above <see cref="Join"/>, not at the bottom.
+    /// The triangle's base runs two pixels past the drawer's top edge, and the drawer draws over it. So the
+    /// junction has no sub-pixel gap. If the ramp reached full colour at the bottom of the shape, the
+    /// visible part would meet the drawer a sixth short of its colour, and the seam would show.</para>
     ///
     /// <para>Both stops use the same colour and differ only in alpha. A fade to transparent black would
     /// pull the point toward grey.</para>
@@ -56,7 +62,7 @@ public static class BandPointer
         var brush = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(0, 1) };
         brush.GradientStops.Add(new GradientStop { Color = Fade(colour, 0), Offset = 0 });
         brush.GradientStops.Add(new GradientStop { Color = Fade(colour, 0xE0 / 255.0), Offset = 0.5 });
-        brush.GradientStops.Add(new GradientStop { Color = colour, Offset = Join });
+        brush.GradientStops.Add(new GradientStop { Color = colour, Offset = Solid });
         return brush;
 
         static Color Fade(Color c, double of) =>
