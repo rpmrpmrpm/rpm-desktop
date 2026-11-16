@@ -818,14 +818,21 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
             JsonContent.Create(new BannerSourceRequest(listening ? "listening" : "photo"),
                 RpmCommunityJson.Default.BannerSourceRequest), true, ct);
 
-    /// <summary>The badge shown under the name. The desktop sends no newly unlocked badges, only the
-    /// choice among those already held; the server keeps what it has.</summary>
-    /// <param name="badge">The id shown, or empty for none.</param>
+    /// <summary>Sends the badges this device worked out (<see cref="RpmProfileBadges.Unlocked"/>) and the
+    /// one shown. The server adds <paramref name="unlocked"/> to what it holds, never removes one, and
+    /// notifies the reader of each one it did not hold yet. Answers the stored lists.</summary>
+    /// <param name="badge">The id shown, or empty for none. It must be among the unlocked ids.</param>
     /// <param name="badgeColour"><c>#RRGGBB</c>, or empty for the default.</param>
-    public async Task<RpmPersonProfile?> SetBadgeAsync(string badge, string badgeColour, CancellationToken ct = default)
+    public async Task<RpmPersonProfile?> SetBadgesAsync(
+        IReadOnlyList<string> unlocked, string badge, string badgeColour, CancellationToken ct = default)
         => await SendAsync<RpmPersonProfile>(HttpMethod.Put, "profile/badges",
-            JsonContent.Create(new BadgesRequest([], badge, badgeColour), RpmCommunityJson.Default.BadgesRequest),
+            JsonContent.Create(new BadgesRequest(unlocked, badge, badgeColour), RpmCommunityJson.Default.BadgesRequest),
             true, ct);
+
+    /// <summary>What the reader's page is drawn on. See <see cref="RpmPageGround"/>.</summary>
+    public async Task SetPageGroundAsync(RpmPageGround ground, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Put, "profile/ground",
+            JsonContent.Create(new GroundRequest(ground.Wire), RpmCommunityJson.Default.GroundRequest), true, ct);
 
     /// <summary>Whether other people may see what the reader plays. Off also clears what shows now.</summary>
     public async Task SetSharesListeningAsync(bool on, CancellationToken ct = default)
@@ -1061,6 +1068,8 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
 
     private sealed record SharingRequest(bool SharesListening);
 
+    private sealed record GroundRequest(string Ground);
+
     /// <summary>The shape of the answer. It is looked up here, rather than passed at each call.
     /// <see cref="RpmCloudClient"/> has the same method, and it explains what this costs.</summary>
     private static JsonTypeInfo<T> Answer<T>() =>
@@ -1086,6 +1095,7 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
     [JsonSerializable(typeof(BannerSourceRequest))]
     [JsonSerializable(typeof(BadgesRequest))]
     [JsonSerializable(typeof(SharingRequest))]
+    [JsonSerializable(typeof(GroundRequest))]
     [JsonSerializable(typeof(RpmSong))]
     [JsonSerializable(typeof(RpmReply))]
     [JsonSerializable(typeof(RpmReplies))]

@@ -211,13 +211,41 @@ public sealed class RpmCommunityFeedTests
     }
 
     [Fact]
-    public async Task Choosing_a_badge_sends_no_unlocked_ids()
+    public void Badges_follow_the_phones_rules()
+    {
+        var genres = new Dictionary<string, int>
+        {
+            ["Rock"] = 300, ["Indie"] = 20, ["Jazz"] = 24, ["Hip-Hop / Rap"] = 5, ["Electronic / Dance"] = 5,
+            ["Pop"] = 5, ["Soul"] = 5, ["Folk"] = 5, ["Blues"] = 5, ["Reggae"] = 5, ["Latin"] = 5,
+            ["Other"] = 400,
+        };
+        var unlocked = RpmProfileBadges.Unlocked(albums: 1200, tracks: 12_000, genres);
+
+        // Sizes up to a thousand albums, ten thousand tracks, rock by its share, jazz not (24 is under 25),
+        // and ten shelves of five or more for the range badge; "Other" is not a genre.
+        Assert.Equal(
+            ["first-spin", "crate-digger", "record-collector", "music-connoisseur", "ten-thousand", "rock", "genre-hopper"],
+            unlocked);
+    }
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("color:#2A0A5E", "color:#2A0A5E")]
+    [InlineData("color:#2a0a5e", "color:#2A0A5E")]
+    [InlineData("backdrop:vinyl", "backdrop:vinyl")]
+    [InlineData("color:nope", "")]
+    [InlineData("paint", "")]
+    public void A_page_ground_reads_back_as_it_is_stored(string wire, string stored)
+        => Assert.Equal(stored, RpmPageGround.Of(wire).Wire);
+
+    [Fact]
+    public async Task Badges_are_sent_with_the_unlocked_ids()
     {
         var handler = new Answering("""{ "userId": "u", "displayName": "Ann", "hasAvatar": false, "avatarUpdatedAt": 0, "createdAt": 0 }""");
-        await Client(handler, "t").SetBadgeAsync("rock", "#2563EB");
+        await Client(handler, "t").SetBadgesAsync(["first-spin", "rock"], "rock", "#2563EB");
 
         Assert.Equal("PUT", handler.Method);
-        Assert.Contains("\"unlocked\":[]", handler.Sent, StringComparison.Ordinal);
+        Assert.Contains("\"unlocked\":[\"first-spin\",\"rock\"]", handler.Sent, StringComparison.Ordinal);
         Assert.Contains("\"badge\":\"rock\"", handler.Sent, StringComparison.Ordinal);
     }
 
