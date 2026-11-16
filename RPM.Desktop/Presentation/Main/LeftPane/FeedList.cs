@@ -128,6 +128,9 @@ internal sealed class FeedList
         {
             page = null;
         }
+        // The feed is read when its pane is put up, so the answer usually arrives while the pane is still
+        // sliding in. Building the cards takes about a tenth of a second, which the move needs for its frames.
+        await Common.PaneMotion.SettledAsync();
         if (ticket != _newest)
             return;
 

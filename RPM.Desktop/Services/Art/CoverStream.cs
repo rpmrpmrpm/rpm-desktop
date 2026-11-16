@@ -143,6 +143,27 @@ public sealed class CoverStream
     /// a session must not restart the window under the workers already running.</summary>
     private static readonly System.Diagnostics.Stopwatch PaceClock = System.Diagnostics.Stopwatch.StartNew();
 
+    /// <summary>
+    /// Stops the workers at their next turn, until <see cref="Resume"/>. A job already running finishes.
+    /// </summary>
+    /// <remarks>
+    /// For a pane move that re-flows the wall live. A move needs every frame it can get, and a decode takes
+    /// several milliseconds of the UI thread. The budget below paces the loader against a frame, but a move
+    /// has no frame to spare. Nothing on the wall is the size it will be when the move lands, so nothing
+    /// decoded during it is worth the frame it costs.
+    /// </remarks>
+    public void Pause() => _paused ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Lets the workers go on after <see cref="Pause"/>. Safe to call when nothing is paused.</summary>
+    public void Resume()
+    {
+        var paused = _paused;
+        _paused = null;
+        paused?.TrySetResult();
+    }
+
+    private TaskCompletionSource? _paused;
+
     /// <summary>Wakes the loader. It is cheap, and safe to repeat. Call it on anything that could change what is worth
     /// doing: a realise, a feed, a resize, or a cover being replaced.</summary>
     public void Wake()
@@ -177,6 +198,12 @@ public sealed class CoverStream
             {
                 var urgent = _wall.Urgent?.Invoke() == true;
                 await YieldToLayoutAsync(urgent);
+
+                if (_paused is { } paused)
+                {
+                    await paused.Task;
+                    continue;   // the wall has changed since; take a fresh turn and a fresh job
+                }
 
                 if (NextJob() is not { } job)
                 {

@@ -120,6 +120,9 @@ public sealed partial class AlbumWallView
         // the last one left off. Starting from a fresh calculation would cause a jump on the first frame.
         _liveStride = _metrics.Stride;
         _liveDeals.Counting = true;
+
+        // The fourth passenger: the cover loader. See CoverStream.Pause.
+        _stream?.Pause();
     }
 
     /// <summary>The move has landed. The passengers are spent once, here, at the width the wall is
@@ -131,8 +134,9 @@ public sealed partial class AlbumWallView
         _liveResize = false;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
-        // The rows that were not dealt during the move are dealt first. Everything below reads the rows.
-        DealStaleRows();
+        // The rows on screen that were not dealt during the move are dealt first. Everything below reads them.
+        // The rest are dealt a few at a time once the landing is over. See DealStaleRowsLater.
+        DealStaleRowsOnScreen();
 
         RowsRepeater.VerticalCacheLength = _cacheRows;
 
@@ -160,6 +164,9 @@ public sealed partial class AlbumWallView
         // rows those are. CheckAnchorLater queues behind the layout pass requested above, because it runs
         // at low priority.
         CheckAnchorLater();
+
+        _stream?.Resume();
+        DealStaleRowsLater();
 
         _liveDeals.Say(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
     }
@@ -735,14 +742,16 @@ public sealed partial class AlbumWallView
     /// those two frames were the stutter. So during a live move the rows are dealt late:
     ///
     /// <list type="bullet">
-    /// <item>A row on screen gets its cards one row a pass, top first (<see cref="DealOneOnScreen"/>).
+    /// <item>A row in view gets its cards one row a pass, top first (<see cref="DealOneOnScreen"/>).
     /// Until its turn it shows its old cards in the new row width, so for a frame or two a row can have
-    /// one card too many (cut off at the edge) or one too few.</item>
+    /// one card too many (cut off at the edge) or one too few. A row in view that is still waiting when
+    /// the move lands is dealt at the landing.</item>
     /// <item>A row that is realized during the move gets its cards just before its element is made
     /// (<see cref="DealRowBeforeRealizing"/>, called by <see cref="AlbumWallLayout.Realizing"/>), so a
     /// new row never shows old cards.</item>
-    /// <item>Every other row gets its cards when the move lands (<see cref="DealStaleRows"/>). Nobody sees
-    /// them before that.</item>
+    /// <item>Every other row, including the rows the repeater holds just outside the view, gets its cards
+    /// after the move has landed, a few at a time (<see cref="DealStaleRowsLater"/>). Nobody sees them
+    /// before that.</item>
     /// </list>
     ///
     /// <para>It is used only while no drawer is open. The drawer finds its row by searching the rows for
@@ -775,8 +784,8 @@ public sealed partial class AlbumWallView
         SyncRow(_rows[index].Cards, chunks[index]);
     }
 
-    /// <summary>Gives every waiting row its cards. This runs when the move lands, and before anything
-    /// that searches the rows for a card.</summary>
+    /// <summary>Gives every waiting row its cards at once. This runs before anything that searches the rows
+    /// for a card.</summary>
     private void DealStaleRows()
     {
         if (_staleRows is not { } stale || _staleChunks is not { } chunks)
@@ -794,6 +803,77 @@ public sealed partial class AlbumWallView
         }
     }
 
+    /// <summary>Gives the rows on screen that are still waiting their cards. The landing does this before
+    /// anything else, because what is on screen must be right when the move stops.</summary>
+    private void DealStaleRowsOnScreen()
+    {
+        if (_staleRows is not { } stale)
+            return;
+        var view = ViewNow();
+        var count = Math.Min(stale.Length, _rows.Count);
+        for (var i = 0; i < count; i++)
+        {
+            if (!stale[i] || !InView(i, view) || !_onScreen.Contains(_rows[i]))
+                continue;
+            if (_liveDeals.Counting)
+                _liveDeals.LandedOnScreen++;
+            DealRow(i);
+        }
+    }
+
+    /// <summary>
+    /// Gives the rows nobody can see their cards, a few at a time, at low priority, after a move has landed.
+    /// </summary>
+    /// <remarks>
+    /// There are a few hundred of them, and dealing them all at once took 5 to 30 ms of the landing frame.
+    /// A turn here takes about <see cref="DealSliceMs"/> and queues the next one. A row that is realized in
+    /// the meantime is dealt first, by <see cref="DealRowBeforeRealizing"/>. Anything that searches the
+    /// rows for a card calls <see cref="DealStaleRows"/> first. A new re-deal or a new move replaces the
+    /// rows that are waiting, and then this pass stops.
+    /// </remarks>
+    private void DealStaleRowsLater()
+    {
+        if (_staleRows is not { } stale)
+            return;
+        _dealFrom = 0;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => DealSome(stale));
+    }
+
+    private void DealSome(bool[] stale)
+    {
+        if (!ReferenceEquals(stale, _staleRows) || _liveResize)
+            return;   // a newer re-deal owns the rows, or a move has started and its landing will ask again
+
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        // The realized rows first: the cache just outside the view. They are the ones a scroll reaches first.
+        foreach (var row in _onScreen)
+        {
+            var index = _rows.IndexOf(row);
+            if (index >= 0 && index < stale.Length && stale[index])
+                DealRow(index);
+        }
+
+        var count = Math.Min(stale.Length, _rows.Count);
+        while (_dealFrom < count)
+        {
+            DealRow(_dealFrom++);
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds > DealSliceMs)
+            {
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => DealSome(stale));
+                return;
+            }
+        }
+        _staleRows = null;
+        _staleChunks = null;
+    }
+
+    /// <summary>Where <see cref="DealSome"/> goes on from.</summary>
+    private int _dealFrom;
+
+    /// <summary>How long one turn of <see cref="DealSome"/> may take.</summary>
+    private const double DealSliceMs = 4;
+
     /// <summary>
     /// Whether a live move deals its rows late (see <see cref="_staleChunks"/>). <c>RPM_WALL_SPREAD=0</c>
     /// in a Debug build deals every row in the pass that changed the count, so the two can be measured
@@ -802,17 +882,20 @@ public sealed partial class AlbumWallView
     internal static readonly bool SpreadDeal =
         RPM.Core.Diagnostics.DevSwitch.Read("RPM_WALL_SPREAD")?.Trim() is not ("0" or "false");
 
-    /// <summary>Gives the topmost row on screen that is still waiting for its cards. See
+    /// <summary>Gives the topmost row in view that is still waiting for its cards. See
     /// <see cref="_staleChunks"/>.</summary>
+    /// <remarks>Rows the repeater holds just outside the view are left for after the landing. Nobody sees
+    /// them during the move, and each row dealt costs a frame about 7 ms.</remarks>
     private void DealOneOnScreen()
     {
         if (_staleRows is not { } stale || _onScreen.Count == 0)
             return;
+        var view = ViewNow();
         var best = -1;
         foreach (var row in _onScreen)
         {
             var index = _rows.IndexOf(row);
-            if (index >= 0 && index < stale.Length && stale[index] && (best < 0 || index < best))
+            if (index >= 0 && index < stale.Length && stale[index] && (best < 0 || index < best) && InView(index, view))
                 best = index;
         }
         if (best < 0)
@@ -820,6 +903,18 @@ public sealed partial class AlbumWallView
         DealRow(best);
         _liveDeals.SpreadRows++;
     }
+
+    /// <summary>The part of the wall the scroller shows, in the scroller's own space.</summary>
+    private (double Top, double Bottom) ViewNow()
+    {
+        var top = Scroller.VerticalOffset;
+        return (top, top + Scroller.ViewportHeight);
+    }
+
+    /// <summary>Whether any of row <paramref name="index"/> lies in <paramref name="view"/>. It is asked
+    /// with the layout's own arithmetic, scale included, so it is the same answer the next pass draws.</summary>
+    private bool InView(int index, (double Top, double Bottom) view)
+        => RowsLayout.TopOf(index) < view.Bottom && RowsLayout.TopOf(index + 1) > view.Top;
 
     /// <summary>What the re-deals of one live move cost. It is said on the <c>panes</c> channel when
     /// the move lands, after the line for the move itself. "Rows dealt" counts the rows made new by the

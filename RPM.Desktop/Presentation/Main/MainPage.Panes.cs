@@ -2038,6 +2038,7 @@ public sealed partial class MainPage
             if (live)
             {
                 p.AlbumWall.BeginLiveResize();
+                p.AlbumList.BeginLiveResize();
                 p.ArtistsWall.BeginLiveResize();
             }
             else
@@ -2051,6 +2052,7 @@ public sealed partial class MainPage
             // The drifting card rooms take about 8 ms of the UI thread every 31 ms. A move needs those
             // frames more than a soft background needs to drift for a quarter of a second.
             Presentation.Common.CardRoomBeat.Hush(true);
+            Presentation.Common.PaneMotion.Hold(true);
 
             FrostPlate.Current.Hold(FrostHold.PaneMove);
         }
@@ -2064,6 +2066,7 @@ public sealed partial class MainPage
             if (_heldLive)
             {
                 p.AlbumWall.EndLiveResize();
+                p.AlbumList.EndLiveResize();
                 p.ArtistsWall.EndLiveResize();
             }
             else
@@ -2072,6 +2075,7 @@ public sealed partial class MainPage
             p.Home.EndLiveResize();   // a no-op unless a live move was held over home
 
             Presentation.Common.CardRoomBeat.Hush(false);
+            Presentation.Common.PaneMotion.Hold(false);
             FrostPlate.Current.Release(FrostHold.PaneMove);
         }
 
