@@ -354,6 +354,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             AttachAlbumGrid();
             AttachArtists();
             AttachGenres();
+            AttachProfileReporters();
             RefreshLibraryEmptyHint();
 
             if (RPM.Core.Diagnostics.Scope.On)

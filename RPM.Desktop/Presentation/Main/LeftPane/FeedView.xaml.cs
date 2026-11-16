@@ -92,6 +92,17 @@ internal sealed partial class FeedView : UserControl
     /// screen.</summary>
     public event Action<string>? AlbumRequested;
 
+    /// <summary>The badges this computer's collection unlocks, for the edit page (<see cref="BadgeReporter"/>).
+    /// Null until the page that owns the reporter sets it.</summary>
+    public Func<IReadOnlyList<string>>? OwnBadges { get; set; }
+
+    /// <summary>New badges were sent, and each is a notification: the dot is counted again.</summary>
+    public void CountUnreadAgain()
+    {
+        if (Auth.UserId is { Length: > 0 })
+            _ = ReadUnreadAsync();
+    }
+
     /// <summary>The view was put up. Reads the feed the first time, and again when it was last read more
     /// than a minute ago; the unread count likewise.</summary>
     public void Shown()
@@ -176,6 +187,36 @@ internal sealed partial class FeedView : UserControl
         BackKey.Visibility = Vis(top is not null);
         MenuKey.Visibility = Vis(top?.Person is { Profile: not null } && signedIn);
         MenuDot.Visibility = Vis(_unread > 0 && top?.Person?.UserId == Auth.UserId);
+        PaintGround(top?.Person?.Profile?.PageGround);
+    }
+
+    private string? _painted;
+
+    /// <summary>Draws a person's page ground behind the view: the picture of one of the app's backgrounds,
+    /// with a veil so the text stays readable, or a solid colour. The standard ground draws nothing, so the
+    /// pane's glass shows.</summary>
+    private void PaintGround(string? wire)
+    {
+        var ground = RpmPageGround.Of(wire);
+        if (ground.Wire == _painted)
+            return;
+        _painted = ground.Wire;
+        Ground.Children.Clear();
+        Ground.Background = null;
+        if (ground.Rgb is { } rgb)
+        {
+            Ground.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
+        }
+        else if (FeedGrounds.Picture(ground.Backdrop) is { } picture)
+        {
+            Ground.Children.Add(new Image
+            {
+                Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(picture)),
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill,
+            });
+            Ground.Children.Add(new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0, 0, 0)) });
+        }
     }
 
     private static Visibility Vis(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
@@ -518,7 +559,7 @@ internal sealed partial class FeedView : UserControl
 
     private void OpenEdit(PersonParts parts, RpmPersonProfile person)
     {
-        var edit = new FeedEdit(person);
+        var edit = new FeedEdit(person, OwnBadges?.Invoke() ?? []);
         var page = new Page { Root = edit.Root, MayLeave = edit.MayLeaveAsync };
         edit.Saved += async () =>
         {
@@ -577,4 +618,34 @@ internal sealed partial class FeedView : UserControl
         Push(page);
         Focus(FocusState.Programmatic);
     }
+}
+
+/// <summary>The backgrounds a profile page can be drawn on, by the id the server and the phones store, and
+/// the desktop's picture for each. The phones' "vinyl" is the desktop's night table of records.</summary>
+internal static class FeedGrounds
+{
+    /// <summary>The choices on the edit page, in order: the standard ground first. Gold is a supporter's.</summary>
+    public static readonly IReadOnlyList<(string? Id, string NameKey)> Choices =
+    [
+        (null, "Settings_BackgroundDefault"),
+        ("vinyl", "Settings_BackgroundVinyl"),
+        ("pegasus", "Settings_BackgroundPegasus"),
+        ("sheet-music", "Settings_BackgroundSheetMusic"),
+        ("gold", "Settings_BackgroundGold"),
+    ];
+
+    /// <summary>The solid colours, the phones' list (<c>PAGE_COLOURS</c>, <c>PageGroundPicker.colours</c>).</summary>
+    public static readonly IReadOnlyList<uint> Colours =
+        [0x2A0A5E, 0x0B1E4A, 0x0E4B4F, 0x14402A, 0x4F1028, 0x5A2A0C, 0x2A2F38, 0x0A0A0A];
+
+    /// <summary>The picture for a background id; null for the standard ground or an id this build does not
+    /// know.</summary>
+    public static string? Picture(string? id) => id switch
+    {
+        "vinyl" => Backdrop.Night,
+        "pegasus" => Backdrop.Pegasus,
+        "sheet-music" => Backdrop.SheetMusic,
+        "gold" => Backdrop.Gold,
+        _ => null,
+    };
 }

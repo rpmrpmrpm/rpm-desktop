@@ -42,6 +42,10 @@ internal static class ProfileBadges
     public static string? NameOf(string? id) =>
         id is { Length: > 0 } && Names.TryGetValue(id, out var key) ? Loc.Get(key) : null;
 
+    /// <summary>What unlocks the badge, in the reader's language, or null for an id this build does not know.</summary>
+    public static string? NeedOf(string? id) =>
+        id is { Length: > 0 } && Names.TryGetValue(id, out var key) ? Loc.Get(key + "_Need") : null;
+
     /// <summary>The badge's colour from its wire value, <c>#RRGGBB</c>; the default when it has none.</summary>
     public static Color ColourOf(string? wire)
     {

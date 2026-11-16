@@ -3515,6 +3515,14 @@
     <value>Dieses Profil konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>{0} weitere Antworten anzeigen</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>1 weitere Antwort anzeigen</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
   <data name="Rpm_Profile_SendFailed" xml:space="preserve">
     <value>Das konnte nicht gesendet werden. Prüfe deine Verbindung und versuche es erneut.</value>
     <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>

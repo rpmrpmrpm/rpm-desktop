@@ -9,8 +9,8 @@ using Windows.UI;
 namespace RPM.Desktop.Presentation.Main.LeftPane;
 
 /// <summary>
-/// The reader's edit page, as on the phones: one column of cards (display name, profile photo, banner, badge
-/// and its colour) with Save at the foot. Nothing is sent until Save. Leaving with changes asks "Apply
+/// The reader's edit page, as on the phones: one column of cards (display name, profile photo, banner, what
+/// the page is drawn on, badge and its colour) with Save at the foot. Nothing is sent until Save. Leaving with changes asks "Apply
 /// changes" or "Discard" (<see cref="MayLeaveAsync"/>).
 ///
 /// <para>Pictures are cut to their shape and size here, as the phones do (<c>PicturePrep</c>): the photo to a
@@ -36,6 +36,13 @@ internal sealed class FeedEdit
     private readonly StackPanel _bannerKeys;
     private readonly ChipWrap _badges = new() { Spacing = 8 };
     private readonly StackPanel _colours = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _locked = new() { Spacing = 6 };
+    private readonly ChipWrap _grounds = new() { Spacing = 10 };
+    private readonly ChipWrap _groundColours = new() { Spacing = 10 };
+
+    /// <summary>Every badge the reader holds: the server's, and the ones this computer's collection unlocks
+    /// that it may not have sent yet. Save sends them all.</summary>
+    private readonly IReadOnlyList<string> _held;
     private readonly Button _save;
     private readonly TextBlock _trouble;
 
@@ -46,11 +53,18 @@ internal sealed class FeedEdit
     private bool _removeBanner;
     private string _badge;
     private string _colour;
+    private RpmPageGround _ground;
     private bool _saving;
 
-    public FeedEdit(RpmPersonProfile person)
+    /// <param name="unlockedHere">The badges this computer's collection unlocks
+    /// (<see cref="RpmProfileBadges.Unlocked"/>).</param>
+    public FeedEdit(RpmPersonProfile person, IReadOnlyList<string> unlockedHere)
     {
         _person = person;
+        var held = new HashSet<string>(person.Badges ?? [], StringComparer.Ordinal);
+        held.UnionWith(unlockedHere);
+        _held = RpmProfileBadges.All.Where(held.Contains).ToList();
+        _ground = RpmPageGround.Of(person.PageGround);
         _badge = person.Badge ?? "";
         _colour = person.BadgeColour is { Length: 7 } c ? c : "";
 
@@ -101,11 +115,20 @@ internal sealed class FeedEdit
         bannerBody.Children.Add(_bannerKeys);
         _column.Children.Add(Card(Loc.Get("Rpm_Profile_BannerTitle"), bannerBody));
 
-        // Badge and its colour. Only badges already unlocked can be shown; the phones unlock them.
+        // What the page is drawn on: one of the app's backgrounds, or a solid colour.
+        var groundBody = new StackPanel { Spacing = 10 };
+        groundBody.Children.Add(_grounds);
+        groundBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_Colours"), FontSize = 12, Foreground = FeedCards.White(0x99) });
+        groundBody.Children.Add(_groundColours);
+        _column.Children.Add(Card(Loc.Get("Settings_Background"), groundBody));
+
+        // Badge and its colour: every badge held to choose from, then the ones still to unlock with what
+        // unlocks them, greyed, as on the phones.
         var badgeBody = new StackPanel { Spacing = 10 };
         badgeBody.Children.Add(_badges);
         badgeBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Badges_Colour"), FontSize = 12, Foreground = FeedCards.White(0x99) });
         badgeBody.Children.Add(_colours);
+        badgeBody.Children.Add(_locked);
         _column.Children.Add(Card(Loc.Get("Rpm_Badges_Title"), badgeBody));
 
         _save = new RpmPrimaryButton { Content = Loc.Get("Rpm_Profile_Save"), HorizontalAlignment = HorizontalAlignment.Stretch, IsEnabled = false };
@@ -122,7 +145,9 @@ internal sealed class FeedEdit
         };
         ShowPhoto();
         ShowBanner();
+        ShowGrounds();
         ShowBadges();
+        ShowLocked();
     }
 
     public ScrollViewer Root { get; }
@@ -138,7 +163,8 @@ internal sealed class FeedEdit
         || _newBanner is not null || _removeBanner
         || BannerFollows != _person.BannerFollowsListening
         || _badge != (_person.Badge ?? "")
-        || _colour != (_person.BadgeColour ?? "");
+        || _colour != (_person.BadgeColour ?? "")
+        || _ground.Wire != RpmPageGround.Of(_person.PageGround).Wire;
 
     private void Sync() => _save.IsEnabled = !_saving && Changed && _name.Text.Trim().Length >= 2;
 
@@ -201,7 +227,7 @@ internal sealed class FeedEdit
     {
         _badges.Children.Clear();
         _badges.Children.Add(Choice(Loc.Get("Rpm_Badges_NoBadge"), _badge.Length == 0, () => _badge = ""));
-        foreach (var id in _person.Badges ?? [])
+        foreach (var id in _held)
         {
             if (ProfileBadges.NameOf(id) is { } name)
                 _badges.Children.Add(Choice(name, _badge == id, () => _badge = id));
@@ -249,6 +275,96 @@ internal sealed class FeedEdit
             Sync();
         };
         return key;
+    }
+
+    private void ShowGrounds()
+    {
+        _grounds.Children.Clear();
+        foreach (var (id, nameKey) in FeedGrounds.Choices)
+        {
+            // The gold background is for supporters; the phones offer it to supporters only.
+            if (id == "gold" && !_person.Supporter)
+                continue;
+            var ground = id is null ? RpmPageGround.Standard : new RpmPageGround(null, id);
+            var picked = ground.Wire == _ground.Wire;
+            var tile = new Grid
+            {
+                Width = 62,
+                Height = 100,
+                CornerRadius = new CornerRadius(10),
+                BorderThickness = new Thickness(picked ? 2 : 1),
+                BorderBrush = FeedCards.White(picked ? (byte)0xF2 : (byte)0x33),
+            };
+            tile.Children.Add(new Image
+            {
+                Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(FeedGrounds.Picture(id) ?? Backdrop.BuiltIn)),
+                Stretch = Stretch.UniformToFill,
+            });
+            var stack = new StackPanel { Spacing = 6 };
+            stack.Children.Add(tile);
+            stack.Children.Add(new TextBlock
+            {
+                Text = Loc.Get(nameKey),
+                FontSize = 11,
+                Foreground = FeedCards.White(picked ? (byte)0xFF : (byte)0x99),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 70,
+            });
+            _grounds.Children.Add(Pick(stack, Loc.Get(nameKey), ground));
+        }
+
+        _groundColours.Children.Clear();
+        foreach (var rgb in FeedGrounds.Colours)
+        {
+            var ground = RpmPageGround.Colour(rgb);
+            var picked = ground.Wire == _ground.Wire;
+            var swatch = new Grid { Width = 40, Height = 40 };
+            swatch.Children.Add(new Ellipse
+            {
+                Fill = new SolidColorBrush(Color.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb)),
+                Stroke = FeedCards.White(picked ? (byte)0xF2 : (byte)0x44),
+                StrokeThickness = picked ? 3 : 1,
+            });
+            _groundColours.Children.Add(Pick(swatch, ground.Wire, ground));
+        }
+    }
+
+    private Button Pick(UIElement content, string name, RpmPageGround ground)
+    {
+        var key = new Button { Style = FeedCards.Key(), Height = double.NaN, Padding = new Thickness(0), Content = content };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, name);
+        key.Click += (_, _) =>
+        {
+            _ground = ground;
+            ShowGrounds();
+            Sync();
+        };
+        return key;
+    }
+
+    /// <summary>The badges still to unlock, each with what unlocks it, greyed.</summary>
+    private void ShowLocked()
+    {
+        _locked.Children.Clear();
+        var locked = RpmProfileBadges.All.Where(id => !_held.Contains(id)).ToList();
+        if (locked.Count == 0)
+            return;
+        _locked.Children.Add(new TextBlock
+        {
+            Text = Loc.Get("Rpm_Badges_Locked"),
+            FontSize = 12,
+            Foreground = FeedCards.White(0x99),
+            Margin = new Thickness(0, 6, 0, 0),
+        });
+        foreach (var id in locked)
+        {
+            var row = new StackPanel { Spacing = 1 };
+            row.Children.Add(new TextBlock { Text = ProfileBadges.NameOf(id) ?? id, FontSize = 13, FontStyle = Windows.UI.Text.FontStyle.Italic, Foreground = FeedCards.White(0x77) });
+            if (ProfileBadges.NeedOf(id) is { } need)
+                row.Children.Add(new TextBlock { Text = need, FontSize = 11, Foreground = FeedCards.White(0x66), TextWrapping = TextWrapping.Wrap });
+            _locked.Children.Add(row);
+        }
     }
 
     // ── pictures ──
@@ -316,8 +432,11 @@ internal sealed class FeedEdit
                 await Community.ClearBannerAsync();
             if (BannerFollows != _person.BannerFollowsListening)
                 await Community.SetBannerSourceAsync(BannerFollows);
+            if (_ground.Wire != RpmPageGround.Of(_person.PageGround).Wire)
+                await Community.SetPageGroundAsync(_ground);
+            // Every badge held goes with the choice, so one unlocked on this computer can be chosen at once.
             if (_badge != (_person.Badge ?? "") || _colour != (_person.BadgeColour ?? ""))
-                await Community.SetBadgeAsync(_badge, _colour);
+                await Community.SetBadgesAsync(_held, _badge, _colour);
         }
         catch (RpmNameTakenException)
         {

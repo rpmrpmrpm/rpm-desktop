@@ -28,6 +28,11 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
+    <!-- What a person's page is drawn on, behind the heading row too, as on the phones: one of the app's
+         backgrounds, or a solid colour, as the page's owner chose (FeedView.PaintGround). Empty for the
+         standard ground, which is the pane's own glass. The corners follow the pane's right edge. -->
+    <Grid x:Name="Ground" Grid.RowSpan="2" CornerRadius="0,7,7,0" IsHitTestVisible="False"/>
+
     <!-- The heading row. The key at the right is the reader's own page on the feed, and the way back on
          every page the feed opens. Both end on the cards' right edge. -->
     <Grid Grid.Row="0" Margin="16,12,16,0" Style="{StaticResource RpmPaneHeadingBox}">

@@ -3515,6 +3515,14 @@
     <value>无法加载此个人主页。请检查网络连接后重试。</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>显示另外 {0} 条回复</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>显示另外 1 条回复</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
   <data name="Rpm_Profile_SendFailed" xml:space="preserve">
     <value>无法发送。请检查网络连接后重试。</value>
     <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>

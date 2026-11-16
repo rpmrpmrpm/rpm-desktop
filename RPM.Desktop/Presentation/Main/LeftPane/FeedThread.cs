@@ -8,7 +8,8 @@ namespace RPM.Desktop.Presentation.Main.LeftPane;
 /// A post with its replies, as the phones open it: the post's card, then every reply in reading order,
 /// indented by how deep it answers, and the box to reply to the post at the foot. Reply on a reply opens
 /// a box under that reply. A reply can be voted on, deleted by its author or by the page's owner, and
-/// reported by anyone else.
+/// reported by anyone else. Six levels are shown; the answers under a reply on the sixth level wait behind
+/// a "Show more" key under it, which opens that branch.
 ///
 /// <para>Out of order: replies are read again after a send or a delete, and an answer that arrives after a
 /// newer read started is dropped (<see cref="_reads"/>). A vote answer is applied only when it answers the
@@ -21,6 +22,12 @@ internal sealed class FeedThread
     private const int DeepestIndent = 6;
 
     private const double Indent = 16;
+
+    /// <summary>How many levels a thread shows before a reply's deeper answers wait behind "Show more".</summary>
+    private const int ShownLevels = 6;
+
+    /// <summary>The replies on the last shown level whose deeper answers were opened.</summary>
+    private readonly HashSet<string> _opened = new(StringComparer.Ordinal);
 
     private static RpmCommunityClient Community => App.Services.GetRequiredService<RpmCommunityClient>();
     private static AuthService Auth => App.Services.GetRequiredService<AuthService>();
@@ -160,9 +167,31 @@ internal sealed class FeedThread
         _lines.Children.Clear();
         _replyVotes.Clear();
         var signedIn = Auth.UserId is { Length: > 0 };
-        FeedComposer? open = null;
-        foreach (var (reply, depth) in new RpmReplyTree(_postId, _replies).Lines)
+        var lines = new RpmReplyTree(_postId, _replies).Lines;
+
+        // Every reply deeper than the shown levels sits under one reply on the last shown level: its gate.
+        // The tree is in reading order, so the gate is the latest reply seen on that level.
+        var gates = new string?[lines.Count];
+        var hidden = new Dictionary<string, int>(StringComparer.Ordinal);
+        string? gate = null;
+        for (var i = 0; i < lines.Count; i++)
         {
+            var (reply, depth) = lines[i];
+            if (depth == ShownLevels - 1)
+                gate = reply.ReplyId;
+            if (depth < ShownLevels || gate is null)
+                continue;
+            gates[i] = gate;
+            if (!_opened.Contains(gate))
+                hidden[gate] = hidden.GetValueOrDefault(gate) + 1;
+        }
+
+        FeedComposer? open = null;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var (reply, depth) = lines[i];
+            if (gates[i] is { } closed && !_opened.Contains(closed))
+                continue;
             var line = Line(reply, depth, signedIn);
             _lines.Children.Add(line);
             if (signedIn && _answering == reply.ReplyId)
@@ -171,10 +200,28 @@ internal sealed class FeedThread
                 open.Margin = new Thickness(Math.Min(depth + 1, DeepestIndent) * Indent, 0, 0, 0);
                 _lines.Children.Add(open);
             }
+            if (hidden.TryGetValue(reply.ReplyId, out var count))
+                _lines.Children.Add(ShowMore(reply.ReplyId, count, depth));
         }
         if (signedIn)
             _lines.Children.Add(Box(null));
         open?.FocusText();
+    }
+
+    /// <summary>The key under a reply on the last shown level that opens the answers under it.</summary>
+    private Button ShowMore(string replyId, int count, int depth)
+    {
+        var key = FeedCards.TextKey(
+            count == 1 ? Loc.Get("Rpm_Profile_ShowMoreRepliesOne") : Loc.Format("Rpm_Profile_ShowMoreReplies", count),
+            12,
+            () =>
+            {
+                _opened.Add(replyId);
+                Draw();
+            });
+        key.Margin = new Thickness((Math.Min(depth + 1, DeepestIndent) * Indent) + 38, -4, 0, 0);
+        key.HorizontalAlignment = HorizontalAlignment.Left;
+        return key;
     }
 
     private FeedComposer Box(string? parentId) => new(
