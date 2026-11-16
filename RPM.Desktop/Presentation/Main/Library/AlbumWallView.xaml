@@ -174,11 +174,9 @@
              colour shift on every frame of the unfold. -->
         <StackPanel>
         <Grid>
-        <!-- The pointer triangle sits over the owning card, in the drawer's own colour (PointerBrush). It
-             fades to nothing at its point, so it rises out of the wall instead of standing on it as a hard
-             arrow. Its base runs 2 px PAST the top of the drawer (into the Border with the 10 px margin,
-             which draws over it). So the join has no sub-pixel gap. The ramp reaches full colour at that
-             join, not at the bottom of the shape. See BandPointer.Ramp. -->
+        <!-- The pointer triangle sits over the owning card, solid, in the colour the drawer shows where the
+             two meet (PointerBrush). Its base runs 2 px PAST the top of the drawer (into the Border with the
+             10 px margin, which draws over it). So the join has no sub-pixel gap. See BandPointer.Fill. -->
         <Polygon x:Name="BandPoint" Points="0,12 10,0 20,12" Fill="{Binding PointerBrush}" Width="20" Height="12"
                  HorizontalAlignment="Left" VerticalAlignment="Top"
                  Margin="{Binding PointerMargin}"/>

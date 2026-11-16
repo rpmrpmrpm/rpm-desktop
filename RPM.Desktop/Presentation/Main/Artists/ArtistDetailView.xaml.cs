@@ -2846,6 +2846,10 @@ public sealed partial class ArtistDetailView : UserControl
             new(RecordsDrawer, RecordsBand, RecordsPoint, _records),
         ];
 
+        // A drawer that changes size shows a different part of its sleeve under the triangle.
+        foreach (var shelf in shelves)
+            shelf.View.SizeChanged += (_, _) => PaintPoint(shelf);
+
         return shelves;
     }
 
@@ -2978,6 +2982,22 @@ public sealed partial class ArtistDetailView : UserControl
         // of aim on the one cover that can be that far left, and nothing anywhere else.
         drawer.Point.Margin = new Thickness(Math.Max(0, x - BandPointer.TriangleHalf), 0, 0, 0);
         drawer.Point.Visibility = Visibility.Visible;
+        PaintPoint(drawer);   // it now stands over another part of the sleeve
+    }
+
+    /// <summary>
+    /// Paints the triangle in the colour the drawer's ground shows where the triangle meets it (see
+    /// <see cref="AlbumBandView.EdgeColourUnder"/>), not the sleeve's colour averaged across its width,
+    /// which meets the drawer with a line wherever the sleeve is not one colour from side to side. Left
+    /// alone until the ground has crossed in, because the cross paints the triangle while it runs.
+    /// </summary>
+    private static void PaintPoint(ShelfDrawer drawer)
+    {
+        if (drawer.View.Band is not { Sleeve: not null, GroundOn: >= 1 } band
+            || drawer.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) is not { } colour)
+            return;
+        band.PointerBrush = BandPointer.Fill(colour);
+        drawer.Point.Fill = band.PointerBrush;
     }
 
     /// <summary>
@@ -3034,6 +3054,7 @@ public sealed partial class ArtistDetailView : UserControl
             // new record crosses in over it.
             band.GroundOn = 0;
             band.Ground = null;
+            band.Sleeve = null;
             band.Wash = null;
             band.Veil = 0;
             band.Loading = true;
@@ -3055,7 +3076,7 @@ public sealed partial class ArtistDetailView : UserControl
         // The drawer opens on the plate of the app, and so do both marks that it makes outside itself.
         // All three agree on the frame it opens as much as on every frame after it, and the background
         // of the cover crosses all three in together once it has been read (see CrossGround).
-        drawer.Point.Fill = BandPointer.Ramp(BandPointer.Plate);
+        drawer.Point.Fill = BandPointer.Fill(BandPointer.Plate);
         band.PointerBrush = drawer.Point.Fill;
 
         // The ring moves to this record, off whichever record of the shelf had it. Its colour belongs to
@@ -3169,21 +3190,25 @@ public sealed partial class ArtistDetailView : UserControl
         band.Ground = new SolidColorBrush(read.Ground.Ground);
         band.Veil = read.Ground.Veil;
         band.Wash = read.Wash;
+        band.Sleeve = read.Ground;
+
+        // Where the triangle meets the drawer, the colour the drawer shows there; the average where the
+        // drawer cannot be read yet. It is painted again once the cross has landed.
+        var pointTo = drawer?.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) ?? read.Ground.Flat;
 
         // The triangle and the ring cannot carry the three layers of the drawer, so they take the single
         // colour that the three flatten to. Neither crosses by a second copy fading over the first: two
-        // stacked ramps are one alpha over another and not the ramp itself, and the mark comes out
-        // darker and with a different hue from the drawer it points at. Both are repainted instead, with
-        // their colour walked from what the drawer opened with to what its cover turned out to be, on the
-        // same number that the layers use.
+        // copies at part strength let the shelf show through the middle of the cross. Both are repainted
+        // instead, with their colour walked from what the drawer opened with to what its cover turned out
+        // to be, on the same number that the layers use.
         var wasPoint = BandPointer.ColourOf(band.PointerBrush) ?? read.Ground.Flat;
         var wasRing = read.Ground.Flat;
         SolidColorBrush? ring = null;
         if (drawer?.Opened is { } record)
         {
             // The brush of the ring is made once and its colour is written a frame at a time. The brush
-            // of the triangle is rebuilt, because a gradient is its stops and rewriting them in place is
-            // a repaint that the element does not hear about.
+            // of the triangle is replaced each time, because it is handed to the band and to the triangle
+            // as a brush.
             wasRing = (record.Ring as SolidColorBrush)?.Color ?? read.Ground.Flat;
             record.Ring = ring = new SolidColorBrush(wasRing);
         }
@@ -3193,11 +3218,13 @@ public sealed partial class ArtistDetailView : UserControl
             v =>
             {
                 band.GroundOn = v;
-                band.PointerBrush = BandPointer.Ramp(BandPointer.Blend(wasPoint, read.Ground.Flat, v));
+                band.PointerBrush = BandPointer.Fill(BandPointer.Blend(wasPoint, pointTo, v));
                 if (drawer is not null)
                     drawer.Point.Fill = band.PointerBrush;
                 if (ring is not null)
                     ring.Color = BandPointer.Blend(wasRing, read.Ground.Flat, v);
+                if (v >= 1 && drawer is not null)
+                    PaintPoint(drawer);
             },
             band.GroundOn);
         _groundFade.To(1, watched ? GroundCrossMs : 0);

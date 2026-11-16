@@ -579,15 +579,14 @@ public sealed partial class AlbumBand : INotifyPropertyChanged
 
     private Brush? _pointerBrush;
     /// <summary>
-    /// The pointer triangle's fill: the one colour that its part of the drawer reaches, faded to nothing at
-    /// the point. A triangle a shade off the edge it meets looks like a shadow under it. The shape has no
-    /// wash to carry, so it takes the drawer's three layers flattened (<see cref="SleeveGround.Flat"/>).
-    /// See <see cref="BandPointer.Ramp"/>.
+    /// The pointer triangle's fill: the one colour the drawer shows where the triangle meets it, solid. A
+    /// triangle a shade off the edge it meets looks like a shadow under it. The shape has no wash to carry,
+    /// so it takes the drawer's three layers flattened at that place (<see cref="SleeveGround.FlatAt"/>).
+    /// See <see cref="BandPointer.Fill"/>.
     ///
     /// <para>It is REPLACED a frame at a time while the sleeve's ground crosses in. It is not a second
-    /// triangle fading over the first. Two ramped triangles stacked are not the same as one ramp. They are
-    /// one alpha over another, and the drawer's mark would come out darker and a different hue from the
-    /// drawer it points at. There is one triangle, and its colour is what changes.</para>
+    /// triangle fading over the first: two triangles at part strength let the row show through the middle of
+    /// the cross. There is one triangle, and its colour is what changes.</para>
     /// </summary>
     /// <remarks>Made on first read, for the same reason as <see cref="AlbumCard.Ring"/>.</remarks>
     public Brush PointerBrush

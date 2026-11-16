@@ -1063,7 +1063,7 @@ public sealed partial class AlbumWallView : UserControl
 
             // Otherwise the drawer stands on the plate (the template's own brush) until its ground is read.
             // The triangle stands in the same thin white, so the two agree.
-            band.PointerBrush = BandPointer.Ramp(BandPointer.Plate);
+            band.PointerBrush = BandPointer.Fill(BandPointer.Plate);
         }
     }
 }

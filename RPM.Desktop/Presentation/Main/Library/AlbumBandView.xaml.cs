@@ -151,6 +151,29 @@ public sealed partial class AlbumBandView : UserControl
         return sleeve.FlatAt(Math.Clamp(x, 0, width), 1, width, BandPlate.ActualHeight);
     }
 
+    /// <summary>
+    /// <see cref="EdgeColourAt(double)"/> for a triangle placed in another element: its left edge stands
+    /// <paramref name="pointLeft"/> across <paramref name="host"/>, the element both the triangle and this
+    /// drawer stand in. The place is carried into the drawer's own units through the layout, so a drawer
+    /// drawn at a scale (home in Pegasus) or with a margin of its own is read at the right place. Null
+    /// where <see cref="EdgeColourAt(double)"/> is, or where the two are not in one tree yet.
+    /// </summary>
+    public Windows.UI.Color? EdgeColourUnder(FrameworkElement host, double pointLeft)
+    {
+        if (Band?.Sleeve is null)
+            return null;
+        try
+        {
+            var at = host.TransformToVisual(this)
+                .TransformPoint(new Windows.Foundation.Point(pointLeft + BandPointer.TriangleHalf, 0));
+            return EdgeColourAt(at.X);
+        }
+        catch (Exception)
+        {
+            return null;   // not in the tree, so there is no place to read
+        }
+    }
+
     public void SetColumns(bool twoColumns)
     {
         _twoColumns = twoColumns;

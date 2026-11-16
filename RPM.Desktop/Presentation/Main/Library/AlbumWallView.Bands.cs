@@ -420,7 +420,7 @@ public sealed partial class AlbumWallView
         }
         var x = band.PointerMargin.Left + BandPointer.TriangleHalf - view.Margin.Left;
         if (view.EdgeColourAt(x) is { } colour)
-            band.PointerBrush = BandPointer.Ramp(colour);
+            band.PointerBrush = BandPointer.Fill(colour);
         if (WallDiag.On)
             WallDiag.Open($"pointer {band.Card.Title} at {x:0.#} of {view.ActualWidth:0.#}x{view.ActualHeight:0.#}:"
                 + $" edge {view.EdgeColourAt(x)?.ToString() ?? "none"}, flat {band.Sleeve.Flat}");
@@ -503,15 +503,15 @@ public sealed partial class AlbumWallView
         var seen = LiveBandRoot(band) is { ActualHeight: > 1, Opacity: > 0 };
 
         // The triangle and the open card's ring cannot carry three layers. So they take one colour, and
-        // they meet the drawer in its own tone. Neither can be crossed by a second copy fading over the
-        // first. The triangle is a ramp, and two ramps stacked give one alpha over another, not the ramp
-        // itself. Both cross by being REPAINTED, on the same number that the layers use.
+        // they meet the drawer in its own tone. Neither is crossed by a second copy fading over the first:
+        // two copies at part strength let the row show through the middle of the cross. Both cross by
+        // being REPAINTED, on the same number that the layers use.
         var wasPoint = BandPointer.ColourOf(band.PointerBrush) ?? ground.Flat;
         var wasRing = (band.Card.Ring as SolidColorBrush)?.Color ?? ground.Flat;
 
         // The ring's brush is made once, and its colour is written a frame at a time. The triangle's
-        // brush is rebuilt, because a gradient is its stops, and rewriting the stops in place is a
-        // repaint that the binding never sees.
+        // brush is replaced instead, because it is the band's PointerBrush, and a new brush is what the
+        // binding hears.
         var ring = new SolidColorBrush(wasRing);
         band.Card.Ring = ring;
 
@@ -519,7 +519,7 @@ public sealed partial class AlbumWallView
         if (!seen)
         {
             band.GroundOn = 1;
-            band.PointerBrush = BandPointer.Ramp(ground.Flat);
+            band.PointerBrush = BandPointer.Fill(ground.Flat);
             PaintPointer(band);
         }
         _groundFade = new ChromeFade(
@@ -529,7 +529,7 @@ public sealed partial class AlbumWallView
                 if (!seen)
                     return;
                 band.GroundOn = v;
-                band.PointerBrush = BandPointer.Ramp(BandPointer.Blend(wasPoint, ground.Flat, v));
+                band.PointerBrush = BandPointer.Fill(BandPointer.Blend(wasPoint, ground.Flat, v));
                 if (v >= 1)
                     PaintPointer(band);
             },
