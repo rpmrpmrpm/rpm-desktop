@@ -33,12 +33,17 @@
     <Grid Grid.Row="0" Margin="16,12,16,0" Style="{StaticResource RpmPaneHeadingBox}">
       <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
 
+      <!-- The round plate is drawn inside the key, not as its Background: the brushes above clear a
+           key's background on hover, and the plate would vanish under the pointer. -->
       <Button x:Name="ProfileKey" Click="ProfileKey_Click" HorizontalAlignment="Right"
-              Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="16"
-              Background="#1FFFFFFF" BorderThickness="0" Visibility="Collapsed"
+              Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
+              Background="Transparent" BorderThickness="0" Visibility="Collapsed"
               ToolTipService.ToolTip="{loc:Str Key=Rpm_Feed_MyProfile}"
               AutomationProperties.Name="{loc:Str Key=Rpm_Feed_MyProfile}">
-        <FontIcon Glyph="&#xf007;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#EEFFFFFF"/>
+        <Grid Width="32" Height="32">
+          <Ellipse Fill="#1FFFFFFF"/>
+          <FontIcon Glyph="&#xf007;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#EEFFFFFF"/>
+        </Grid>
       </Button>
 
       <Button x:Name="BackKey" Click="BackKey_Click" HorizontalAlignment="Right"

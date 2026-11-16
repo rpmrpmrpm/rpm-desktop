@@ -150,7 +150,9 @@ public sealed partial class AvatarPicture : BorderBase
         // Only a loaded picture is kept. A failed download draws the empty tile and is not kept, so the
         // next display downloads it again.
         var loaded = answer.Match(picture => picture, _ => null);
-        if (loaded is not null)
+        // A person's current picture on rpm's API (no stamp on the address) is not kept here: it can
+        // change, and the disk cache already holds it for the minute it is good for.
+        if (loaded is not null && !RemoteImage.IsUnstampedProfilePicture(uri))
             Keep(address, loaded);
 
         Draw(loaded);

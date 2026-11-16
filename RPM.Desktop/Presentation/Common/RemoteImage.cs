@@ -318,6 +318,28 @@ public static class RemoteImage
             ask.Headers.TryAddWithoutValidation(RpmApi.KeyHeader, RpmApi.Key);
     }
 
+    /// <summary>
+    /// How long a person's photo or banner from rpm's own API is kept when its address has no stamp
+    /// (<c>?v=</c>): one minute, as the API itself says for that address.
+    ///
+    /// <para>A stamped address names one version of the picture, so the ordinary thirty days are right for
+    /// it. An address without a stamp always gives the person's current picture, and the review rows and
+    /// the feed cards only have that address. Kept for thirty days, a changed photo stayed old on this
+    /// computer for a month while the phones showed the new one. After the minute the cache asks again,
+    /// and an unchanged picture comes back as a 304 with no bytes.</para>
+    ///
+    /// <para><see cref="WebCachePolicy.Vary"/> files these apart from what the thirty-day rule already
+    /// stored, so an old copy is not served until its old expiry.</para>
+    /// </summary>
+    private static readonly WebCachePolicy UnstampedProfilePictures =
+        new("art", TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1)) { Vary = "profile-unstamped" };
+
+    /// <summary>Whether the address is a person's photo or banner on rpm's API, without a stamp.</summary>
+    internal static bool IsUnstampedProfilePicture(Uri uri) =>
+        RpmApi.Owns(uri.ToString())
+        && System.Text.RegularExpressions.Regex.IsMatch(uri.AbsolutePath, "/profiles/[^/]+/(avatar|banner)$")
+        && !uri.Query.Contains("v=", StringComparison.Ordinal);
+
     /// <summary>One attempt.</summary>
     private static async Task<Attempt> FetchAsync(Uri uri, CancellationToken ct)
     {
@@ -326,6 +348,8 @@ public static class RemoteImage
             using var ask = new System.Net.Http.HttpRequestMessage(
                 System.Net.Http.HttpMethod.Get, uri);
             FitKey(ask, uri);
+            if (IsUnstampedProfilePicture(uri))
+                ask.Cache(UnstampedProfilePictures);
 
             using var response = await Http.SendAsync(ask, ct);
             if (response.IsSuccessStatusCode)

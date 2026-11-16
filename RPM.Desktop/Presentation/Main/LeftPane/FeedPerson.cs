@@ -1,7 +1,6 @@
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using RPM.Core.Cloud;
 using Windows.Foundation;
@@ -106,7 +105,8 @@ internal static class FeedPerson
     }
 
     /// <summary>The banner with the photo standing over its foot. Without an uploaded banner the plate is
-    /// left plain.</summary>
+    /// left plain. A banner that follows what the person plays (<c>bannerSource</c> "listening") is not
+    /// drawn yet, so that plate is plain too.</summary>
     private static FrameworkElement BannerAndPhoto(RpmPersonProfile person)
     {
         var block = new Grid { Height = BannerTall + PhotoEdge / 2 - PhotoLift };
@@ -118,15 +118,15 @@ internal static class FeedPerson
             CornerRadius = new CornerRadius(12),
             Background = FeedCards.White(0x14),
         };
+        // Fetched by AvatarPicture, which sends the app key the API asks for and fills the plate from the
+        // middle. A plain BitmapImage sends no key, and the API refuses it.
         var api = App.Services.GetRequiredService<RpmCommunityClient>().BaseAddress;
         if (person.HasBanner && api is not null)
         {
-            banner.Children.Add(new Image
+            banner.Children.Add(new AvatarPicture
             {
-                Stretch = Stretch.UniformToFill,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Source = new BitmapImage(new Uri(api, RpmCommunityClient.BannerPath(person.UserId, person.BannerUpdatedAt))),
+                CornerRadius = new CornerRadius(12),
+                Source = new Uri(api, RpmCommunityClient.BannerPath(person.UserId, person.BannerUpdatedAt)),
             });
         }
         block.Children.Add(banner);
