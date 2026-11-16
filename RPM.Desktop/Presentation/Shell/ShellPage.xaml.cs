@@ -1542,6 +1542,7 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         if (SplashOverlay is not null)
             SplashOverlay.Visibility = Visibility.Collapsed;
         RPM.Core.Diagnostics.Scope.Said("boot", "reveal done");
+        App.Boot.Shown();
 
         // The first-run hints wait for this. If they were drawn earlier, they would be under the
         // splash, and their fade-in would finish behind the black sheet before it lifted.

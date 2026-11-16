@@ -42,6 +42,11 @@ internal class Program
                 App.Crashes.Record(ex, "appdomain");
         };
 
+        // A start-up that never shows the window, reported from the Intel Mac builds (see BootWatch).
+        // After the crash handlers, so a crash inside the start-up still writes its file, which the
+        // report then carries.
+        App.Boot.Start();
+
         // A normal exit that does not go through the main window's Closed event. ProcessExit covers
         // this on Windows and Linux. On macOS, ProcessExit does not run in either build. So Cmd+Q and
         // the Dock menu's Quit would leave the run without a Closing record. MacQuit listens to AppKit's

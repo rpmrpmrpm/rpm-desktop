@@ -55,4 +55,29 @@ public class StartupCrashLogTests : IDisposable
         Assert.True(kept.Length <= StartupCrashLog.Cap / 2);
         Assert.EndsWith(Entry(99), kept);
     }
+
+    [Fact]
+    public void Between_returns_the_entries_in_the_range_by_local_time()
+    {
+        var text = Entry(1) + Entry(2) + Entry(3);
+        var from = new DateTimeOffset(new DateTime(2026, 10, 9, 4, 2, 0, DateTimeKind.Local));
+
+        var found = StartupCrashLog.Between(text, from, from).ToList();
+
+        Assert.Single(found);
+        Assert.StartsWith("[2026-10-09 04:02:00] unhandled: System.InvalidOperationException: failure 2", found[0]);
+        Assert.EndsWith("x", found[0]);
+    }
+
+    [Fact]
+    public void Between_skips_text_before_the_first_entry_and_entries_without_a_time()
+    {
+        var text = "a cut entry\n[not a time] unhandled: x\n\n" + Entry(2);
+        var from = new DateTimeOffset(new DateTime(2026, 10, 9, 0, 0, 0, DateTimeKind.Local));
+
+        var found = StartupCrashLog.Between(text, from, from + TimeSpan.FromDays(1)).ToList();
+
+        Assert.Single(found);
+        Assert.Contains("failure 2", found[0]);
+    }
 }

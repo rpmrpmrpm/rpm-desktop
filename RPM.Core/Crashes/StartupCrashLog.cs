@@ -33,6 +33,38 @@ public static class StartupCrashLog
         File.WriteAllText(path, Newest(File.ReadAllText(path)) + entry);
     }
 
+    /// <summary>The entries of <paramref name="text"/> whose time is from <paramref name="from"/> to
+    /// <paramref name="to"/>, trimmed. An entry's time is local time to the second, so the range is
+    /// widened by one second at each end. An entry whose time cannot be read is left out.</summary>
+    internal static IEnumerable<string> Between(string text, DateTimeOffset from, DateTimeOffset to)
+    {
+        var first = from.LocalDateTime.AddSeconds(-1);
+        var last = to.LocalDateTime.AddSeconds(1);
+
+        // Each entry starts with "[" at the start of the text or of a line.
+        var start = text.StartsWith('[') ? 0 : text.IndexOf("\n[", StringComparison.Ordinal);
+        if (start < 0)
+            yield break;
+        if (text[start] == '\n')
+            start++;
+
+        while (true)
+        {
+            var next = text.IndexOf("\n[", start, StringComparison.Ordinal);
+            var entry = (next < 0 ? text[start..] : text[start..next]).Trim();
+
+            if (entry.Length > 21 && entry[20] == ']'
+                && DateTime.TryParseExact(entry[1..20], "yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var at)
+                && at >= first && at <= last)
+                yield return entry;
+
+            if (next < 0)
+                yield break;
+            start = next + 1;
+        }
+    }
+
     /// <summary>The newest whole entries of <paramref name="text"/> that fit in half the cap.</summary>
     internal static string Newest(string text)
     {
