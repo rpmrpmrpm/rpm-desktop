@@ -972,8 +972,12 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
         if (payload is not null) req.Content = payload;
         if (token is { Length: > 0 }) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        using var resp = await http.SendAsync(req, ct);
-        return await ReadAsync<T>(resp, path, ct);
+        // Off the caller's thread from here on. The caller is usually the UI thread, and reading the answer
+        // is JSON work of several milliseconds a call: an album page asks for five answers while it fades
+        // in. The public methods still finish on the caller's own thread, because their own await is not
+        // configured.
+        using var resp = await http.SendAsync(req, ct).ConfigureAwait(false);
+        return await ReadAsync<T>(resp, path, ct).ConfigureAwait(false);
     }
 
     /// <summary>The token, if one can be had. If a refresh fails on a read path, the reviews are drawn as

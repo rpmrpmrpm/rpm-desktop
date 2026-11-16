@@ -363,10 +363,28 @@ public sealed partial class AlbumDetailView : UserControl
         // around it. The papers are the slowest of the four by a wide margin, because MusicBrainz allows one
         // request a second. That is why they are not awaited, and why they paint from the cache before they ask
         // anybody anything.
-        _ = LoadCommunityAsync(artist, title, (int)first.Year, meta.Catno, ct);
-        _ = LoadReleaseFactsAsync(folder, ct);
-        _ = LoadSimilarAsync(title, artist, ct);
-        _ = PapersAsync(artist, title, _tracks.Count, ct);
+        //
+        // They start on the dispatcher's next turn, not inside this method. The page is built before the move that
+        // shows it is asked for (see MainPage.NavigateToAlbumPage), so all the work done here is a pause between the
+        // press and the move. The first steps of the loads are part of that work: the papers painted from the cache
+        // and the community lookup's set-up took about a third of it. On the next turn they run while the view
+        // before fades out. That fade is drawn by the compositor, so this thread is free, and the papers are still
+        // painted before the page is shown.
+        var year = (int)first.Year;
+        var catno = meta.Catno;
+        var count = _tracks.Count;
+        if (!DispatcherQueue.TryEnqueue(StartLoads))
+            StartLoads();
+
+        void StartLoads()
+        {
+            if (ct.IsCancellationRequested)
+                return;   // closed, or another record was opened, before this turn came
+            _ = LoadCommunityAsync(artist, title, year, catno, ct);
+            _ = LoadReleaseFactsAsync(folder, ct);
+            _ = LoadSimilarAsync(title, artist, ct);
+            _ = PapersAsync(artist, title, count, ct);
+        }
     }
 
     /// <summary>The words the catalogues were last asked about. A re-read can then tell a record that has been

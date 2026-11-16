@@ -107,7 +107,22 @@ public sealed class CoverStream
     {
         _dispatcher = dispatcher;
         _wall = wall;
+#if RPM_WINUI
+        _dispatcher.ShutdownStarting += (_, _) => _closing = true;
+#endif
     }
+
+    /// <summary>
+    /// The window has closed and the dispatcher is running what is left in its queue. The workers stop taking
+    /// turns from here on.
+    /// </summary>
+    /// <remarks>
+    /// Without this the process does not end. When the window closes, the dispatcher runs every item still in
+    /// its queue, including items added while it does so. Each worker turn ends by queueing the next one (see
+    /// <see cref="YieldToLayoutAsync"/>), and a read on a closing window fails at once, so the queue never
+    /// empties: the process stays, with no window, on one core.
+    /// </remarks>
+    private volatile bool _closing;
 
     // ══ the workers ══
 
@@ -318,6 +333,12 @@ public sealed class CoverStream
     private Task YieldToLayoutAsync(bool urgent)
     {
         var turn = new TaskCompletionSource();
+
+        // A closing dispatcher gives no more turns. The task is never completed, so the worker waits here until
+        // the process ends. See _closing.
+        if (_closing)
+            return turn.Task;
+
         var priority = urgent ? DispatcherQueuePriority.Normal : DispatcherQueuePriority.Low;
         if (!_dispatcher.TryEnqueue(priority, () => turn.TrySetResult()))
             turn.TrySetResult();   // No dispatcher to wait on. The caller's own checks still apply.

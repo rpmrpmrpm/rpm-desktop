@@ -215,7 +215,12 @@ public sealed partial class RpmMetadataApi : IRpmMetadataApi
             if (await _auth.GetAccessTokenAsync() is { Length: > 0 } token)
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            using var response = await _http.SendAsync(request, ct);
+            // The send and the read run on the thread pool, and the caller gets the answer back on its own
+            // thread. A cached answer comes out of the disk cache without ever waiting. Sent from here, the file
+            // read and the JSON would then run on the caller's thread before its first await returns. An album
+            // page asks for its play counts while it is being built, so that was time between the press and the
+            // page.
+            using var response = await Task.Run(() => _http.SendAsync(request, ct), ct).ConfigureAwait(false);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound && notFound == NotFound.IsNothing)
                 return Asked.Answer<T?>(default);
@@ -228,7 +233,7 @@ public sealed partial class RpmMetadataApi : IRpmMetadataApi
                         : $"HTTP {(int)response.StatusCode}");
 
             read?.Invoke(response);
-            return Asked.Answer(await response.Content.ReadFromJsonAsync(shape, ct));
+            return Asked.Answer(await response.Content.ReadFromJsonAsync(shape, ct).ConfigureAwait(false));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
