@@ -43,6 +43,24 @@
         <Grid Width="32" Height="32">
           <Ellipse Fill="#1FFFFFFF"/>
           <FontIcon Glyph="&#xf007;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#EEFFFFFF"/>
+          <!-- Notifications wait: a red dot on the key's corner, as on the phones. -->
+          <Ellipse x:Name="ProfileDot" Width="10" Height="10" Fill="#FF3B30" HorizontalAlignment="Right"
+                   VerticalAlignment="Top" Margin="0,-1,-1,0" Visibility="Collapsed"/>
+        </Grid>
+      </Button>
+
+      <!-- The menu of a person's page, left of the close key: notifications and the edit page on the
+           reader's own page; friendship and blocking on someone else's. -->
+      <Button x:Name="MenuKey" Click="MenuKey_Click" HorizontalAlignment="Right" Margin="0,0,40,0"
+              Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
+              Background="Transparent" BorderThickness="0" Visibility="Collapsed"
+              ToolTipService.ToolTip="{loc:Str Key=Rpm_Profile_Menu}"
+              AutomationProperties.Name="{loc:Str Key=Rpm_Profile_Menu}">
+        <Grid Width="32" Height="32">
+          <Ellipse Fill="#1FFFFFFF"/>
+          <FontIcon Glyph="&#xf141;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#EEFFFFFF"/>
+          <Ellipse x:Name="MenuDot" Width="10" Height="10" Fill="#FF3B30" HorizontalAlignment="Right"
+                   VerticalAlignment="Top" Margin="0,-1,-1,0" Visibility="Collapsed"/>
         </Grid>
       </Button>
 
@@ -64,15 +82,9 @@
       </StackPanel>
     </ScrollViewer>
 
-    <!-- A person's page. Its scroller and column are built for each page (FeedView.OpenPerson), so a page
-         that is left takes its list and its handlers with it. -->
-    <Grid x:Name="PersonHost" Grid.Row="1" Visibility="Collapsed"/>
-
-    <!-- A review read in full. It takes the list's place in the pane, and the list keeps its scroll
-         position underneath. -->
-    <ScrollViewer x:Name="Reader" Grid.Row="1" HorizontalScrollMode="Disabled"
-                  VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-      <StackPanel x:Name="ReaderColumn" Spacing="14" Padding="16,7,16,24"/>
-    </ScrollViewer>
+    <!-- The pages the feed opens: a person's page, a post with its replies, a review read in full, the
+         notifications, the edit page. They are built in code, stacked here, and only the top one is
+         shown; the ones under it keep their scroll position. -->
+    <Grid x:Name="PageHost" Grid.Row="1" Visibility="Collapsed"/>
   </Grid>
 </UserControl>

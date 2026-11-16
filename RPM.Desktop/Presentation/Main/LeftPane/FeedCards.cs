@@ -49,20 +49,30 @@ internal static class FeedCards
     /// so an answer to a vote can redraw the counts in place.</summary>
     /// <param name="onPerson">Opens the author's page from their photo or name; null on that page itself,
     /// where both stay still.</param>
-    public static FrameworkElement Post(RpmPost post, VoteKeys votes, Action<string>? onPerson)
+    /// <param name="onOpen">Opens the post with its replies, from the reply key and from a press on the card
+    /// that is not a key; null where the post is already open.</param>
+    /// <param name="onMenu">Opens the post's menu from the key in its corner; null draws no key.</param>
+    public static FrameworkElement Post(
+        RpmPost post, VoteKeys votes, Action<string>? onPerson, Action? onOpen, Action<FrameworkElement>? onMenu)
     {
         var name = post.AuthorDeleted ? Loc.Get("Community_DeletedUser") : post.AuthorName;
         var open = post.AuthorDeleted || onPerson is null ? null : (Action)(() => onPerson(post.OwnerId));
 
         var text = new StackPanel { Spacing = 6 };
-        text.Children.Add(Pressable(Byline(name, post.CreatedAt, post.AuthorSupporter), open, name));
+        var by = Pressable(Byline(name, post.CreatedAt, post.AuthorSupporter), open, name);
+        // Room at the right for the corner key, so a long name ends before it.
+        if (onMenu is not null)
+            by.Margin = new Thickness(0, 0, 24, 0);
+        text.Children.Add(by);
         text.Children.Add(new TextBlock
         {
             Text = post.Body,
             FontSize = 14,
             Foreground = White(0xE6),
             TextWrapping = TextWrapping.Wrap,
-            IsTextSelectionEnabled = true,
+            // Selectable text takes the press for itself, so a card that opens its thread on a press keeps
+            // its text plain; once the thread is open the text can be selected.
+            IsTextSelectionEnabled = onOpen is null,
         });
         if (post.Song is { } song)
         {
@@ -84,7 +94,7 @@ internal static class FeedCards
         foot.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         foot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         foot.Children.Add(votes);
-        var replies = Replies(post.ReplyCount);
+        var replies = Replies(post.ReplyCount, onOpen);
         Grid.SetColumn(replies, 1);
         foot.Children.Add(replies);
         text.Children.Add(foot);
@@ -98,7 +108,43 @@ internal static class FeedCards
         Grid.SetColumn(text, 1);
         row.Children.Add(text);
 
-        return Card(row, new Thickness(14, 12, 14, 2));
+        var card = Card(row, new Thickness(14, 12, 14, 2));
+        if (onMenu is not null)
+        {
+            // In the corner, level with the name; the dots end at the card's inner edge, as the replies do.
+            var body = new Grid();
+            card.Child = body;
+            body.Children.Add(row);
+            var more = MenuKey(onMenu);
+            more.Margin = new Thickness(0, -6, -11, 0);
+            body.Children.Add(more);
+        }
+        if (onOpen is not null)
+        {
+            card.Tapped += (_, e) =>
+            {
+                if (!InsideKey(e.OriginalSource as DependencyObject, card))
+                    onOpen();
+            };
+        }
+        return card;
+    }
+
+    /// <summary>The "more" key in a card's corner: three dots, 34 by 28, that open a menu at itself.</summary>
+    internal static Button MenuKey(Action<FrameworkElement> onMenu)
+    {
+        var key = new Button
+        {
+            Style = Key(),
+            Width = 34,
+            Height = 28,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Content = Glyph("\uF141", 13, White(0xAA)),
+        };
+        IconName.Set(key, Loc.Get("Common_MoreOptions"));
+        key.Click += (_, _) => onMenu(key);
+        return key;
     }
 
     // ── a review ──
@@ -234,7 +280,7 @@ internal static class FeedCards
 
     /// <summary>The element as a key that runs <paramref name="onPress"/>, or the element itself when there is
     /// nothing to run. A key, so a press on it does not also open the review card it is on.</summary>
-    private static FrameworkElement Pressable(FrameworkElement content, Action? onPress, string name)
+    internal static FrameworkElement Pressable(FrameworkElement content, Action? onPress, string name)
     {
         if (onPress is null)
             return content;
@@ -283,7 +329,7 @@ internal static class FeedCards
     };
 
     /// <summary>A name and when it wrote. A supporter's name is gold.</summary>
-    private static StackPanel Byline(string name, long millis, bool gold)
+    internal static StackPanel Byline(string name, long millis, bool gold)
     {
         var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         line.Children.Add(new TextBlock
@@ -327,9 +373,9 @@ internal static class FeedCards
         return box;
     }
 
-    /// <summary>The reply mark with how many replies there are, or the word Reply when there are none.
-    /// It is a count only: threads open on the phone.</summary>
-    private static FrameworkElement Replies(int count)
+    /// <summary>The reply mark with how many replies there are, or the word Reply when there are none. It
+    /// opens the post's thread (<paramref name="onOpen"/>); where the thread is already open it is a count.</summary>
+    private static FrameworkElement Replies(int count, Action? onOpen)
     {
         var row = new StackPanel
         {
@@ -353,11 +399,17 @@ internal static class FeedCards
             _ => Loc.Format("Rpm_Profile_Replies", count),
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(row, label);
-        return row;
+        if (onOpen is null)
+            return row;
+        row.Margin = new Thickness(0);
+        var key = new Button { Style = Key(), Padding = new Thickness(8, 0, 0, 0), Content = row };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, label);
+        key.Click += (_, _) => onOpen();
+        return key;
     }
 
     /// <summary>A key that is only its words, such as Read full review.</summary>
-    private static Button TextKey(string text, double size, Action onClick)
+    internal static Button TextKey(string text, double size, Action onClick)
     {
         var key = new Button
         {
@@ -400,7 +452,7 @@ internal static class FeedCards
 
     /// <summary>Whether a press landed on a key inside the card, which does its own thing, rather than
     /// on the card.</summary>
-    private static bool InsideKey(DependencyObject? from, DependencyObject card)
+    internal static bool InsideKey(DependencyObject? from, DependencyObject card)
     {
         for (var at = from; at is not null && at != card; at = VisualTreeHelper.GetParent(at))
         {

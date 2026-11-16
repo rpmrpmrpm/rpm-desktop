@@ -62,6 +62,7 @@ internal sealed class FeedList
     private readonly Func<long?, Task<RpmFeedPage?>> _read;
     private readonly bool _everyone;
     private readonly string _emptyKey;
+    private readonly bool _postMenus;
 
     private readonly List<FeedEntry> _entries = [];
     private readonly Dictionary<string, int> _votesSent = [];
@@ -75,9 +76,12 @@ internal sealed class FeedList
     /// <param name="everyone">Everyone's feed: reviews carry their author's line, and names open the
     /// person's page. On a person's own page every entry is theirs, so neither is drawn.</param>
     /// <param name="emptyKey">The string key of what an empty list says.</param>
+    /// <param name="postMenus">Give every post the key in its corner that opens its menu (delete or
+    /// report), as a person's page does.</param>
     public FeedList(Panel column, ScrollViewer scroller, TextBlock quiet, Func<long?, Task<RpmFeedPage?>> read,
-        bool everyone, string emptyKey)
+        bool everyone, string emptyKey, bool postMenus)
     {
+        _postMenus = postMenus;
         _column = column;
         _scroller = scroller;
         _quiet = quiet;
@@ -95,6 +99,12 @@ internal sealed class FeedList
 
     /// <summary>A person's name or photo was pressed, carrying their user id.</summary>
     public event Action<string>? PersonRequested;
+
+    /// <summary>A post was pressed, or its reply key: open it with its replies.</summary>
+    public event Action<FeedList, FeedEntry>? ThreadRequested;
+
+    /// <summary>A post's corner key was pressed: the entry, and the key to open the menu at.</summary>
+    public event Action<FeedList, FeedEntry, FrameworkElement>? PostMenuRequested;
 
     /// <summary>A vote was answered and the entry changed. The view redraws a review read in full.</summary>
     public event Action<FeedEntry>? Changed;
@@ -205,7 +215,7 @@ internal sealed class FeedList
             var entry = new FeedEntry(FeedEntry.KeyOf(item), item);
             if (item.Post is { } post)
             {
-                entry.Card = FeedCards.Post(post, Votes(entry, enabled: post.OwnerId != me), person);
+                entry.Card = PostCard(entry, post, me);
             }
             else
             {
@@ -218,6 +228,50 @@ internal sealed class FeedList
             _entries.Add(entry);
             _column.Children.Add(entry.Card);
         }
+    }
+
+    private FrameworkElement PostCard(FeedEntry entry, RpmPost post, string? me)
+    {
+        Action<string>? person = _everyone ? id => PersonRequested?.Invoke(id) : null;
+        Action<FrameworkElement>? menu = _postMenus && me is { Length: > 0 }
+            ? at => PostMenuRequested?.Invoke(this, entry, at)
+            : null;
+        entry.Votes.Clear();
+        return FeedCards.Post(post, Votes(entry, enabled: post.OwnerId != me), person,
+            () => ThreadRequested?.Invoke(this, entry), menu);
+    }
+
+    /// <summary>A post changed somewhere else (its thread): the card is drawn again in its place.</summary>
+    public void Update(RpmPost post)
+    {
+        if (_entries.FirstOrDefault(e => e.Item.Post?.PostId == post.PostId) is not { } entry)
+            return;
+        entry.Item = entry.Item with { Post = post };
+        var at = _column.Children.IndexOf(entry.Card);
+        entry.Card = PostCard(entry, post, Auth.UserId);
+        if (at >= 0)
+            _column.Children[at] = entry.Card;
+    }
+
+    /// <summary>A post just written, at the top of the list.</summary>
+    public void Prepend(RpmPost post)
+    {
+        var item = new RpmFeedItem("post", post.CreatedAt, post);
+        var entry = new FeedEntry(FeedEntry.KeyOf(item), item);
+        entry.Card = PostCard(entry, post, Auth.UserId);
+        var at = _entries.Count > 0 ? _column.Children.IndexOf(_entries[0].Card) : _column.Children.Count;
+        _entries.Insert(0, entry);
+        _column.Children.Insert(Math.Max(0, at), entry.Card);
+        Quiet(null);
+    }
+
+    /// <summary>A post deleted here leaves the list.</summary>
+    public void Remove(FeedEntry entry)
+    {
+        _entries.Remove(entry);
+        _column.Children.Remove(entry.Card);
+        if (_entries.Count == 0 && _next is null)
+            Quiet(_emptyKey);
     }
 
     /// <summary>Vote keys for an entry, drawn from its item and redrawn with it.</summary>

@@ -709,6 +709,11 @@ public sealed partial class LibraryService : IDisposable
     public bool HoldsTrack(string filePath) =>
         HomeOf(filePath) is var (mirror, relative) && mirror.FindByRelativePath(relative) is not null;
 
+    /// <summary>The collection's row for this file, or null for a file no collection here holds (a stream,
+    /// or a file dragged in from the desktop). See <see cref="HoldsTrack"/>.</summary>
+    public LibraryTrack? TrackAt(string filePath) =>
+        HomeOf(filePath) is var (mirror, relative) ? mirror.FindByRelativePath(relative) : null;
+
     /// <summary>
     /// Which mirror carries this file's row, and what it is keyed under there.
     ///

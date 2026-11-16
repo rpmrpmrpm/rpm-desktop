@@ -24,7 +24,9 @@ internal static class FeedPerson
 
     private static readonly Color Gold = Color.FromArgb(0xFF, 0xEB, 0xC6, 0x5A);
 
-    public static FrameworkElement Top(RpmPersonProfile person)
+    /// <param name="below">What stands under the rest: the friend keys on someone else's page, or the line
+    /// that says they are blocked. Null for none.</param>
+    public static FrameworkElement Top(RpmPersonProfile person, FrameworkElement? below)
     {
         var top = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
         top.Children.Add(BannerAndPhoto(person));
@@ -101,12 +103,16 @@ internal static class FeedPerson
             });
             top.Children.Add(row);
         }
+        if (below is not null)
+        {
+            below.Margin = new Thickness(0, 12, 0, 0);
+            top.Children.Add(below);
+        }
         return top;
     }
 
-    /// <summary>The banner with the photo standing over its foot. Without an uploaded banner the plate is
-    /// left plain. A banner that follows what the person plays (<c>bannerSource</c> "listening") is not
-    /// drawn yet, so that plate is plain too.</summary>
+    /// <summary>The banner with the photo standing over its foot: the uploaded picture, or the photo of the
+    /// artist the person is playing when they chose that. Otherwise the plate is left plain.</summary>
     private static FrameworkElement BannerAndPhoto(RpmPersonProfile person)
     {
         var block = new Grid { Height = BannerTall + PhotoEdge / 2 - PhotoLift };
@@ -121,7 +127,18 @@ internal static class FeedPerson
         // Fetched by AvatarPicture, which sends the app key the API asks for and fills the plate from the
         // middle. A plain BitmapImage sends no key, and the API refuses it.
         var api = App.Services.GetRequiredService<RpmCommunityClient>().BaseAddress;
-        if (person.HasBanner && api is not null)
+        if (person.BannerFollowsListening)
+        {
+            // The photo of the artist the person is playing. Nothing playing leaves the plate plain, as
+            // on the phones.
+            if (person.Listening is { Artist.Length: > 0 } now)
+            {
+                var picture = new AvatarPicture { CornerRadius = new CornerRadius(12) };
+                banner.Children.Add(picture);
+                _ = ShowArtistAsync(picture, now.Artist, now.Album);
+            }
+        }
+        else if (person.HasBanner && api is not null)
         {
             banner.Children.Add(new AvatarPicture
             {
@@ -146,6 +163,30 @@ internal static class FeedPerson
         });
         block.Children.Add(photo);
         return block;
+    }
+
+    /// <summary>The banner's width at the widest pane, for ranking an artist's photos by shape.</summary>
+    private const double BannerWide = 404;
+
+    /// <summary>
+    /// Puts the artist's best photo for the banner's shape on <paramref name="picture"/>: the same ranking
+    /// the home screen's banner uses (<see cref="ArtistPortraits.BestForAsync"/>), for a plate with nothing
+    /// over it. The first address is used; a failed lookup leaves the plate plain.
+    /// </summary>
+    private static async Task ShowArtistAsync(AvatarPicture picture, string artist, string? album)
+    {
+        var scene = RPM.Core.Art.ArtScene.FromPanel(BannerWide, BannerTall, 0, BannerWide, BannerWide);
+        try
+        {
+            if ((await ArtistPortraits.BestForAsync(artist, album is { Length: > 0 } ? album : null, scene, most: 4))
+                    .Answers(out var framing, out _)
+                && framing.Urls.FirstOrDefault() is { } address)
+                picture.Source = address;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            // No photo: the plate stays plain.
+        }
     }
 
     /// <summary>"1,610 albums, 23,329 tracks", grouped as the reader's language groups thousands. Null

@@ -3515,6 +3515,14 @@
     <value>Dieses Profil konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
+  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
+    <value>Das konnte nicht gesendet werden. Prüfe deine Verbindung und versuche es erneut.</value>
+    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
+  </data>
+  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
+    <value>Deine Änderungen konnten nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.</value>
+    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
+  </data>
   <data name="Rpm_Profile_Menu" xml:space="preserve">
     <value>Menü</value>
     <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
