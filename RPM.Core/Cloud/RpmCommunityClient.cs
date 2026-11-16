@@ -286,7 +286,129 @@ public sealed record RpmPersonProfile(
     [property: JsonPropertyName("bannerSource")] string? BannerSource = null,
     [property: JsonPropertyName("badges")] IReadOnlyList<string>? Badges = null,
     [property: JsonPropertyName("badge")] string? Badge = null,
-    [property: JsonPropertyName("badgeColour")] string? BadgeColour = null);
+    [property: JsonPropertyName("badgeColour")] string? BadgeColour = null,
+    [property: JsonPropertyName("sharesListening")] bool SharesListening = true,
+    [property: JsonPropertyName("pageGround")] string? PageGround = null)
+{
+    /// <summary>The banner shows the photo of the artist the person is playing, not an uploaded picture.</summary>
+    public bool BannerFollowsListening =>
+        string.Equals(BannerSource, "listening", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>A reply under a post or under another reply.</summary>
+/// <param name="ParentId">The post id for a reply to the post itself, or the id of the reply it answers.</param>
+/// <param name="Deleted">The reply was deleted but has replies under it, so it keeps its place in the
+/// thread with no text.</param>
+public sealed record RpmReply(
+    [property: JsonPropertyName("postId")] string PostId,
+    [property: JsonPropertyName("replyId")] string ReplyId,
+    [property: JsonPropertyName("parentId")] string ParentId,
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("authorName")] string AuthorName,
+    [property: JsonPropertyName("hasAvatar")] bool HasAvatar,
+    [property: JsonPropertyName("body")] string Body,
+    [property: JsonPropertyName("createdAt")] long CreatedAt,
+    [property: JsonPropertyName("ups")] int Ups,
+    [property: JsonPropertyName("downs")] int Downs,
+    [property: JsonPropertyName("score")] int Score,
+    [property: JsonPropertyName("myVote")] int MyVote,
+    [property: JsonPropertyName("authorDeleted")] bool AuthorDeleted = false,
+    [property: JsonPropertyName("deleted")] bool Deleted = false,
+    [property: JsonPropertyName("authorSupporter")] bool AuthorSupporter = false);
+
+public sealed record RpmReplies(
+    [property: JsonPropertyName("items")] IReadOnlyList<RpmReply>? Items);
+
+/// <summary>
+/// The replies of one post as a tree, built from each reply's <see cref="RpmReply.ParentId"/>: every reply
+/// in reading order, each followed by the replies under it, with its depth (0 for a reply to the post). A
+/// reply whose parent is not in the list is shown at the top level, so no reply is lost. The same rules as
+/// the phones' <c>ReplyTree</c>.
+/// </summary>
+public sealed class RpmReplyTree
+{
+    public RpmReplyTree(string postId, IReadOnlyList<RpmReply> replies)
+    {
+        ArgumentNullException.ThrowIfNull(replies);
+        var known = replies.Select(r => r.ReplyId).ToHashSet(StringComparer.Ordinal);
+        var children = replies
+            .GroupBy(r => known.Contains(r.ParentId) ? r.ParentId : postId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
+        var lines = new List<(RpmReply Reply, int Depth)>(replies.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // An explicit stack, not recursion: a thread can be deep.
+        var stack = new Stack<(RpmReply Reply, int Depth)>();
+        foreach (var top in Enumerable.Reverse(children.GetValueOrDefault(postId) ?? []))
+            stack.Push((top, 0));
+        while (stack.Count > 0)
+        {
+            var line = stack.Pop();
+            if (!seen.Add(line.Reply.ReplyId))
+                continue;
+            lines.Add(line);
+            foreach (var child in Enumerable.Reverse(children.GetValueOrDefault(line.Reply.ReplyId) ?? []))
+                stack.Push((child, line.Depth + 1));
+        }
+        Lines = lines;
+    }
+
+    public IReadOnlyList<(RpmReply Reply, int Depth)> Lines { get; }
+}
+
+/// <summary>A person in a list: friends, requests, blocked people. <see cref="Since"/> is when that began.</summary>
+public sealed record RpmPersonEntry(
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("displayName")] string DisplayName,
+    [property: JsonPropertyName("hasAvatar")] bool HasAvatar,
+    [property: JsonPropertyName("avatarUpdatedAt")] long AvatarUpdatedAt = 0,
+    [property: JsonPropertyName("since")] long Since = 0);
+
+public sealed record RpmFriends(
+    [property: JsonPropertyName("friends")] IReadOnlyList<RpmPersonEntry>? Friends,
+    [property: JsonPropertyName("incoming")] IReadOnlyList<RpmPersonEntry>? Incoming,
+    [property: JsonPropertyName("requested")] IReadOnlyList<RpmPersonEntry>? Requested);
+
+public sealed record RpmPeople(
+    [property: JsonPropertyName("items")] IReadOnlyList<RpmPersonEntry>? Items);
+
+/// <summary>A notification. <see cref="Kind"/> is kept as the server's word, so a kind this build does not
+/// know is left out of a list (<see cref="Known"/>) rather than drawn wrongly.</summary>
+/// <param name="Count">How many votes a vote entry stands for; 1 otherwise.</param>
+public sealed record RpmNotice(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("fromUserId")] string FromUserId,
+    [property: JsonPropertyName("fromName")] string FromName,
+    [property: JsonPropertyName("fromHasAvatar")] bool FromHasAvatar,
+    [property: JsonPropertyName("ownerId")] string? OwnerId = null,
+    [property: JsonPropertyName("postId")] string? PostId = null,
+    [property: JsonPropertyName("replyId")] string? ReplyId = null,
+    [property: JsonPropertyName("albumId")] string? AlbumId = null,
+    [property: JsonPropertyName("albumTitle")] string? AlbumTitle = null,
+    [property: JsonPropertyName("count")] int Count = 1,
+    [property: JsonPropertyName("createdAt")] long CreatedAt = 0,
+    [property: JsonPropertyName("read")] bool Read = false,
+    [property: JsonPropertyName("badgeId")] string? BadgeId = null)
+{
+    public const string ReplyKind = "reply";
+    public const string VoteKind = "vote";
+    public const string FriendRequestKind = "friendRequest";
+    public const string FriendAcceptedKind = "friendAccepted";
+    public const string FriendReviewKind = "friendReview";
+    public const string BadgeKind = "badge";
+
+    public bool Known => Kind is ReplyKind or VoteKind or FriendRequestKind or FriendAcceptedKind
+                              or FriendReviewKind or BadgeKind;
+}
+
+/// <param name="Next">The <c>before</c> of the next page; null at the end.</param>
+public sealed record RpmNoticePage(
+    [property: JsonPropertyName("items")] IReadOnlyList<RpmNotice>? Items,
+    [property: JsonPropertyName("unread")] int Unread = 0,
+    [property: JsonPropertyName("next")] string? Next = null);
+
+public sealed record RpmUnread([property: JsonPropertyName("unread")] int Unread);
 
 /// <summary>How a review list is ordered. The values are the sort tabs on the album page.</summary>
 public enum RpmReviewSort
@@ -575,6 +697,149 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
         return bannerUpdatedAt > 0 ? $"{path}?v={bannerUpdatedAt}" : path;
     }
 
+    /// <summary>The reader's own page, with <see cref="RpmPersonProfile.SharesListening"/>. Needs a token.</summary>
+    public async Task<RpmPersonProfile?> GetOwnPersonAsync(CancellationToken ct = default)
+        => await SendAsync<RpmPersonProfile>(HttpMethod.Get, "profile", null, true, ct);
+
+    // ── posts and replies ──
+
+    /// <summary>The longest post or reply the server takes, in characters.</summary>
+    public const int LongestPost = 2000;
+
+    /// <summary>Writes a post on the reader's own page, with the song playing when <paramref name="song"/>
+    /// is given. Needs a token.</summary>
+    public async Task<RpmPost> CreatePostAsync(string body, RpmSong? song, CancellationToken ct = default)
+        => await SendAsync<RpmPost>(HttpMethod.Post, "profile/posts",
+               JsonContent.Create(new NewPostRequest(body, song), RpmCommunityJson.Default.NewPostRequest), true, ct)
+           ?? throw new InvalidOperationException("Empty response from profile/posts.");
+
+    /// <summary>Deletes one of the reader's own posts, with its replies.</summary>
+    public async Task DeletePostAsync(string postId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete, $"profile/posts/{Uri.EscapeDataString(postId)}", null, true, ct);
+
+    private static string PostPath(string ownerId, string postId)
+        => $"profiles/{Uri.EscapeDataString(ownerId)}/posts/{Uri.EscapeDataString(postId)}";
+
+    /// <summary>Every reply under a post, oldest first. See <see cref="RpmReplyTree"/>. Needs no token.</summary>
+    public async Task<IReadOnlyList<RpmReply>> GetRepliesAsync(
+        string ownerId, string postId, CancellationToken ct = default)
+        => (await SendAsync<RpmReplies>(HttpMethod.Get, PostPath(ownerId, postId) + "/replies", null, false, ct))
+           ?.Items ?? [];
+
+    /// <param name="parentId">The reply this answers; null for a reply to the post itself.</param>
+    public async Task<RpmReply> ReplyAsync(
+        string ownerId, string postId, string? parentId, string body, CancellationToken ct = default)
+        => await SendAsync<RpmReply>(HttpMethod.Post, PostPath(ownerId, postId) + "/replies",
+               JsonContent.Create(new NewReplyRequest(body, parentId), RpmCommunityJson.Default.NewReplyRequest), true, ct)
+           ?? throw new InvalidOperationException("Empty response from replies.");
+
+    /// <summary>Deletes the reader's own reply, or any reply on the reader's own page.</summary>
+    public async Task DeleteReplyAsync(string ownerId, string postId, string replyId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete,
+            PostPath(ownerId, postId) + $"/replies/{Uri.EscapeDataString(replyId)}", null, true, ct);
+
+    /// <param name="value">1 up, -1 down, 0 to withdraw. Not on your own reply.</param>
+    public async Task<RpmReply?> VoteReplyAsync(
+        string ownerId, string postId, string replyId, int value, CancellationToken ct = default)
+        => await SendAsync<RpmReply>(HttpMethod.Post,
+            PostPath(ownerId, postId) + $"/replies/{Uri.EscapeDataString(replyId)}/vote",
+            JsonContent.Create(new VoteRequest(value), RpmCommunityJson.Default.VoteRequest), true, ct);
+
+    /// <summary>Reports a post (<paramref name="replyId"/> null) or a reply on someone's page.</summary>
+    public async Task ReportPostAsync(
+        string ownerId, string postId, string? replyId, string? note, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Post, "reports",
+            JsonContent.Create(
+                new PostReportRequest(replyId is null ? "post" : "reply", ownerId, postId, replyId ?? postId, null, note),
+                RpmCommunityJson.Default.PostReportRequest), true, ct);
+
+    // ── friends and blocks ──
+
+    /// <summary>Asks to be friends. If that person already asked the reader, this accepts instead.</summary>
+    public async Task RequestFriendAsync(string userId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Post, $"friends/{Uri.EscapeDataString(userId)}", null, true, ct);
+
+    public async Task AcceptFriendAsync(string userId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Post, $"friends/{Uri.EscapeDataString(userId)}/accept", null, true, ct);
+
+    /// <summary>Cancels the reader's request, declines theirs, or ends a friendship.</summary>
+    public async Task RemoveFriendAsync(string userId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete, $"friends/{Uri.EscapeDataString(userId)}", null, true, ct);
+
+    public async Task<RpmFriends> GetFriendsAsync(CancellationToken ct = default)
+        => await SendAsync<RpmFriends>(HttpMethod.Get, "friends", null, true, ct) ?? new RpmFriends([], [], []);
+
+    /// <summary>Blocks a person. It also ends a friendship or a request between the two.</summary>
+    public async Task BlockAsync(string userId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Post, $"blocks/{Uri.EscapeDataString(userId)}", null, true, ct);
+
+    public async Task UnblockAsync(string userId, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete, $"blocks/{Uri.EscapeDataString(userId)}", null, true, ct);
+
+    // ── notifications ──
+
+    /// <summary>A page of the reader's notifications, newest first.</summary>
+    /// <param name="before">The <see cref="RpmNoticePage.Next"/> of the page before; null for the first.</param>
+    public async Task<RpmNoticePage> GetNoticesAsync(string? before, CancellationToken ct = default)
+        => await SendAsync<RpmNoticePage>(HttpMethod.Get,
+               "notifications" + (before is null ? "" : $"?before={Uri.EscapeDataString(before)}"), null, true, ct)
+           ?? new RpmNoticePage([], 0, null);
+
+    public async Task<int> GetUnreadNoticesAsync(CancellationToken ct = default)
+        => (await SendAsync<RpmUnread>(HttpMethod.Get, "notifications/unread", null, true, ct))?.Unread ?? 0;
+
+    /// <summary>Marks this notification and every older one as read.</summary>
+    public async Task MarkNoticesReadAsync(string upTo, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Post, "notifications/read",
+            JsonContent.Create(new UpToRequest(upTo), RpmCommunityJson.Default.UpToRequest), true, ct);
+
+    // ── the reader's own page ──
+
+    /// <summary>Sets the banner: JPEG, PNG or WebP, at most 2 MB.</summary>
+    public async Task<RpmPersonProfile> SetBannerAsync(
+        byte[] image, string contentType = "image/jpeg", CancellationToken ct = default)
+    {
+        var token = await RequireTokenAsync(ct);
+        using var content = new ByteArrayContent(image);
+        content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        using var req = new HttpRequestMessage(HttpMethod.Post, "profile/banner") { Content = content };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var resp = await http.SendAsync(req, ct);
+        return await ReadAsync<RpmPersonProfile>(resp, "profile/banner", ct)
+               ?? throw new InvalidOperationException("Empty response from profile/banner.");
+    }
+
+    public async Task ClearBannerAsync(CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete, "profile/banner", null, true, ct);
+
+    /// <summary>Where the banner comes from: the playing artist's photo, or the uploaded picture.</summary>
+    public async Task SetBannerSourceAsync(bool listening, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Put, "profile/banner-source",
+            JsonContent.Create(new BannerSourceRequest(listening ? "listening" : "photo"),
+                RpmCommunityJson.Default.BannerSourceRequest), true, ct);
+
+    /// <summary>The badge shown under the name. The desktop sends no newly unlocked badges, only the
+    /// choice among those already held; the server keeps what it has.</summary>
+    /// <param name="badge">The id shown, or empty for none.</param>
+    /// <param name="badgeColour"><c>#RRGGBB</c>, or empty for the default.</param>
+    public async Task<RpmPersonProfile?> SetBadgeAsync(string badge, string badgeColour, CancellationToken ct = default)
+        => await SendAsync<RpmPersonProfile>(HttpMethod.Put, "profile/badges",
+            JsonContent.Create(new BadgesRequest([], badge, badgeColour), RpmCommunityJson.Default.BadgesRequest),
+            true, ct);
+
+    /// <summary>Whether other people may see what the reader plays. Off also clears what shows now.</summary>
+    public async Task SetSharesListeningAsync(bool on, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Put, "profile/sharing",
+            JsonContent.Create(new SharingRequest(on), RpmCommunityJson.Default.SharingRequest), true, ct);
+
+    /// <summary>What the reader plays now. The server ignores it while sharing is off.</summary>
+    public async Task SetListeningAsync(RpmSong song, CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Put, "profile/listening",
+            JsonContent.Create(song, RpmCommunityJson.Default.RpmSong), true, ct);
+
+    public async Task ClearListeningAsync(CancellationToken ct = default)
+        => await SendAsync<object>(HttpMethod.Delete, "profile/listening", null, true, ct);
+
     /// <param name="value">1 to vote it up, -1 down, 0 to withdraw. Not on your own post.</param>
     public async Task<RpmPost?> VotePostAsync(
         string ownerId, string postId, int value, CancellationToken ct = default)
@@ -781,6 +1046,21 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
     private sealed record WallReportRequest(
         string TargetType, string ArtistId, string TargetId, string? Reason, string? Note);
 
+    private sealed record PostReportRequest(
+        string TargetType, string OwnerId, string PostId, string TargetId, string? Reason, string? Note);
+
+    private sealed record NewPostRequest(string Body, RpmSong? Song);
+
+    private sealed record NewReplyRequest(string Body, string? ParentId);
+
+    private sealed record UpToRequest(string UpTo);
+
+    private sealed record BannerSourceRequest(string Source);
+
+    private sealed record BadgesRequest(IReadOnlyList<string> Unlocked, string Badge, string BadgeColour);
+
+    private sealed record SharingRequest(bool SharesListening);
+
     /// <summary>The shape of the answer. It is looked up here, rather than passed at each call.
     /// <see cref="RpmCloudClient"/> has the same method, and it explains what this costs.</summary>
     private static JsonTypeInfo<T> Answer<T>() =>
@@ -799,6 +1079,20 @@ public sealed partial class RpmCommunityClient(HttpClient http, Func<Cancellatio
     [JsonSerializable(typeof(DisplayNameRequest))]
     [JsonSerializable(typeof(ReportRequest))]
     [JsonSerializable(typeof(WallReportRequest))]
+    [JsonSerializable(typeof(PostReportRequest))]
+    [JsonSerializable(typeof(NewPostRequest))]
+    [JsonSerializable(typeof(NewReplyRequest))]
+    [JsonSerializable(typeof(UpToRequest))]
+    [JsonSerializable(typeof(BannerSourceRequest))]
+    [JsonSerializable(typeof(BadgesRequest))]
+    [JsonSerializable(typeof(SharingRequest))]
+    [JsonSerializable(typeof(RpmSong))]
+    [JsonSerializable(typeof(RpmReply))]
+    [JsonSerializable(typeof(RpmReplies))]
+    [JsonSerializable(typeof(RpmFriends))]
+    [JsonSerializable(typeof(RpmPeople))]
+    [JsonSerializable(typeof(RpmNoticePage))]
+    [JsonSerializable(typeof(RpmUnread))]
     [JsonSerializable(typeof(IReadOnlyList<RpmTrackPlays>))]
     [JsonSerializable(typeof(RpmAlbum))]
     [JsonSerializable(typeof(RpmArtist))]

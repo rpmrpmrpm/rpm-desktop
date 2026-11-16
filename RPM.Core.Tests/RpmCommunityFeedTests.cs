@@ -136,9 +136,90 @@ public sealed class RpmCommunityFeedTests
         Assert.Equal("Tago Mago", changed.AlbumTitle);
     }
 
-    private static RpmCommunityClient Client(HttpMessageHandler handler) =>
+    private static RpmCommunityClient Client(HttpMessageHandler handler, string? token = null) =>
         new(new HttpClient(handler) { BaseAddress = new Uri("https://api.test/") },
-            _ => Task.FromResult<string?>(null));
+            _ => Task.FromResult(token));
+
+    private static RpmReply Reply(string id, string parent) =>
+        new("p", id, parent, "u", "Ann", false, id, 0, 0, 0, 0, 0);
+
+    [Fact]
+    public void A_reply_tree_puts_each_reply_under_its_parent_and_keeps_orphans()
+    {
+        // b answers a; c answers the post; d answers a reply that is not in the list.
+        var tree = new RpmReplyTree("p", [Reply("a", "p"), Reply("b", "a"), Reply("c", "p"), Reply("d", "gone")]);
+
+        Assert.Equal(["a:0", "b:1", "c:0", "d:0"], tree.Lines.Select(l => $"{l.Reply.ReplyId}:{l.Depth}"));
+    }
+
+    [Fact]
+    public async Task A_post_is_sent_with_its_song()
+    {
+        var handler = new Answering(
+            """
+            { "ownerId": "u", "postId": "p", "authorName": "Ann", "hasAvatar": false, "body": "Hi", "createdAt": 1,
+            "ups": 0, "downs": 0, "score": 0, "myVote": 0, "replyCount": 0 }
+            """);
+        var post = await Client(handler, "t").CreatePostAsync("Hi", new RpmSong("Can", "Vitamin C", "Ege Bamyasi"));
+
+        Assert.Equal("p", post.PostId);
+        Assert.Equal("POST", handler.Method);
+        Assert.Equal("/profile/posts", handler.Asked);
+        Assert.Contains("\"body\":\"Hi\"", handler.Sent, StringComparison.Ordinal);
+        Assert.Contains("\"song\":{\"artist\":\"Can\"", handler.Sent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_reply_names_its_parent_and_a_report_names_the_post()
+    {
+        var handler = new Answering(
+            """
+            { "postId": "p", "replyId": "r", "parentId": "q", "userId": "u", "authorName": "Ann", "hasAvatar": false,
+            "body": "Yes", "createdAt": 1, "ups": 0, "downs": 0, "score": 0, "myVote": 0 }
+            """);
+        var client = Client(handler, "t");
+
+        var reply = await client.ReplyAsync("o w", "p", "q", "Yes");
+        Assert.Equal("r", reply.ReplyId);
+        Assert.Equal("/profiles/o%20w/posts/p/replies", handler.Asked);
+        Assert.Contains("\"parentId\":\"q\"", handler.Sent, StringComparison.Ordinal);
+
+        await client.ReportPostAsync("o", "p", "r", "spam");
+        Assert.Equal("/reports", handler.Asked);
+        Assert.Contains("\"targetType\":\"reply\"", handler.Sent, StringComparison.Ordinal);
+        Assert.Contains("\"ownerId\":\"o\"", handler.Sent, StringComparison.Ordinal);
+        Assert.Contains("\"targetId\":\"r\"", handler.Sent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_notice_page_keeps_the_kinds_it_knows()
+    {
+        var handler = new Answering(
+            """
+            { "items": [
+            { "id": "1", "kind": "reply", "fromUserId": "u", "fromName": "Ann", "fromHasAvatar": true, "postId": "p" },
+            { "id": "2", "kind": "poke", "fromUserId": "u", "fromName": "Ann", "fromHasAvatar": true },
+            { "id": "3", "kind": "badge", "fromUserId": "me", "fromName": "Me", "fromHasAvatar": false, "badgeId": "rock" } ],
+            "unread": 2, "next": "3" }
+            """);
+        var page = await Client(handler, "t").GetNoticesAsync(null);
+
+        Assert.Equal(2, page.Unread);
+        Assert.Equal("3", page.Next);
+        Assert.Equal(["1", "3"], page.Items!.Where(n => n.Known).Select(n => n.Id));
+        Assert.Equal("rock", page.Items![2].BadgeId);
+    }
+
+    [Fact]
+    public async Task Choosing_a_badge_sends_no_unlocked_ids()
+    {
+        var handler = new Answering("""{ "userId": "u", "displayName": "Ann", "hasAvatar": false, "avatarUpdatedAt": 0, "createdAt": 0 }""");
+        await Client(handler, "t").SetBadgeAsync("rock", "#2563EB");
+
+        Assert.Equal("PUT", handler.Method);
+        Assert.Contains("\"unlocked\":[]", handler.Sent, StringComparison.Ordinal);
+        Assert.Contains("\"badge\":\"rock\"", handler.Sent, StringComparison.Ordinal);
+    }
 
     /// <summary>Answers every request with <paramref name="json"/>, or 404 when it is null, and notes the
     /// address asked.</summary>
@@ -146,15 +227,21 @@ public sealed class RpmCommunityFeedTests
     {
         public string? Asked { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        public string? Method { get; private set; }
+
+        public string? Sent { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Asked = request.RequestUri?.PathAndQuery;
-            return Task.FromResult(json is null
+            Method = request.Method.Method;
+            Sent = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
+            return json is null
                 ? new HttpResponseMessage(HttpStatusCode.NotFound)
                 : new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(json, Encoding.UTF8, "application/json"),
-                });
+                };
         }
     }
 }
