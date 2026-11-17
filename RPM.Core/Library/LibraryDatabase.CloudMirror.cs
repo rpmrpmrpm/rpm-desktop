@@ -8,9 +8,11 @@ namespace RPM.Core.Library;
 /// <param name="Updated">Adopted rows that the catalogue has since corrected, for example a retitled
 /// track, or a record re-filed on the machine that owns the files.</param>
 /// <param name="Forgotten">Adopted rows whose track is no longer in the cloud at all.</param>
-public readonly record struct CloudMirrorResult(int Adopted, int Updated, int Forgotten)
+/// <param name="Renamed">Cloud-only rows of this library's own that now carry the id the store holds
+/// their audio under. See <c>LibraryDatabase.TakeStoreIdsForCloudOnlyLocked</c>.</param>
+public readonly record struct CloudMirrorResult(int Adopted, int Updated, int Forgotten, int Renamed)
 {
-    public int Total => Adopted + Updated + Forgotten;
+    public int Total => Adopted + Updated + Forgotten + Renamed;
 }
 
 public sealed partial class LibraryDatabase
@@ -29,8 +31,10 @@ public sealed partial class LibraryDatabase
     /// </para>
     ///
     /// <para>
-    /// This method never writes local rows. The one statement that could reach one is the insert, and
-    /// it refuses the conflict unless the row it lands on is itself adopted.
+    /// This method writes one thing on a local row and nothing else: the rpm id of a cloud-only row
+    /// whose id the catalogue does not list, when the catalogue holds the same audio under another id
+    /// (<see cref="TakeStoreIdsForCloudOnlyLocked"/>). The insert refuses the conflict unless the row it
+    /// lands on is itself adopted.
     /// </para>
     /// </summary>
     /// <param name="cloud">The whole catalogue, as <c>/cloud/list</c> returns it. A partial listing
@@ -126,7 +130,7 @@ public sealed partial class LibraryDatabase
         // somebody else's.
         var asOf = WriteTurns;
 
-        int added = 0, updated = 0, forgotten = 0;
+        int added = 0, updated = 0, forgotten = 0, renamed = 0;
 
         // ── the records, a batch at a time ───────────────────────────────────────────────────────
         //
@@ -165,12 +169,16 @@ public sealed partial class LibraryDatabase
             // still have the row that the catalogue put here. One of the two is a duplicate.
             forgotten += ForgetAdoptedAlsoLocalLocked();
 
+            // After the duplicates are gone, so an adopted row cannot be the row that holds the store's
+            // id. The listing in the temp table is the whole catalogue, written before any batch ran.
+            renamed += TakeStoreIdsForCloudOnlyLocked(tx);
+
             if (prune) forgotten += ForgetMissingLocked();
 
             tx.Commit();
         }
 
-        return new CloudMirrorResult(added, updated, forgotten);
+        return new CloudMirrorResult(added, updated, forgotten, renamed);
 
         // What this machine holds. It is read with the write gate held, and read again whenever
         // somebody else has written since the last time: see the note above.
@@ -711,6 +719,94 @@ public sealed partial class LibraryDatabase
               )
             """;
         return cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Gives a cloud-only row of this library's own the id that the store holds its audio under, when
+    /// the row's own id is not in the catalogue.
+    ///
+    /// <para>A cloud-only track is played and brought down by asking the store for its id. A row whose id
+    /// the store does not hold gets a 404 every time: the player skips it and nothing says why. The
+    /// canonical hash is the audio with the tags stripped off, so a catalogue row with the same hash is
+    /// the same recording, and its id is the one that works.</para>
+    ///
+    /// <para><b>Cloud-only rows only.</b> A row with its file on this disk is put right by the upload
+    /// (<c>CloudSyncService.AdoptCloudIdentityAsync</c>), which also writes the id into the file. Changing
+    /// only the row here would leave the file naming the old id, and the next scan would read it back.
+    /// A cloud-only row has no file to disagree with.</para>
+    ///
+    /// <para><b>Safe against a listing that is minutes old.</b> The row's own id is missing from the same
+    /// listing, so it already names nothing the store holds. The id taken over can only be as wrong as
+    /// the one it replaces. An id that another row of this library already holds is not taken, because
+    /// two rows with one id would draw the song twice.</para>
+    ///
+    /// <para>Call it with the write gate held, inside <paramref name="tx"/>, after the listing is written.
+    /// The old id becomes an alias and the playlist entries follow it, as in <see cref="SetRpmId"/>.</para>
+    /// </summary>
+    /// <returns>How many rows took a new id.</returns>
+    private int TakeStoreIdsForCloudOnlyLocked(SqliteTransaction tx)
+    {
+        // One answer per row. Where the account holds the same audio twice, the copy at the row's own
+        // path is preferred, then the lowest id, so every pass picks the same one.
+        var moves = new List<(long Id, string? Old, string New)>();
+        using (var find = _connection.CreateCommand())
+        {
+            find.Transaction = tx;
+            find.CommandText =
+                """
+                SELECT t.id, t.rpm_id, c.rpm_id
+                FROM tracks t
+                JOIN temp.cloud_listing c ON c.sha = t.content_hash
+                WHERE t.cloud_adopted = 0
+                  AND t.cloud_state = $cloudOnly
+                  AND t.content_hash IS NOT NULL AND t.content_hash <> ''
+                  AND (t.rpm_id IS NULL
+                       OR NOT EXISTS (SELECT 1 FROM temp.cloud_listing own WHERE own.rpm_id = t.rpm_id))
+                  AND NOT EXISTS (SELECT 1 FROM tracks other WHERE other.rpm_id = c.rpm_id AND other.id <> t.id)
+                ORDER BY t.id, (c.rel_path = t.relative_path) DESC, c.rpm_id
+                """;
+            find.Parameters.AddWithValue("$cloudOnly", (int)CloudState.CloudOnly);
+
+            using var reader = find.ExecuteReader();
+            long last = -1;
+            while (reader.Read())
+            {
+                var id = reader.GetInt64(0);
+                if (id == last) continue;
+                last = id;
+                moves.Add((id, reader.IsDBNull(1) ? null : reader.GetString(1), reader.GetString(2)));
+            }
+        }
+
+        if (moves.Count == 0)
+            return 0;
+
+        using var update = _connection.CreateCommand();
+        update.Transaction = tx;
+        update.CommandText =
+            "UPDATE tracks SET rpm_id = $new WHERE id = $id AND cloud_state = $cloudOnly AND cloud_adopted = 0";
+        update.Parameters.AddWithValue("$cloudOnly", (int)CloudState.CloudOnly);
+        var newId = update.Parameters.Add("$new", SqliteType.Text);
+        var rowId = update.Parameters.Add("$id", SqliteType.Integer);
+
+        // Two rows with the same audio would both pick the same id. The first takes it, the second keeps
+        // its own until a later pass, when the first already holds it and the query above leaves it out.
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+        var renamed = 0;
+        foreach (var (id, old, to) in moves)
+        {
+            if (!taken.Add(to)) continue;
+
+            newId.Value = to;
+            rowId.Value = id;
+            if (update.ExecuteNonQuery() == 0) continue;
+
+            if (!string.IsNullOrEmpty(old))
+                FollowIdChangeLocked(tx, old, to);
+            renamed++;
+        }
+
+        return renamed;
     }
 
     /// <summary>What this library has adopted so far, by the id it was adopted under. It is bounded by

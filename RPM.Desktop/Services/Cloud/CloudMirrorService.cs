@@ -311,6 +311,11 @@ public sealed partial class CloudMirrorService : IDisposable
             "[Cloud] The library took {Adopted} records' worth of tracks from the cloud, corrected {Updated} and dropped {Forgotten}",
             result.Adopted, result.Updated, result.Forgotten);
 
+        if (result.Renamed > 0)
+            _log.LogWarning(
+                "[Cloud] {Renamed} cloud-only track(s) named an id the store does not hold, and now carry the id it holds their audio under",
+                result.Renamed);
+
         Notify();
     }
 
