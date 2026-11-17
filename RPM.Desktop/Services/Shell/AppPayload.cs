@@ -99,6 +99,24 @@ public static class AppPayload
         // disk. Add to this list only what the installer ships, such as a new model or a new tool.
     ];
 
-    /// <summary>Runs the manifest.</summary>
-    public static PreflightReport Check() => Preflight.Check(Manifest);
+    /// <summary>
+    /// What the build compiles in. Not part of the manifest, because the installer does not put these
+    /// down and reinstalling does not bring them back.
+    /// </summary>
+    public static IReadOnlyList<PreflightSetting> Settings =>
+    [
+        // The key the app presents to the rpm service (RpmApi.Key; RpmAppKey in RPM.Core.csproj). The
+        // service refuses an empty key on every route that names no signed-in user: album and artist
+        // details, artwork, lyrics, radio stations and their logos, profile pictures, and crash reports.
+        // Signed out, that is every online feature. Signed in, the radio state, the station logos, the
+        // profile pictures and the boot reports still send the key alone. The app runs, but those parts
+        // stay empty and nothing says why, so a build without the key does not open.
+        new(Name: "RPM_APP_KEY",
+            PurposeKey: "Preflight_AppKey",
+            FixKey: "Preflight_AppKeyFix",
+            IsSet: () => RPM.Core.Net.RpmApi.Key.Length > 0),
+    ];
+
+    /// <summary>Runs the manifest and the build settings.</summary>
+    public static PreflightReport Check() => Preflight.Check(Manifest, Settings);
 }

@@ -115,4 +115,36 @@ public class AppPayloadManifestTests
             Assert.False(string.IsNullOrWhiteSpace(item.PurposeKey), $"{item.Name} has no purpose line");
         }
     }
+
+    /// <summary>A build without the rpm API key does not open. The service refuses an empty key on every
+    /// route that names no signed-in user, so a signed-out app has no online features at all, and some
+    /// parts (radio, station logos, profile pictures, boot reports) send the key alone even when signed
+    /// in. The key is a build setting, not a file, so reinstalling would not bring it back: the row says
+    /// how to set it instead.</summary>
+    [Fact]
+    public void TheAppKeyIsARequiredBuildSetting()
+    {
+        var key = Assert.Single(AppPayload.Settings, s => s.Name == "RPM_APP_KEY");
+
+        Assert.Equal(PreflightSeverity.Required, key.Severity);
+        Assert.Equal("Preflight_AppKey", key.PurposeKey);
+        Assert.Equal("Preflight_AppKeyFix", key.FixKey);
+        Assert.DoesNotContain(AppPayload.Manifest, i => i.Name == "RPM_APP_KEY");
+    }
+
+    /// <summary>Every purpose and fix line the preflight screen shows is in the English table, so no row
+    /// shows a key name instead of a sentence.</summary>
+    [Fact]
+    public void EveryPreflightLineIsInTheStringTable()
+    {
+        var resw = XDocument.Load(Path.Combine(
+            ReleaseToolsTests.RepoRoot(), "RPM.Desktop", "Strings", "en", "Resources.resw"));
+        var names = resw.Root!.Elements("data").Select(d => (string?)d.Attribute("name")).ToHashSet();
+
+        var keys = AppPayload.Manifest.Select(i => i.PurposeKey)
+            .Concat(AppPayload.Settings.SelectMany(s => new[] { s.PurposeKey, s.FixKey }))
+            .Concat(["Preflight_Intro", "Preflight_BuildIntro", "Preflight_Fix", "Preflight_FaultNotSet"]);
+
+        Assert.All(keys, key => Assert.Contains(key, names));
+    }
 }

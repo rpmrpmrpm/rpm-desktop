@@ -53,10 +53,11 @@
     <StackPanel Grid.Row="0" Spacing="9" Margin="0,0,0,22">
       <TextBlock Text="{loc:Str Key=Preflight_Title}" FontSize="26" FontWeight="Bold"
                  Foreground="#FFFFFFFF"/>
-      <TextBlock Text="{loc:Str Key=Preflight_Intro}" FontSize="14" Foreground="#D0FFFFFF"
+      <TextBlock Text="{Binding Intro}" FontSize="14" Foreground="#D0FFFFFF"
                  TextWrapping="Wrap"/>
       <TextBlock Text="{loc:Str Key=Preflight_Fix}" FontSize="12.5" Foreground="#99FFFFFF"
-                 TextWrapping="Wrap"/>
+                 TextWrapping="Wrap"
+                 Visibility="{Binding ShowsReinstall, Converter={StaticResource BoolToVisible}}"/>
     </StackPanel>
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">

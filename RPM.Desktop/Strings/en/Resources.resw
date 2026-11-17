@@ -3515,22 +3515,6 @@
     <value>This profile could not be loaded. Check your connection and try again.</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
-  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
-    <value>Show {0} more replies</value>
-    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
-    <value>Show 1 more reply</value>
-    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
-  </data>
-  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
-    <value>This could not be sent. Check your connection and try again.</value>
-    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
-  </data>
-  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
-    <value>Your changes could not be saved. Check your connection and try again.</value>
-    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
-  </data>
   <data name="Rpm_Profile_Menu" xml:space="preserve">
     <value>Menu</value>
     <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
@@ -5794,6 +5778,22 @@
     <value>Keeps faces out of the crop in artist backdrops</value>
     <comment>Preflight purpose line for the face-detection model.</comment>
   </data>
+  <data name="Preflight_FaultNotSet" xml:space="preserve">
+    <value>not set</value>
+    <comment>Preflight fault: a value this build of rpm was made without, such as its API key.</comment>
+  </data>
+  <data name="Preflight_BuildIntro" xml:space="preserve">
+    <value>This copy of rpm was built without a setting it needs, so it has stopped rather than run without it.</value>
+    <comment>Sentence under the preflight heading when only build settings failed (a build from source without its API key). Replaces Preflight_Intro, which talks about the installation.</comment>
+  </data>
+  <data name="Preflight_AppKey" xml:space="preserve">
+    <value>Connects rpm to its online service: album and artist details, artwork, lyrics, radio and crash reports</value>
+    <comment>Preflight purpose line for the rpm API key (RPM_APP_KEY) compiled into the build.</comment>
+  </data>
+  <data name="Preflight_AppKeyFix" xml:space="preserve">
+    <value>Set RPM_APP_KEY to your developer key from rpmrpmrpm.com/developer, then build rpm again.</value>
+    <comment>Preflight line under the API key row: how a developer building rpm from source sets the key. RPM_APP_KEY and the address stay as they are.</comment>
+  </data>
   <data name="Recognize_SourceManual" xml:space="preserve">
     <value>edited manually</value>
     <comment>Report line note replacing the layer name once the user has typed the answer in themselves.</comment>
@@ -7437,6 +7437,22 @@
   <data name="Rpm_Profile_ArtCacheDetail" xml:space="preserve">
     <value>Album covers kept on this phone so they appear instantly. They are downloaded again when needed.</value>
     <comment>Explains the artwork cache on the iPhone profile, under its size.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>Show {0} more replies</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>Show 1 more reply</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
+  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
+    <value>This could not be sent. Check your connection and try again.</value>
+    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
+  </data>
+  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
+    <value>Your changes could not be saved. Check your connection and try again.</value>
+    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
   </data>
   <data name="Rpm_Queue_ToComeOne" xml:space="preserve">
     <value>1 track to come</value>

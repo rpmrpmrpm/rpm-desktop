@@ -12,18 +12,17 @@ public enum PreflightSeverity
     Optional,
 }
 
-/// <summary>Where a piece of the payload is looked for.</summary>
-public enum PreflightKind
-{
-    /// <summary>An external executable the app shells out to, found by its own resolver.</summary>
-    Tool,
-
-    /// <summary>A file shipped beside the app, such as a model or an asset.</summary>
-    File,
-}
+/// <summary>
+/// One thing the app checks before it opens: a file of the install (<see cref="PreflightItem"/>) or a
+/// value the build compiled in (<see cref="PreflightSetting"/>).
+/// </summary>
+/// <param name="Name">What the report calls it ("ffmpeg", "RPM_APP_KEY").</param>
+/// <param name="PurposeKey">The localisation key of the one line that says what it is for.</param>
+/// <param name="Severity">Whether the app may open without it.</param>
+public abstract record PreflightCheck(string Name, string PurposeKey, PreflightSeverity Severity);
 
 /// <summary>
-/// One thing the installed app expects to find.
+/// One file the installed app expects to find.
 /// </summary>
 /// <param name="Name">What it is called on disk ("ffmpeg", "beat_this.onnx"). It is shown in the
 /// report.</param>
@@ -43,7 +42,22 @@ public sealed record PreflightItem(
     string PurposeKey,
     Func<string?> Locate,
     PreflightSeverity Severity = PreflightSeverity.Required,
-    long MinBytes = 1024);
+    long MinBytes = 1024) : PreflightCheck(Name, PurposeKey, Severity);
+
+/// <summary>
+/// A value the build compiles into the app, such as the key the app presents to the rpm service.
+///
+/// <para>Always required. A release build cannot be made without these values (the build fails), so a
+/// failure here means a build from source that was not given them. Reinstalling does not help, which is
+/// why each setting carries its own fix line.</para>
+/// </summary>
+/// <param name="FixKey">The localisation key of the line that says how to set it.</param>
+/// <param name="IsSet">Whether this build has it.</param>
+public sealed record PreflightSetting(
+    string Name,
+    string PurposeKey,
+    string FixKey,
+    Func<bool> IsSet) : PreflightCheck(Name, PurposeKey, PreflightSeverity.Required);
 
 /// <summary>Why one item failed.</summary>
 public enum PreflightFault
@@ -57,13 +71,16 @@ public enum PreflightFault
     /// <summary>Found, but could not be opened. The cause is permissions, a locked file or a broken
     /// symlink.</summary>
     Unreadable,
+
+    /// <summary>A build setting this build was made without.</summary>
+    NotSet,
 }
 
 /// <param name="Path">Where it was found, when it was found at all.</param>
 /// <param name="Detail">The size that was too small, or the exception message. It is whatever names the
 /// fault.</param>
 public sealed record PreflightFailure(
-    PreflightItem Item,
+    PreflightCheck Item,
     PreflightFault Fault,
     string? Path = null,
     string? Detail = null);
@@ -99,12 +116,38 @@ public sealed record PreflightReport(IReadOnlyList<PreflightFailure> Failures)
 /// </summary>
 public static class Preflight
 {
-    /// <summary>Runs the manifest and reports everything wrong with it. Never throws.</summary>
-    public static PreflightReport Check(IEnumerable<PreflightItem> manifest)
+    /// <summary>Runs the manifest and the build settings and reports everything wrong with them. Files
+    /// come first, in manifest order, then the settings. Never throws.</summary>
+    /// <param name="files">What the installer puts down.</param>
+    /// <param name="settings">What the build compiles in. A caller that has none says so with an empty
+    /// list.</param>
+    public static PreflightReport Check(IEnumerable<PreflightItem> files, IEnumerable<PreflightSetting> settings)
     {
-        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(files);
+        ArgumentNullException.ThrowIfNull(settings);
 
         var failures = new List<PreflightFailure>();
+        CheckFiles(files, failures);
+
+        foreach (var setting in settings)
+        {
+            try
+            {
+                if (!setting.IsSet())
+                    failures.Add(new PreflightFailure(setting, PreflightFault.NotSet));
+            }
+            catch (Exception ex)
+            {
+                // The same rule as a resolver that throws: reported, never raised.
+                failures.Add(new PreflightFailure(setting, PreflightFault.NotSet, null, ex.Message));
+            }
+        }
+
+        return new PreflightReport(failures);
+    }
+
+    private static void CheckFiles(IEnumerable<PreflightItem> manifest, List<PreflightFailure> failures)
+    {
         foreach (var item in manifest)
         {
             string? path;
@@ -140,8 +183,6 @@ public static class Preflight
                 failures.Add(new PreflightFailure(item, PreflightFault.Unreadable, path, ex.Message));
             }
         }
-
-        return new PreflightReport(failures);
     }
 
     /// <summary>
@@ -169,8 +210,14 @@ public static class Preflight
         foreach (var f in report.Failures)
         {
             var severity = f.Item.Severity == PreflightSeverity.Required ? "REQUIRED" : "optional";
-            var where = f.Path is null ? "not found" : f.Path;
             var detail = f.Detail is null ? "" : $" — {f.Detail}";
+            if (f.Item is PreflightSetting)
+            {
+                lines.Add($"[{severity}] {f.Item.Name}: not set in this build{detail}");
+                continue;
+            }
+
+            var where = f.Path is null ? "not found" : f.Path;
             lines.Add($"[{severity}] {f.Item.Name}: {f.Fault.ToString().ToLowerInvariant()} ({where}){detail}");
         }
 

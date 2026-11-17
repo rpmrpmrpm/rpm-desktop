@@ -3515,22 +3515,6 @@
     <value>无法加载此个人主页。请检查网络连接后重试。</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
-  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
-    <value>显示另外 {0} 条回复</value>
-    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
-    <value>显示另外 1 条回复</value>
-    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
-  </data>
-  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
-    <value>无法发送。请检查网络连接后重试。</value>
-    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
-  </data>
-  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
-    <value>无法保存你的更改。请检查网络连接后重试。</value>
-    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
-  </data>
   <data name="Rpm_Profile_Menu" xml:space="preserve">
     <value>菜单</value>
     <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
@@ -5794,6 +5778,22 @@
     <value>避免在艺人背景图中裁切到人脸</value>
     <comment>Preflight purpose line for the face-detection model.</comment>
   </data>
+  <data name="Preflight_FaultNotSet" xml:space="preserve">
+    <value>未设置</value>
+    <comment>Preflight fault: a value this build of rpm was made without, such as its API key.</comment>
+  </data>
+  <data name="Preflight_BuildIntro" xml:space="preserve">
+    <value>此 rpm 副本在构建时缺少一项必需的设置，因此已停止运行，而不是在缺少该设置的情况下运行。</value>
+    <comment>Sentence under the preflight heading when only build settings failed (a build from source without its API key). Replaces Preflight_Intro, which talks about the installation.</comment>
+  </data>
+  <data name="Preflight_AppKey" xml:space="preserve">
+    <value>将 rpm 连接到其在线服务：专辑和艺人信息、封面、歌词、电台和崩溃报告</value>
+    <comment>Preflight purpose line for the rpm API key (RPM_APP_KEY) compiled into the build.</comment>
+  </data>
+  <data name="Preflight_AppKeyFix" xml:space="preserve">
+    <value>将 RPM_APP_KEY 设置为你在 rpmrpmrpm.com/developer 获取的开发者密钥，然后重新构建 rpm。</value>
+    <comment>Preflight line under the API key row: how a developer building rpm from source sets the key. RPM_APP_KEY and the address stay as they are.</comment>
+  </data>
   <data name="Recognize_SourceManual" xml:space="preserve">
     <value>手动编辑</value>
     <comment>Report line note replacing the layer name once the user has typed the answer in themselves.</comment>
@@ -7437,6 +7437,22 @@
   <data name="Rpm_Profile_ArtCacheDetail" xml:space="preserve">
     <value>封面保存在这台手机上，因此会立即显示。需要时会重新下载。</value>
     <comment>Explains the artwork cache on the iPhone profile, under its size.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>显示另外 {0} 条回复</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>显示另外 1 条回复</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
+  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
+    <value>无法发送。请检查网络连接后重试。</value>
+    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
+  </data>
+  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
+    <value>无法保存你的更改。请检查网络连接后重试。</value>
+    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
   </data>
   <data name="Rpm_Queue_ToComeOne" xml:space="preserve">
     <value>还有 1 首</value>

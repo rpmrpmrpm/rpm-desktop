@@ -26,11 +26,17 @@ public class PreflightTests : IDisposable
         PreflightSeverity severity = PreflightSeverity.Required, long min = 1024)
         => new(name, $"Preflight_{name}", locate, severity, min);
 
+    /// <summary>The file tests ask about files only, and say so.</summary>
+    private static PreflightReport Check(IEnumerable<PreflightItem> files) => Preflight.Check(files, settings: []);
+
+    private static PreflightSetting Setting(string name, Func<bool> isSet)
+        => new(name, $"Preflight_{name}", $"Preflight_{name}Fix", isSet);
+
     [Fact]
     public void A_complete_install_starts()
     {
         var path = Write("ffmpeg", 200_000);
-        var report = Preflight.Check([Item("ffmpeg", () => path)]);
+        var report = Check([Item("ffmpeg", () => path)]);
 
         Assert.Empty(report.Failures);
         Assert.True(report.CanStart);
@@ -39,7 +45,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void A_missing_required_file_stops_the_app()
     {
-        var report = Preflight.Check(
+        var report = Check(
             [Item("beat_this.onnx", () => Path.Combine(_root, "nope.onnx"))]);
 
         var failure = Assert.Single(report.Failures);
@@ -51,7 +57,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void A_missing_optional_file_is_reported_but_still_starts()
     {
-        var report = Preflight.Check(
+        var report = Check(
             [Item("u2netp.onnx", () => Path.Combine(_root, "nope.onnx"), PreflightSeverity.Optional)]);
 
         Assert.Single(report.Failures);
@@ -66,7 +72,7 @@ public class PreflightTests : IDisposable
     public void A_truncated_file_is_damaged_rather_than_present()
     {
         var path = Write("beat_this.onnx", 12);
-        var report = Preflight.Check([Item("beat_this.onnx", () => path, min: 40_000_000)]);
+        var report = Check([Item("beat_this.onnx", () => path, min: 40_000_000)]);
 
         var failure = Assert.Single(report.Failures);
         Assert.Equal(PreflightFault.Damaged, failure.Fault);
@@ -80,7 +86,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void An_unresolved_tool_counts_as_missing()
     {
-        var report = Preflight.Check([Item("fpcalc", () => null)]);
+        var report = Check([Item("fpcalc", () => null)]);
 
         Assert.Equal(PreflightFault.Missing, Assert.Single(report.Failures).Fault);
         Assert.False(report.CanStart);
@@ -90,7 +96,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void A_resolver_that_throws_is_reported_not_raised()
     {
-        var report = Preflight.Check(
+        var report = Check(
             [Item("ffmpeg", () => throw new InvalidOperationException("resolver exploded"))]);
 
         var failure = Assert.Single(report.Failures);
@@ -101,7 +107,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void Failures_keep_manifest_order_across_both_severities()
     {
-        var report = Preflight.Check([
+        var report = Check([
             Item("ffmpeg", () => null),
             Item("u2netp.onnx", () => null, PreflightSeverity.Optional),
             Item("fpcalc", () => null),
@@ -115,7 +121,7 @@ public class PreflightTests : IDisposable
     [Fact]
     public void The_description_names_every_failure_and_its_severity()
     {
-        var report = Preflight.Check([
+        var report = Check([
             Item("ffmpeg", () => null),
             Item("u2netp.onnx", () => null, PreflightSeverity.Optional),
         ]);
@@ -129,5 +135,50 @@ public class PreflightTests : IDisposable
 
     [Fact]
     public void A_clean_report_says_so()
-        => Assert.Contains("everything present", Preflight.Describe(Preflight.Check([]), _root));
+        => Assert.Contains("everything present", Preflight.Describe(Check([]), _root));
+
+    /// <summary>The app key is compiled in. A build without it talks to the rpm service with an empty key,
+    /// and every call that needs the key is refused.</summary>
+    [Fact]
+    public void A_setting_that_is_not_set_stops_the_app()
+    {
+        var report = Preflight.Check(files: [], settings: [Setting("RPM_APP_KEY", () => false)]);
+
+        var failure = Assert.Single(report.Blocking);
+        Assert.Equal("RPM_APP_KEY", failure.Item.Name);
+        Assert.Equal(PreflightFault.NotSet, failure.Fault);
+        Assert.Null(failure.Path);
+        Assert.False(report.CanStart);
+    }
+
+    [Fact]
+    public void A_setting_that_is_set_passes()
+    {
+        var report = Preflight.Check(files: [], settings: [Setting("RPM_APP_KEY", () => true)]);
+
+        Assert.Empty(report.Failures);
+        Assert.True(report.CanStart);
+    }
+
+    [Fact]
+    public void A_setting_check_that_throws_is_reported_not_raised()
+    {
+        var report = Preflight.Check(
+            files: [], settings: [Setting("RPM_APP_KEY", () => throw new InvalidOperationException("no key"))]);
+
+        var failure = Assert.Single(report.Failures);
+        Assert.Equal(PreflightFault.NotSet, failure.Fault);
+        Assert.Contains("no key", failure.Detail);
+    }
+
+    [Fact]
+    public void Files_come_before_settings_in_the_report_and_the_description()
+    {
+        var report = Preflight.Check(
+            files: [Item("ffmpeg", () => null)],
+            settings: [Setting("RPM_APP_KEY", () => false)]);
+
+        Assert.Equal(["ffmpeg", "RPM_APP_KEY"], report.Failures.Select(f => f.Item.Name));
+        Assert.Contains("[REQUIRED] RPM_APP_KEY: not set", Preflight.Describe(report, _root));
+    }
 }

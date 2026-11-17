@@ -20,12 +20,15 @@ public sealed partial class PreflightRow
         {
             PreflightFault.Damaged => "Preflight_FaultDamaged",
             PreflightFault.Unreadable => "Preflight_FaultUnreadable",
+            PreflightFault.NotSet => "Preflight_FaultNotSet",
             _ => "Preflight_FaultMissing",
         });
 
-        // Where the app looked is the part the user can act on. For a bundled file it is the folder
-        // the file belongs in. For a resolved tool it is the last place the resolver tried.
-        Where = failure.Path ?? AppPayload.BaseDirectory;
+        // The part the user can act on. For a build setting it is how to set it. For a bundled file it
+        // is the folder the file belongs in. For a resolved tool it is the last place the resolver tried.
+        Where = failure.Item is PreflightSetting setting
+            ? Strings.Loc.Get(setting.FixKey)
+            : failure.Path ?? AppPayload.BaseDirectory;
         if (failure.Detail is { Length: > 0 } detail)
             Where = $"{Where}  ·  {detail}";
 
@@ -53,9 +56,17 @@ public sealed partial class PreflightFailureModel
         Report = report;
         Blocking = [.. report.Blocking.Select(f => new PreflightRow(f))];
         Degraded = [.. report.Degraded.Select(f => new PreflightRow(f))];
+
+        // Reinstalling puts back files, not build settings. When only settings failed, the screen says the
+        // build is incomplete and leaves the reinstall advice out; each setting's row says how to set it.
+        var filesFailed = report.Failures.Any(f => f.Item is PreflightItem);
+        Intro = Strings.Loc.Get(filesFailed ? "Preflight_Intro" : "Preflight_BuildIntro");
+        ShowsReinstall = filesFailed;
     }
 
     public PreflightReport Report { get; }
+    public string Intro { get; }
+    public bool ShowsReinstall { get; }
     // These use their own list type because both are bound to an ItemsSource. Under Native AOT that
     // needs a type for which CsWinRT generated WinRT interfaces; see Common.PreflightRowList (RPM007).
     public Common.PreflightRowList Blocking { get; }
