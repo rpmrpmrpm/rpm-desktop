@@ -81,12 +81,16 @@ public static class TagReader
             string? artist = Clean(Join(tag.Performers)) ?? Clean(Join(tag.AlbumArtists));
             var (movement, movementCount) = MovementTag.Read(file);
 
+            // A download tool's explicit mark at the end of the title is the advisory flag, not part of
+            // the name. See ExplicitTitleMark.
+            var (title, marked) = ExplicitTitleMark.Split(Clean(tag.Title));
+
             var info = new TrackInfo
             {
                 FilePath = path,
                 Extension = ext,
                 DurationSeconds = file.Properties?.Duration.TotalSeconds ?? 0,
-                Title = Clean(tag.Title),
+                Title = title,
                 Artist = artist,
                 AlbumArtist = Clean(Join(tag.AlbumArtists)),
                 Album = Clean(tag.Album),
@@ -112,7 +116,7 @@ public static class TagReader
                 ReleaseCountry = Clean(tag.MusicBrainzReleaseCountry),
                 RpmId = RpmTag.Read(file),
                 HasArt = tag.Pictures is { Length: > 0 },
-                Advisory = AdvisoryTag.Read(file),
+                Advisory = ExplicitTitleMark.Advisory(marked, AdvisoryTag.Read(file)) ?? ContentAdvisory.Unknown,
 
                 TitleSort = Clean(tag.TitleSort),
                 ArtistSort = Clean(Join(tag.PerformersSort)),

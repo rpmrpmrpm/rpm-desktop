@@ -1949,8 +1949,53 @@ public sealed partial class LibraryDatabase : IDisposable
         // against 7 ms with this index. The 5.4 s hold was longer than the wait at the app's close.
         Execute("CREATE INDEX IF NOT EXISTS idx_track_fingerprint_unsubmitted ON track_fingerprint(submitted_utc_ticks, fingerprinted_utc_ticks)");
 
+        RemoveExplicitTitleMarks();
+
         if (version != SchemaVersion)
             Execute($"PRAGMA user_version = {SchemaVersion}");
+    }
+
+    /// <summary>
+    /// Takes the explicit mark off titles that were stored with it, and turns it into the advisory flag
+    /// (see <see cref="Metadata.ExplicitTitleMark"/>). New writes never store the mark, but rows written
+    /// by a build that kept it still hold it. Most of those rows have a file that could be read again, but
+    /// a track that is only in the cloud has none, so the titles are cleaned where they are stored.
+    ///
+    /// <para>Run on every open and not behind a version step, for the same reason as release_type above.
+    /// It changes no shape, and once the titles are clean the query finds nothing. The cloud catalogue is
+    /// corrected by the next catalogue pass, which pushes a title that differs from the store's.</para>
+    /// </summary>
+    private void RemoveExplicitTitleMarks()
+    {
+        var marked = new List<(long Id, string Title, ContentAdvisory? Advisory)>();
+        using (var find = _connection.CreateCommand())
+        {
+            // Only a candidate list. The rule itself (a mark at the end, after a space) is decided by
+            // ExplicitTitleMark.Split below, so it is written in one place.
+            find.CommandText = "SELECT id, title, advisory FROM tracks WHERE title LIKE $pattern";
+            find.Parameters.AddWithValue("$pattern", "%" + Metadata.ExplicitTitleMark.Mark + "%");
+            using var reader = find.ExecuteReader();
+            while (reader.Read())
+                marked.Add((
+                    reader.GetInt64(0),
+                    reader.GetString(1),
+                    reader.IsDBNull(2) ? null : (ContentAdvisory)reader.GetInt64(2)));
+        }
+
+        foreach (var (id, stored, flag) in marked)
+        {
+            var (title, isMarked) = Metadata.ExplicitTitleMark.Split(stored);
+            if (!isMarked)
+                continue;
+
+            using var fix = _connection.CreateCommand();
+            fix.CommandText = "UPDATE tracks SET title = $title, advisory = $advisory WHERE id = $id";
+            fix.Parameters.AddWithValue("$title", (object?)title ?? DBNull.Value);
+            fix.Parameters.AddWithValue("$advisory",
+                Metadata.ExplicitTitleMark.Advisory(true, flag) is { } a ? (int)a : DBNull.Value);
+            fix.Parameters.AddWithValue("$id", id);
+            fix.ExecuteNonQuery();
+        }
     }
 
     /// <summary>
@@ -2360,6 +2405,12 @@ public sealed partial class LibraryDatabase : IDisposable
 
     private static void BindTrack(SqliteCommand cmd, LibraryTrack t)
     {
+        // Every row write comes through here, whether the row came from a file, the cloud catalogue or
+        // another computer. So this is where a download tool's explicit mark is taken off the title and
+        // turned into the advisory flag. A title in the mirror never carries it. See ExplicitTitleMark.
+        var (title, marked) = Metadata.ExplicitTitleMark.Split(t.Title);
+        var advisory = Metadata.ExplicitTitleMark.Advisory(marked, t.Advisory);
+
         cmd.Parameters.AddWithValue("$path", t.RelativePath);
         cmd.Parameters.AddWithValue("$folder", t.Folder);
         cmd.Parameters.AddWithValue("$name", t.FileName);
@@ -2367,13 +2418,13 @@ public sealed partial class LibraryDatabase : IDisposable
         cmd.Parameters.AddWithValue("$size", t.SizeBytes);
         cmd.Parameters.AddWithValue("$mtime", t.ModifiedUtcTicks);
         cmd.Parameters.AddWithValue("$dur", t.DurationSeconds);
-        cmd.Parameters.AddWithValue("$title", (object?)t.Title ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$title", (object?)title ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$artist", (object?)t.Artist ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$albumartist", (object?)t.AlbumArtist ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$album", (object?)t.Album ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$genre", (object?)t.Genre ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$subgenre", (object?)t.Subgenre ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$advisory", t.Advisory is { } a ? (int)a : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("$advisory", advisory is { } a ? (int)a : (object)DBNull.Value);
         cmd.Parameters.AddWithValue("$chan", (object?)t.Channels ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$rate", (object?)t.SampleRate ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$bits", (object?)t.BitsPerSample ?? DBNull.Value);
