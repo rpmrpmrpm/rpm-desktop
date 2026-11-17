@@ -1463,7 +1463,11 @@ public partial class App : Application
         // Every audio upload is that kind of body.
         var http = RPM.Core.Net.TransientHttp.Client(api, TimeSpan.FromMinutes(30));
 
-        return new RPM.Core.Cloud.RpmCloudClient(http, _ => auth.GetAccessTokenAsync());
+        // The uploads and downloads themselves go to presigned storage addresses, on a client whose pool
+        // closes idle connections before the storage service does (see Wire.Storage).
+        var storage = RPM.Core.Net.Wire.Storage(TimeSpan.FromMinutes(30));
+
+        return new RPM.Core.Cloud.RpmCloudClient(http, storage, _ => auth.GetAccessTokenAsync());
     }
 
     /// <summary> The client for the album wall. It handles RPM's shared album entries, the reviews written

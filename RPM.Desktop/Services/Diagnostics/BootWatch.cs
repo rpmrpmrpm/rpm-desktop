@@ -118,6 +118,7 @@ internal sealed class BootWatch
             var installId = _reports!.InstallId(answer.InstallId);
             var cloud = new RPM.Core.Cloud.RpmCloudClient(
                 RPM.Core.Net.TransientHttp.Client(RPM.Core.Net.RpmApi.Deployed, TimeSpan.FromSeconds(60)),
+                RPM.Core.Net.Wire.Storage(TimeSpan.FromSeconds(60)),
                 _ => Task.FromResult<string?>(null));
 
             SendEnded(cloud, installId);

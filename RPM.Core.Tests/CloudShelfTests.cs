@@ -53,9 +53,12 @@ public class CloudShelfTests
     private static string Named(string? owner) =>
         owner is null ? "null" : System.Text.Json.JsonSerializer.Serialize(owner);
 
-    private static RpmCloudClient Client(HttpMessageHandler store) =>
-        new(new HttpClient(store) { BaseAddress = new Uri("https://api.test/") },
-            _ => Task.FromResult<string?>("token"));
+    private static RpmCloudClient Client(HttpMessageHandler store)
+    {
+        // One fake answers the API and the storage addresses alike.
+        var http = new HttpClient(store) { BaseAddress = new Uri("https://api.test/") };
+        return new(http, http, _ => Task.FromResult<string?>("token"));
+    }
 
     private const string Friend = "user-friend";
     private const string AlbumKey = "d90d382db82e7ba38c335b59ae3eaf33";

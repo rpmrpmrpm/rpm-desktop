@@ -44,9 +44,12 @@ public class CloudSidecarLookupTests
         }
     }
 
-    private static RpmCloudClient Client(FakeStore store) =>
-        new(new HttpClient(store) { BaseAddress = new Uri("https://api.test/") },
-            _ => Task.FromResult<string?>("token"));
+    private static RpmCloudClient Client(FakeStore store)
+    {
+        // One fake answers the API and the storage addresses alike.
+        var http = new HttpClient(store) { BaseAddress = new Uri("https://api.test/") };
+        return new(http, http, _ => Task.FromResult<string?>("token"));
+    }
 
     private static string Sidecar() => new TagSidecar
     {

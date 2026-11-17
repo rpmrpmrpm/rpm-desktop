@@ -150,7 +150,7 @@ public class LibraryCloseStopsPassesTests : IDisposable
         var http = new HttpClient(new Answering(answer)) { BaseAddress = new Uri("https://api.test/") };
         var log = new Recorder<CloudMirrorService>();
         var mirror = new CloudMirrorService(
-            library, auth, new RpmCloudClient(http, _ => Task.FromResult<string?>("access")), log)
+            library, auth, new RpmCloudClient(http, http, _ => Task.FromResult<string?>("access")), log)
         {
             NetworkAllows = _ => ValueTask.FromResult(true),
         };

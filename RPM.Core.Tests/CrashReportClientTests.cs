@@ -29,7 +29,7 @@ public class CrashReportClientTests
     {
         var handler = new Handler(answer);
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://api.test/") };
-        return (new RpmCloudClient(http, _ => Task.FromResult(token)), handler);
+        return (new RpmCloudClient(http, http, _ => Task.FromResult(token)), handler);
     }
 
     private static HttpResponseMessage Ok() =>

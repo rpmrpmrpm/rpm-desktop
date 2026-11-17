@@ -36,7 +36,7 @@ public class ErrorReportClientTests
     {
         var api = new FakeApi(status, body);
         var http = new HttpClient(api) { BaseAddress = new Uri("https://api.test/") };
-        return (new RpmCloudClient(http, _ => Task.FromResult<string?>("token")), api);
+        return (new RpmCloudClient(http, http, _ => Task.FromResult<string?>("token")), api);
     }
 
     [Fact]

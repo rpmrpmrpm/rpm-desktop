@@ -281,7 +281,14 @@ public sealed record CloudPlaylist(
 /// people already own costs three round trips and no audio at all.
 /// </para>
 /// </summary>
-public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationToken, Task<string?>> accessTokenProvider)
+/// <param name="http">The API's client.</param>
+/// <param name="storage">The client for the presigned storage addresses the API hands out
+/// (<see cref="RPM.Core.Net.Wire.Storage"/>). Separate because the storage service closes idle connections
+/// after a few seconds, and a pool that keeps them longer sends uploads on connections that are
+/// closing.</param>
+/// <param name="accessTokenProvider">The signed-in user's access token, or null.</param>
+public sealed partial class RpmCloudClient(
+    HttpClient http, HttpClient storage, Func<CancellationToken, Task<string?>> accessTokenProvider)
 {
     /// <summary>What the server said about the user's storage after an upload.</summary>
     /// <param name="Renditions">Whether the head clip and the free rate were made and stored as part of
@@ -1403,7 +1410,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         string json;
         try
         {
-            json = await http.GetStringAsync(res.Url, ct);
+            json = await storage.GetStringAsync(res.Url, ct);
         }
         catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
         {
@@ -1447,7 +1454,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         var partial = PartialPathFor(targetPath);
         try
         {
-            await using (var source = await http.GetStreamAsync(url, ct))
+            await using (var source = await storage.GetStreamAsync(url, ct))
             await using (var file = File.Create(partial))
                 await source.CopyToAsync(file, ct);
 
@@ -1929,7 +1936,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         if (checksumBase64 is not null)
             req.Headers.TryAddWithoutValidation("x-amz-checksum-sha256", checksumBase64);
 
-        using var resp = await http.SendAsync(req, ct);
+        using var resp = await storage.SendAsync(req, ct);
         await EnsureUploadedAsync(resp, ct);
     }
 
@@ -1943,7 +1950,7 @@ public sealed partial class RpmCloudClient(HttpClient http, Func<CancellationTok
         if (checksumBase64 is not null)
             req.Headers.TryAddWithoutValidation("x-amz-checksum-sha256", checksumBase64);
 
-        using var resp = await http.SendAsync(req, ct);
+        using var resp = await storage.SendAsync(req, ct);
         await EnsureUploadedAsync(resp, ct);
     }
 
