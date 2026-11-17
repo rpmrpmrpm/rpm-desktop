@@ -196,8 +196,9 @@
         <ItemsRepeater ItemsSource="{Binding Cards, FallbackValue={StaticResource NoItems}}"
                        ItemTemplate="{StaticResource CardTemplate}"
                        HorizontalAlignment="Left">
+          <!-- Every card of a realized row, not a virtualized stack. See AlbumCardRowLayout. -->
           <ItemsRepeater.Layout>
-            <StackLayout Orientation="Horizontal"/>
+            <lib:AlbumCardRowLayout/>
           </ItemsRepeater.Layout>
         </ItemsRepeater>
         <!-- The drawer's slot. The DataContext is set to the band OUTRIGHT, not left to follow the Content.
@@ -224,7 +225,11 @@
          element. The ScrollViewer would then scroll there, and the wall would jump on its own after the
          user stops scrolling. Focus must never scroll this wall. Only clicks and drawers do.
 
-         Scroll anchoring is OFF. VerticalAnchorRatio defaults to NaN, which is off. When anchoring was on,
+         Scroll anchoring is OFF: VerticalAnchorRatio is NaN, set below. Its default is 0, which is ON, and
+         the wall must say so itself. With anchoring on, the scroller moves the offset by itself after any
+         pass that moves the row it has chosen as its anchor. That undoes what this wall sets: a pane move
+         keeps the reader's row in place itself (AlbumWallView.HoldReader), and the scroller then moved it
+         again by as much as the rows above it had grown. Also, when anchoring was on,
          a pass that changed the extent with no anchor named put the reader at the TOP of the wall. For
          example, the offset went from 1110 to 0 on a 45,000 pt wall when a drawer was detached. No clamp or
          heal was involved. The one thing anchoring was needed for, a drawer changing height above the
@@ -233,7 +238,7 @@
          row. -->
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
-                  BringIntoViewOnFocusChange="False"
+                  BringIntoViewOnFocusChange="False" VerticalAnchorRatio="NaN"
                   Padding="14,0,14,20" SizeChanged="Scroller_SizeChanged"
                   ViewChanged="Scroller_ViewChanged">
       <!-- Half a screen of rows on each side of the row being read. The repeater's own default is two

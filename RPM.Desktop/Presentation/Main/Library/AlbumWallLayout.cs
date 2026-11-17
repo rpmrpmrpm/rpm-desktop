@@ -72,10 +72,15 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
     /// ±5.4% of one for a whole move, without the laid-out size ever being reset. The type changes size by
     /// that much and no more.</para>
     ///
-    /// <para>Everything vertical is scaled: the row pitch, the spacing and the drawer. So the wall's length
-    /// and the realization band are in the same space as the scroller's viewport. Only the arrange rect is
-    /// not scaled. A row is placed at its scaled top and arranged at its own unscaled size. The transform
-    /// then takes it from there, anchored at its top-left.</para>
+    /// <para><b>The scale is about <see cref="Anchor"/>, not about the top of the wall.</b> The view puts the
+    /// anchor at the top of the viewport, so the row the reader is on stays where it is and the rows below it
+    /// close up or spread out. Scaled about the top of the wall, a reader five rows down would see the whole
+    /// page slide by more than a row as the scale changed.</para>
+    ///
+    /// <para>The layout itself stays in unscaled space: the wall's length, the realization band and the arrange
+    /// rects are the ones it has at a scale of one, so the scroller's extent does not change during a move. Only
+    /// the drawing is scaled (see <see cref="Draw"/>), and the realization band is widened to cover what a
+    /// smaller drawing brings into view.</para>
     /// </remarks>
     public double Scale
     {
@@ -90,6 +95,32 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
     }
 
     private double _scale = 1;
+
+    /// <summary>
+    /// The point, in the wall's unscaled space, that stays in place while <see cref="Scale"/> is in force. Rows
+    /// above it are drawn moved down towards it, and rows below it moved up, by the same factor. It means
+    /// nothing at a scale of one.
+    /// </summary>
+    public double Anchor
+    {
+        get => _anchor;
+        set
+        {
+            if (_anchor == value || double.IsNaN(value))
+                return;
+            _anchor = value;
+            if (_scale != 1)
+                InvalidateMeasure();
+        }
+    }
+
+    private double _anchor;
+
+    /// <summary>Where a point at unscaled <paramref name="y"/> is drawn.</summary>
+    private double Drawn(double y) => _scale == 1 ? y : _anchor + (y - _anchor) * _scale;
+
+    /// <summary>The unscaled point that is drawn at <paramref name="y"/>.</summary>
+    private double Laid(double y) => _scale == 1 ? y : _anchor + (y - _anchor) / _scale;
 
     /// <summary>
     /// The width a row is laid out at while <see cref="Scale"/> is in force: the column count times the
@@ -130,22 +161,56 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
     /// changes whenever the card size changes.</summary>
     private double _bandHeight;
 
+    /// <summary>What the drawer adds to its row, as last learned. See <see cref="BandRow"/>.</summary>
+    public double BandHeight => _bandHeight;
+
+    /// <summary>
+    /// The part of the wall, in the scroller's space, that the view knows is in view now, when the repeater
+    /// may not know it yet. Null otherwise, which is nearly always.
+    /// </summary>
+    /// <remarks>
+    /// The repeater learns that the scroller has moved from an effective-viewport event that comes after the
+    /// layout pass. So a pass run in the same turn as a scroll still realizes the rows at the old place.
+    /// <c>AlbumWallView.SettleNow</c> scrolls and lays the wall out in one turn, and sets this for that turn,
+    /// so the rows at the new place exist before the first frame is drawn.
+    /// </remarks>
+    public (double Top, double Bottom)? InView
+    {
+        get => _inView;
+        set
+        {
+            _inView = value;
+            InvalidateMeasure();
+        }
+    }
+
+    private (double Top, double Bottom)? _inView;
+
     /// <summary>The height every row without a drawer has. It is learned the same way, and it is re-learned on
     /// every pass that measures a plain row. So the cover-size slider does not need to tell it anything.</summary>
     private double _rowHeight;
 
-    /// <summary>Where <paramref name="index"/>'s top edge sits, from the two remembered heights. This is the
-    /// same sum that <see cref="ArrangeOverride"/> places it with, but it is asked before the pass that would
-    /// place it.
+    /// <summary>The distance from one plain row's top to the next one's, before <see cref="Scale"/>: the
+    /// row height and the gap. Zero until a row has been measured.</summary>
+    public double Pitch => _rowHeight > 0 ? _rowHeight + Spacing : 0;
+
+    /// <summary>Where <paramref name="index"/>'s top edge is drawn, from the two remembered heights. This is
+    /// the same sum that <see cref="ArrangeOverride"/> places it with, but it is asked before the pass that
+    /// would place it.
     ///
-    /// <para>This is for the one caller that has to know how far a row is about to move. Attaching or detaching
+    /// <para>This is for the callers that have to know how far a row is about to move. Attaching or detaching
     /// a drawer moves every row below it. A reader standing on one of those rows has to be moved with it, or the
     /// wall moves out from under them. See <c>AlbumWallView.ReshapeHoldingReader</c>, which reads this on both
     /// sides of the change.</para></summary>
-    /// <remarks>In the SCROLLER's space, scale included, because the one caller compares it with
+    /// <remarks>In the SCROLLER's space, as drawn, scale included, because the callers compare it with
     /// <c>VerticalOffset</c>.</remarks>
     public double TopOf(int index) =>
-        AlbumWallRows.RowTop(index, _rowHeight * _scale, Spacing * _scale, _bandRow, _bandHeight * _scale);
+        Drawn(AlbumWallRows.RowTop(index, _rowHeight, Spacing, _bandRow, _bandHeight));
+
+    /// <summary>The row whose unscaled band holds the point drawn at <paramref name="y"/>, or -1 when the
+    /// wall is empty.</summary>
+    public int RowDrawnAt(double y, int count) =>
+        _rowHeight <= 0 ? -1 : AlbumWallRows.RowAt(Laid(y), count, _rowHeight, Spacing, _bandRow, _bandHeight);
 
     /// <summary>The rows the last pass asked for, so that the rows which leave the realization band can be
     /// handed back. The repeater does not do this itself. A <see cref="VirtualizingLayout"/> owns which
@@ -193,13 +258,10 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         // measure traverse the cards, and avoiding that is the whole saving.
         var room = new Size(RowWidth > 0 ? RowWidth : width, double.PositiveInfinity);
 
-        // The heights as the SCROLLER sees them. Its viewport, its offset and the realization rect are all in
-        // scaled space. So the band arithmetic and the length returned must be scaled too. The arrange rect is
-        // the one thing that stays unscaled. See ArrangeOverride.
-        var k = _scale;
-        var pitch = _rowHeight * k;
-        var gap = Spacing * k;
-        var drawer = _bandHeight * k;
+        // The layout is in unscaled space, the scroller's too. Only the drawing is scaled. See Scale.
+        var pitch = _rowHeight;
+        var gap = Spacing;
+        var drawer = _bandHeight;
 
         // Nothing has been measured yet, so there is no pitch to work out the realization band from. One row
         // gives the answer. It must not be the OPEN row. The open row's height is its cards plus a drawer. Used
@@ -232,14 +294,17 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         }
 
         var band = ResolveBandRow(context, count);
+        // The band the scroller asks for is where rows are DRAWN. A drawing smaller than the layout shows rows
+        // from further down, so the band is taken back to where those rows are laid out.
         var (first, last) = AlbumWallRows.RowsIn(
-            context.RealizationRect.Top, context.RealizationRect.Bottom,
+            Laid(_inView?.Top ?? context.RealizationRect.Top), Laid(_inView?.Bottom ?? context.RealizationRect.Bottom),
             count, pitch, gap, band, drawer);
         if (first < 0)
             (first, last) = (0, 0);
 
         Recycle(context, held, keep: (first, last), alsoKeep: band);
 
+        var heightBefore = _rowHeight;
         for (var i = first; i <= last; i++)
         {
             Realizing?.Invoke(i);
@@ -247,6 +312,29 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
             held.Rows[i] = element;
             element.Measure(room);
             Learn(i, element.DesiredSize.Height);
+        }
+
+        // The rows just measured taught a new row height, so the band above was worked out from the old one
+        // and is the wrong rows. This happens when the cards change size: a pane move landing, or the size
+        // slider. The band is worked out again, and the rows it now names are realized in this same pass.
+        // Nothing else would ask: the viewport has not moved, so no later pass comes, and the wall shows the
+        // rows above or below the reader, laid out well away from the viewport, and nothing on screen.
+        if (Math.Abs(_rowHeight - heightBefore) > 0.5)
+        {
+            (first, last) = AlbumWallRows.RowsIn(
+                Laid(_inView?.Top ?? context.RealizationRect.Top), Laid(_inView?.Bottom ?? context.RealizationRect.Bottom),
+                count, _rowHeight, Spacing, band, _bandHeight);
+            if (first < 0)
+                (first, last) = (0, 0);
+            Recycle(context, held, keep: (first, last), alsoKeep: band);
+            for (var i = first; i <= last; i++)
+            {
+                Realizing?.Invoke(i);
+                var element = context.GetOrCreateElementAt(i);
+                held.Rows[i] = element;
+                element.Measure(room);
+                Learn(i, element.DesiredSize.Height);
+            }
         }
 
         // The open row, wherever it is. It is held and measured on every pass, not only while it is on screen.
@@ -280,7 +368,7 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         // and the last rows sit under the bottom of the scroller. The band and the heights are read again here,
         // because the loop above may have learned a new pitch or a drawer that grew in this pass.
         return new Size(width, AlbumWallRows.WallHeight(
-            count, _rowHeight * k, Spacing * k, ResolveBandRow(context, count), _bandHeight * k));
+            count, _rowHeight, Spacing, ResolveBandRow(context, count), _bandHeight));
     }
 
     protected override Size ArrangeOverride(VirtualizingLayoutContext context, Size finalSize)
@@ -304,7 +392,7 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
             // fixed but the tops still moving, ten folds ran at six frames of eight, with a worst gap of 79 ms. That
             // number is before any of this. An unchanged rect is an arrange that the framework skips.
             var top = AlbumWallRows.RowTop(index, _rowHeight, Spacing, band, _bandHeight);
-            var shown = AlbumWallRows.RowTop(index, _rowHeight * k, Spacing * k, band, _bandHeight * k);
+            var shown = Drawn(top);
 
             // The row is placed at the height it asked for, not the height the arithmetic expects. The two agree,
             // except in the frame where a drawer changes size. In that frame the element's own answer is the true

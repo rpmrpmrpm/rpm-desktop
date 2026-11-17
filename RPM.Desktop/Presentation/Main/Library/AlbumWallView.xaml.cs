@@ -674,6 +674,14 @@ public sealed partial class AlbumWallView : UserControl
     /// </summary>
     private void ReshapeHoldingReader(Action reshape)
     {
+        // A column change that holds the reader has already chosen the offset, with the drawer in the row it
+        // is about to be moved to (see HoldReader). Walking it again here would move the reader twice.
+        if (_readerHeld)
+        {
+            reshape();
+            return;
+        }
+
         var anchor = FirstVisibleRow();
         var was = anchor < 0 ? 0 : RowsLayout.TopOf(anchor);
 
@@ -776,9 +784,15 @@ public sealed partial class AlbumWallView : UserControl
         {
             if (_folder is not { } f || !b._cardByFolder.TryGetValue(f, out var card) || _current is not { } band)
                 return;
-            var owner = b._rows.FirstOrDefault(r => r.Cards.Contains(card));
-            if (owner is null)
+
+            // The row is worked out from the record's place in the wall, not searched for. During a pane move
+            // the rows out of view keep their old cards for a while (see _staleChunks), and a search could find
+            // the record in the row it has just left. The drawer's row is given its cards first.
+            var index = b._cards.IndexOf(card);
+            if (index < 0 || b._columns <= 0 || index / b._columns >= b._rows.Count)
                 return;
+            b.DealRow(index / b._columns);
+            var owner = b._rows[index / b._columns];
 
             Ring(card);
             band.Reseat(ColumnOf(owner, card));

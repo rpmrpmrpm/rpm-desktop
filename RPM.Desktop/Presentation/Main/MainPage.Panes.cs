@@ -1406,6 +1406,10 @@ public sealed partial class MainPage
                 Undress();
                 PinDrawer(Math.Max(from, target));
                 WritePixels(from);
+
+                // The library takes what the pane gives up. The wall chooses its columns for the whole move
+                // from where it will land.
+                p.AlbumWall.ExpectLiveWidth(from - target);
             }
 
             // Where the fade-out starts FROM, rather than from 1: a move redirected while an earlier one

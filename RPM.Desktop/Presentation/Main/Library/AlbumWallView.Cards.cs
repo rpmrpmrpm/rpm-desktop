@@ -98,6 +98,9 @@ public sealed partial class AlbumWallView
         // thing on a tile that depends on the pointer, not on the record.
         ShowOpenKey(sender, false);
 
+        // A tile that is given another record must not carry on with the slide of the one it showed.
+        StopGlide(sender);
+
         WallDiag.Time("bind", () => CardBound(args));
     }
 

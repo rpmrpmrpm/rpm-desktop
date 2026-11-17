@@ -119,6 +119,10 @@ public sealed partial class AlbumWallView
         // must match what is on screen right now. A move redirected mid-flight takes over from wherever
         // the last one left off. Starting from a fresh calculation would cause a jump on the first frame.
         _liveStride = _metrics.Stride;
+
+        // The scale is drawn about the top of the viewport, so the row the reader is on stays put. See
+        // AlbumWallLayout.Anchor.
+        RowsLayout.Anchor = Scroller.VerticalOffset;
         _liveDeals.Counting = true;
 
         // The fourth passenger: the cover loader. See CoverStream.Pause.
@@ -138,6 +142,20 @@ public sealed partial class AlbumWallView
         // The rest are dealt a few at a time once the landing is over. See DealStaleRowsLater.
         DealStaleRowsOnScreen();
 
+        // A move that narrowed the wall kept its columns, and the settled pass below deals the cards into
+        // fewer. They slide there from where they are drawn now, which is read before the scale goes. See
+        // ExpectLiveWidth.
+        var heldColumns = _liveColumns;
+        _liveColumns = 0;
+        if (heldColumns > 0 && _liveStride > 0)
+            PrepareGlide(_liveStride * RowsLayout.Scale);
+
+        // The reader's place is written down at every landing, not only one that deals the cards again.
+        // Leaving the move's card size for the wall's own changes the row pitch, so the same offset would show
+        // the reader's row higher or lower than it was. See HoldReader.
+        if (_liveStride > 0)
+            _readerHold = CaptureReader(_liveStride);
+
         RowsRepeater.VerticalCacheLength = _cacheRows;
 
         // The scale is removed BEFORE the settled pass. That pass then writes the real card size, and the
@@ -152,7 +170,19 @@ public sealed partial class AlbumWallView
         // not, and this pass does the whole re-flow. It runs in both cases, not only under the switch.
         // The landing is not guaranteed a SizeChanged. The columns can settle at the width the last tick
         // already wrote.
+        _glideLanding = _glideFrom is not null;
         RecomputeLayout();
+        _glideLanding = false;
+        if (!_glideWaiting)
+            _glideFrom = null;   // the columns did not change after all, so nothing slides
+
+        // The columns did not change, so the pass above did not hold the reader. The pitch did change.
+        if (_readerHold is { } still)
+        {
+            _readerHold = null;
+            HoldReader(still);
+        }
+        SettleNow();
 
         // The density is settled against the size the wall actually ended at. That is the only size worth
         // decoding for. RefreshCoverDensity does nothing unless the edge really crossed a bucket. So a
@@ -172,6 +202,200 @@ public sealed partial class AlbumWallView
     }
 
     private bool _liveResize;
+
+    /// <summary>
+    /// The pane conductor says how much wider (a positive <paramref name="change"/>) or narrower the wall will
+    /// be when this live move lands. The wall keeps one column count for the whole move: the larger of the one
+    /// it has and the one it will have.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why.</b> A move that lets the column count follow the width changes it two or three times, and each
+    /// change deals the records into rows again in the middle of the move. Holding one count, nothing is dealt
+    /// during the move: the rows only scale (see <see cref="WallFreeze.Scale"/>), and the cards are dealt once,
+    /// sliding to their new places (see AlbumWallView.Glide.cs).
+    ///
+    /// <para><b>Which end.</b> The larger count is the one held, so the scale never goes above one, and covers
+    /// and titles are never drawn larger than they were laid out. A wall that will be wider deals into its new,
+    /// larger count straight away, and then grows into it. A wall that will be narrower keeps its count,
+    /// shrinks with the move, and deals into the smaller count at the landing.</para>
+    /// </remarks>
+    public void ExpectLiveWidth(double change)
+    {
+        _liveColumns = 0;
+        if (!_liveResize || Freeze != WallFreeze.Scale || !_viewportReady || _availableWidth <= 0
+            || Visibility != Visibility.Visible)
+            return;
+
+        var finalColumns = ColumnsAt(_availableWidth + change);
+        if (finalColumns <= 0)
+            return;
+        _liveColumns = Math.Max(_columns, finalColumns);
+        if (_liveColumns != _columns)
+        {
+            // The wall only grows from here, so no row comes into view that is not in view now, and the rows
+            // the repeater keeps ready off screen would be built for nothing. See SettleNow for why that
+            // matters at this moment. EndLiveResize gives the cache back.
+            RowsRepeater.VerticalCacheLength = 0;
+
+            RecomputeLayout();   // deal into the wider count now, at the start of the move
+            SettleNow();
+        }
+    }
+
+    /// <summary>The column count a move holds, or zero when the count follows the width. See
+    /// <see cref="ExpectLiveWidth"/>.</summary>
+    private int _liveColumns;
+
+    /// <summary>
+    /// After a re-deal that moved the scroll offset: applies the offset, lays the wall out and realizes the
+    /// rows now in view, all in this turn, and starts the cards' slides on them.
+    /// </summary>
+    /// <remarks>
+    /// Left to the framework, this took three layout passes in three frames when the reader was far down the
+    /// wall. The first was laid out before the scroller had applied the new offset, so for a frame the reader
+    /// saw the new deal at the old place. The rows at the new place were built over the next two. And a
+    /// slide only starts once every row in view has its cards, so it started late, or not at all, and the
+    /// cards jumped. Done here, the cost is one pause before the first frame, and every frame after it is
+    /// right. <see cref="Heal"/> applies an offset the same way.
+    ///
+    /// <para>Only called where no layout pass is running: at the start of a move (from the pane conductor's
+    /// press) and at its landing.</para>
+    /// </remarks>
+    private void SettleNow()
+    {
+        if (_heldOffset is null && !_glideWaiting)
+            return;
+        // The rows at the new place are realized from the offset the view asked for. See AlbumWallLayout.InView.
+        var top = _heldOffset ?? Scroller.VerticalOffset;
+        RowsLayout.InView = (top, top + Scroller.ViewportHeight);
+        Scroller.UpdateLayout();
+        if (_glideWaiting && StartGlides())
+            StopWaitingForGlides();
+        RowsLayout.InView = null;
+    }
+
+    // ── keeping the reader's row in place when the columns change ──
+
+    /// <summary>The reader's place before a column change: the first card of the top row in view, how far
+    /// below the top of the viewport that row is laid out (before the scale, which is drawn about the top of
+    /// the viewport), and the card stride the wall was laid out at.</summary>
+    private readonly record struct ReaderPlace(AlbumCard Card, double ViewY, double LayoutStride);
+
+    /// <summary>A place the landing wrote down before it took the scale away. See
+    /// <see cref="EndLiveResize"/>.</summary>
+    private ReaderPlace? _readerHold;
+
+    /// <summary>The scroll offset <see cref="HoldReader"/> asked for, until the scroller reports it. Null
+    /// otherwise.</summary>
+    private double? _heldOffset;
+
+    /// <summary>
+    /// The reader's place as it was first written down, and the offset the wall was left at after it was
+    /// last held. While the offset is still that one, the reader has not scrolled, and the same place is
+    /// held again.
+    /// </summary>
+    /// <remarks>
+    /// Without this, each column change would take a new anchor: the first card of whatever row is on top.
+    /// After a change to fewer columns that is usually a card from the row above, so every open and close of
+    /// the pane would leave the reader a row higher than before. Kept, an open and a close bring the wall back
+    /// to exactly what the reader left.
+    /// </remarks>
+    private ReaderPlace? _stickyReader;
+
+    private double _stickyOffset = double.NaN;
+
+    /// <summary>Where the reader is now. The top row is the one under the top of the viewport, or the one
+    /// below it when less than half of it is still in view. Null on an empty wall.</summary>
+    private ReaderPlace? CaptureReader(double layoutStride)
+    {
+        if (_rows.Count == 0 || RowsLayout.Pitch <= 0)
+            return null;
+        var top = ViewNow().Top;
+        if (_stickyReader is { } sticky && Math.Abs(top - _stickyOffset) < 1 && _cards.Contains(sticky.Card))
+            return sticky with { LayoutStride = layoutStride };
+        var row = RowsLayout.RowDrawnAt(top, _rows.Count);
+        if (row < 0)
+            return null;
+        if (row + 1 < _rows.Count && RowsLayout.TopOf(row) + RowsLayout.Pitch * RowsLayout.Scale / 2 < top)
+            row++;
+        if (_rows[row].Cards is not { Count: > 0 } cards)
+            return null;
+        // Before the scale. A move draws the wall about the top of the viewport, so a row that is partly above
+        // it is drawn closer to it than it is laid out. Kept as drawn, an open and a close would bring the reader
+        // back a little higher than they left.
+        _stickyReader = new ReaderPlace(cards[0], (RowsLayout.TopOf(row) - top) / RowsLayout.Scale, layoutStride);
+        return _stickyReader;
+    }
+
+    /// <summary>
+    /// Scrolls so that the reader's card is drawn as far below the top of the viewport after a column change
+    /// as it was before.
+    /// </summary>
+    /// <remarks>
+    /// A column change moves every record to another row: with fewer columns, a record thirty places in is
+    /// several rows further down. Left to itself, the wall stays at the same offset, so a reader five rows
+    /// down finds other records under them, and the page seems to jump. The top row in view is the anchor:
+    /// its first card keeps its place, and the rest of the wall is dealt around it.
+    ///
+    /// <para>The new row's top is worked out, not measured, so the offset is asked for in the same turn as the
+    /// re-deal, as <see cref="ReshapeHoldingReader"/> does for a drawer. During a live move the layout is
+    /// laid out at the move's fixed stride, so the row pitch does not change, and the scale is drawn about the
+    /// new offset. At a landing the cards take their own stride, and the pitch changes by as much as the
+    /// stride does, because a card is a square of art over lines of text of a fixed height.</para>
+    ///
+    /// <para>Returns false, and does nothing, when the reader's card is no longer on the wall.</para>
+    /// </remarks>
+    private bool HoldReader(ReaderPlace place)
+    {
+        var index = _cards.IndexOf(place.Card);
+        var pitch = RowsLayout.Pitch;
+        if (index < 0 || pitch <= 0 || _columns <= 0)
+            return false;
+        var row = index / _columns;
+
+        // During a move the row is laid out at the move's pitch and drawn about the new offset, so it is drawn
+        // at its laid distance times the scale. At a landing the cards take their own stride.
+        var laidPitch = _liveResize ? pitch : pitch + (_metrics.Stride - place.LayoutStride);
+
+        // An open drawer is part of the sum: it pushes every row below it down by its height. It is dealt into
+        // the row its record lands in, which is worked out here the same way, because the drawer is moved
+        // there after this (see BandConductor.Reseat).
+        var bandRow = _band.Current is { } open && _cards.IndexOf(open.Card) is var opened and >= 0
+            ? opened / _columns
+            : -1;
+        var spacing = RowsLayout.Spacing;
+        var to = AlbumWallRows.RowTop(row, laidPitch - spacing, spacing, bandRow, bandRow >= 0 ? RowsLayout.BandHeight : 0)
+                 - place.ViewY;
+        to = Math.Max(0, to);
+        _stickyOffset = to;
+
+        if (_liveResize)
+            RowsLayout.Anchor = to;
+        if (Math.Abs(to - Scroller.VerticalOffset) < 0.5)
+            return true;
+        _heldOffset = to;
+        Scroller.ChangeView(null, to, null, disableAnimation: true);
+        return true;
+    }
+
+    /// <summary>True while a re-deal runs whose offset <see cref="HoldReader"/> has already chosen, with the
+    /// drawer in its new row. Moving the drawer then does not scroll again (see
+    /// <see cref="ReshapeHoldingReader"/>).</summary>
+    private bool _readerHeld;
+
+    /// <summary>True for the settled pass at a landing that will slide the cards. See
+    /// <see cref="EndLiveResize"/>.</summary>
+    private bool _glideLanding;
+
+    /// <summary>How many columns the wall has at a scroller width of <paramref name="width"/>, by the same
+    /// arithmetic as <see cref="RecomputeLayout"/>.</summary>
+    private int ColumnsAt(double width)
+    {
+        var available = width - ScrollerPadding;
+        return available <= 0
+            ? 0
+            : AlbumGridLayout.ColumnsForTarget(available, _targetArt + CardChrome, maxStride: MaxArt + CardChrome);
+    }
 
     /// <summary>The card stride the wall is laid out at for the length of a live resize, or zero when no
     /// resize is running. The stride it is shown at is this value times
@@ -226,6 +450,8 @@ public sealed partial class AlbumWallView
             WallDiag.View(Scroller.VerticalOffset, Scroller.ExtentHeight);
             WallDiag.Move(Scroller.VerticalOffset, Scroller.ExtentHeight, Scroller.ViewportHeight);
         }
+        if (!e.IsIntermediate)
+            _heldOffset = null;   // the offset HoldReader asked for has been applied
         if (!e.IsIntermediate)
             WallDiag.Time("anchor", CheckAnchor);
     }
@@ -461,6 +687,10 @@ public sealed partial class AlbumWallView
         if (_reflowHeld)
             return;   // a pane glide owns the width. The release runs this once, at the settled width.
 
+        // The reader's place, if the landing wrote it down before it took the scale away. See HoldReader. It is
+        // used, and cleared, only by a pass that changes the column count.
+        var reader = _readerHold;
+
         // The display the window is on decides how large the resident tier must be. That saves the wall a
         // read at the bottom of the slider. This is the first moment there is an answer. The scale comes
         // from the XamlRoot, and the wall is fed before it has one.
@@ -477,11 +707,22 @@ public sealed partial class AlbumWallView
         // count. A count rounded down leaves up to half a card of empty panel on the right. See
         // AlbumGridLayout.ColumnsForTarget.
         var columns = AlbumGridLayout.ColumnsForTarget(available, targetStride, maxStride: MaxArt + CardChrome);
+        if (_liveResize && _liveColumns > 0)
+            columns = _liveColumns;   // one count for the whole move; see ExpectLiveWidth
         var stride = AlbumGridLayout.StrideFor(available, columns, MaxArt + CardChrome);
 
         // What the wall may do on this pass. Anything it may not do is spent once at the landing instead.
         // See WallFreeze. Scale is what ships on WinUI. Size and All are for measurements only.
         var frozen = _liveResize ? Freeze : WallFreeze.None;
+
+        // A column change during a live move: where the cards and the reader are drawn now, before this pass
+        // changes the scale. The cards slide from there (see AlbumWallView.Glide.cs), and the reader is kept
+        // in place (see HoldReader).
+        if (columns != _columns && _rows.Count > 0 && _liveResize && frozen == WallFreeze.Scale && _liveStride > 0)
+        {
+            PrepareGlide(_liveStride * RowsLayout.Scale);
+            reader ??= CaptureReader(_liveStride);
+        }
 
         if (frozen is WallFreeze.Size or WallFreeze.All)
         {
@@ -517,7 +758,16 @@ public sealed partial class AlbumWallView
         if (columns != _columns || _rows.Count == 0)
         {
             _columns = columns;
-            Regroup();
+            _readerHold = null;
+            _readerHeld = reader is { } place && HoldReader(place);
+            try
+            {
+                Regroup();
+            }
+            finally
+            {
+                _readerHeld = false;
+            }
         }
         else
         {
@@ -641,8 +891,11 @@ public sealed partial class AlbumWallView
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var chunks = AlbumGridLayout.Chunk(_cards, _columns);
 
-        // During a live move, no row that already exists is dealt here. See _staleChunks.
-        var defer = _liveResize && SpreadDeal && _band.Current is null;
+        // During a live move, no row that already exists is dealt here, except the rows in view when the
+        // cards are going to slide to their new places. See _staleChunks and AlbumWallView.Glide.cs.
+        var defer = (_liveResize || _glideLanding) && SpreadDeal;
+        var gliding = (_liveResize || _glideLanding) && _glideFrom is not null;
+        var view = gliding ? ViewNow() : default;
         _staleChunks = defer ? chunks : null;
         _staleRows = defer ? new bool[chunks.Count] : null;
         var deferred = 0;
@@ -657,7 +910,7 @@ public sealed partial class AlbumWallView
         {
             if (i < _rows.Count)
             {
-                if (_staleRows is not null)
+                if (_staleRows is not null && !(gliding && InView(i, view)))
                 {
                     _staleRows[i] = true;
                     deferred++;
@@ -684,6 +937,11 @@ public sealed partial class AlbumWallView
         if (_liveResize)
             _liveDeals.Add(_columns, chunks.Count - deferred, deferred,
                 System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+
+        if (gliding)
+            StartGlidesAfterLayout();
+        else
+            _glideFrom = null;
 
         // Nothing actually moved. This happens when a feed returns the same albums in the same order.
         // Re-seating would rebind the open drawer's element for no reason. That is a visible blink on a
@@ -754,8 +1012,9 @@ public sealed partial class AlbumWallView
     /// before that.</item>
     /// </list>
     ///
-    /// <para>It is used only while no drawer is open. The drawer finds its row by searching the rows for
-    /// its card, and a row that still holds its old cards would give the wrong answer.</para>
+    /// <para>A row that still holds its old cards would give the wrong answer to a search of the rows for a
+    /// card. So anything that searches calls <see cref="DealStaleRows"/> first. The open drawer does not
+    /// search: it works its row out from its record's place in the wall (see <c>BandConductor.Reseat</c>).</para>
     /// </remarks>
     private List<IReadOnlyList<AlbumCard>>? _staleChunks;
 
@@ -907,7 +1166,9 @@ public sealed partial class AlbumWallView
     /// <summary>The part of the wall the scroller shows, in the scroller's own space.</summary>
     private (double Top, double Bottom) ViewNow()
     {
-        var top = Scroller.VerticalOffset;
+        // An offset that HoldReader asked for is the one the next frame is drawn at, even before the scroller
+        // reports it.
+        var top = _heldOffset ?? Scroller.VerticalOffset;
         return (top, top + Scroller.ViewportHeight);
     }
 
@@ -935,6 +1196,12 @@ public sealed partial class AlbumWallView
         /// <summary>True between the start of a move and its report.</summary>
         public bool Counting;
 
+        /// <summary>Cards that slid to a new place, and cards that faded in. See AlbumWallView.Glide.cs.</summary>
+        public int Slid, Faded;
+
+        /// <summary>The open drawer slid to its record's new row or column.</summary>
+        public bool Drawer;
+
         public void Add(int columns, int dealt, int deferred, double ms)
         {
             _line.Append(_count++ == 0 ? "" : ", ")
@@ -944,7 +1211,7 @@ public sealed partial class AlbumWallView
         public void Say(double landingMs)
         {
             // A wall that is not on screen is still told about every move, and it has nothing to say.
-            if (_count == 0 && SpreadRows == 0 && LandedOnScreen == 0)
+            if (_count == 0 && SpreadRows == 0 && LandedOnScreen == 0 && Slid == 0 && Faded == 0 && !Drawer)
             {
                 Counting = false;
                 return;
@@ -952,11 +1219,14 @@ public sealed partial class AlbumWallView
             RPM.Core.Diagnostics.Scope.Said("panes",
                 $"wall re-dealt {_count}x during the move ({(_count == 0 ? "none" : _line.ToString())}), "
                 + $"{SpreadRows} rows on screen dealt a pass at a time, {LandedOnScreen} still waiting at the "
-                + $"landing, landing {landingMs:F1}ms");
+                + $"landing, {Slid} cards slid{(Drawer ? " and the drawer" : "")}, {Faded} faded in, landing {landingMs:F1}ms");
             _line.Clear();
             _count = 0;
             SpreadRows = 0;
             LandedOnScreen = 0;
+            Slid = 0;
+            Faded = 0;
+            Drawer = false;
             Counting = false;
         }
     }
