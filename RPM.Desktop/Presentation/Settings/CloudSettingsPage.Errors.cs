@@ -118,23 +118,15 @@ public sealed partial class CloudSettingsPage
     /// ffmpeg output. Four such lines under every entry for a month would make a page that nobody
     /// reads. Here the full text is the main point, so there is room for it.</para>
     /// </summary>
-    private void LoadErrors()
+    private void ShowErrors(IReadOnlyList<CloudActivityEntry> lines, long nowUtcTicks)
     {
-        if (!_library.IsOpen)
-        {
-            ErrorList.ItemsSource = null;
-            ErrorEmptyText.Visibility = Visibility.Visible;
-            return;
-        }
-
         // Only the failures that nothing has fixed since. A track that failed and then uploaded is no
         // longer an error. A track that failed five times counts as one error.
-        var now = DateTime.UtcNow.Ticks;
-        var rows = CloudActivityFailures.Outstanding(_library.Db.QueryCloudActivity())
-            .Select(e => new CloudErrorRow(e, now))
+        var rows = CloudActivityFailures.Outstanding(lines)
+            .Select(e => new CloudErrorRow(e, nowUtcTicks))
             .ToList();
 
-        // Rows already sent stay sent across a reload. The log is re-read each time a track finishes,
+        // Rows already sent stay sent across a reload. The log is read again each time a track finishes,
         // and a button that reset itself under the pointer would be reported twice.
         foreach (var row in rows.Where(r => _reported.Contains(r.Entry.Id)))
             row.IsSent = true;

@@ -132,6 +132,107 @@ public class CloudActivityTests : IDisposable
         Assert.Empty(_db.QueryCloudActivity());
     }
 
+    // ── reading it again only when it changed ──
+
+    [Fact]
+    public void A_follower_reads_the_log_the_first_time()
+    {
+        Add("Airbag", Now);
+
+        var lines = new CloudActivityFollower().ReadIfChanged(_db);
+
+        Assert.Equal(["Airbag"], lines!.Select(e => e.Title));
+    }
+
+    [Fact]
+    public void A_follower_reads_nothing_when_no_line_was_added_or_removed()
+    {
+        Add("Airbag", Now);
+        var follower = new CloudActivityFollower();
+        follower.ReadIfChanged(_db);
+
+        Assert.Null(follower.ReadIfChanged(_db));
+    }
+
+    [Fact]
+    public void A_follower_reads_again_after_a_line_is_written()
+    {
+        Add("Airbag", Now);
+        var follower = new CloudActivityFollower();
+        follower.ReadIfChanged(_db);
+
+        Add("Paranoid Android", Now + 1);
+
+        Assert.Equal(["Paranoid Android", "Airbag"], follower.ReadIfChanged(_db)!.Select(e => e.Title));
+    }
+
+    /// <summary>At the row cap a write also removes the oldest line, so the count stays the same. The
+    /// newest id still moves.</summary>
+    [Fact]
+    public void A_follower_reads_again_when_a_write_at_the_cap_keeps_the_count()
+    {
+        for (var i = 0; i < CloudActivityRetention.MaxRows; i++)
+            Add($"Track {i}", Now + i);
+        var follower = new CloudActivityFollower();
+        follower.ReadIfChanged(_db);
+
+        Add("Newest", Now + CloudActivityRetention.MaxRows);
+
+        var lines = follower.ReadIfChanged(_db);
+        Assert.NotNull(lines);
+        Assert.Equal(CloudActivityRetention.MaxRows, lines.Count);
+        Assert.Equal("Newest", lines[0].Title);
+    }
+
+    /// <summary>Ids are not used again after a clear, so the same number of new lines is still a
+    /// change.</summary>
+    [Fact]
+    public void A_follower_reads_again_after_a_clear_and_the_same_number_of_new_lines()
+    {
+        Add("Airbag", Now);
+        var follower = new CloudActivityFollower();
+        follower.ReadIfChanged(_db);
+
+        _db.ClearCloudActivity();
+        Assert.Empty(follower.ReadIfChanged(_db)!);
+
+        Add("Lucky", Now + 1);
+        Assert.Equal(["Lucky"], follower.ReadIfChanged(_db)!.Select(e => e.Title));
+    }
+
+    [Fact]
+    public void A_follower_reads_another_library_even_when_its_stamp_is_the_same()
+    {
+        var otherRoot = Path.Combine(Path.GetTempPath(), $"cloudlog-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(otherRoot);
+        try
+        {
+            using var other = new LibraryDatabase(MirrorLocation.InFolder(otherRoot));
+            Add("Airbag", Now);
+            other.AddCloudActivity(CloudOp.Upload, "Karma Police", null, CloudOutcome.Done, null, null, 1, Now);
+            var follower = new CloudActivityFollower();
+            follower.ReadIfChanged(_db);
+
+            Assert.Equal(["Karma Police"], follower.ReadIfChanged(other)!.Select(e => e.Title));
+        }
+        finally
+        {
+            try { Directory.Delete(otherRoot, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void A_follower_that_forgot_reads_again()
+    {
+        Add("Airbag", Now);
+        var follower = new CloudActivityFollower();
+        follower.ReadIfChanged(_db);
+
+        follower.Forget();
+
+        Assert.NotNull(follower.ReadIfChanged(_db));
+    }
+
     // ── what it throws away ──
 
     [Fact]
