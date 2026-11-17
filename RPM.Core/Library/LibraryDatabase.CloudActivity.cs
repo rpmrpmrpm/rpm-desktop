@@ -72,6 +72,20 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>How many lines the log holds and the id of its newest line. Read through
+    /// <see cref="CloudActivityFollower"/>, which decides from it whether the log must be read again.</summary>
+    internal CloudActivityStamp StampCloudActivity()
+    {
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM cloud_activity";
+            using var reader = cmd.ExecuteReader();
+            reader.Read();
+            return new CloudActivityStamp(reader.GetInt64(0), reader.GetInt64(1));
+        }
+    }
+
     /// <summary>Empties the log. This is the user's own "forget all this".</summary>
     public void ClearCloudActivity()
     {

@@ -140,23 +140,39 @@ public static class AlbumGridLayout
     }
 
     /// <summary>
-    /// Whether opening a record should move the wall first. The row glides to the top of the viewport and
-    /// the drawer unfolds there, rather than unfolding where the record stands.
+    /// Where the wall scrolls to while a drawer opens under a row, so the reader sees it opening.
     ///
-    /// <para>The band opens UNDER its row. A record in the bottom half of the screen has almost no room left
-    /// to open into, so the drawer would come out mostly below the fold. A record in the top half has the rest
-    /// of the screen under it already. Moving the wall for it would be a jump the reader did not ask for. The
-    /// middle of the record is compared with the middle of the viewport. That is the whole rule.</para>
+    /// <para>The wall moves only when it has to, and only down. Where the open drawer already fits on
+    /// screen, the offset stays where it is. Where it does not, the wall moves down until the drawer's foot
+    /// is on screen, and no further than the card's own top: a drawer taller than the screen opens from the
+    /// card downwards, and the card is never pushed off the top to show more of it. A card already cut off
+    /// at the top is left as it is.</para>
     ///
-    /// <para><paramref name="rowTop"/> is the row's top edge relative to the top of the VIEWPORT (negative
-    /// when it is scrolled partly off the top). <paramref name="rowHeight"/> is the height of its cards alone.
-    /// A row measured with a drawer already hanging under it has a middle far below the one the reader sees.</para>
+    /// <para>The caller runs the scroll and the unfold on one clock, so the drawer's foot moves down the
+    /// screen to where it ends and does not leave it on the way.</para>
     /// </summary>
-    public static bool LiftsBeforeOpening(double rowTop, double rowHeight, double viewportHeight)
+    /// <param name="offset">The scroller's offset now.</param>
+    /// <param name="rowTop">The row's top edge relative to the top of the VIEWPORT.</param>
+    /// <param name="rowHeight">The height of the row's cards alone, with nothing open under them.</param>
+    /// <param name="drawer">How much the open drawer adds under the row.</param>
+    /// <param name="viewport">The viewport's height.</param>
+    /// <param name="end">The largest offset the wall allows once the drawer is open: its extent then,
+    /// less the viewport.</param>
+    /// <param name="air">The room kept between the drawer's foot and the bottom of the viewport, and
+    /// between the card's top and the top of the viewport.</param>
+    public static double OffsetForOpening(
+        double offset, double rowTop, double rowHeight, double drawer, double viewport, double end, double air)
     {
-        if (viewportHeight <= 1 || rowHeight <= 0 || double.IsNaN(rowTop))
-            return false;
-        return rowTop + rowHeight / 2 > viewportHeight / 2;
+        if (viewport <= 1 || rowHeight <= 0 || drawer <= 0 || double.IsNaN(rowTop) || double.IsNaN(offset))
+            return offset;
+
+        var foot = offset + rowTop + rowHeight + drawer + air;
+        if (foot <= offset + viewport)
+            return offset;
+
+        var cardTop = offset + rowTop - air;
+        var to = Math.Min(foot - viewport, Math.Max(offset, cardTop));
+        return Math.Max(0, Math.Min(to, Math.Max(offset, end)));
     }
 
     /// <summary>

@@ -107,7 +107,7 @@ public sealed partial class AlbumWallView
         }
         _glideFrom = from;
 
-        if (_band.Current is { } band && RowsLayout.BandRow is var bandRow and >= 0)
+        if (AttachedBand() is { } band && RowsLayout.BandRow is var bandRow)
         {
             var left = BandRemaining(band, now);
             _bandFrom = new BandPlace(band,
@@ -268,16 +268,16 @@ public sealed partial class AlbumWallView
     /// record's new column. Returns whether anything was given a slide.
     /// </summary>
     /// <remarks>
-    /// The drawer's slot in the row (the second child of the row's panel, see <c>RowTemplate</c>) carries the
-    /// drawer up or down. The pointer is inside the slot, so it moves up or down with it, and slides across by
+    /// The drawer's slot in the row (<c>BandSlotHost</c>, see <c>RowTemplate</c>) carries the drawer up or
+    /// down. The pointer is inside the slot, so it moves up or down with it, and slides across by
     /// itself. Both are in the row's own units, which the row draws at the scale.
     /// </remarks>
     private bool SlideBand((double Top, double Bottom) view, double drawnStride, double scale, long now)
     {
         StopBandGlide();
-        if (_bandFrom is not { } was || !ReferenceEquals(_band.Current, was.Band) || RowsLayout.BandRow is not (var bandRow and >= 0)
-            || RowsRepeater.TryGetElement(bandRow) is not Panel { Children.Count: > 1 } row
-            || row.Children[1] is not FrameworkElement slot)
+        if (_bandFrom is not { } was || !ReferenceEquals(AttachedBand(), was.Band) || RowsLayout.BandRow is not (var bandRow and >= 0)
+            || RowsRepeater.TryGetElement(bandRow) is not FrameworkElement row
+            || row.FindName("BandSlotHost") is not FrameworkElement slot)
             return false;
 
         var offset = new Vector2(
@@ -291,8 +291,7 @@ public sealed partial class AlbumWallView
             slid = true;
         }
         if (Math.Abs(offset.X) >= 0.5f
-            && FindByDataContext(slot, was.Band) is Panel { Children.Count: > 0 } root
-            && root.Children[0] is FrameworkElement pointer)
+            && LiveBandRoot(was.Band)?.FindName("BandPoint") is FrameworkElement pointer)
         {
             Slide(pointer, new Vector2(offset.X / (float)scale, 0), 1);
             _bandPointer = pointer;

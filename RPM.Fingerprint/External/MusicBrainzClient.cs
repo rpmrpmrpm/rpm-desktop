@@ -54,9 +54,37 @@ public sealed class MusicBrainzClient
 
     private Task<string?> GetAsync(string url, CancellationToken ct) => FetchAsync(url, _userAgent, ct);
 
+    /// <summary>How one attempt ended, as far as trying again is concerned.</summary>
+    internal enum AttemptEnd
+    {
+        /// <summary>HTTP 503. MusicBrainz declines requests over its limits this way, including its
+        /// global limit, which declines a share of every client's requests when the service is busy.</summary>
+        Busy,
+
+        /// <summary>The connection failed before an answer, for example closed during the TLS
+        /// handshake. MusicBrainz's servers do this under the same load as a 503.</summary>
+        Dropped,
+
+        /// <summary>No answer within <see cref="AttemptTimeout"/>. Not tried again: the wait held the
+        /// spacing for the whole timeout, and a second one would pass the Lambda's own limit.</summary>
+        TimedOut,
+    }
+
+    /// <summary>How many times one GET is sent at most.</summary>
+    internal const int MaxAttempts = 4;
+
+    /// <summary>The wait before the next attempt (1, 2, then 4 seconds), or null when the attempt is
+    /// final. Each new attempt also takes a new turn from the spacing, so this never sends faster than
+    /// <see cref="Interval"/>.</summary>
+    internal static TimeSpan? RetryAfter(AttemptEnd end, int attempt) =>
+        end is AttemptEnd.Busy or AttemptEnd.Dropped && attempt < MaxAttempts - 1
+            ? TimeSpan.FromSeconds(1 << attempt)
+            : null;
+
     /// <summary>
-    /// Sends one GET when this process's turn comes. A 503 (the rate limiter's answer) is retried with
-    /// a growing backoff. Returns the body, or null on 404, which means MusicBrainz has no such item.
+    /// Sends one GET when this process's turn comes. A 503 and a failed connection are retried with a
+    /// growing backoff (<see cref="RetryAfter"/>). Returns the body, or null on 404, which means
+    /// MusicBrainz has no such item.
     ///
     /// <para>Every other failure throws <see cref="MusicBrainzUnreachableException"/>: another
     /// status, a timeout, a failed connection. It is one type, so a caller cannot catch the status
@@ -77,7 +105,6 @@ public sealed class MusicBrainzClient
         var spacing = _spacing ?? throw new InvalidOperationException(
             "MusicBrainz spacing was never configured. Call MusicBrainzClient.Configure at startup.");
 
-        const int maxAttempts = 4;
         var path = new Uri(url).AbsolutePath;
 
         for (var attempt = 0; ; attempt++)
@@ -107,6 +134,14 @@ public sealed class MusicBrainzClient
             catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException)
             {
                 Report(path, 0, queued, sent);
+
+                var end = ex is OperationCanceledException ? AttemptEnd.TimedOut : AttemptEnd.Dropped;
+                if (RetryAfter(end, attempt) is { } pause)
+                {
+                    await Task.Delay(pause, ct);
+                    continue;
+                }
+
                 throw new MusicBrainzUnreachableException(
                     ex is OperationCanceledException
                         ? $"MusicBrainz did not answer {path} within {AttemptTimeout.TotalSeconds:0}s"
@@ -119,11 +154,12 @@ public sealed class MusicBrainzClient
             if (status == System.Net.HttpStatusCode.NotFound)
                 return null;
 
-            if (status == System.Net.HttpStatusCode.ServiceUnavailable && attempt < maxAttempts - 1)
+            if (status == System.Net.HttpStatusCode.ServiceUnavailable &&
+                RetryAfter(AttemptEnd.Busy, attempt) is { } wait)
             {
                 // Wait before taking the next turn, so a throttled caller does not hold a place in the
                 // queue while it waits.
-                await Task.Delay(TimeSpan.FromSeconds(1 << attempt), ct);
+                await Task.Delay(wait, ct);
                 continue;
             }
 

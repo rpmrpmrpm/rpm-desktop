@@ -49,7 +49,8 @@ public sealed partial class MigrationDialog : ContentDialog
         _dispatcher = DispatcherQueue.GetForCurrentThread();
 
         InitializeComponent();
-        Shell.AttachResize(this, minWidth: 560, minHeight: 440, maxWidth: 860, defaultHeight: 540);
+        // The default height shows the three rows of app tiles without scrolling.
+        Shell.AttachResize(this, minWidth: 560, minHeight: 440, maxWidth: 860, defaultHeight: 620);
 
         _service.Changed += OnServiceChanged;
         Closed += (_, _) =>
@@ -159,6 +160,9 @@ public sealed partial class MigrationDialog : ContentDialog
         FilePanel.Visibility = Vis(kind is SourceKind.MusicBee or SourceKind.ITunes or SourceKind.PlaylistFiles);
         ServerPanel.Visibility = Vis(kind is SourceKind.Jellyfin or SourceKind.Navidrome);
         PlexPanel.Visibility = Vis(kind == SourceKind.Plex);
+        IBroadcastPanel.Visibility = Vis(kind == SourceKind.IBroadcast);
+        _ibroadcastCode = null;
+        IBroadcastSignInButton.Content = Loc.Get("Migration_IBroadcastSignIn");
         QuickConnectButton.Visibility = Vis(kind == SourceKind.Jellyfin);
         PlexServerLabel.Visibility = PlexServerBox.Visibility = Visibility.Collapsed;
         ConnectNote.Visibility = ConnectError.Visibility = Visibility.Collapsed;
@@ -348,6 +352,65 @@ public sealed partial class MigrationDialog : ContentDialog
         catch (Exception ex) { Error(ex); }
     }
 
+    private IBroadcastCode? _ibroadcastCode;
+
+    /// <summary>Signs in to iBroadcast with a device code: opens iBroadcast's page with the code filled in,
+    /// shows the code, and asks at the server's interval whether it was approved. A code that runs out is
+    /// replaced by a new one without opening the browser again; while a code waits, the button opens its
+    /// page again.</summary>
+    private async void IBroadcastSignIn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_ibroadcastCode is { } waiting && waiting.ExpiresAt > DateTimeOffset.UtcNow)
+        {
+            await Windows.System.Launcher.LaunchUriAsync(waiting.Page);
+            return;
+        }
+
+        Cancel();
+        var ct = _work!.Token;
+        try
+        {
+            using var http = MigrationService.IBroadcastHttp();
+            var code = await IBroadcastSignIn.StartAsync(http, ct);
+            ShowIBroadcastCode(code);
+            await Windows.System.Launcher.LaunchUriAsync(code.Page);
+            while (true)
+            {
+                await Task.Delay(code.Interval, ct);
+                switch (await IBroadcastSignIn.PollAsync(http, code, ct))
+                {
+                    case IBroadcastPoll.Pending pending:
+                        code = pending.Code;
+                        break;
+                    case IBroadcastPoll.Expired:
+                        code = await IBroadcastSignIn.StartAsync(http, ct);
+                        ShowIBroadcastCode(code);
+                        break;
+                    case IBroadcastPoll.Approved approved:
+                        _ibroadcastCode = null;
+                        IBroadcastSignInButton.Content = Loc.Get("Migration_IBroadcastSignIn");
+                        ConnectNote.Visibility = Visibility.Collapsed;
+                        await ReadAsync(await _service.IBroadcastConnectionAsync(approved.Grant, ct));
+                        return;
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _ibroadcastCode = null;
+            IBroadcastSignInButton.Content = Loc.Get("Migration_IBroadcastSignIn");
+            Error(ex);
+        }
+    }
+
+    private void ShowIBroadcastCode(IBroadcastCode code)
+    {
+        _ibroadcastCode = code;
+        Note(Loc.Format("Migration_IBroadcastWaiting", code.UserCode));
+        IBroadcastSignInButton.Content = Loc.Get("Migration_IBroadcastOpenAgain");
+    }
+
     private async Task ConnectPlexAsync(PlexServerChoice server, CancellationToken ct)
     {
         using var http = MigrationService.PlexTv();
@@ -475,16 +538,18 @@ public sealed partial class MigrationDialog : ContentDialog
         SummaryPlaylists.Visibility = Vis(library.Playlists.Count > 0);
         SummaryAlready.Text = Loc.Format("Migration_SummaryAlready", Count(estimate.AboutAlreadyInRpm));
         SummaryAlready.Visibility = Vis(estimate.AboutAlreadyInRpm > 0);
-        SummarySkipped.Text = Loc.Format("Migration_SummarySkipped", Count(library.Skipped.Count));
+        SummarySkipped.Text = Loc.Format(library.Kind == SourceKind.IBroadcast ? "Migration_SummarySkippedIBroadcast" : "Migration_SummarySkipped",
+            Count(library.Skipped.Count));
         SummarySkipped.Visibility = Vis(library.Skipped.Count > 0);
         // Each library counts its plays on its own, so plays two libraries share are counted twice.
         var others = _service.OtherImportsFor(library);
         SummaryOthers.Text = Loc.Format("Migration_SummaryOtherImports", string.Join(", ", others));
         SummaryOthers.Visibility = Vis(others.Count > 0);
         SummaryKeeps.Text = Keeps(library);
+        SummaryIBroadcastFree.Visibility = Vis(_connection?.IBroadcast is { Premium: false });
+        SummaryIBroadcastNotCarried.Visibility = Vis(library.Kind == SourceKind.IBroadcast);
 
-        var server = library.Kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome;
-        WherePanel.Visibility = Vis(server);
+        WherePanel.Visibility = Vis(IsServer(library.Kind));
         ToCloud.IsEnabled = _service.CloudReady;
         ToCloudHint.Text = Loc.Get(_service.CloudReady ? "Migration_ToCloudHint" : "Migration_CloudSignInNeeded");
 
@@ -736,7 +801,7 @@ public sealed partial class MigrationDialog : ContentDialog
         Cancel();
         try
         {
-            var fresh = connection.Kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome
+            var fresh = IsServer(connection.Kind)
                 ? await _service.ReadAsync(connection, new Progress<int>(), _work!.Token)
                 : library;
             _service.Start(fresh, connection, _service.LastDestination, _service.CurrentLabel, ImportStart.Continue);
@@ -796,8 +861,13 @@ public sealed partial class MigrationDialog : ContentDialog
         SourceKind.Jellyfin => "Migration_SourceJellyfin",
         SourceKind.Plex => "Migration_SourcePlex",
         SourceKind.Navidrome => "Migration_SourceNavidrome",
+        SourceKind.IBroadcast => "Migration_SourceIBroadcast",
         _ => "Migration_SourcePlaylistFiles",
     };
+
+    /// <summary>A source whose files are downloaded, so the import can go to the cloud only.</summary>
+    private static bool IsServer(SourceKind kind) =>
+        kind is SourceKind.Jellyfin or SourceKind.Plex or SourceKind.Navidrome or SourceKind.IBroadcast;
 
     /// <summary>The source as the windows name it: the library's own name (a server's name), else the
     /// app's name; playlist files have no name of their own.</summary>
@@ -807,6 +877,7 @@ public sealed partial class MigrationDialog : ContentDialog
     private static string Keeps(SourceLibrary library) => library.Kind switch
     {
         SourceKind.PlaylistFiles => Loc.Get("Migration_KeepsOriginalsPlaylists"),
+        SourceKind.IBroadcast => Loc.Get("Migration_KeepsOriginalsIBroadcast"),
         SourceKind.MusicBee or SourceKind.ITunes => Loc.Format("Migration_KeepsOriginalsFile", Label(library.Kind, library.Name)),
         _ => Loc.Format("Migration_KeepsOriginalsServer", Label(library.Kind, library.Name)),
     };

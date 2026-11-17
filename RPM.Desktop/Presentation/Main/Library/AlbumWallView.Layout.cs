@@ -360,7 +360,7 @@ public sealed partial class AlbumWallView
         // An open drawer is part of the sum: it pushes every row below it down by its height. It is dealt into
         // the row its record lands in, which is worked out here the same way, because the drawer is moved
         // there after this (see BandConductor.Reseat).
-        var bandRow = _band.Current is { } open && _cards.IndexOf(open.Card) is var opened and >= 0
+        var bandRow = AttachedBand() is { } open && _cards.IndexOf(open.Card) is var opened and >= 0
             ? opened / _columns
             : -1;
         var spacing = RowsLayout.Spacing;
@@ -377,6 +377,11 @@ public sealed partial class AlbumWallView
         Scroller.ChangeView(null, to, null, disableAnimation: true);
         return true;
     }
+
+    /// <summary>The drawer hanging under a row now, whether it is open, opening or folding. It is the one the
+    /// wall's length counts (see <see cref="AlbumWallLayout.BandRow"/>), and the one a re-deal moves.</summary>
+    private AlbumBand? AttachedBand()
+        => RowsLayout.BandRow is var row and >= 0 && row < _rows.Count ? _rows[row].Band : null;
 
     /// <summary>True while a re-deal runs whose offset <see cref="HoldReader"/> has already chosen, with the
     /// drawer in its new row. Moving the drawer then does not scroll again (see

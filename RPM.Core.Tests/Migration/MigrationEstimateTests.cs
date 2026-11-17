@@ -6,7 +6,7 @@ namespace RPM.Core.Tests;
 public class MigrationEstimateTests
 {
     private static SourceTrack Track(string id, string artist, string album, string title, double seconds, long size = 1000, string albumArtist = "") =>
-        new(id, new LocalFile("/m/" + id), title, artist, album, albumArtist, 1, 1, seconds, size, 0, false, 0, null, null);
+        new(id, new LocalFile("/m/" + id), title, artist, album, albumArtist, 1, 1, 0, "", seconds, size, 0, false, 0, null, null);
 
     private static SourceLibrary Library(params SourceTrack[] tracks) => new(SourceKind.ITunes, "x", "iTunes", tracks, [], []);
 

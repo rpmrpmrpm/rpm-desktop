@@ -1239,6 +1239,26 @@ public sealed partial class SettingsService
         // choice.
         RPM.Core.Library.QueueTags.Required = ImportRequiredTags;
     }
+
+    /// <summary>The saved answer about crash reports and the saved install id, read from the file without
+    /// loading the settings. It writes nothing, so it is safe to call before the app host exists and
+    /// beside the service. Returns null when the file exists and cannot be read, because an answer that
+    /// cannot be read is not "not asked".</summary>
+    internal static (RPM.Core.Crashes.CrashConsent Consent, string? InstallId)? StoredCrashAnswer()
+    {
+        try
+        {
+            if (!File.Exists(StorePath))
+                return (RPM.Core.Crashes.CrashConsent.NotAsked, null);
+            var model = JsonSerializer.Deserialize(File.ReadAllText(StorePath), SettingsServiceJson.Default.Model);
+            return model is null ? null : (model.CrashConsent, model.CrashInstallId);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The settings file. A published build is Native AOT, so it serializes through this generated
     /// code and never by reflection.</summary>
     [JsonSerializable(typeof(Model))]

@@ -1,0 +1,8 @@
+{
+  "device_code": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "user_code": "TESTCODE",
+  "verification_uri": "ibroadcast.com/device",
+  "verification_uri_complete": "https://oauth.ibroadcast.com/device?user_code=testcode",
+  "interval": 1,
+  "expires_in": 179
+}

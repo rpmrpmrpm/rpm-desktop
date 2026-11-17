@@ -46,8 +46,15 @@ public sealed record SleeveGround(Color Mean, Color Edge, Color Ground, byte[]? 
             return null;
 
         return new SleeveGround(read.Whole, read.Band, CoverColor.Ground(read.Whole), wash,
-                                CoverColor.Veil(read.Whole));
+                                CoverColor.Veil(read.Whole))
+        {
+            Grid = wash is null ? null : WashGrid.Read(wash),
+        };
     }
+
+    /// <summary>The blurred sleeve as a small grid of colours, so the colour at one point of it can be
+    /// read. Null where there is no wash, or where the wash would not decode. See <see cref="FlatAt"/>.</summary>
+    public WashGrid? Grid { get; init; }
 
     /// <summary>The band of the sleeve that a surface's top edge actually shows, read from the top
     /// down. It is not the whole picture, and it is not the top row. The difference matters. A triangle
@@ -74,15 +81,59 @@ public sealed record SleeveGround(Color Mean, Color Edge, Color Ground, byte[]? 
     /// sleeve that is really on screen. On most sleeves those two colours are clearly different, so the
     /// triangle looks like a separate shape on the drawer.</para>
     /// </summary>
-    public Color Flat
-    {
-        get
-        {
-            var lit = Wash is null ? 0 : WashStrength;
-            return Color.FromArgb(0xFF, Mix(Ground.R, Edge.R), Mix(Ground.G, Edge.G), Mix(Ground.B, Edge.B));
+    public Color Flat => Compose(Edge);
 
-            byte Mix(byte ground, byte edge) =>
-                (byte)Math.Clamp(Math.Round((ground * (1 - lit)) + (edge * (1 - Veil) * lit)), 0, 255);
+    /// <summary>
+    /// The colour a box wearing this ground shows at one point: the ground, the wash at that point under
+    /// its veil, at <see cref="WashStrength"/>. The box is <paramref name="width"/> by
+    /// <paramref name="height"/>, and the wash is drawn over it with UniformToFill, centred, as the
+    /// drawer and the album page draw it.
+    ///
+    /// <para>This is what the pointer triangle wears. <see cref="Flat"/> is one colour for the whole top
+    /// edge, averaged across the full width of the sleeve. The triangle meets the edge at one place, and
+    /// a sleeve is seldom the same colour from side to side: a dark border and a bright logo in the middle
+    /// average to a colour that is darker than the middle and lighter than the border. A triangle painted
+    /// in that average shows a hard line where it meets the drawer. Read at the place where the triangle
+    /// stands, the two are the same colour, because the wash is blurred far wider than the
+    /// triangle.</para>
+    ///
+    /// <para><see cref="Flat"/> is the answer where the colour cannot be read at a point: no wash, no grid,
+    /// or a box that has not been laid out yet.</para>
+    /// </summary>
+    public Color FlatAt(double x, double y, double width, double height)
+    {
+        if (Wash is null || Grid is not { } grid || width <= 0 || height <= 0)
+            return Flat;
+        var (u, v) = grid.Place(x, y, width, height);
+        return Compose(grid.At(u, v));
+    }
+
+    /// <summary>
+    /// The three layers over each other, as the head draws them, with <paramref name="wash"/> as the
+    /// wash's colour at the point being read.
+    ///
+    /// <para>The veil is a child of the wash in every surface that wears a ground, at the wash's own
+    /// opacity. The two heads draw that differently, and the colour given here has to be the colour on
+    /// screen. WinUI draws the wash and its veil together and lays the pair over the ground at
+    /// <see cref="WashStrength"/>, so the veil darkens the wash only. The Skia head draws the wash over the
+    /// ground first and then the veil over both, at the wash's strength times its own, so the veil darkens
+    /// the ground as well. For example, on the Skia head a ground of (104, 86, 98), a wash of
+    /// (205, 200, 194) and a veil of 0.372 draw (126, 117, 119). The first rule gives (116, 106, 110),
+    /// the second (126, 116, 119).</para>
+    /// </summary>
+    private Color Compose(Color wash)
+    {
+        var lit = Wash is null ? 0 : WashStrength;
+        return Color.FromArgb(0xFF, Mix(Ground.R, wash.R), Mix(Ground.G, wash.G), Mix(Ground.B, wash.B));
+
+        byte Mix(byte ground, byte over)
+        {
+#if RPM_WINUI
+            var drawn = (ground * (1 - lit)) + (over * (1 - Veil) * lit);
+#else
+            var drawn = ((ground * (1 - lit)) + (over * lit)) * (1 - (Veil * lit));
+#endif
+            return (byte)Math.Clamp(Math.Round(drawn), 0, 255);
         }
     }
 }

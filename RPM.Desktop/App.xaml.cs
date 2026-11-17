@@ -157,6 +157,14 @@ public partial class App : Application
 
     private static RPM.Core.Crashes.CrashRecorder? _crashes;
 
+    /// <summary>Reports a start-up that does not show the main window, in the Intel Mac builds only (see
+    /// BootWatch). It is made on first use, which is in the entry point, after every static field of
+    /// this class has its value.</summary>
+    internal static RPM.Desktop.Services.Diagnostics.BootWatch Boot =>
+        _boot ??= RPM.Desktop.Services.Diagnostics.BootWatch.ForThisBuild();
+
+    private static RPM.Desktop.Services.Diagnostics.BootWatch? _boot;
+
     /// <summary>
     /// A number that belongs to this launch and stays the same for the whole launch.
     /// </summary>
@@ -174,7 +182,7 @@ public partial class App : Application
 
     /// <summary>When the operating system says this process began, in UTC so a clock change or a
     /// daylight-saving step cannot make the app appear to have started in the future.</summary>
-    private static readonly DateTime ProcessStart =
+    internal static readonly DateTime ProcessStart =
         System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
     /// <summary>Toggles the main window between maximised and its previous size. On Windows and Linux, this

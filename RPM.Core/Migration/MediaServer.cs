@@ -48,6 +48,7 @@ internal static class MediaServerHttp
     public static async Task<JsonElement> JsonAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct)
     {
         using var response = await http.SendAsync(request, ct);
+        ThrowIfOffline(response);
         if (response.StatusCode == HttpStatusCode.Unauthorized)
             throw new MediaServerSignInExpired();
         if (!response.IsSuccessStatusCode)
@@ -59,11 +60,17 @@ internal static class MediaServerHttp
 
     /// <summary>Sends the request and hands back the body as a stream, which the caller disposes. The
     /// response is read as it arrives, never buffered whole: a file can be several hundred megabytes.</summary>
-    public static async Task<Stream> StreamAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct)
+    public static async Task<Stream> StreamAsync(HttpClient http, HttpRequestMessage request, CancellationToken ct) =>
+        await BodyAsync(await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct), ct);
+
+    /// <summary>The body of a response read with <see cref="HttpCompletionOption.ResponseHeadersRead"/>, as a
+    /// stream that disposes the response with it. 401 is <see cref="MediaServerSignInExpired"/>, any other
+    /// failure an <see cref="HttpRequestException"/> with the status; the response is disposed then.</summary>
+    public static async Task<Stream> BodyAsync(HttpResponseMessage response, CancellationToken ct)
     {
-        var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         try
         {
+            ThrowIfOffline(response);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new MediaServerSignInExpired();
             if (!response.IsSuccessStatusCode)
@@ -75,6 +82,17 @@ internal static class MediaServerHttp
             response.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// The online gate answers 503 itself when the network is away, and no request is sent. That is no
+    /// answer, not a server's refusal: it is thrown as an <see cref="HttpRequestException"/> with no status,
+    /// so the run waits and tries the same track again instead of counting a failed attempt against it.
+    /// </summary>
+    public static void ThrowIfOffline(HttpResponseMessage response)
+    {
+        if (RPM.Core.Net.OnlineGateHandler.WasRefused(response))
+            throw new HttpRequestException("The network is away.", null, statusCode: null);
     }
 
     public static string Str(JsonElement e, string name) =>

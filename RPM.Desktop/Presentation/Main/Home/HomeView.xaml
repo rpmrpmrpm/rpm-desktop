@@ -409,10 +409,9 @@
              There is one per row, and at most one open on the screen: pressing a record in another row
              folds this one (see HomeView.Records). -->
         <Grid x:Name="DrawerRoot" Visibility="Collapsed">
-          <!-- The triangle over the card the drawer belongs to, in the drawer's own colour and fading to
-               transparent at its point, so it rises out of the row and does not look like a hard little
-               arrow. Its base runs 2px PAST the drawer's top edge (the control below has a 10px top margin
-               and draws over it), so the join has no sub-pixel gap. See BandPointer.Ramp.
+          <!-- The triangle over the card the drawer belongs to, solid, in the colour the drawer shows where
+               the two meet. Its base runs 2px PAST the drawer's top edge (the control below has a 10px top
+               margin and draws over it), so the join has no sub-pixel gap. See BandPointer.Fill.
 
                Its left margin is NOT the card's index times a step, as the wall's is: this row scrolls
                sideways under a drawer that does not, so the position is the index read against the row's

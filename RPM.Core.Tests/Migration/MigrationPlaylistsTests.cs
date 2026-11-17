@@ -26,7 +26,7 @@ public class MigrationPlaylistsTests : IDisposable
     }
 
     private static SourceTrack Track(string id, string title, string path = "", string artist = "Band") =>
-        new(id, new LocalFile(path.Length > 0 ? path : "/m/" + id), title, artist, "Record", artist, 1, 1, 1, 100, 0, false, 0, null, null);
+        new(id, new LocalFile(path.Length > 0 ? path : "/m/" + id), title, artist, "Record", artist, 1, 1, 0, "", 1, 100, 0, false, 0, null, null);
 
     private static SourcePlaylist List(string id, string name, string[] tracks, string[]? folder = null, bool smart = false, string[]? unresolved = null) =>
         new(id, name, folder ?? [], smart, tracks, unresolved ?? []);

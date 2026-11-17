@@ -35,6 +35,41 @@ public class HeaderArtistPhotoTests
         }
     }
 
+    // ── a lookup or a download that failed ──
+
+    /// <summary>The previous artist's photograph must not stay up while another artist plays.</summary>
+    [Fact]
+    public void A_photograph_of_another_artist_does_not_stay_after_a_failed_lookup()
+    {
+        Assert.False(ArtworkManager.PhotoBelongsTo("Eros Ramazzotti", "The Commodores"));
+        Assert.False(ArtworkManager.PhotoBelongsTo(null, "The Commodores"));
+    }
+
+    [Fact]
+    public void A_photograph_of_the_same_artist_stays_after_a_failed_lookup()
+    {
+        Assert.True(ArtworkManager.PhotoBelongsTo("The Commodores", "The Commodores"));
+        Assert.True(ArtworkManager.PhotoBelongsTo("the commodores", "The Commodores"));
+    }
+
+    /// <summary>A credit is shown with its lead name's photograph, so that photograph may stay.</summary>
+    [Fact]
+    public void The_lead_names_photograph_stays_for_a_credit_that_starts_with_it()
+    {
+        Assert.True(ArtworkManager.PhotoBelongsTo(
+            "Aretha Franklin", "Aretha Franklin, The Royal Philharmonic Orchestra"));
+    }
+
+    /// <summary>Asked again only after the service's own hold on the failure, and not forever.</summary>
+    [Fact]
+    public void A_failed_lookup_is_asked_again_after_the_hold_a_few_times()
+    {
+        for (var i = 0; i < ArtworkManager.MaxReasks; i++)
+            Assert.True(ArtworkManager.ReaskAfter(i) > RPM.Desktop.Services.Art.ArtworkService.HoldBriefly);
+
+        Assert.Null(ArtworkManager.ReaskAfter(ArtworkManager.MaxReasks));
+    }
+
     /// <summary>One track through a manager that answers the switch the given way.</summary>
     private static async Task<(RecordingArtStage Stage, string File)> RunOneTrackAsync(bool headerArtistPhoto)
     {

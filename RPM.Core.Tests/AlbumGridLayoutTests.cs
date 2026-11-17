@@ -95,23 +95,32 @@ public class AlbumGridLayoutTests
         => Assert.False(AlbumGridLayout.AnchorLost(0, -1, 0, everRealized: true));
 
     [Theory]
-    // 800px of viewport, a 220px row: the middle of the row against the middle of the screen.
-    [InlineData(0, 220, 800, false)]      // first row on screen: the drawer has the whole wall below it
-    [InlineData(280, 220, 800, false)]    // middle at 390, just above the line
-    [InlineData(400, 220, 800, true)]     // middle at 510, below it, so scroll it up first
-    [InlineData(690, 220, 800, true)]     // the bottom row, with no room at all to open into
-    [InlineData(-100, 220, 800, false)]   // scrolled partly off the top, so it opens where it is
-    public void LiftsBeforeOpening_only_the_bottom_half_moves_the_wall(
-        double rowTop, double rowHeight, double viewport, bool expected)
-        => Assert.Equal(expected, AlbumGridLayout.LiftsBeforeOpening(rowTop, rowHeight, viewport));
+    // offset 1000, an 800 viewport, a 220 row, 16 of air, and a wall long enough not to stop anything.
+    [InlineData(100, 300, 1000)]        // the foot at 1636, inside the screen's 1800: stays
+    [InlineData(400, 300, 1136)]        // the foot at 1936: down by 136, until it shows
+    [InlineData(400, 900, 1384)]        // a drawer taller than the screen: down to the card's top, less the air
+    [InlineData(-100, 900, 1000)]       // a card already cut off at the top is left where it is
+    [InlineData(700, 300, 1436)]        // the bottom row: down by 436, until the whole drawer shows
+    public void OffsetForOpening_moves_down_only_as_far_as_the_drawer_needs(
+        double rowTop, double drawer, double expected)
+        => Assert.Equal(expected, AlbumGridLayout.OffsetForOpening(
+            offset: 1000, rowTop, rowHeight: 220, drawer, viewport: 800, end: 50_000, air: 16));
+
+    [Fact]
+    public void OffsetForOpening_stops_at_the_end_of_the_wall()
+        // The foot would ask for 1436, but the open wall ends at 1200.
+        => Assert.Equal(1200, AlbumGridLayout.OffsetForOpening(
+            offset: 1000, rowTop: 700, rowHeight: 220, drawer: 300, viewport: 800, end: 1200, air: 16));
 
     [Theory]
-    [InlineData(400, 220, 0)]              // no viewport measured yet
-    [InlineData(400, 0, 800)]              // no row measured yet
-    [InlineData(double.NaN, 220, 800)]     // nothing to place it by
-    public void LiftsBeforeOpening_an_unmeasured_wall_is_left_alone(
-        double rowTop, double rowHeight, double viewport)
-        => Assert.False(AlbumGridLayout.LiftsBeforeOpening(rowTop, rowHeight, viewport));
+    [InlineData(400, 220, 300, 0)]              // no viewport measured yet
+    [InlineData(400, 0, 300, 800)]              // no row measured yet
+    [InlineData(400, 220, 0, 800)]              // nothing measured in the drawer
+    [InlineData(double.NaN, 220, 300, 800)]     // nothing to place it by
+    public void OffsetForOpening_an_unmeasured_wall_is_left_alone(
+        double rowTop, double rowHeight, double drawer, double viewport)
+        => Assert.Equal(1000, AlbumGridLayout.OffsetForOpening(
+            offset: 1000, rowTop, rowHeight, drawer, viewport, end: 50_000, air: 16));
 
     [Theory]
     // The drawer's own template margin is 0,2,0,8: 10 pixels, top and bottom together.
@@ -178,11 +187,6 @@ public class AlbumGridLayoutTests
         int index, double stride, double sleeve, double viewport)
         => Assert.Null(AlbumGridLayout.CardMiddleOnScreen(
             index, stride, sleeve, padding: 8, offset: 0, viewport: viewport, clearance: 10));
-
-    [Fact]
-    public void LiftsBeforeOpening_a_row_exactly_on_the_middle_opens_where_it_is()
-        // "Above or on the centre: just expand." Exactly on the line counts as on it.
-        => Assert.False(AlbumGridLayout.LiftsBeforeOpening(rowTop: 290, rowHeight: 220, viewportHeight: 800));
 
     [Fact]
     public void ShelfReplaced_a_search_that_narrows_the_shelf_replaces_it()

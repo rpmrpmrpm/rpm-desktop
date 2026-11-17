@@ -296,8 +296,14 @@
             <TextBlock x:Name="HistoryEmptyText" Text="{loc:Str Key=Cloud_HistoryEmpty}"
                        FontSize="12" Foreground="#88FFFFFF" Visibility="Collapsed" />
 
-            <ItemsControl x:Name="HistoryList">
-              <ItemsControl.ItemTemplate>
+            <!-- An ItemsRepeater and not an ItemsControl: the log holds up to 500 lines, and only the
+                 lines on screen get controls. Every row must keep the same height. StackLayout
+                 estimates the length of the list from the mean height of the rows it has measured. -->
+            <ItemsRepeater x:Name="HistoryList">
+              <ItemsRepeater.Layout>
+                <StackLayout />
+              </ItemsRepeater.Layout>
+              <ItemsRepeater.ItemTemplate>
                 <DataTemplate x:DataType="settings:CloudHistoryRow">
                   <Grid ColumnSpacing="10" Margin="0,3">
                     <Grid.ColumnDefinitions>
@@ -318,8 +324,8 @@
                                Foreground="#77FFFFFF" VerticalAlignment="Center" />
                   </Grid>
                 </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+              </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
           </StackPanel>
         </Border>
       </StackPanel>

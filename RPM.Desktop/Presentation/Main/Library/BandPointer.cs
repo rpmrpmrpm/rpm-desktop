@@ -10,9 +10,9 @@ namespace RPM.Desktop.Presentation.Main.Library;
 ///
 /// <para>The code is here, not on the wall, because two surfaces draw these marks now. The album wall's
 /// cards sit on a fixed stride, and the home screen's rows scroll sideways. So WHERE the triangle goes is
-/// calculated separately on each surface. What the triangle is made of must be the same on both. If a
-/// ramp is built twice, the two ramps drift apart, and the first place they drift is the junction where
-/// the mark meets the drawer.</para>
+/// calculated separately on each surface. What the triangle is made of must be the same on both. If its
+/// fill is made twice, the two drift apart, and the first place they drift is the junction where the mark
+/// meets the drawer.</para>
 /// </summary>
 public static class BandPointer
 {
@@ -21,52 +21,25 @@ public static class BandPointer
     /// the triangle whole.</summary>
     public const double TriangleHalf = 10;
 
-    /// <summary>Where the triangle meets the drawer, as a fraction of its own height: 10 of its 12
-    /// pixels. The other 2 pixels are the overlap, which the drawer covers. See the band
-    /// templates.</summary>
-    private const double Join = 10.0 / 12.0;
-
     /// <summary>
-    /// The fill of the pointer triangle: its colour, faded to nothing at the point.
+    /// The fill of the pointer triangle: the drawer's own colour where the triangle meets it, solid from
+    /// the base to the point.
     ///
-    /// <para>A flat triangle would be a hard shape on the wall: the drawer's colour on a dark row, with
-    /// two sharp diagonals. A ramp makes the same triangle look like the drawer's ground rising to a
-    /// point. It has no edge at the top, and it reaches full colour where the drawer's own top edge takes
-    /// over.</para>
+    /// <para>Solid, with no fade at the point. A triangle that faded to nothing at its tip showed a pale,
+    /// greyish point over the dark row, which read as a second colour in the mark rather than as the drawer
+    /// rising to a point.</para>
     ///
-    /// <para>Only the point is soft. The triangle is twelve pixels tall. A ramp spread over all of them
-    /// would make the triangle disappear, and it must still read as a mark pointing at its record. So it
-    /// is at full colour by half its height. The fade is only on the top few pixels, where there is
-    /// nothing underneath to meet.</para>
+    /// <para>The triangle's base runs two pixels past the drawer's top edge, and the drawer draws over it,
+    /// so the join has no sub-pixel gap. See the band templates.</para>
     ///
-    /// <para>Full colour is reached at <see cref="Join"/>, not at the bottom. The triangle's base runs
-    /// two pixels past the drawer's top edge, and the drawer draws over it. So the junction has no
-    /// sub-pixel gap. If the ramp reached full colour at the bottom of the shape, the visible part would
-    /// meet the drawer a sixth short of its colour, and the seam would show.</para>
-    ///
-    /// <para>Both stops use the same colour and differ only in alpha. A fade to transparent black would
-    /// pull the point toward grey.</para>
-    ///
-    /// <para>The ramp is a fraction of the colour's own alpha, not a fixed value. The drawer opens on the
-    /// card plate, which is a thin white, not an opaque colour. A fixed alpha would make a solid white
-    /// arrow on the wall, where the drawer is barely visible.</para>
+    /// <para>The plate a drawer opens on is a thin white, not an opaque colour, and the triangle takes it
+    /// with its own alpha, so the mark is as faint as the drawer it belongs to.</para>
     /// </summary>
-    public static LinearGradientBrush Ramp(Color colour)
-    {
-        var brush = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(0, 1) };
-        brush.GradientStops.Add(new GradientStop { Color = Fade(colour, 0), Offset = 0 });
-        brush.GradientStops.Add(new GradientStop { Color = Fade(colour, 0xE0 / 255.0), Offset = 0.5 });
-        brush.GradientStops.Add(new GradientStop { Color = colour, Offset = Join });
-        return brush;
+    public static SolidColorBrush Fill(Color colour) => new(colour);
 
-        static Color Fade(Color c, double of) =>
-            Color.FromArgb((byte)Math.Round(c.A * of), c.R, c.G, c.B);
-    }
-
-    /// <summary>The colour a ramp was built from: its full stop, which is the drawer's own colour. Null
-    /// if the brush was not made by <see cref="Ramp"/>, so the caller can use its own fallback.</summary>
-    public static Color? ColourOf(Brush? brush) =>
-        brush is LinearGradientBrush { GradientStops.Count: > 0 } ramp ? ramp.GradientStops[^1].Color : null;
+    /// <summary>The colour a triangle was filled with, which is the drawer's own colour. Null if the brush
+    /// was not made by <see cref="Fill"/>, so the caller can use its own fallback.</summary>
+    public static Color? ColourOf(Brush? brush) => (brush as SolidColorBrush)?.Color;
 
     /// <summary>The plate a drawer opens on: the frosted white that every other box of text in this
     /// window stands on. It is read from the app's resources, so no drawer can differ from them.</summary>
@@ -74,12 +47,32 @@ public static class BandPointer
         (Application.Current.Resources["RpmCardPlateBrush"] as SolidColorBrush)?.Color
         ?? Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF);
 
-    /// <summary>One colour moved toward another by <paramref name="t"/> (0 to 1). Alpha is blended too,
-    /// because one end of the drawer's walk is the card plate, which is mostly transparent. Each channel
-    /// is blended directly, because there is no hue to travel between.</summary>
-    public static Color Blend(Color from, Color to, double t) => Color.FromArgb(
-        (byte)Math.Clamp(Math.Round(from.A + ((to.A - from.A) * t)), 0, 255),
-        (byte)Math.Clamp(Math.Round(from.R + ((to.R - from.R) * t)), 0, 255),
-        (byte)Math.Clamp(Math.Round(from.G + ((to.G - from.G) * t)), 0, 255),
-        (byte)Math.Clamp(Math.Round(from.B + ((to.B - from.B) * t)), 0, 255));
+    /// <summary>
+    /// One colour moved toward another by <paramref name="t"/> (0 to 1), the way the drawer moves: the
+    /// second laid over the first at opacity <paramref name="t"/>.
+    ///
+    /// <para>The drawer crosses into its sleeve's colours by fading the ground in, as a layer, over the
+    /// card plate, which is a thin white and mostly transparent. The triangle and the ring must cross the
+    /// same way, so the two colours are mixed with their alpha applied, not channel by channel. A straight
+    /// mix of the thin white and an opaque colour is half white half way through: the triangle went pale
+    /// while the drawer beside it did not. Between two opaque colours the two mixes are the same.</para>
+    /// </summary>
+    public static Color Blend(Color from, Color to, double t)
+    {
+        var fromAlpha = from.A / 255.0;
+        var toAlpha = to.A / 255.0;
+        var alpha = fromAlpha + ((toAlpha - fromAlpha) * t);
+        if (alpha <= 0)
+            return Color.FromArgb(0, to.R, to.G, to.B);
+
+        return Color.FromArgb(
+            (byte)Math.Clamp(Math.Round(alpha * 255), 0, 255),
+            Channel(from.R, to.R), Channel(from.G, to.G), Channel(from.B, to.B));
+
+        byte Channel(byte a, byte b)
+        {
+            var mixed = (a * fromAlpha) + (((b * toAlpha) - (a * fromAlpha)) * t);
+            return (byte)Math.Clamp(Math.Round(mixed / alpha), 0, 255);
+        }
+    }
 }

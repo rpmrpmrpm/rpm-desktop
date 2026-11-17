@@ -52,6 +52,11 @@ public sealed class BandUnfold
         _live = null;
     }
 
+    /// <summary>The curve every drawer moves on: cubic, easing out for an unfold and in for a fold. The
+    /// album wall moves its drawer on its own clock (<c>AlbumWallView.Move</c>) and reads the curve from
+    /// here, so the drawers open alike on every surface.</summary>
+    public static double Ease(double t, bool easeOut) => easeOut ? 1 - Math.Pow(1 - t, 3) : t * t * t;
+
     /// <summary>
     /// How tall a drawer wants to be. This does NOT run a layout pass to find out.
     ///
@@ -131,7 +136,7 @@ public sealed class BandUnfold
                 startMs = nowMs;
 
             var t = Math.Min(1, (nowMs - startMs) / durMs);
-            var e = easeOut ? 1 - Math.Pow(1 - t, 3) : t * t * t;
+            var e = Ease(t, easeOut);
             var h = fromHeight + ((toHeight - fromHeight) * e);
             root.Height = h;
             if (clip is not null)

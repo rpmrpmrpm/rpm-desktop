@@ -33,4 +33,6 @@ public sealed partial class MainPage
         => NameTracksFromReleaseAsync(rows, settled, known, step);
 
     void IImportWorkbenchHost.RequestAddMusic() => AddMusic_Click(this, new RoutedEventArgs());
+
+    void IImportWorkbenchHost.CloseWorkbench() => Panes.CloseImport();
 }

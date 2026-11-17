@@ -1,0 +1,21 @@
+{
+  "result": true,
+  "authenticated": true,
+  "message": "ok",
+  "user": {
+    "id": "7654321",
+    "user_id": "7654321",
+    "userid": "7654321",
+    "username": "testlistener",
+    "premium": false,
+    "verified": true,
+    "tester": false
+  },
+  "settings": {
+    "streaming_server": "https://streaming.ibroadcast.com",
+    "artwork_server": "https://artwork.ibroadcast.com"
+  },
+  "status": {
+    "lastmodified": "2024-05-01 10:00:00"
+  }
+}

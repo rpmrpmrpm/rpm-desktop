@@ -161,6 +161,8 @@ public sealed class SubsonicServer(HttpClient http, SubsonicLogin login) : IMedi
             AlbumArtist: Str(song, "displayAlbumArtist"),
             TrackNumber: (int)Num(song, "track"),
             DiscNumber: (int)Num(song, "discNumber"),
+            Year: 0,
+            Genre: "",
             DurationSeconds: Num(song, "duration"),
             SizeBytes: size,
             Rating: Math.Clamp((int)Num(song, "userRating") * 2, 0, 10),

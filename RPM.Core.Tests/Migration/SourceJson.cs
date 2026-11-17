@@ -14,7 +14,7 @@ internal static class SourceJson
     private sealed record FileDto(string? local, string? remote, string? extension, long? size);
     private sealed record TrackDto(
         string sourceId, FileDto file, string title, string artist, string album, string albumArtist,
-        int trackNumber, int discNumber, double durationSeconds, long sizeBytes, int rating, bool favorite,
+        int trackNumber, int discNumber, int year, string genre, double durationSeconds, long sizeBytes, int rating, bool favorite,
         int plays, string? lastPlayed, string? added);
     private sealed record PlaylistDto(string sourceId, string name, string[] folder, bool smart, string[] trackIds, string[] unresolved);
     private sealed record SkipDto(string what, string reasonKey);
@@ -46,7 +46,7 @@ internal static class SourceJson
                 RemoteFile r => new FileDto(null, r.Key, r.Extension, r.Size),
                 _ => throw new InvalidOperationException(),
             },
-            t.Title, t.Artist, t.Album, t.AlbumArtist, t.TrackNumber, t.DiscNumber, t.DurationSeconds, t.SizeBytes,
+            t.Title, t.Artist, t.Album, t.AlbumArtist, t.TrackNumber, t.DiscNumber, t.Year, t.Genre, t.DurationSeconds, t.SizeBytes,
             t.Rating, t.Favorite, t.Plays, Date(t.LastPlayed), Date(t.Added)))],
         [.. library.Playlists.Select(p => new PlaylistDto(p.SourceId, p.Name, [.. p.Folder], p.Smart, [.. p.TrackIds], [.. p.Unresolved]))],
         [.. library.Skipped.Select(s => new SkipDto(s.What, s.ReasonKey))]), Options);

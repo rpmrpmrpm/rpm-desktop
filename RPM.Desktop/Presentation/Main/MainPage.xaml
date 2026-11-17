@@ -370,7 +370,7 @@
                  the slider's width back for the heading's type, and holds no column for a control it does
                  not have. -->
             <!-- One group, one avoidance shift: the spinning record slides the WHOLE chrome left (switch
-                 and slider together, LibraryChromeShift, animated by AlbumWallView). Shifting the slider
+                 and slider together, LibraryChromeShift, see MainPage.UpdateChromeAvoidance). Shifting the slider
                  alone would slide it under the switch. -->
             <Grid x:Name="LibraryChrome" Grid.Column="1" VerticalAlignment="Center" ColumnSpacing="12">
               <!-- Centred in the 36-high heading row and nothing more: 28 high in 36 puts the tallest

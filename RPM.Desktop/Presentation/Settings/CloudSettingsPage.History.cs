@@ -1,4 +1,5 @@
 using RPM.Core.Cloud;
+using RPM.Core.Library;
 using RPM.Desktop.Strings;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
@@ -64,24 +65,40 @@ public sealed partial class CloudHistoryRow
 
 public sealed partial class CloudSettingsPage
 {
-    /// <summary>Fills the log book from the mirror. It is called on load, and whenever the engine
-    /// reports a change, since that is when a new line exists to show.</summary>
-    private void LoadHistory()
-    {
-        HistoryHint.Text = Loc.Format("Cloud_HistoryHint", CloudActivityRetention.Days);
+    /// <summary>Reads the log for the history and the errors, and only when lines were added or removed.</summary>
+    private readonly CloudActivityFollower _log = new();
 
+    /// <summary>
+    /// Fills the history and the errors from the log. It is called on load, and whenever the engine
+    /// reports a change, since a new line can exist then.
+    ///
+    /// <para>The engine reports a change many times per track (each stage, each count), and writes a log
+    /// line only when a track ends. <see cref="CloudActivityFollower"/> skips the reports that wrote
+    /// nothing, so a long upload does not rebuild both lists several times a second.</para>
+    /// </summary>
+    private void LoadLog()
+    {
         if (!_library.IsOpen)
         {
-            HistoryList.ItemsSource = null;
-            HistoryEmptyText.Visibility = Visibility.Visible;
-            ClearHistoryButton.IsEnabled = false;
+            _log.Forget();
+            ShowHistory([], 0);
+            ShowErrors([], 0);
             return;
         }
 
+        if (_log.ReadIfChanged(_library.Db) is not { } lines)
+            return;
+
         var now = DateTime.UtcNow.Ticks;
-        var rows = _library.Db.QueryCloudActivity()
-            .Select(e => new CloudHistoryRow(e, now))
-            .ToList();
+        ShowHistory(lines, now);
+        ShowErrors(lines, now);
+    }
+
+    private void ShowHistory(IReadOnlyList<CloudActivityEntry> lines, long nowUtcTicks)
+    {
+        HistoryHint.Text = Loc.Format("Cloud_HistoryHint", CloudActivityRetention.Days);
+
+        var rows = lines.Select(e => new CloudHistoryRow(e, nowUtcTicks)).ToList();
 
         HistoryList.ItemsSource = rows;
         HistoryEmptyText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -92,6 +109,6 @@ public sealed partial class CloudSettingsPage
     {
         if (_library.IsOpen)
             _library.Db.ClearCloudActivity();
-        LoadHistory();
+        LoadLog();
     }
 }

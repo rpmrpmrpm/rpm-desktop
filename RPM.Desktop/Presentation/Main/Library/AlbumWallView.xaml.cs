@@ -66,7 +66,6 @@ public sealed partial class AlbumWallView : UserControl
     private bool _suppressPersist;
     private DispatcherQueueTimer? _persistTimer;
     private string? _playingPath;
-    private CancellationTokenSource? _bandCts;
 
     /// <summary>Owns the whole drawer state machine: which album is expanded, its live band, and the
     /// open, close, re-seat and same-row switch transitions. This keeps that state out of a set of loose
@@ -84,6 +83,10 @@ public sealed partial class AlbumWallView : UserControl
         RowsRepeater.ItemsSource = _rows;
         RowsRepeater.ElementPrepared += Row_ElementPrepared;
         RowsRepeater.ElementClearing += Row_ElementClearing;
+
+        // Handled events too: the scroller handles the wheel itself, and a motion that is scrolling the
+        // wall needs to know the reader has taken it over. See Move.
+        Scroller.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(Scroller_WheelSeen), true);
 #if DEBUG
         // Shows whether the repeater really virtualizes this wall. A 1000-album library should realize
         // only the viewport plus a buffer of rows, and this number shows it in the debug output. The
@@ -123,7 +126,7 @@ public sealed partial class AlbumWallView : UserControl
 
         Unloaded += (_, _) =>
         {
-            _bandCts?.Cancel();
+            _band.Settle();     // a drawer that is moving is put where its move was going
             StopBadgePulse();   // no rendering handler is left attached to a wall nobody is looking at
             _lineBreath.Stop(); // the same for an open band's own marks
             _stream?.Forget();  // and the pictures held for rows nobody is looking at
@@ -146,8 +149,12 @@ public sealed partial class AlbumWallView : UserControl
     private void RowPrepared(ItemsRepeaterElementPreparedEventArgs args)
     {
         _everRealized = true;
-        if ((args.Element as FrameworkElement)?.DataContext is not AlbumRow row)
+        if (args.Element is not FrameworkElement { DataContext: AlbumRow row } element)
             return;
+
+        // The drawer goes into the element the repeater has prepared for its row, and only that one. See
+        // ShowBandIn.
+        ShowBandIn(element, row.Band);
 
         // Realizing a row does NO work. It shows the picture the card already holds, which is the
         // resident 64 px one, in memory since the shelf was fed. Nothing is read from disk or the mirror,
@@ -172,8 +179,12 @@ public sealed partial class AlbumWallView : UserControl
 
     private void RowClearing(ItemsRepeaterElementClearingEventArgs args)
     {
-        if ((args.Element as FrameworkElement)?.DataContext is not AlbumRow row)
+        if (args.Element is not FrameworkElement { DataContext: AlbumRow row } element)
             return;
+
+        // A cleared element stays in the tree, still bound to this row. It gives the drawer back, so it
+        // cannot show a second copy of it. See ShowBandIn.
+        ShowBandIn(element, null);
         _onScreen.Remove(row);
         foreach (var card in row.Cards)
             Stream.Reclaimed(card);
@@ -638,12 +649,15 @@ public sealed partial class AlbumWallView : UserControl
     /// </summary>
     private void HangBand(AlbumRow? owner, AlbumBand? band) => ReshapeHoldingReader(() =>
     {
-        foreach (var row in _rows)
-            if (!ReferenceEquals(row, owner))
-                row.Band = null;
-
-        if (owner is not null)
-            owner.Band = band;
+        for (var i = 0; i < _rows.Count; i++)
+        {
+            var row = _rows[i];
+            var next = ReferenceEquals(row, owner) ? band : null;
+            if (ReferenceEquals(row.Band, next))
+                continue;
+            row.Band = next;
+            ShowBandInRow(i);
+        }
 
         RowsLayout.BandRow = owner is null || band is null ? -1 : _rows.IndexOf(owner);
     });
@@ -705,11 +719,12 @@ public sealed partial class AlbumWallView : UserControl
     private void DropBand(AlbumBand closing) => ReshapeHoldingReader(() =>
     {
         var dropped = false;
-        foreach (var row in _rows)
+        for (var i = 0; i < _rows.Count; i++)
         {
-            if (!ReferenceEquals(row.Band, closing))
+            if (!ReferenceEquals(_rows[i].Band, closing))
                 continue;
-            row.Band = null;
+            _rows[i].Band = null;
+            ShowBandInRow(i);
             dropped = true;
         }
         if (dropped)
@@ -717,23 +732,87 @@ public sealed partial class AlbumWallView : UserControl
     });
 
     /// <summary>
-    /// The album drawer's state machine. It is the one place that knows which album is expanded, holds
-    /// its live band, and performs every transition: open, close, same-row switch, and re-seat after a
-    /// reflow. The look of the drawer (unfold, snap, fold) is a property of the band model
-    /// (<see cref="AlbumBand.AnimateOpen"/> and <see cref="AlbumBand.IsClosing"/>). The element applies
-    /// it on realize. So nothing has to chase a recycled element to force it open.
+    /// The album drawer's state machine, and the ORDER every press on the wall goes through. It is the one
+    /// place that knows which album is expanded, and it performs every transition: open, close, a switch
+    /// to a neighbour in the same row, and a re-seat after a reflow.
+    ///
+    /// <para><b>An open is one sequence, in this order, and nothing else moves a drawer.</b></para>
+    /// <list type="number">
+    /// <item>The card is ringed, on the press.</item>
+    /// <item>The record is read: its sleeve, its ground and its tracks, into a band nobody can see yet.
+    /// Nothing of the new record reaches the screen until all of it is in hand.</item>
+    /// <item>Meanwhile a drawer open in another row gets out of the way: folded where the reader can see it,
+    /// taken away where they cannot, with the reader held where they are.</item>
+    /// <item>The band is attached shut, to the one element the repeater has prepared for its row.</item>
+    /// <item>It is measured once it has been drawn and two frames agree.</item>
+    /// <item>It unfolds, and the wall scrolls down with it where the drawer would not otherwise be seen, on
+    /// one clock.</item>
+    /// </list>
+    /// <para>A switch to a neighbour in the same row is the same sequence, except that the band takes over
+    /// the drawer that is already open, at the height it has, and moves from there to its own.</para>
+    ///
+    /// <para><b>A newer press stops the older one between any two steps</b> (<see cref="Press"/>). It then
+    /// starts from the drawer as it stands, which it reads from the rows rather than from anything the
+    /// older press remembered: a drawer folded half way is folded on from there, and one opened half way is
+    /// opened, switched or folded from there. Nothing is ever left part open, because whatever stops a
+    /// press is itself a press that takes the drawer over.</para>
     /// </summary>
     private sealed class BandConductor(AlbumWallView b)
     {
         private string? _folder;      // the expanded album, or null when closed (the one source of truth)
-        private AlbumBand? _current;  // the live band while open
+        private AlbumBand? _current;  // its band, from the press on: being read, opening or open
+
+        /// <summary>The press being carried out. See <see cref="Press"/>.</summary>
+        private Press? _press;
 
         /// <summary>The expanded album's folder, for the host's cover-refresh check.</summary>
         public string? ExpandedFolder => _folder;
 
-        /// <summary>The open drawer itself. Whoever re-reads its lines in place uses this. The cloud
+        /// <summary>The expanded album's band. Whoever re-reads its lines in place uses this. The cloud
         /// marks are given to the tracklist that is on screen, rather than to a rebuilt one.</summary>
         public AlbumBand? Current => _current;
+
+        /// <summary>
+        /// One press on the wall, carried out step by step. A newer press supersedes it, and every step
+        /// after an await asks <see cref="Superseded"/> before it touches anything.
+        /// </summary>
+        private sealed class Press
+        {
+            private readonly CancellationTokenSource _stop = new();
+
+            public CancellationToken Token => _stop.Token;
+
+            public bool Superseded => _stop.IsCancellationRequested;
+
+            public void Supersede() => _stop.Cancel();
+        }
+
+        /// <summary>Starts a press, and stops the one before it wherever it has got to. Only a press that
+        /// goes on to take the drawer over may call this. See the class remarks.</summary>
+        private Press Begin()
+        {
+            _press?.Supersede();
+            return _press = new Press();
+        }
+
+        /// <summary>The band attached to a row now, in whatever state it is: opening, open, or
+        /// folding.</summary>
+        private AlbumBand? Attached()
+        {
+            foreach (var row in b._rows)
+                if (row.Band is { } band)
+                    return band;
+            return null;
+        }
+
+        /// <summary>The row that holds <paramref name="card"/>. Every row is given its cards first: during a
+        /// pane move and just after it, the rows out of view can still hold their old cards (see
+        /// <c>_staleChunks</c>), and the search would find the record in a row it has left.</summary>
+        private AlbumRow? RowOf(AlbumCard card)
+        {
+            b.DealStaleRows();
+            return b._rows.FirstOrDefault(r => r.Cards.Contains(card));
+        }
 
         /// <summary>Click on a card: toggle its drawer.</summary>
         public void Toggle(AlbumCard card)
@@ -772,17 +851,17 @@ public sealed partial class AlbumWallView : UserControl
                 return;
             if (AlbumDrawerSurvival.Survives(f, sameLibrary, b._cardByFolder.ContainsKey))
                 return;
-            // The drawer snaps away rather than folding. The record is already off the wall, and a fold
-            // would play over rows that are being re-filled underneath it.
+            // The drawer goes in the frame rather than folding. The record is already off the wall, and a
+            // fold would play over rows that are being re-filled underneath it.
             Close(animate: false);
         }
 
-        /// <summary>The wall reflowed and the column count changed. The open band is re-seated into its
-        /// card's new row and column. It snaps straight to open, with no re-animation on a
-        /// resize.</summary>
+        /// <summary>The wall reflowed and the column count changed. The attached band is re-seated into
+        /// its card's new row and column. It keeps its height, so an open drawer stays open and a drawer
+        /// that is moving carries on moving in its new row.</summary>
         public void Reseat()
         {
-            if (_folder is not { } f || !b._cardByFolder.TryGetValue(f, out var card) || _current is not { } band)
+            if (Attached() is not { } band || !b._cardByFolder.TryGetValue(band.Card.Folder, out var card))
                 return;
 
             // The row is worked out from the record's place in the wall, not searched for. During a pane move
@@ -794,10 +873,13 @@ public sealed partial class AlbumWallView : UserControl
             b.DealRow(index / b._columns);
             var owner = b._rows[index / b._columns];
 
-            Ring(card);
+            if (WallDiag.On)
+                WallDiag.Open($"reseat {band.Card.Title} into row {b._rows.IndexOf(owner)}");
+            if (ReferenceEquals(band, _current))
+                Ring(card);
             band.Reseat(ColumnOf(owner, card));
-            band.AnimateOpen = false;   // applied on rebind, so the drawer snaps open with no gap
             b.HangBand(owner, band);
+            b.PaintPointer(band);
         }
 
         /// <summary>Slides the pointers after a card-size change, with no reflow. This keeps each
@@ -805,10 +887,16 @@ public sealed partial class AlbumWallView : UserControl
         public void RefreshPointers()
         {
             foreach (var row in b._rows)
-                row.Band?.RefreshPointer();
+            {
+                if (row.Band is not { } band)
+                    continue;
+                band.RefreshPointer();
+                b.PaintPointer(band);
+            }
         }
 
-        /// <summary>Reloads the open band's content in place. Its cover has been replaced.</summary>
+        /// <summary>Reloads the open band's content in place. Its cover has been replaced. This is not a
+        /// press: the drawer stays where it is, and a press that is opening it carries on.</summary>
         public void Reopen(string folder)
         {
             if (!string.Equals(_folder, folder, StringComparison.OrdinalIgnoreCase)
@@ -816,153 +904,151 @@ public sealed partial class AlbumWallView : UserControl
                 || !b._cardByFolder.TryGetValue(folder, out var card))
                 return;
             Seed(band, card);
-            _ = b.LoadBandAsync(band);
+            _ = b.LoadBandAsync(band, _press?.Token ?? CancellationToken.None);
+        }
+
+        /// <summary>The wall is leaving the screen. A drawer that is moving is put where its move was going:
+        /// an opening one open, and one that was being taken away gone. Nothing is left part open for the
+        /// wall to come back to.</summary>
+        public void Settle()
+        {
+            _press?.Supersede();
+            _press = null;
+
+            // A record still being read when its press stopped never got a drawer. It is not expanded.
+            if (_current is { } reading && b.RowHolding(reading) < 0)
+            {
+                _folder = null;
+                _current = null;
+                foreach (var c in b._cards)
+                    c.IsExpanded = false;
+            }
+
+            if (Attached() is not { } band)
+                return;
+            if (!ReferenceEquals(band, _current))
+            {
+                b.DropBand(band);
+                return;
+            }
+            band.DrawerHeight = double.NaN;
+            band.DrawerOpacity = 1;
+            if (b.LiveBandRoot(band) is { } root)
+                b.ApplyDrawer(root, band);
         }
 
         private async void Open(AlbumCard card)
         {
-            b.DealStaleRows();   // the search below needs every row to hold its own cards
-            var owner = b._rows.FirstOrDefault(r => r.Cards.Contains(card));
+            var owner = RowOf(card);
             if (owner is null)
                 return;
 
-            // Same-row switch: a drawer is already open in THIS row. Morph it to the neighbour in place.
-            // The element is kept, with its reserved space, so there is no collapse-then-expand flicker.
-            if (_current is { } live && ReferenceEquals(owner.Band, live))
-            {
-                Ring(card);
-                _folder = card.Folder;
-
-                // Pin the drawer at its current height, so the content swap and the async track load do
-                // not make it jump. When the neighbour's tracks are in, the height tweens from the old
-                // value to the new one (MorphHeight).
-                var root = b.FindBandRoot(live);
-                double from = root?.ActualHeight ?? 0;
-                if (root is not null && from > 0)
-                {
-                    root.Height = from;
-                    root.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, root.ActualWidth, from) };
-                }
-
-                live.Retarget(card, ColumnOf(owner, card));
-                Seed(live, card);
-                await b.LoadBandAsync(live);
-
-                // Release the pin. Then, unless a newer open or close replaced this while the tracks
-                // loaded, measure the new length and morph to it.
-                if (root is not null)
-                {
-                    root.Height = double.NaN;
-                    root.Clip = null;
-                    if (from > 0 && ReferenceEquals(_current, live) && ReferenceEquals(owner.Band, live))
-                    {
-                        // Measured, not laid out. A synchronous UpdateLayout here would run the same
-                        // layout cycle that PlayOpen must avoid. That is a full pass over the wall,
-                        // entered from inside the drawer it is about to resize. See LengthWanted.
-                        b.MorphHeight(root, from, b.LengthWanted(root));
-                    }
-                }
-                return;
-            }
-
-            // Fresh open: clear any other drawer, set the final look, load the tracks OFF-SCREEN, then
-            // attach the finished drawer with a one-shot unfold. So it opens straight to its final size
-            // and colour.
+            var press = Begin();
             Ring(card);
-            b.HangBand(null, null);
+            _folder = card.Folder;
 
             var band = new AlbumBand(card, ColumnOf(owner, card));
             _current = band;
-            _folder = card.Folder;
             Seed(band, card);
 
-            await b.LoadBandAsync(band);
+            if (WallDiag.On)
+                WallDiag.Open($"press {card.Title} in row {b._rows.IndexOf(owner)}, attached now: "
+                    + (Attached() is { } a ? $"{a.Card.Title} in row {b.RowHolding(a)}, height {a.DrawerHeight:0.#}" : "none")
+                    + $", offset {b.Scroller.VerticalOffset:0.#}");
 
-            // A newer open, or a close, may have replaced this while the tracks loaded.
-            if (!ReferenceEquals(_current, band)
-                || !string.Equals(_folder, card.Folder, StringComparison.OrdinalIgnoreCase))
-                return;
-            var owner2 = b._rows.FirstOrDefault(r => r.Cards.Contains(card));
-            if (owner2 is null)
-                return;
+            // 2. The read starts now and runs while the old drawer gets out of the way.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var reading = b.LoadBandAsync(band, press.Token);
 
-            // The wall moves BEFORE the drawer exists. Below the middle of the viewport, the row glides
-            // to the top with nothing yet open under it. So no reserved gap glides up the screen. The
-            // drawer unfolds once the row has landed. At or above the middle, the wall stays put.
-            if (b.WantsLift(owner2))
+            // 3. A drawer open in ANOTHER row is folded where it can be seen and taken away where it cannot.
+            //    One in this row is taken over in step 4 instead.
+            if (Attached() is { } old && !ReferenceEquals(owner.Band, old))
             {
-                await b.GlideRowToTop(owner2);
-
-                // A newer open, or a close, may have replaced this while the wall moved.
-                if (!ReferenceEquals(_current, band)
-                    || !string.Equals(_folder, card.Folder, StringComparison.OrdinalIgnoreCase))
+                if (b.OnScreen(old))
+                    await b.Move(old, 0, 0, FoldMs, opening: false, scroll: null, press.Token);
+                if (press.Superseded)
                     return;
-                owner2 = b._rows.FirstOrDefault(r => r.Cards.Contains(card));
-                if (owner2 is null)
+                b.DropBand(old);
+            }
+
+            await reading;
+            if (press.Superseded)
+                return;
+            if (WallDiag.On)
+                WallDiag.Open($"read {card.Title} in {clock.ElapsedMilliseconds} ms");
+
+            // 4. Attached shut, or in place of the drawer already open in this row at the height it has.
+            //    The wall may have re-chunked while the record was read, so the row is found again.
+            owner = RowOf(card);
+            if (owner is null)
+                return;
+            band.Reseat(ColumnOf(owner, card));
+            if (owner.Band is { } replaced)
+            {
+                // Where the drawer stands, folding or not: a press that stopped a fold half way takes the
+                // drawer over at the height and the opacity the fold had reached, and the motion below
+                // brings both back up.
+                band.DrawerHeight = double.IsNaN(replaced.DrawerHeight)
+                    ? b.LiveBandRoot(replaced)?.ActualHeight ?? 0
+                    : replaced.DrawerHeight;
+                band.DrawerOpacity = replaced.DrawerOpacity;
+            }
+            else
+            {
+                band.DrawerHeight = 0;
+                band.DrawerOpacity = 0;
+            }
+            b.HangBand(owner, band);
+
+            // 5. Measured once drawn.
+            var full = await b.MeasureOpen(band, press.Token);
+            if (press.Superseded)
+                return;
+            b.PaintPointer(band);
+
+            // 6. Open, with the wall moving down where it has to, on one clock.
+            if (full > 1)
+            {
+                var scroll = b.ScrollForOpening(band, full);
+                await b.Move(band, full, 1, scroll is null ? UnfoldMs : UnfoldScrollingMs,
+                             opening: true, scroll, press.Token);
+                if (press.Superseded)
                     return;
             }
 
-            band.Reseat(ColumnOf(owner2, card));
-            band.AnimateOpen = true;   // the element unfolds once on realize
+            band.DrawerHeight = double.NaN;
+            band.DrawerOpacity = 1;
+            if (b.LiveBandRoot(band) is { } root)
+                b.ApplyDrawer(root, band);
             if (WallDiag.On)
-                WallDiag.Open($"hang row {b._rows.IndexOf(owner2)} — offset {b.Scroller.VerticalOffset:0.#},"
-                    + $" extent {b.Scroller.ExtentHeight:0.#}");
-            b.HangBand(owner2, band);
+                WallDiag.Open($"open {card.Title}, offset {b.Scroller.VerticalOffset:0.#}");
         }
 
         /// <param name="animate">Fold the drawer shut (a click on its own card), or take it away in the
-        /// frame (the record has left the wall, see <see cref="OnAlbumsChanged"/>). The snap path never
-        /// awaits. So a feed that calls it has the row detached before it regroups.</param>
+        /// frame (the record has left the wall, see <see cref="OnAlbumsChanged"/>). The second never
+        /// awaits, so a feed that calls it has the row detached before it regroups.</param>
         private async void Close(bool animate = true)
         {
+            var press = Begin();
             _folder = null;
+            _current = null;
             foreach (var c in b._cards)
                 c.IsExpanded = false;
-            b._bandCts?.Cancel();   // stop any content load in flight for the band being closed
-
-            var closing = _current;
-            _current = null;
 
             // The lines are going away, so the breath must not outlive them. This is an unconditional
             // stop. The timer stops with the last mark that wanted it.
             b._lineBreath.Stop();
 
-            if (closing is null)
+            if (Attached() is not { } closing)
                 return;
+            if (WallDiag.On)
+                WallDiag.Open($"close {closing.Card.Title} {(animate ? "folding" : "at once")}");
 
-            // Found while the drawer is still seated. The element is located by the band it shows.
-            // Detaching first would leave nothing to find, and nothing to reset.
-            var root = b.FindBandRoot(closing);
-            if (animate)
-            {
-                closing.IsClosing = true;   // keep the realize-time sync off the element while it folds
-                if (root is not null)
-                    await b.PlayClose(root);
-            }
-            else
-            {
-                // An unfold still in flight owns the element. It would keep writing its height after the
-                // reset below, and the recycled drawer would then come back invisible.
-                b._bandAnim.Stop();
-            }
-
-            // Detach by identity, because a new open may have taken over meanwhile. See DropBand.
+            if (animate && b.OnScreen(closing))
+                await b.Move(closing, 0, 0, FoldMs, opening: false, scroll: null, press.Token);
+            if (press.Superseded)
+                return;
             b.DropBand(closing);
-            closing.IsClosing = false;
-
-            // Never leave the drawer folded. The fold leaves the element at Height 0 and Opacity 0, with
-            // a clip cut to nothing. Uno recycles the element for the row's NEXT drawer. Any later path
-            // that snaps rather than unfolds, such as a re-seat or a rebind, would inherit the folded
-            // state, and the row would then show nothing. So the element is reset once it is detached,
-            // unless a newer tween has already taken it over.
-            if (root is not null && !b._bandAnim.Owns(root))
-            {
-                if (root.RenderTransform is ScaleTransform s)
-                    s.ScaleY = 1;
-                root.Height = double.NaN;
-                root.Clip = null;
-                root.Opacity = 1;
-            }
         }
 
         /// <summary>The expand ring. Only the open card wears it.</summary>
@@ -973,40 +1059,33 @@ public sealed partial class AlbumWallView : UserControl
             card.IsExpanded = true;
         }
 
-        /// <summary>Seeds the drawer's look from the card: its cover (which may be null), and the ground
-        /// it opens on. That is the record's own ground, whole, where the wall has read it before.
-        /// Otherwise it is the tint-derived colour that the sleeve's ground will cross over. If the album
-        /// has no tint at all, the default flat ground is used. The real cover reloads over this in
-        /// <see cref="LoadBandAsync"/>.</summary>
+        /// <summary>Seeds the band from the card: its cover (which may be null), and its ground where the
+        /// wall has read it before. The real cover is read over this in <see cref="LoadBandAsync"/>, before
+        /// the band is shown.</summary>
         private void Seed(AlbumBand band, AlbumCard card)
         {
             // The best picture the card has: its sharp layer when one is up, and the resident one
-            // otherwise. It is a placeholder either way, because it is cut for a tile and the drawer is
-            // bigger than a tile. But it fills the sleeve on the frame the drawer opens. The read at the
-            // drawer's own size lands over it. See LoadBandAsync.
+            // otherwise. It stands in where the read at the drawer's own size fails.
             band.Cover = card.Sharp ?? card.Cover;
 
-            // The sleeve's ground belongs to the sleeve being read, not to the drawer. A drawer is
-            // re-seated and re-pointed at neighbours without ever being rebuilt. A ground left up here
-            // would show the last record's sleeve under this one's tracks until the read lands. So it is
-            // set to zero, and the new record's own ground crosses in over the colour set below.
+            // The sleeve's ground belongs to the sleeve being read. A band whose cover is replaced while
+            // it is open keeps nothing from the old picture.
             band.GroundOn = 0;
             band.Ground = null;
             band.Wash = null;
             band.Veil = 0;
+            band.Sleeve = null;
 
-            // Opened before: the ground is already in hand, so the drawer opens WEARING it. There is
-            // nothing to read and nothing to cross. See AlbumWallView._grounds.
+            // Opened before: the ground is already in hand. See AlbumWallView._grounds.
             if (b._grounds.TryGetValue(card.Folder, out var known))
             {
-                b.ShowBandGround(band, known.Ground, known.Wash, cross: false);
+                b.ShowBandGround(band, known.Ground, known.Wash);
                 return;
             }
 
-            // Otherwise the drawer opens on the plate (the template's own brush). The triangle stands in
-            // the same thin white, so the two agree on the first frame as well as on every frame after
-            // it.
-            band.PointerBrush = BandPointer.Ramp(BandPointer.Plate);
+            // Otherwise the drawer stands on the plate (the template's own brush) until its ground is read.
+            // The triangle stands in the same thin white, so the two agree.
+            band.PointerBrush = BandPointer.Fill(BandPointer.Plate);
         }
     }
 }

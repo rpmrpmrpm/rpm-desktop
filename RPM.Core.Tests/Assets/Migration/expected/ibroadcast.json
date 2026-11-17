@@ -1,0 +1,197 @@
+{
+  "kind": "ibroadcast",
+  "libraryId": "7654321",
+  "name": "iBroadcast",
+  "tracks": [
+    {
+      "sourceId": "101",
+      "file": {
+        "remote": "101|/orig/a1b/c2d/101",
+        "extension": ".flac",
+        "size": 0
+      },
+      "title": "Opening",
+      "artist": "Artist One",
+      "album": "First Record",
+      "albumArtist": "Artist One",
+      "trackNumber": 1,
+      "discNumber": 1,
+      "year": 2001,
+      "genre": "Jazz",
+      "durationSeconds": 241.0,
+      "sizeBytes": 31457280,
+      "rating": 0,
+      "favorite": true,
+      "plays": 12,
+      "lastPlayed": null,
+      "added": "2019-04-02T08:15:30Z"
+    },
+    {
+      "sourceId": "102",
+      "file": {
+        "remote": "102|/orig/a1b/c2e/102",
+        "extension": ".mp3",
+        "size": 0
+      },
+      "title": "Second Song",
+      "artist": "Guest Singer",
+      "album": "First Record",
+      "albumArtist": "Artist One",
+      "trackNumber": 2,
+      "discNumber": 1,
+      "year": 2001,
+      "genre": "Jazz",
+      "durationSeconds": 198.0,
+      "sizeBytes": 7340032,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-04-03T21:40:05Z"
+    },
+    {
+      "sourceId": "103",
+      "file": {
+        "remote": "103|/orig/a1b/c2f/103",
+        "extension": ".m4a",
+        "size": 0
+      },
+      "title": "Disc Two Opener",
+      "artist": "Artist One",
+      "album": "First Record",
+      "albumArtist": "Artist One",
+      "trackNumber": 1,
+      "discNumber": 2,
+      "year": 2001,
+      "genre": "Jazz",
+      "durationSeconds": 305.0,
+      "sizeBytes": 9437184,
+      "rating": 0,
+      "favorite": false,
+      "plays": 3,
+      "lastPlayed": null,
+      "added": "2019-04-02T08:15:30Z"
+    },
+    {
+      "sourceId": "107",
+      "file": {
+        "remote": "107|/128/b2c/d40/107",
+        "extension": ".mp3",
+        "size": 0
+      },
+      "title": "Strange Format",
+      "artist": "Artist Two",
+      "album": "Loose Ends",
+      "albumArtist": "Artist Two",
+      "trackNumber": 3,
+      "discNumber": 0,
+      "year": 2015,
+      "genre": "Rock",
+      "durationSeconds": 120.0,
+      "sizeBytes": 1920000,
+      "rating": 0,
+      "favorite": false,
+      "plays": 0,
+      "lastPlayed": null,
+      "added": "2019-04-02T08:15:30Z"
+    },
+    {
+      "sourceId": "108",
+      "file": {
+        "remote": "108|/orig/b2c/d41/108",
+        "extension": ".ogg",
+        "size": 0
+      },
+      "title": "Closing Time",
+      "artist": "Artist Two",
+      "album": "Loose Ends",
+      "albumArtist": "Artist Two",
+      "trackNumber": 4,
+      "discNumber": 0,
+      "year": 2015,
+      "genre": "Rock",
+      "durationSeconds": 222.0,
+      "sizeBytes": 5242880,
+      "rating": 0,
+      "favorite": false,
+      "plays": 7,
+      "lastPlayed": null,
+      "added": "2021-11-30T23:59:59Z"
+    },
+    {
+      "sourceId": "109",
+      "file": {
+        "remote": "109|/orig/b2c/d42/109",
+        "extension": ".mp3",
+        "size": 0
+      },
+      "title": "Duet",
+      "artist": "",
+      "album": "Loose Ends",
+      "albumArtist": "Artist Two",
+      "trackNumber": 5,
+      "discNumber": 0,
+      "year": 2015,
+      "genre": "",
+      "durationSeconds": 201.0,
+      "sizeBytes": 4823040,
+      "rating": 0,
+      "favorite": false,
+      "plays": 2,
+      "lastPlayed": null,
+      "added": "2021-12-01T10:00:00Z"
+    }
+  ],
+  "playlists": [
+    {
+      "sourceId": "501",
+      "name": "Road Trip",
+      "folder": [],
+      "smart": false,
+      "trackIds": [
+        "101",
+        "103",
+        "101"
+      ],
+      "unresolved": [
+        "Artist Two - Thrown Away",
+        "999"
+      ]
+    },
+    {
+      "sourceId": "tag:601",
+      "name": "Workout",
+      "folder": [
+        "Tags"
+      ],
+      "smart": false,
+      "trackIds": [
+        "101",
+        "108"
+      ],
+      "unresolved": []
+    }
+  ],
+  "skipped": [
+    {
+      "what": "Artist Two - Thrown Away",
+      "reasonKey": "Migration_SkipInTrash"
+    },
+    {
+      "what": "Artist Two - Lost Album Song",
+      "reasonKey": "Migration_SkipInTrash"
+    },
+    {
+      "what": "Artist Two - No File Yet",
+      "reasonKey": "Migration_SkipNotAFile"
+    },
+    {
+      "what": "Most Recent Uploads",
+      "reasonKey": "Migration_SkipIBroadcastList"
+    },
+    {
+      "what": "Thumbs Up",
+      "reasonKey": "Migration_SkipIBroadcastList"
+    }
+  ]
+}

@@ -5050,6 +5050,10 @@
     <value>导入</value>
     <comment>Heading of the import queue pane; the folder being imported runs underneath.</comment>
   </data>
+  <data name="Queue_Close" xml:space="preserve">
+    <value>关闭</value>
+    <comment>Tooltip and accessible name of the X at the top right of the import pane. It closes the pane and shows what was there before; the queue is kept.</comment>
+  </data>
   <data name="Queue_ImportAction" xml:space="preserve">
     <value>导入</value>
     <comment>Label on the import button under the queue.</comment>

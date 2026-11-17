@@ -302,6 +302,10 @@ public sealed partial class MainPage
     /// <see cref="PaneConductor.ApplyViews"/>), not at one of the ways of asking for one.</summary>
     private void WirePaneViews()
     {
+        // A left card that is hidden while it lies over the row covers nothing, so the library card under
+        // it is drawn again.
+        LeftPanel.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => SyncLibraryDrawn());
+
         Rail.TabRequested += tab =>
         {
             // Opening the import view is the answer to the hint that points at its button. Opening any
@@ -382,11 +386,9 @@ public sealed partial class MainPage
     /// <summary>The import workbench's slide over the row and back. See <see cref="ImportCover"/>.</summary>
     private readonly ImportCover _importCover = new();
 
-    /// <summary>Whether the left card is stretched over the row, including while it slides back.</summary>
-    private bool _rowCovered;
-
-    /// <summary>Whether it is on its way back into its column.</summary>
-    private bool _uncovering;
+    /// <summary>Where the left card is, and so whether the library card under it is drawn. See
+    /// <see cref="RowCover"/>.</summary>
+    private readonly RowCover _rowCover = new();
 
     /// <summary>
     /// Lays the left card over the whole row, across the seam and the library card, and slides it out to
@@ -397,51 +399,48 @@ public sealed partial class MainPage
     /// </summary>
     private void CoverRow(double ms)
     {
-        if (_rowCovered && !_uncovering)
+        if (_rowCover.Stretched && !_rowCover.SlidingBack)
             return;
 
         var from = LeftCol.ActualWidth;
-        if (!_rowCovered)
+        if (!_rowCover.Stretched)
             Stretch(true);
-        _uncovering = false;
-        _importCover.Open(LeftPanel, from, PanelsGrid.ActualWidth, ms, landed: () => FrameLibrary(false));
+        _rowCover.SlideOut();
+        SyncLibraryDrawn();
+        _importCover.Open(LeftPanel, from, PanelsGrid.ActualWidth, ms, landed: () =>
+        {
+            _rowCover.Landed();
+            SyncLibraryDrawn();
+        });
     }
 
-    /// <summary>
-    /// Shows or hides the library card's frame, for while the import card lies over the whole row.
-    /// </summary>
-    /// <remarks>
-    /// The two cards' edges run along the same pixels at the top, the right and the foot, and each is a faint,
-    /// see-through line, so where the library lies under the workbench its edge showed through the
-    /// workbench's and the two added up: the foot was one line under the rail and twice as bright from where
-    /// the library starts (Chivan, 2026-11-04). The library is wholly covered then, so its frame goes once the
-    /// card has landed and comes back before the card moves off it, and is never seen missing. Cleared rather
-    /// than set back, so the card style's brush is what returns.
-    /// </remarks>
-    private void FrameLibrary(bool framed)
-    {
-        if (framed)
-            LibraryPanel.ClearValue(Border.BorderBrushProperty);
-        else
-            LibraryPanel.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-    }
+    /// <summary>Draws the library card, or stops drawing it, as <see cref="RowCover.LibraryDrawn"/> says.
+    /// Run after every change of the left card's place, and of its visibility (see
+    /// <see cref="WirePaneViews"/>).
+    ///
+    /// <para>Opacity, not Visibility. The library card stays laid out under the import card, because
+    /// laying it out again is the cost that covering it avoids.</para></summary>
+    private void SyncLibraryDrawn()
+        => LibraryPanel.Opacity = _rowCover.LibraryDrawn(LeftPanel.Visibility == Visibility.Visible) ? 1 : 0;
 
     /// <summary>Slides the card back to <paramref name="to"/>, the width its column has, and puts it there;
     /// <paramref name="landed"/> runs then, unless the workbench was asked for again on the way. A card
     /// that is not over the row lands at once.</summary>
     private void UncoverRow(double to, double ms, Action landed)
     {
-        if (!_rowCovered)
+        if (!_rowCover.Stretched)
         {
             landed();
             return;
         }
 
-        _uncovering = true;
-        FrameLibrary(true);
+        // The library card is drawn again before the card moves off it.
+        _rowCover.SlideBack();
+        SyncLibraryDrawn();
         _importCover.Close(LeftPanel, PanelsGrid.ActualWidth, to, ms, () =>
         {
-            _uncovering = false;
+            _rowCover.InColumn();
+            SyncLibraryDrawn();
             Stretch(false);
             landed();
         });
@@ -452,9 +451,10 @@ public sealed partial class MainPage
     private void DropCover()
     {
         _importCover.Stop();
-        FrameLibrary(true);
-        _uncovering = false;
-        if (_rowCovered)
+        var stretched = _rowCover.Stretched;
+        _rowCover.InColumn();
+        SyncLibraryDrawn();
+        if (stretched)
             Stretch(false);
     }
 
@@ -463,10 +463,10 @@ public sealed partial class MainPage
     /// <para>The frost is told first. The card changing size would otherwise put it back on live glass
     /// until the next photograph, and live glass over the library is a blur of the LIBRARY: the grid
     /// showed through, frosted, for a moment every time Import was pressed. The plate is of the backdrop
-    /// alone, so the card's new slice is cut from it instead.</para></summary>
+    /// alone, so the card's new slice is cut from it instead. This matters while the card slides: the
+    /// library card is drawn then (see <see cref="RowCover"/>).</para></summary>
     private void Stretch(bool over)
     {
-        _rowCovered = over;
         Common.FrostPlate.Current.Reshaping(LeftPanel);
         Grid.SetColumnSpan(LeftPanel, over ? 3 : 1);
         Canvas.SetZIndex(LeftPanel, over ? 1 : 0);
@@ -476,8 +476,9 @@ public sealed partial class MainPage
         LibraryPanel.IsHitTestVisible = !over;
     }
 
-    /// <summary>Whether the left card lies over the row, or is still sliding back from it.</summary>
-    private bool RowCovered => _rowCovered;
+    /// <summary>Whether the left card lies over the row, or is still sliding out to it or back from
+    /// it.</summary>
+    private bool RowCovered => _rowCover.Stretched;
 
     /// <summary>Both panes' single source of truth: which function the left pane shows
     /// (<see cref="Tab"/>) and whether it is <see cref="Open"/> or <see cref="Shown"/> at all, which
@@ -697,8 +698,29 @@ public sealed partial class MainPage
         /// while it is already the tab changes nothing about the column.</summary>
         private void GoingToImport(LeftTab tab)
         {
-            if (tab == LeftTab.Import && Tab != LeftTab.Import)
-                _openBeneath = Shown && _open;
+            if (tab != LeftTab.Import || Tab == LeftTab.Import)
+                return;
+            _openBeneath = Shown && _open;
+            _tabBeneath = Tab;
+        }
+
+        /// <summary>The tab that was up before Import, for <see cref="CloseImport"/>. Taken on the way in,
+        /// with <see cref="_openBeneath"/>.</summary>
+        private LeftTab _tabBeneath = LeftTab.TrackInfo;
+
+        /// <summary>
+        /// The workbench's own close key. The pane goes back to the tab it showed before Import, open or
+        /// folded as it was, so the workbench slides off the row and leaves the window as it found it. This
+        /// is the same move as pressing that tab on the rail. The queue is kept: the rail's Import key opens
+        /// the workbench again.
+        /// </summary>
+        public void CloseImport()
+        {
+            if (Tab != LeftTab.Import)
+                return;
+            Tab = _tabBeneath == LeftTab.Import ? LeftTab.TrackInfo : _tabBeneath;
+            _open = _openBeneath;
+            Apply();
         }
 
         /// <summary>

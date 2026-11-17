@@ -135,6 +135,45 @@ public sealed partial class AlbumBandView : UserControl
     /// <para>Public because a host that creates a drawer already knows how wide its drawers are. A drawer
     /// that waited for its own first SizeChanged would show one frame in the wrong mode.</para>
     /// </summary>
+    /// <summary>
+    /// The colour this drawer's ground shows on its top edge, <paramref name="x"/> across from its left
+    /// edge, in the drawer's own units. This is where a pointer triangle meets the drawer, and it is the
+    /// colour the triangle must be to look like part of it. Null until the sleeve has been read and the
+    /// drawer has a size. See <see cref="SleeveGround.FlatAt"/>.
+    /// </summary>
+    public Windows.UI.Color? EdgeColourAt(double x)
+    {
+        if (Band?.Sleeve is not { } sleeve || BandPlate.ActualWidth < 1 || BandPlate.ActualHeight < 1)
+            return null;
+        var width = BandPlate.ActualWidth;
+        // One unit down, inside the edge. The triangle's base runs two units past the edge, so this row
+        // is the one it is drawn against.
+        return sleeve.FlatAt(Math.Clamp(x, 0, width), 1, width, BandPlate.ActualHeight);
+    }
+
+    /// <summary>
+    /// <see cref="EdgeColourAt(double)"/> for a triangle placed in another element: its left edge stands
+    /// <paramref name="pointLeft"/> across <paramref name="host"/>, the element both the triangle and this
+    /// drawer stand in. The place is carried into the drawer's own units through the layout, so a drawer
+    /// drawn at a scale (home in Pegasus) or with a margin of its own is read at the right place. Null
+    /// where <see cref="EdgeColourAt(double)"/> is, or where the two are not in one tree yet.
+    /// </summary>
+    public Windows.UI.Color? EdgeColourUnder(FrameworkElement host, double pointLeft)
+    {
+        if (Band?.Sleeve is null)
+            return null;
+        try
+        {
+            var at = host.TransformToVisual(this)
+                .TransformPoint(new Windows.Foundation.Point(pointLeft + BandPointer.TriangleHalf, 0));
+            return EdgeColourAt(at.X);
+        }
+        catch (Exception)
+        {
+            return null;   // not in the tree, so there is no place to read
+        }
+    }
+
     public void SetColumns(bool twoColumns)
     {
         _twoColumns = twoColumns;

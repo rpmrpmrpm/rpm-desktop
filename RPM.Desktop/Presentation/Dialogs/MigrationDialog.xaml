@@ -125,7 +125,9 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
+          <!-- Rows: library files, media servers, online services. -->
           <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="MusicBee">
             <StackPanel>
               <TextBlock FontFamily="{StaticResource RpmBrandsFont}" Text="&#xE001;" FontSize="19" Foreground="#99FFFFFF" HorizontalAlignment="Center"/>
@@ -166,6 +168,13 @@
               <TextBlock FontFamily="{StaticResource RpmBrandsFont}" Text="&#xE005;" FontSize="19" Foreground="#99FFFFFF" HorizontalAlignment="Center"/>
               <TextBlock Text="{loc:Str Key=Migration_SourceNavidrome}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
               <TextBlock Text="{loc:Str Key=Migration_HintServer}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+          </Button>
+          <Button Grid.Row="2" Grid.Column="0" Style="{StaticResource AppTileStyle}" Click="App_Click" Tag="IBroadcast">
+            <StackPanel>
+              <TextBlock FontFamily="{StaticResource RpmBrandsFont}" Text="&#xE006;" FontSize="19" Foreground="#99FFFFFF" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_SourceIBroadcast}" FontSize="12.5" FontWeight="SemiBold" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Str Key=Migration_HintOnline}" FontSize="10.5" Foreground="#88FFFFFF" TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,0"/>
             </StackPanel>
           </Button>
         </Grid>
@@ -213,6 +222,11 @@
           <ComboBox x:Name="PlexServerBox" HorizontalAlignment="Stretch" Visibility="Collapsed"/>
         </StackPanel>
 
+        <StackPanel x:Name="IBroadcastPanel" Spacing="10" Visibility="Collapsed">
+          <Button x:Name="IBroadcastSignInButton" Click="IBroadcastSignIn_Click" Style="{StaticResource GlassButtonStyle}" Padding="16,0"
+                  Content="{loc:Str Key=Migration_IBroadcastSignIn}"/>
+        </StackPanel>
+
         <TextBlock x:Name="ConnectNote" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
         <TextBlock x:Name="ConnectError" Style="{StaticResource WarnLineStyle}" Visibility="Collapsed"/>
       </StackPanel>
@@ -233,6 +247,10 @@
         <TextBlock x:Name="SummaryAlready" Style="{StaticResource LineStyle}"/>
         <TextBlock x:Name="SummarySkipped" Style="{StaticResource QuietLineStyle}"/>
         <TextBlock x:Name="SummaryOthers" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"/>
+        <TextBlock x:Name="SummaryIBroadcastFree" Style="{StaticResource WarnLineStyle}" Visibility="Collapsed"
+                   Text="{loc:Str Key=Migration_IBroadcastFree}"/>
+        <TextBlock x:Name="SummaryIBroadcastNotCarried" Style="{StaticResource QuietLineStyle}" Visibility="Collapsed"
+                   Text="{loc:Str Key=Migration_IBroadcastNotCarried}"/>
 
         <StackPanel x:Name="WherePanel" Spacing="6" Margin="0,8,0,0" Visibility="Collapsed">
           <TextBlock Text="{loc:Str Key=Migration_WhereKicker}" Style="{StaticResource DenseGroupHeaderStyle}"/>

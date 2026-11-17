@@ -24,9 +24,14 @@ namespace RPM.Desktop.Presentation.Import;
 /// </summary>
 public sealed partial class ImportWorkbenchView : UserControl
 {
+    /// <summary>Keeps the close key clear of the spinning record. The page drives it, because the page is
+    /// what knows where the disc is (see MainPage.UpdateChromeAvoidance).</summary>
+    internal Common.DodgeShift CloseDodge { get; }
+
     public ImportWorkbenchView()
     {
         InitializeComponent();
+        CloseDodge = new Common.DodgeShift(CloseKey, CloseShift);
         Loaded += (_, _) =>
         {
             RestoreTagPanel();
@@ -151,4 +156,6 @@ public sealed partial class ImportWorkbenchView : UserControl
     /// through here. The popup belongs to the page. It goes on to open the disc and vinyl windows, and only
     /// one dialog can be open at a time.</summary>
     private void AddMusic_Click(object sender, RoutedEventArgs e) => Host?.RequestAddMusic();
+
+    private void Close_Click(object sender, RoutedEventArgs e) => Host?.CloseWorkbench();
 }

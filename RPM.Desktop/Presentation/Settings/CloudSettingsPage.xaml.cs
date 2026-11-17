@@ -51,8 +51,11 @@ public sealed partial class CloudSettingsPage : Page
         _settings.Changed += OnSettingsChanged;
 
         Load();
-        LoadHistory();
-        LoadErrors();
+
+        // The page can open again on the same instance. The log is read in full each time, so the ages
+        // ("2 hours ago") are those of now and not of the last visit.
+        _log.Forget();
+        LoadLog();
         _ = _cloud.KickAsync();
 
         // The page is painted from the last known state, then asked again. It opens with an answer, not
@@ -103,15 +106,14 @@ public sealed partial class CloudSettingsPage : Page
         // A bring-back changes these numbers while it runs, so the page follows it. It does not show
         // what was true when the page was opened.
         RenderOffload();
+
+        // Forgetting a deleted account empties the log, and the engine reports a change when that is done.
+        LoadLog();
     });
 
-    /// <summary>A track finishing is when a new log line exists. So the history is re-read then, and
-    /// not only when the page opens.</summary>
-    private void OnJobsChanged() => DispatcherQueue.TryEnqueue(() =>
-    {
-        LoadHistory();
-        LoadErrors();
-    });
+    /// <summary>A track finishing is when a new log line exists. So the log is checked then, and not
+    /// only when the page opens.</summary>
+    private void OnJobsChanged() => DispatcherQueue.TryEnqueue(LoadLog);
 
     private void OnAuthChanged() => DispatcherQueue.TryEnqueue(() =>
     {

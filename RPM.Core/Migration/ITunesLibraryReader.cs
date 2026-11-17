@@ -108,6 +108,8 @@ public static partial class ITunesLibraryReader
             AlbumArtist: Text(t, "Album Artist") ?? "",
             TrackNumber: (int)Number(t, "Track Number"),
             DiscNumber: (int)Number(t, "Disc Number"),
+            Year: 0,
+            Genre: "",
             DurationSeconds: Number(t, "Total Time") / 1000.0,
             SizeBytes: Number(t, "Size"),
             Rating: rating,

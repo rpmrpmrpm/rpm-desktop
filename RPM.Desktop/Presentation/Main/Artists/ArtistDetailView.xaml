@@ -822,7 +822,7 @@
                  The wall places that mark by a fixed stride. A shelf scrolls sideways, so here the
                  position is the sleeve's index read against the shelf's current offset. It is asked again
                  each time the shelf moves, and the mark is hidden when its sleeve has scrolled off either
-                 end. See `ArtistDetailView.PointAtOpenSleeve` and `BandPointer.Ramp`. -->
+                 end. See `ArtistDetailView.PointAtOpenSleeve` and `BandPointer.Fill`. -->
             <!-- The top margin of -2 is arithmetic. The space between a card's text and the drawer's
                  plate is 8 of card padding + 10 of section spacing + the drawer's own 10, which is 28.
                  The home screen uses 26 (8 + 8 + 10) and the album wall 22. With -2 the space is 26, as

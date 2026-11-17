@@ -419,6 +419,7 @@ public sealed partial class MainPage
             var bulge = stage.RecordBulgeAt(y);
             return w <= 0 || bulge <= 0 ? double.PositiveInfinity : w - bulge;
         };
+        _chromeDodge = new Common.DodgeShift(LibraryChrome, LibraryChromeShift);
         stage.GeometryChanged += OnArtGeometryForGrid;
         stage.IdleChanged += OnArtIdleForGrid;
         Unloaded += (_, _) =>
@@ -445,6 +446,14 @@ public sealed partial class MainPage
             SettleSizeSlot();
             UpdateChromeAvoidance(animate: false);
         };
+
+        // The import pane's close key is in the window's top-right corner whenever the import card lies over
+        // the row. The card is laid out across the row at once when it stretches, and a pane or window resize
+        // changes its size too, so its SizeChanged covers every move. Being shown is the one change that may
+        // not resize it.
+        ImportWorkbench.SizeChanged += (_, _) => UpdateChromeAvoidance(animate: false);
+        ImportWorkbench.RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => UpdateChromeAvoidanceWhenLaidOut());
+        LeftViews.RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => UpdateChromeAvoidanceWhenLaidOut());
 
         void OnArtGeometryForGrid() => UpdateChromeAvoidance();
         void OnArtIdleForGrid(bool _) => UpdateChromeAvoidance();
@@ -633,70 +642,56 @@ public sealed partial class MainPage
         RPM.Desktop.Diagnostics.SwitchDiag.Mark("applied");
     }
 
-    // ── record avoidance: keep the header chrome clear of the spinning disc ──
-    // The switch and the cover-size slider are one set. The set's box is the same in both views, because
-    // the slider's column stays measured while it is away. So the dodge is measured from the group, and
-    // both members move together.
+    // ── record avoidance: keep the heading buttons clear of the spinning disc ──
+    // Two groups dodge it. The library's chrome: the switch and the cover-size slider are one set, whose box
+    // is the same in both views because the slider's column stays measured while it is away, so both
+    // members move together. And the import pane's close key, in the same corner when the import card lies
+    // over the row.
 
     /// <summary>The record's leftmost reach in WINDOW-X at a given window-Y, or +∞ when the disc is off the
     /// deck and laps over nothing.</summary>
     private Func<double, double>? _recordReach;
 
-    /// <summary>How far left the chrome is currently held, in px.</summary>
-    private double _recordReserve;
+    /// <summary>The library chrome's slide. Made with <see cref="_recordReach"/>.</summary>
+    private Common.DodgeShift? _chromeDodge;
 
+    /// <summary>Whether a re-measure is already waiting for the next layout pass (see
+    /// <see cref="UpdateChromeAvoidanceWhenLaidOut"/>).</summary>
+    private bool _avoidanceQueued;
+
+    /// <summary>Moves each group that dodges the record to where the disc leaves it room. Safe to run at any
+    /// time: each group measures where it is and where the disc is, and does nothing if neither moved.</summary>
     private void UpdateChromeAvoidance(bool animate = true)
     {
-        if (_recordReach is not { } reach || XamlRoot?.Content is not { } root || LibraryChrome.ActualWidth <= 0)
+        if (_recordReach is not { } reach || _chromeDodge is not { } chrome || XamlRoot?.Content is not { } root)
             return;
 
-        // The group's resting right edge and its TOP, in the window's coordinates (the space the record reach
-        // is measured in). TransformToVisual already includes the current shift, so the shift is taken back
-        // out, to get the RESTING edge. Otherwise the avoidance would keep correcting for its own shift.
-        var transform = LibraryChrome.TransformToVisual(root);
-        var p = transform.TransformPoint(new Windows.Foundation.Point(LibraryChrome.ActualWidth, 0));
-        var restRight = p.X - LibraryChromeShift.X;
-        var height = LibraryChrome.ActualHeight;
+        chrome.Update(reach, root, animate);
+        ImportWorkbench.CloseDodge.Update(reach, root, animate);
+    }
 
-        // Clear space kept between the chrome and the disc. It is generous, because the reach reports the sharp
-        // arc, and the disc also casts a soft shadow past that edge. 12 px would leave the chrome sitting in
-        // it. These are BUTTONS, so they must be clickable, not only visible. The disc takes clicks wherever
-        // it overlaps, so it is kept a full thumb's width away.
-        const double gap = 56;
-
-        // The disc's arc runs across the chrome's whole height. Down here, off the low shoulder of the
-        // circle, it swings hard over a few px of Y. So take the WORST (leftmost) reach over the band the
-        // chrome occupies, not the reach at one line through it.
-        var recordLeft = double.PositiveInfinity;
-        for (var i = 0; i <= 4; i++)
-            recordLeft = Math.Min(recordLeft, reach(p.Y + height * i / 4));
-
-        var reserve = double.IsInfinity(recordLeft) ? 0 : Math.Max(0, restRight + gap - recordLeft);
-
-        if (Math.Abs(reserve - _recordReserve) < 0.5)
+    /// <summary>
+    /// The same, on the first layout pass from now. For a view that has just been shown: it has no
+    /// place in the window until it is laid out, and shown again at its old size it raises no
+    /// SizeChanged.
+    ///
+    /// <para>One shot, and it unhooks itself. A handler left on <c>LayoutUpdated</c> would run on every
+    /// pass for the life of the page.</para>
+    /// </summary>
+    private void UpdateChromeAvoidanceWhenLaidOut()
+    {
+        if (_avoidanceQueued)
             return;
-        _recordReserve = reserve;
+        _avoidanceQueued = true;
 
-        if (!animate)
+        EventHandler<object>? hook = null;
+        hook = (_, _) =>
         {
-            LibraryChromeShift.X = -reserve;
-            return;
-        }
-        var anim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            To = -reserve,
-            Duration = new Duration(TimeSpan.FromSeconds(ArtDisplay.TransitionSeconds)),
-            EnableDependentAnimation = true,
-            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.QuadraticEase
-            {
-                EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut,
-            },
+            LayoutUpdated -= hook;
+            _avoidanceQueued = false;
+            UpdateChromeAvoidance(animate: false);
         };
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, LibraryChromeShift);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "X");
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        sb.Children.Add(anim);
-        sb.Begin();
+        LayoutUpdated += hook;
     }
 
     /// <summary>The chosen third of the switch wears the rail's azure wash; the others stay bare

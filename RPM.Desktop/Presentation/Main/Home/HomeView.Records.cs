@@ -194,7 +194,10 @@ public sealed partial class HomeView
                 if (root.Children.OfType<Polygon>().FirstOrDefault() is not { } point)
                     return null;   // the markup has no triangle, so there is no drawer here to open
 
-                return _drawers[root] = new RowDrawer(root, view, point);
+                var made = new RowDrawer(root, view, point);
+                // A drawer that changes size shows a different part of its sleeve under the triangle.
+                view.SizeChanged += (_, _) => PaintPoint(made);
+                return _drawers[root] = made;
             }
         }
 
@@ -543,6 +546,7 @@ public sealed partial class HomeView
             // the app's own plate meanwhile and the new record's background fades in over it.
             band.GroundOn = 0;
             band.Ground = null;
+            band.Sleeve = null;
             band.Wash = null;
             band.Veil = 0;
             band.Loading = true;
@@ -564,7 +568,7 @@ public sealed partial class HomeView
         // (the triangle and the ring). All three agree on the first frame as well as on every later
         // frame, and the cover's own background fades in on all three together once it has been read
         // (see CrossGround).
-        drawer.Point.Fill = BandPointer.Ramp(BandPointer.Plate);
+        drawer.Point.Fill = BandPointer.Fill(BandPointer.Plate);
         band.PointerBrush = drawer.Point.Fill;
 
         _open = drawer;
@@ -685,6 +689,22 @@ public sealed partial class HomeView
         drawer.Point.Margin = new Thickness(
             Math.Max(0, x - SimilarTileMetrics.Padding - BandPointer.TriangleHalf), 0, 0, 0);
         drawer.Point.Visibility = Visibility.Visible;
+        PaintPoint(drawer);   // it now stands over another part of the sleeve
+    }
+
+    /// <summary>
+    /// Paints the triangle in the colour the drawer's ground shows where the triangle meets it (see
+    /// <see cref="AlbumBandView.EdgeColourUnder"/>), not the sleeve's colour averaged across its width,
+    /// which meets the drawer with a line wherever the sleeve is not one colour from side to side. Left
+    /// alone until the ground has crossed in, because the cross paints the triangle while it runs.
+    /// </summary>
+    private static void PaintPoint(RowDrawer drawer)
+    {
+        if (drawer.View.Band is not { Sleeve: not null, GroundOn: >= 1 } band
+            || drawer.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) is not { } colour)
+            return;
+        band.PointerBrush = BandPointer.Fill(colour);
+        drawer.Point.Fill = band.PointerBrush;
     }
 
     /// <summary>Connects what a press inside the drawer does. It runs on every open, not once: the hooks
@@ -727,21 +747,24 @@ public sealed partial class HomeView
         band.Ground = new SolidColorBrush(read.Ground.Ground);
         band.Veil = read.Ground.Veil;
         band.Wash = read.Wash;
+        band.Sleeve = read.Ground;
+
+        // Where the triangle meets the drawer, the colour the drawer shows there; the average where the
+        // drawer cannot be read yet. It is painted again once the cross has landed.
+        var pointTo = drawer?.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) ?? read.Ground.Flat;
 
         // The triangle and the ring cannot show the drawer's three layers, so they use the single
         // colour the three layers combine to. They do not fade by a second copy fading over the first:
-        // two stacked ramps are one alpha over another and not the ramp itself, so the mark would come
-        // out darker and a different hue from the drawer it points at. Both are REPAINTED instead, their
-        // colour moving from what the drawer opened with to what its cover turned out to be, on the
-        // same value that drives the layers.
+        // two copies at part strength let the row show through the middle of the cross. Both are
+        // REPAINTED instead, their colour moving from what the drawer opened with to what its cover
+        // turned out to be, on the same value that drives the layers.
         var wasPoint = BandPointer.ColourOf(band.PointerBrush) ?? read.Ground.Flat;
         var wasRing = read.Ground.Flat;
         SolidColorBrush? ring = null;
         if (drawer?.Opened is { } card)
         {
             // The ring's brush is made once and its colour set on each frame. The triangle's brush is
-            // rebuilt each time, because a gradient is its stops, and changing them in place does not
-            // make the element repaint.
+            // replaced each time, because it is handed to the band and to the triangle as a brush.
             wasRing = (card.Ring as SolidColorBrush)?.Color ?? read.Ground.Flat;
             card.Ring = ring = new SolidColorBrush(wasRing);
         }
@@ -751,11 +774,13 @@ public sealed partial class HomeView
             v =>
             {
                 band.GroundOn = v;
-                band.PointerBrush = BandPointer.Ramp(BandPointer.Blend(wasPoint, read.Ground.Flat, v));
+                band.PointerBrush = BandPointer.Fill(BandPointer.Blend(wasPoint, pointTo, v));
                 if (drawer is not null)
                     drawer.Point.Fill = band.PointerBrush;
                 if (ring is not null)
                     ring.Color = BandPointer.Blend(wasRing, read.Ground.Flat, v);
+                if (v >= 1 && drawer is not null)
+                    PaintPoint(drawer);
             },
             band.GroundOn);
         _groundFade.To(1, watched ? GroundCrossMs : 0);
