@@ -57,7 +57,7 @@ public sealed partial class ArtworkService
 
     /// <summary>How long a partial answer or a failure is held before the server is asked again. The server finishes
     /// a partial answer in the background, usually within seconds.</summary>
-    private static readonly TimeSpan HoldBriefly = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan HoldBriefly = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Where the artwork answers are filed in the app's web cache: the art category, under a name of their own.

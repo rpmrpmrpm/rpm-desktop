@@ -379,8 +379,8 @@ internal sealed class ArtworkManager : IArtController
         }
     }
 
-    private void StartShow(TrackRef? track, bool forceRefresh)
-        => Enqueue((gen, ct) => track is { } t ? RunShowAsync(t, forceRefresh, gen, ct) : ShowIdleAsync(gen));
+    private void StartShow(TrackRef? track, bool forceRefresh, int reasks = 0)
+        => Enqueue((gen, ct) => track is { } t ? RunShowAsync(t, forceRefresh, reasks, gen, ct) : ShowIdleAsync(gen));
 
     /// <summary>Shows the current track again, from its tags: they were edited while it played (see
     /// PendingTagWrites). The caches stay; only the words changed.</summary>
@@ -440,7 +440,9 @@ internal sealed class ArtworkManager : IArtController
     private string? CurrentBackdrop()
         => _backdrops.Count == 0 ? null : _backdrops[Math.Clamp(_backdropIndex, 0, _backdrops.Count - 1)];
 
-    private async Task RunShowAsync(TrackRef track, bool forceRefresh, int gen, CancellationToken ct)
+    /// <param name="reasks">How many times this track's photographs have been asked for again after a
+    /// lookup that failed (see <see cref="AskAgainLater"/>).</param>
+    private async Task RunShowAsync(TrackRef track, bool forceRefresh, int reasks, int gen, CancellationToken ct)
     {
         // The cloud library row for a track with no local file. It is read once and used twice: for the
         // tags that the disk cannot give, and later for the album key and the ID that its stored sleeve is
@@ -625,7 +627,7 @@ internal sealed class ArtworkManager : IArtController
             if (!_headerArtistPhoto())
             {
                 SetBackdrops(null, []);
-                _stage.ClearBackdrop();
+                ClearPhoto();
                 return;
             }
 
@@ -635,7 +637,7 @@ internal sealed class ArtworkManager : IArtController
                 // with no photograph is exactly where somebody wants to choose their own, and the artist is
                 // the key that choice is filed under.
                 SetBackdrops(string.IsNullOrWhiteSpace(track.Artist) ? null : track.Artist, []);
-                _stage.ClearBackdrop();
+                ClearPhoto();
                 return;
             }
 
@@ -653,6 +655,11 @@ internal sealed class ArtworkManager : IArtController
             {
                 if (gen != _gen) return;
                 await ShowSavedOrderAsync(gen, artist, ct);
+                if (gen != _gen) return;
+
+                // The server also answers this way while its own lookup is still running ("not yet").
+                // So the photographs are asked for again later, while this track is still showing.
+                AskAgainLater(track, reasks, gen);
                 return;
             }
             if (gen != _gen) return;
@@ -707,14 +714,19 @@ internal sealed class ArtworkManager : IArtController
             var current = CurrentBackdrop();
             var backdrop = await _stage.LoadBackdropAsync(current, FramingFor(current), ct);
             if (gen != _gen) return;
-            // No picture at the address clears the header; a picture that could not be fetched leaves
-            // whatever is on it, because that is not an answer about this photograph.
+            // No picture at the address clears the header. A picture that could not be fetched leaves a
+            // photograph of this artist on it, because that is not an answer about this photograph. A
+            // photograph of another artist is taken down.
             if (!backdrop.Answers(out var loaded, out _))
+            {
+                if (!PhotoBelongsTo(_shownArtist, artist))
+                    ClearPhoto();
                 return;
+            }
             if (loaded is null)
-                _stage.ClearBackdrop();
+                ClearPhoto();
             else
-                _stage.ShowBackdrop(loaded);
+                ShowPhoto(loaded);
         }
         finally
         {
@@ -740,7 +752,7 @@ internal sealed class ArtworkManager : IArtController
         if (backdrop.Match(found => found, _ => null) is not { } loaded || url is null)
             return;   // no picture, or not fetched: the header keeps what it has either way
 
-        _stage.ShowBackdrop(loaded);
+        ShowPhoto(loaded);
         // Stopping on a photograph is the choice (see ArtistArtChoice). Nothing needs to be clicked and
         // nothing needs remembering. The next time this artist plays, this is the picture that opens.
         RememberChoice(url);
@@ -776,7 +788,7 @@ internal sealed class ArtworkManager : IArtController
         if (backdrop.Match(found => found, _ => null) is not { } loaded)
             return;   // not shown; the order is not written for a picture that cannot be shown
 
-        _stage.ShowBackdrop(loaded);
+        ShowPhoto(loaded);
 
         // The same gesture the arrows make: what is on screen is the choice, and it is saved as curated. So
         // the chooser never re-ranks this artist out from under it.
@@ -818,7 +830,7 @@ internal sealed class ArtworkManager : IArtController
 
         if (carousel.Count == 0)
         {
-            _stage.ClearBackdrop();   // the artist has one picture, and it is the wrong one
+            ClearPhoto();   // the artist has one picture, and it is the wrong one
             return;
         }
 
@@ -832,9 +844,9 @@ internal sealed class ArtworkManager : IArtController
         if (!backdrop.Answers(out var loaded, out _))
             return;
         if (loaded is null)
-            _stage.ClearBackdrop();
+            ClearPhoto();
         else
-            _stage.ShowBackdrop(loaded);
+            ShowPhoto(loaded);
     }
 
     /// <summary>
@@ -866,7 +878,7 @@ internal sealed class ArtworkManager : IArtController
         var backdrop = await _stage.LoadBackdropAsync(url, framing, ct);
         if (gen != _gen) return;
         if (backdrop.Match(found => found, _ => null) is { } loaded)
-            _stage.ShowBackdrop(loaded);
+            ShowPhoto(loaded);
     }
 
     private async Task RunReshapeAsync(int gen, CancellationToken ct)
@@ -877,7 +889,7 @@ internal sealed class ArtworkManager : IArtController
         var backdrop = await _stage.LoadBackdropAsync(url, FramingFor(url), ct);
         if (gen != _gen) return;
         if (backdrop.Match(found => found, _ => null) is { } loaded)
-            _stage.ShowBackdrop(loaded);   // same-window reshapes re-place without a dissolve
+            ShowPhoto(loaded);   // same-window reshapes re-place without a dissolve
     }
 
     private Task ShowIdleAsync(int gen)
@@ -889,7 +901,7 @@ internal sealed class ArtworkManager : IArtController
         _stage.SetText(null, null, null);
         _stage.ShowCover(null);
         _stage.ShowDisc(new LoadedDisc(null));
-        _stage.ClearBackdrop();
+        ClearPhoto();
         _stage.SetLoading(false);
         _stage.EnterIdle();
         return Task.CompletedTask;
@@ -898,6 +910,67 @@ internal sealed class ArtworkManager : IArtController
     /// <summary>Whose photographs are in the carousel. This is the key the choice is saved under. Null
     /// while nothing is playing, or for a track whose artist is not known.</summary>
     private string? _backdropArtist;
+
+    /// <summary>Whose photograph is on the header now, or null when none is. Not the same as
+    /// <see cref="_backdropArtist"/>: the carousel moves to the new artist before its photograph has
+    /// arrived, and a lookup or download that fails leaves the old photograph up. Written only by
+    /// <see cref="ShowPhoto"/> and <see cref="ClearPhoto"/>, which are the only calls that put a
+    /// photograph up or take it down.</summary>
+    private string? _shownArtist;
+
+    /// <summary>Puts up a photograph from the carousel, which is a photograph of
+    /// <see cref="_backdropArtist"/>.</summary>
+    private void ShowPhoto(LoadedBackdrop loaded)
+    {
+        _stage.ShowBackdrop(loaded);
+        _shownArtist = _backdropArtist;
+    }
+
+    private void ClearPhoto()
+    {
+        _stage.ClearBackdrop();
+        _shownArtist = null;
+    }
+
+    /// <summary>
+    /// Whether a photograph of <paramref name="shown"/> may stay on the header while
+    /// <paramref name="artist"/> plays and that artist's own photograph could not be had. True for the
+    /// same artist, and for the lead name of the credit ("Aretha Franklin" for "Aretha Franklin, The Royal
+    /// Philharmonic Orchestra"), which is whose photograph the credit is shown with.
+    /// </summary>
+    internal static bool PhotoBelongsTo(string? shown, string artist) =>
+        shown is { Length: > 0 }
+        && (string.Equals(shown, artist, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shown, ArtistCredit.First(artist), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>How many times a track's photographs are asked for again after failed lookups.</summary>
+    internal const int MaxReasks = 3;
+
+    /// <summary>The wait before asking again, or null when the track has been asked about often enough.
+    /// Past <see cref="ArtworkService.HoldBriefly"/>, which is how long the service gives back the
+    /// failure without asking the server.</summary>
+    internal static TimeSpan? ReaskAfter(int reasks) =>
+        reasks < MaxReasks ? ArtworkService.HoldBriefly + TimeSpan.FromSeconds(2) : null;
+
+    /// <summary>
+    /// Shows the track again after <see cref="ReaskAfter"/>, if nothing newer has been asked of the
+    /// header by then (another track, a step, a refresh). A newer request bumps the generation, and
+    /// that request owns the header.
+    /// </summary>
+    private void AskAgainLater(TrackRef track, int reasks, int gen)
+    {
+        if (ReaskAfter(reasks) is not { } wait)
+            return;
+
+        _ = LaterAsync();
+
+        async Task LaterAsync()
+        {
+            await Task.Delay(wait);
+            if (gen == _gen && Same(_displayed, track))
+                StartShow(track, forceRefresh: false, reasks + 1);
+        }
+    }
 
     /// <summary>
     /// This artist's hand-made framings, by photograph. They are read once when the carousel is set. They
@@ -1055,8 +1128,19 @@ internal sealed class ArtworkManager : IArtController
             .Select(b => b.Url)
             .ToList();
 
+        // A photograph of this artist that is already up stays. Anything else on the header is a
+        // photograph of another artist, and is taken down: the header must never show one artist while
+        // another plays. The carousel then belongs to this artist, so a picture chosen from the menu is
+        // filed under the artist who is playing.
         if (saved is not { Count: > 0 })
+        {
+            if (!PhotoBelongsTo(_shownArtist, artist))
+            {
+                SetBackdrops(artist, []);
+                ClearPhoto();
+            }
             return;
+        }
 
         SetBackdrops(artist, saved);
 
@@ -1064,7 +1148,9 @@ internal sealed class ArtworkManager : IArtController
         var backdrop = await _stage.LoadBackdropAsync(current, FramingFor(current), ct);
         if (gen != _gen) return;
         if (backdrop.Match(found => found, _ => null) is { } loaded)
-            _stage.ShowBackdrop(loaded);
+            ShowPhoto(loaded);
+        else if (!PhotoBelongsTo(_shownArtist, artist))
+            ClearPhoto();
     }
 
     /// <summary>Reconciles the source's candidates against the saved order, and saves the cheap changes.
