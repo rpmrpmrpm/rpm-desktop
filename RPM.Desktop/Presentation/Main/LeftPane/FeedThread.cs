@@ -39,7 +39,7 @@ internal sealed class FeedThread
     private readonly StackPanel _lines = new() { Spacing = 10 };
     private readonly TextBlock _quiet = new()
     {
-        FontSize = 13,
+        FontSize = FeedType.Body,
         Foreground = FeedCards.White(0x88),
         TextWrapping = TextWrapping.Wrap,
         Visibility = Visibility.Collapsed,
@@ -211,15 +211,17 @@ internal sealed class FeedThread
     /// <summary>The key under a reply on the last shown level that opens the answers under it.</summary>
     private Button ShowMore(string replyId, int count, int depth)
     {
-        var key = FeedCards.TextKey(
-            count == 1 ? Loc.Get("Rpm_Profile_ShowMoreRepliesOne") : Loc.Format("Rpm_Profile_ShowMoreReplies", count),
-            12,
-            () =>
-            {
-                _opened.Add(replyId);
-                Draw();
-            });
-        key.Margin = new Thickness((Math.Min(depth + 1, DeepestIndent) * Indent) + 38, -4, 0, 0);
+        var key = new RpmLink
+        {
+            Content = count == 1 ? Loc.Get("Rpm_Profile_ShowMoreRepliesOne") : Loc.Format("Rpm_Profile_ShowMoreReplies", count),
+            FontSize = FeedType.Body,
+        };
+        key.Click += (_, _) =>
+        {
+            _opened.Add(replyId);
+            Draw();
+        };
+        key.Margin = new Thickness((Math.Min(depth + 1, DeepestIndent) * Indent) + 38, 0, 0, 0);
         key.HorizontalAlignment = HorizontalAlignment.Left;
         return key;
     }
@@ -265,14 +267,14 @@ internal sealed class FeedThread
             ? new TextBlock
             {
                 Text = Loc.Get("Rpm_Profile_ReplyDeleted"),
-                FontSize = 13,
+                FontSize = FeedType.Body,
                 FontStyle = Windows.UI.Text.FontStyle.Italic,
                 Foreground = FeedCards.White(0x77),
             }
             : new TextBlock
             {
                 Text = reply.Body,
-                FontSize = 14,
+                FontSize = FeedType.Body,
                 Foreground = FeedCards.White(0xE6),
                 TextWrapping = TextWrapping.Wrap,
                 IsTextSelectionEnabled = true,
@@ -287,7 +289,7 @@ internal sealed class FeedThread
             foot.Children.Add(votes);
             if (signedIn)
             {
-                var answer = FeedCards.TextKey(Loc.Get("Rpm_Profile_Reply"), 12, () =>
+                var answer = FeedCards.TextKey(Loc.Get("Rpm_Profile_Reply"), () =>
                 {
                     _answering = _answering == reply.ReplyId ? null : reply.ReplyId;
                     Draw();
@@ -322,18 +324,10 @@ internal sealed class FeedThread
     private MenuFlyout Menu(RpmReply reply, bool mine)
     {
         var menu = new MenuFlyout();
-        var item = new MenuFlyoutItem
-        {
-            Text = Loc.Get(mine ? "Rpm_Profile_DeleteReply" : "Rpm_Profile_ReportReply"),
-        };
-        item.Click += async (_, _) =>
-        {
-            if (mine)
-                await DeleteAsync(reply);
-            else
-                await FeedReport.AskAsync(Root.XamlRoot, note => Community.ReportPostAsync(_ownerId, _postId, reply.ReplyId, note));
-        };
-        menu.Items.Add(item);
+        menu.Items.Add(mine
+            ? FeedCards.MenuItem("Rpm_Profile_DeleteReply", "\uf2ed", () => DeleteAsync(reply))
+            : FeedCards.MenuItem("Rpm_Profile_ReportReply", "\uf024",
+                () => FeedReport.AskAsync(Root.XamlRoot, note => Community.ReportPostAsync(_ownerId, _postId, reply.ReplyId, note))));
         return menu;
     }
 

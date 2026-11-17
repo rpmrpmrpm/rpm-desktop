@@ -41,7 +41,7 @@ internal static class FeedPerson
         nameRow.Children.Add(new TextBlock
         {
             Text = person.DisplayName,
-            FontSize = 22,
+            FontSize = FeedType.PageTitle,
             FontWeight = FontWeights.SemiBold,
             Foreground = person.Supporter ? new SolidColorBrush(Gold) : FeedCards.White(0xFF),
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -63,7 +63,7 @@ internal static class FeedPerson
             top.Children.Add(new TextBlock
             {
                 Text = counts,
-                FontSize = 11,
+                FontSize = FeedType.Meta,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = FeedCards.White(0x88),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -77,7 +77,7 @@ internal static class FeedPerson
             top.Children.Add(new TextBlock
             {
                 Text = Loc.Format("Rpm_Profile_MemberSince", since),
-                FontSize = 12,
+                FontSize = FeedType.Meta,
                 Foreground = FeedCards.White(0x88),
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
@@ -96,7 +96,7 @@ internal static class FeedPerson
             row.Children.Add(new TextBlock
             {
                 Text = Loc.Format("Rpm_Profile_NowPlaying", now.Title, now.Artist),
-                FontSize = 14,
+                FontSize = FeedType.Body,
                 Foreground = FeedCards.White(0xEE),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -228,7 +228,7 @@ internal static class FeedPerson
             Child = new TextBlock
             {
                 Text = name,
-                FontSize = 14,
+                FontSize = FeedType.Body,
                 FontStyle = Windows.UI.Text.FontStyle.Italic,
                 Foreground = new SolidColorBrush(Mix(colour, Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), 0.8)),
             },

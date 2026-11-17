@@ -71,7 +71,7 @@ internal sealed class FeedEdit
         _column.Children.Add(Title(Loc.Get("Rpm_Profile_EditPage")));
 
         // Display name.
-        _name = new TextBox { Text = person.DisplayName, MaxLength = 40, FontSize = 14 };
+        _name = new TextBox { Text = person.DisplayName, MaxLength = 40, FontSize = FeedType.Body };
         _name.TextChanged += (_, _) => Sync();
         _column.Children.Add(Card(Loc.Get("Rpm_Profile_Name"), _name));
 
@@ -118,7 +118,7 @@ internal sealed class FeedEdit
         // What the page is drawn on: one of the app's backgrounds, or a solid colour.
         var groundBody = new StackPanel { Spacing = 10 };
         groundBody.Children.Add(_grounds);
-        groundBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_Colours"), FontSize = 12, Foreground = FeedCards.White(0x99) });
+        groundBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_Colours"), FontSize = FeedType.Body, Foreground = FeedCards.White(0x99) });
         groundBody.Children.Add(_groundColours);
         _column.Children.Add(Card(Loc.Get("Settings_Background"), groundBody));
 
@@ -126,7 +126,7 @@ internal sealed class FeedEdit
         // unlocks them, greyed, as on the phones.
         var badgeBody = new StackPanel { Spacing = 10 };
         badgeBody.Children.Add(_badges);
-        badgeBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Badges_Colour"), FontSize = 12, Foreground = FeedCards.White(0x99) });
+        badgeBody.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Badges_Colour"), FontSize = FeedType.Body, Foreground = FeedCards.White(0x99) });
         badgeBody.Children.Add(_colours);
         badgeBody.Children.Add(_locked);
         _column.Children.Add(Card(Loc.Get("Rpm_Badges_Title"), badgeBody));
@@ -134,7 +134,7 @@ internal sealed class FeedEdit
         _save = new RpmPrimaryButton { Content = Loc.Get("Rpm_Profile_Save"), HorizontalAlignment = HorizontalAlignment.Stretch, IsEnabled = false };
         _save.Click += async (_, _) => await SaveAsync();
         _column.Children.Add(_save);
-        _trouble = new TextBlock { FontSize = 12, Foreground = FeedCards.White(0xAA), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        _trouble = new TextBlock { FontSize = FeedType.Body, Foreground = FeedCards.White(0xAA), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
         _column.Children.Add(_trouble);
 
         Root = new ScrollViewer
@@ -255,19 +255,34 @@ internal sealed class FeedEdit
         }
     }
 
+    /// <summary>A badge to choose, as a pill. The pill is drawn inside the key, not as its Background and
+    /// BorderBrush: <c>FeedView.xaml</c> clears a key's background and border on hover and press, and the
+    /// pill would vanish under the pointer.</summary>
     private Button Choice(string text, bool chosen, Action choose)
     {
         var key = new Button
         {
             Style = FeedCards.Key(),
             Height = 30,
-            Padding = new Thickness(12, 0, 12, 0),
-            CornerRadius = new CornerRadius(15),
-            BorderThickness = new Thickness(1),
-            BorderBrush = FeedCards.White(chosen ? (byte)0xEE : (byte)0x33),
-            Background = FeedCards.White(chosen ? (byte)0x26 : (byte)0x0C),
-            Content = new TextBlock { Text = text, FontSize = 13, FontStyle = Windows.UI.Text.FontStyle.Italic, Foreground = FeedCards.White(0xEE) },
+            Content = new Border
+            {
+                Height = 30,
+                Padding = new Thickness(12, 0, 12, 0),
+                CornerRadius = new CornerRadius(15),
+                BorderThickness = new Thickness(1),
+                BorderBrush = FeedCards.White(chosen ? (byte)0xEE : (byte)0x33),
+                Background = FeedCards.White(chosen ? (byte)0x26 : (byte)0x0C),
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = FeedType.Body,
+                    FontStyle = Windows.UI.Text.FontStyle.Italic,
+                    Foreground = FeedCards.White(0xEE),
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            },
         };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(key, text);
         key.Click += (_, _) =>
         {
             choose();
@@ -305,7 +320,7 @@ internal sealed class FeedEdit
             stack.Children.Add(new TextBlock
             {
                 Text = Loc.Get(nameKey),
-                FontSize = 11,
+                FontSize = FeedType.Meta,
                 Foreground = FeedCards.White(picked ? (byte)0xFF : (byte)0x99),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -353,16 +368,16 @@ internal sealed class FeedEdit
         _locked.Children.Add(new TextBlock
         {
             Text = Loc.Get("Rpm_Badges_Locked"),
-            FontSize = 12,
+            FontSize = FeedType.Body,
             Foreground = FeedCards.White(0x99),
             Margin = new Thickness(0, 6, 0, 0),
         });
         foreach (var id in locked)
         {
             var row = new StackPanel { Spacing = 1 };
-            row.Children.Add(new TextBlock { Text = ProfileBadges.NameOf(id) ?? id, FontSize = 13, FontStyle = Windows.UI.Text.FontStyle.Italic, Foreground = FeedCards.White(0x77) });
+            row.Children.Add(new TextBlock { Text = ProfileBadges.NameOf(id) ?? id, FontSize = FeedType.Body, FontStyle = Windows.UI.Text.FontStyle.Italic, Foreground = FeedCards.White(0x77) });
             if (ProfileBadges.NeedOf(id) is { } need)
-                row.Children.Add(new TextBlock { Text = need, FontSize = 11, Foreground = FeedCards.White(0x66), TextWrapping = TextWrapping.Wrap });
+                row.Children.Add(new TextBlock { Text = need, FontSize = FeedType.Meta, Foreground = FeedCards.White(0x66), TextWrapping = TextWrapping.Wrap });
             _locked.Children.Add(row);
         }
     }
@@ -474,7 +489,7 @@ internal sealed class FeedEdit
     private static TextBlock Title(string text) => new()
     {
         Text = text,
-        FontSize = 17,
+        FontSize = FeedType.Subject,
         FontWeight = FontWeights.SemiBold,
         Foreground = FeedCards.White(0xFF),
         Margin = new Thickness(0, 0, 0, 4),
@@ -483,7 +498,7 @@ internal sealed class FeedEdit
     private static Border Card(string title, UIElement body)
     {
         var stack = new StackPanel { Spacing = 10 };
-        stack.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = FeedCards.White(0xCC) });
+        stack.Children.Add(new TextBlock { Text = title, FontSize = FeedType.Section, FontWeight = FontWeights.SemiBold, Foreground = FeedCards.White(0xCC) });
         stack.Children.Add(body);
         return new Border
         {

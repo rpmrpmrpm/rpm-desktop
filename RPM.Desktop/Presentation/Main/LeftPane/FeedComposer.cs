@@ -48,7 +48,7 @@ internal sealed partial class FeedComposer : UserControl
             MaxLength = RpmCommunityClient.LongestPost,
             MaxHeight = 140,
             IsSpellCheckEnabled = true,
-            FontSize = 14,
+            FontSize = FeedType.Body,
             VerticalAlignment = VerticalAlignment.Center,
         };
         _text.TextChanged += (_, _) => Sync();
@@ -71,8 +71,8 @@ internal sealed partial class FeedComposer : UserControl
             songRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             songRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var words = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-            words.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_WithSong"), FontSize = 12, Foreground = FeedCards.White(0xB3) });
-            _songLine = new TextBlock { FontSize = 11, Foreground = FeedCards.White(0x77), TextTrimming = TextTrimming.CharacterEllipsis };
+            words.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_WithSong"), FontSize = FeedType.Body, Foreground = FeedCards.White(0xB3) });
+            _songLine = new TextBlock { FontSize = FeedType.Meta, Foreground = FeedCards.White(0x77), TextTrimming = TextTrimming.CharacterEllipsis };
             words.Children.Add(_songLine);
             songRow.Children.Add(words);
             _withSong = new ToggleSwitch { OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Center };
@@ -88,7 +88,7 @@ internal sealed partial class FeedComposer : UserControl
 
         _trouble = new TextBlock
         {
-            FontSize = 12,
+            FontSize = FeedType.Body,
             Foreground = FeedCards.White(0xAA),
             TextWrapping = TextWrapping.Wrap,
             Visibility = Visibility.Collapsed,

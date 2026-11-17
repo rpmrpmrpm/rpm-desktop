@@ -22,7 +22,7 @@ internal sealed class FeedNotices
     private readonly StackPanel _column = new() { Spacing = 8, Padding = new Thickness(16, 7, 16, 40) };
     private readonly TextBlock _quiet = new()
     {
-        FontSize = 13,
+        FontSize = FeedType.Body,
         Foreground = FeedCards.White(0x88),
         TextWrapping = TextWrapping.Wrap,
         Visibility = Visibility.Collapsed,
@@ -36,7 +36,7 @@ internal sealed class FeedNotices
         _column.Children.Add(new TextBlock
         {
             Text = Loc.Get("Rpm_Notify_Title"),
-            FontSize = 17,
+            FontSize = FeedType.Subject,
             FontWeight = FontWeights.SemiBold,
             Foreground = FeedCards.White(0xFF),
             Margin = new Thickness(0, 0, 0, 4),
@@ -180,11 +180,11 @@ internal sealed class FeedNotices
         text.Children.Add(new TextBlock
         {
             Text = Sentence(n),
-            FontSize = 14,
+            FontSize = FeedType.Body,
             Foreground = FeedCards.White(n.Read ? (byte)0xBB : (byte)0xF2),
             TextWrapping = TextWrapping.Wrap,
         });
-        text.Children.Add(new TextBlock { Text = FeedCards.Written(n.CreatedAt), FontSize = 11, Foreground = FeedCards.White(0x77) });
+        text.Children.Add(new TextBlock { Text = FeedCards.Written(n.CreatedAt), FontSize = FeedType.Meta, Foreground = FeedCards.White(0x77) });
 
         if (n.Kind == RpmNotice.FriendRequestKind)
         {

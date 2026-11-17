@@ -6,7 +6,9 @@
   <UserControl.Resources>
     <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
 
-    <!-- The keys on the cards draw no plate (FeedCards.Key), so hover and press leave it clear. -->
+    <!-- The keys on the cards draw no plate (FeedCards.Key), so hover and press leave it clear. These
+         brushes reach every plain Button in the view, the pages included, so a key that needs a plate
+         or a border draws it inside its content (the heading keys, the badge pills in FeedEdit). -->
     <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
     <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
     <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/>
@@ -34,13 +36,19 @@
     <Grid x:Name="Ground" Grid.RowSpan="2" CornerRadius="0,7,7,0" IsHitTestVisible="False"/>
 
     <!-- The heading row. The key at the right is the reader's own page on the feed, and the way back on
-         every page the feed opens. Both end on the cards' right edge. -->
+         every page the feed opens. Both end on the cards' right edge. The heading says Profile while a
+         person's page is in the stack (FeedView.Show).
+
+         The keys are centred on the heading's letters, not on the 36 px box. The letters run from 4.4 to
+         21.6 px down the box (see LibraryChrome in MainPage.xaml), so their middle is 13 px down. A 32 px
+         key with its top at -3 has its middle there too. All three keys use that top margin. -->
     <Grid Grid.Row="0" Margin="16,12,16,0" Style="{StaticResource RpmPaneHeadingBox}">
-      <TextBlock Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
+      <TextBlock x:Name="Heading" Text="{loc:Str Key=Rpm_Tab_Feed}" Style="{StaticResource RpmPaneHeading}"/>
 
       <!-- The round plate is drawn inside the key, not as its Background: the brushes above clear a
            key's background on hover, and the plate would vanish under the pointer. -->
       <Button x:Name="ProfileKey" Click="ProfileKey_Click" HorizontalAlignment="Right"
+              VerticalAlignment="Top" Margin="0,-3,0,0"
               Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
               Background="Transparent" BorderThickness="0" Visibility="Collapsed"
               ToolTipService.ToolTip="{loc:Str Key=Rpm_Feed_MyProfile}"
@@ -56,7 +64,8 @@
 
       <!-- The menu of a person's page, left of the close key: notifications and the edit page on the
            reader's own page; friendship and blocking on someone else's. -->
-      <Button x:Name="MenuKey" Click="MenuKey_Click" HorizontalAlignment="Right" Margin="0,0,40,0"
+      <Button x:Name="MenuKey" Click="MenuKey_Click" HorizontalAlignment="Right"
+              VerticalAlignment="Top" Margin="0,-3,40,0"
               Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
               Background="Transparent" BorderThickness="0" Visibility="Collapsed"
               ToolTipService.ToolTip="{loc:Str Key=Rpm_Profile_Menu}"
@@ -70,6 +79,7 @@
       </Button>
 
       <Button x:Name="BackKey" Click="BackKey_Click" HorizontalAlignment="Right"
+              VerticalAlignment="Top" Margin="0,-3,0,0"
               Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0"
               HorizontalContentAlignment="Right"
               Background="Transparent" BorderThickness="0" Visibility="Collapsed"
@@ -82,7 +92,7 @@
     <ScrollViewer x:Name="Scroller" Grid.Row="1" HorizontalScrollMode="Disabled"
                   VerticalScrollBarVisibility="Auto">
       <StackPanel x:Name="Column" Spacing="12" Padding="16,7,16,40">
-        <TextBlock x:Name="QuietLine" FontSize="13" Foreground="#88FFFFFF" TextWrapping="Wrap"
+        <TextBlock x:Name="QuietLine" FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap"
                    Visibility="Collapsed"/>
       </StackPanel>
     </ScrollViewer>

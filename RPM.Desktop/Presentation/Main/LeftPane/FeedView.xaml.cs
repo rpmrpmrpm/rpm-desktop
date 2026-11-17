@@ -80,7 +80,8 @@ internal sealed partial class FeedView : UserControl
         Wire(_everyone);
         KeyDown += async (_, e) =>
         {
-            if (e.Key == Windows.System.VirtualKey.Escape && _pages.Count > 0 && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+            if (e.Key == Windows.System.VirtualKey.Escape && _pages.Count > 0 && XamlRoot is { } root
+                && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is not TextBox)
             {
                 e.Handled = true;
                 await BackAsync();
@@ -182,6 +183,10 @@ internal sealed partial class FeedView : UserControl
         }
         _everyone.Active = top is null;
 
+        // Profile over a person's page and over every page opened from one (the edit page, the
+        // notifications, a post), Feed over everyone's feed and the pages opened from it.
+        Heading.Text = Loc.Get(_pages.Any(p => p.Person is not null) ? "Rpm_Profile_Heading" : "Rpm_Tab_Feed");
+
         var signedIn = Auth.UserId is { Length: > 0 };
         ProfileKey.Visibility = Vis(top is null && signedIn);
         BackKey.Visibility = Vis(top is not null);
@@ -279,7 +284,7 @@ internal sealed partial class FeedView : UserControl
         var column = new StackPanel { Spacing = 12, Padding = new Thickness(16, 7, 16, 40) };
         var quiet = new TextBlock
         {
-            FontSize = 13,
+            FontSize = FeedType.Body,
             Foreground = FeedCards.White(0x88),
             TextWrapping = TextWrapping.Wrap,
             Visibility = Visibility.Collapsed,
@@ -366,7 +371,7 @@ internal sealed partial class FeedView : UserControl
         if (person.Blocked)
         {
             var blocked = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
-            blocked.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_Blocked"), FontSize = 13, Foreground = FeedCards.White(0x88), HorizontalAlignment = HorizontalAlignment.Center });
+            blocked.Children.Add(new TextBlock { Text = Loc.Get("Rpm_Profile_Blocked"), FontSize = FeedType.Body, Foreground = FeedCards.White(0x88), HorizontalAlignment = HorizontalAlignment.Center });
             blocked.Children.Add(Key<RpmButton>("Rpm_Profile_Unblock", () => ChangeAsync(parts, () => Community.UnblockAsync(person.UserId), readList: true)));
             return blocked;
         }
@@ -384,7 +389,7 @@ internal sealed partial class FeedView : UserControl
                 friends.Click += (_, _) =>
                 {
                     var menu = new MenuFlyout();
-                    menu.Items.Add(Item("Rpm_Profile_RemoveFriend", () => ChangeAsync(parts, () => Community.RemoveFriendAsync(person.UserId))));
+                    menu.Items.Add(FeedCards.MenuItem("Rpm_Profile_RemoveFriend", "\uf503", () => ChangeAsync(parts, () => Community.RemoveFriendAsync(person.UserId))));
                     menu.ShowAt(friends);
                 };
                 row.Children.Add(friends);
@@ -406,13 +411,6 @@ internal sealed partial class FeedView : UserControl
             key.IsEnabled = true;
         };
         return key;
-    }
-
-    private static MenuFlyoutItem Item(string textKey, Func<Task> onClick)
-    {
-        var item = new MenuFlyoutItem { Text = Loc.Get(textKey) };
-        item.Click += async (_, _) => await onClick();
-        return item;
     }
 
     /// <summary>Sends a change to the friendship or the block, then reads the profile again so the page says
@@ -449,12 +447,12 @@ internal sealed partial class FeedView : UserControl
         var menu = new MenuFlyout();
         if (person.UserId == Auth.UserId)
         {
-            menu.Items.Add(Item("Rpm_Notify_Title", () =>
+            menu.Items.Add(FeedCards.MenuItem("Rpm_Notify_Title", "\uf0f3", () =>
             {
                 OpenNotices();
                 return Task.CompletedTask;
             }));
-            menu.Items.Add(Item("Rpm_Profile_EditPage", () =>
+            menu.Items.Add(FeedCards.MenuItem("Rpm_Profile_EditPage", "\uf044", () =>
             {
                 OpenEdit(parts, person);
                 return Task.CompletedTask;
@@ -462,11 +460,11 @@ internal sealed partial class FeedView : UserControl
         }
         else if (person.Blocked)
         {
-            menu.Items.Add(Item("Rpm_Profile_Unblock", () => ChangeAsync(parts, () => Community.UnblockAsync(person.UserId), readList: true)));
+            menu.Items.Add(FeedCards.MenuItem("Rpm_Profile_Unblock", "\uf4fc", () => ChangeAsync(parts, () => Community.UnblockAsync(person.UserId), readList: true)));
         }
         else
         {
-            menu.Items.Add(Item("Rpm_Profile_Block", () => BlockAsync(parts, person)));
+            menu.Items.Add(FeedCards.MenuItem("Rpm_Profile_Block", "\uf05e", () => BlockAsync(parts, person)));
         }
         menu.ShowAt(MenuKey);
     }
@@ -501,7 +499,7 @@ internal sealed partial class FeedView : UserControl
         var menu = new MenuFlyout();
         if (post.OwnerId == Auth.UserId)
         {
-            menu.Items.Add(Item("Rpm_Profile_DeletePost", async () =>
+            menu.Items.Add(FeedCards.MenuItem("Rpm_Profile_DeletePost", "\uf2ed", async () =>
             {
                 try
                 {
@@ -517,7 +515,7 @@ internal sealed partial class FeedView : UserControl
         }
         else
         {
-            menu.Items.Add(Item("Artists_WallReport", () =>
+            menu.Items.Add(FeedCards.MenuItem("Artists_WallReport", "\uf024", () =>
                 FeedReport.AskAsync(XamlRoot, note => Community.ReportPostAsync(post.OwnerId, post.PostId, null, note))));
         }
         menu.ShowAt(at);

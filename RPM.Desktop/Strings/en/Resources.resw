@@ -3907,6 +3907,10 @@
     <value>My profile</value>
     <comment>Phone Feed tab: accessibility label of the key at the top right that opens the reader's own profile page.</comment>
   </data>
+  <data name="Rpm_Profile_Heading" xml:space="preserve">
+    <value>Profile</value>
+    <comment>Desktop Feed pane: the large heading over a person's page and over the edit page, in place of Feed.</comment>
+  </data>
   <data name="Rpm_Profile_UnsavedTitle" xml:space="preserve">
     <value>Apply your changes?</value>
     <comment>Phone profile edit page: asked when the page is closed with changes not yet saved. The two answers are Rpm_Profile_ApplyChanges and Rpm_Profile_Discard.</comment>

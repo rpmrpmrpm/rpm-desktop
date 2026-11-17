@@ -9,14 +9,15 @@ using Windows.UI;
 namespace RPM.Desktop.Presentation.Main.LeftPane;
 
 /// <summary>
-/// The Feed's cards, built in code with the phone apps' sizes: a post (photo, name, text, the song, votes
-/// and the reply count) and a review (the author, the record's title, artist, year and stars, the cover
-/// at the right with the text run round it, votes and Read full review).
+/// The Feed's cards, built in code: a post (photo, name, text, the song, votes and the reply count) and a
+/// review (the author, the record's title, artist, year and stars, the cover at the right with the text run
+/// round it, votes and Read full review).
 ///
-/// <para>The sizes inside a card are the phone's points, used as the desktop's pixels. Change them
-/// together with <c>ProfileScreen.kt</c> and <c>ReviewCards.kt</c> in rpm-android and
-/// <c>ReviewCards.swift</c> in rpm-apple. The cards themselves are as wide as the pane allows, from the
-/// heading's left edge to the same margin at the right (see <c>FeedView.xaml</c>).</para>
+/// <para>The text is at the desktop's sizes (<see cref="FeedType"/>), so the Feed reads at the same size as
+/// the rest of the app. The room inside a card (photos, padding, the cover) follows the phone's cards,
+/// <c>ProfileScreen.kt</c> and <c>ReviewCards.kt</c> in rpm-android and <c>ReviewCards.swift</c> in
+/// rpm-apple. The cards themselves are as wide as the pane allows, from the heading's left edge to the same
+/// margin at the right (see <c>FeedView.xaml</c>).</para>
 /// </summary>
 internal static class FeedCards
 {
@@ -67,7 +68,7 @@ internal static class FeedCards
         text.Children.Add(new TextBlock
         {
             Text = post.Body,
-            FontSize = 14,
+            FontSize = FeedType.Body,
             Foreground = White(0xE6),
             TextWrapping = TextWrapping.Wrap,
             // Selectable text takes the press for itself, so a card that opens its thread on a press keeps
@@ -81,7 +82,7 @@ internal static class FeedCards
             line.Children.Add(new TextBlock
             {
                 Text = SongLine(song),
-                FontSize = 12,
+                FontSize = FeedType.Meta,
                 Foreground = White(0xAA),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -170,7 +171,8 @@ internal static class FeedCards
         foot.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         foot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         foot.Children.Add(votes);
-        var read = TextKey(Loc.Get("Rpm_Profile_ReadReview"), 14, onRead);
+        var read = new RpmLink { Content = Loc.Get("Rpm_Profile_ReadReview"), FontSize = FeedType.Body, VerticalAlignment = VerticalAlignment.Center };
+        read.Click += (_, _) => onRead();
         Grid.SetColumn(read, 1);
         foot.Children.Add(read);
         stack.Children.Add(foot);
@@ -208,7 +210,7 @@ internal static class FeedCards
             yield return new TextBlock
             {
                 Text = Quoted(review.Body),
-                FontSize = 15,
+                FontSize = FeedType.Body,
                 Foreground = White(0xEE),
                 TextWrapping = TextWrapping.Wrap,
                 IsTextSelectionEnabled = true,
@@ -221,7 +223,7 @@ internal static class FeedCards
         foot.Children.Add(votes);
         if (onOpenAlbum is not null)
         {
-            var open = TextKey(Loc.Get("Rpm_Profile_OpenAlbum"), 13, onOpenAlbum);
+            var open = TextKey(Loc.Get("Rpm_Profile_OpenAlbum"), onOpenAlbum);
             Grid.SetColumn(open, 1);
             foot.Children.Add(open);
         }
@@ -236,7 +238,7 @@ internal static class FeedCards
         head.Children.Add(new TextBlock
         {
             Text = review.AlbumTitle,
-            FontSize = 17,
+            FontSize = FeedType.Subject,
             FontWeight = FontWeights.SemiBold,
             Foreground = White(0xFF),
             TextWrapping = TextWrapping.Wrap,
@@ -246,7 +248,7 @@ internal static class FeedCards
         head.Children.Add(new TextBlock
         {
             Text = review.AlbumYear > 0 ? $"{review.AlbumArtist}, {review.AlbumYear}" : review.AlbumArtist,
-            FontSize = 13,
+            FontSize = FeedType.Body,
             Foreground = White(0x99),
             Margin = new Thickness(0, 2, 0, 0),
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -255,9 +257,9 @@ internal static class FeedCards
         {
             var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 6, 0, 0) };
             if (review.Rating > 0)
-                line.Children.Add(new StarRating { Value = review.Stars, GlyphSize = 15, VerticalAlignment = VerticalAlignment.Center });
+                line.Children.Add(new StarRating { Value = review.Stars, GlyphSize = FeedType.Stars, VerticalAlignment = VerticalAlignment.Center });
             if (showTime)
-                line.Children.Add(new TextBlock { Text = Written(review.CreatedAt), FontSize = 11, Foreground = White(0x77), VerticalAlignment = VerticalAlignment.Center });
+                line.Children.Add(new TextBlock { Text = Written(review.CreatedAt), FontSize = FeedType.Meta, Foreground = White(0x77), VerticalAlignment = VerticalAlignment.Center });
             head.Children.Add(line);
         }
         return head;
@@ -335,7 +337,7 @@ internal static class FeedCards
         line.Children.Add(new TextBlock
         {
             Text = name,
-            FontSize = 14,
+            FontSize = FeedType.Name,
             FontWeight = FontWeights.SemiBold,
             Foreground = gold ? new SolidColorBrush(Gold) : White(0xFF),
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -344,7 +346,7 @@ internal static class FeedCards
         line.Children.Add(new TextBlock
         {
             Text = Written(millis),
-            FontSize = 11,
+            FontSize = FeedType.Meta,
             Foreground = White(0x77),
             VerticalAlignment = VerticalAlignment.Center,
         });
@@ -384,11 +386,11 @@ internal static class FeedCards
             Height = 32,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        row.Children.Add(Glyph(Comment, 13, White(0x99)));
+        row.Children.Add(Glyph(Comment, FeedType.Glyph, White(0x99)));
         row.Children.Add(new TextBlock
         {
             Text = count == 0 ? Loc.Get("Rpm_Profile_Reply") : count.ToString(System.Globalization.CultureInfo.CurrentCulture),
-            FontSize = 12,
+            FontSize = FeedType.Meta,
             Foreground = White(0xCC),
             VerticalAlignment = VerticalAlignment.Center,
         });
@@ -408,13 +410,13 @@ internal static class FeedCards
         return key;
     }
 
-    /// <summary>A key that is only its words, such as Read full review.</summary>
-    internal static Button TextKey(string text, double size, Action onClick)
+    /// <summary>A key that is only its words, such as Open album or Reply.</summary>
+    internal static Button TextKey(string text, Action onClick)
     {
         var key = new Button
         {
             Style = Key(),
-            Content = new TextBlock { Text = text, FontSize = size, FontWeight = FontWeights.SemiBold, Foreground = White(0xFF) },
+            Content = new TextBlock { Text = text, FontSize = FeedType.Body, FontWeight = FontWeights.SemiBold, Foreground = White(0xFF) },
         };
         key.Click += (_, _) => onClick();
         return key;
@@ -448,6 +450,24 @@ internal static class FeedCards
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(0)));
         style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
         return style;
+    }
+
+    /// <summary>One entry of a menu in the Feed (a person's page, a post, a reply), at the size of the
+    /// app's other menus (<c>AlbumMenuFactory</c>), with <paramref name="glyph"/> from the solid icon font
+    /// as its icon.</summary>
+    internal static MenuFlyoutItem MenuItem(string textKey, string glyph, Func<Task> onClick)
+    {
+        var item = new MenuFlyoutItem
+        {
+            Text = Loc.Get(textKey),
+            // FaMenuIcon makes the glyph 16 x 16, so the template's 16 x 16 Viewbox does not stretch it.
+            Icon = new FontIcon { Glyph = glyph, Style = (Style)Application.Current.Resources["FaMenuIcon"] },
+            FontSize = 12,
+            MinHeight = 26,
+            Padding = new Thickness(11, 3, 11, 4),
+        };
+        item.Click += async (_, _) => await onClick();
+        return item;
     }
 
     /// <summary>Whether a press landed on a key inside the card, which does its own thing, rather than
@@ -532,11 +552,11 @@ internal sealed partial class VoteKeys : StackPanel
     private static void Paint(Button key, string glyph, int count, bool lit, string label)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        row.Children.Add(FeedCards.Glyph(glyph, 13, FeedCards.White(lit ? (byte)0xFF : (byte)0x99)));
+        row.Children.Add(FeedCards.Glyph(glyph, FeedType.Glyph, FeedCards.White(lit ? (byte)0xFF : (byte)0x99)));
         row.Children.Add(new TextBlock
         {
             Text = count.ToString(System.Globalization.CultureInfo.CurrentCulture),
-            FontSize = 12,
+            FontSize = FeedType.Meta,
             Foreground = FeedCards.White(lit ? (byte)0xEE : (byte)0x99),
             VerticalAlignment = VerticalAlignment.Center,
         });
@@ -558,7 +578,7 @@ internal sealed partial class WrappedReview : Panel
 {
     private const double Gap = 12;
     private const double Space = 8;
-    private const double LineHeight = 19;
+    private const double LineHeight = FeedType.BodyLine;
 
     private readonly FrameworkElement _head;
     private readonly FrameworkElement _cover;
@@ -585,7 +605,7 @@ internal sealed partial class WrappedReview : Panel
 
     private static TextBlock Text() => new()
     {
-        FontSize = 14,
+        FontSize = FeedType.Body,
         Foreground = FeedCards.White(0xE6),
         TextWrapping = TextWrapping.Wrap,
         LineHeight = LineHeight,
