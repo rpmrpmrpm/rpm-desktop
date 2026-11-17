@@ -373,4 +373,22 @@ public sealed partial class LibraryDatabase
         }
         return folders;
     }
+
+    /// <summary>
+    /// Who every hearted song is credited to, as the tags say it, once each. The artists wall's heart
+    /// reads these into acts (<see cref="ArtistWall.Favorites"/>).
+    /// </summary>
+    public IReadOnlyList<string> FavoriteSongCredits()
+    {
+        var credits = new List<string>();
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            cmd.CommandText = "SELECT DISTINCT artist FROM tracks WHERE favorite = 1 AND artist IS NOT NULL AND artist <> ''";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                credits.Add(reader.GetString(0));
+        }
+        return credits;
+    }
 }

@@ -114,6 +114,8 @@ public sealed partial class SettingsService
         PlaylistViewMode PlaylistView = PlaylistViewMode.List,
         double AlbumTileSize = 150,
         double PlaylistTileSize = 150,
+        double ArtistTileSize = 300,
+        double GenreTileSize = 300,
         bool LockedListsHidden = false,
         AlbumOrdering AlbumOrdering = AlbumOrdering.Artist,
         AlbumOrdering PegasusAlbumOrdering = AlbumOrdering.Artist,
@@ -440,6 +442,23 @@ public sealed partial class SettingsService
     {
         get => _model.PlaylistTileSize;
         set => Update(_model with { PlaylistTileSize = value }, notify: false);
+    }
+
+    /// <summary>The artists wall's box width, the target its header slider sets (see
+    /// <c>ArtistWallView.SetTileTarget</c>). Its own setting, for the reason given at
+    /// <see cref="PlaylistTileSize"/>, and saved quietly for the one at <see cref="AlbumTileSize"/>.</summary>
+    public double ArtistTileSize
+    {
+        get => _model.ArtistTileSize;
+        set => Update(_model with { ArtistTileSize = value }, notify: false);
+    }
+
+    /// <summary>The genres wall's card width, the target its header slider sets (see
+    /// <c>GenreWallView.SetCardTarget</c>). Saved as <see cref="ArtistTileSize"/> is.</summary>
+    public double GenreTileSize
+    {
+        get => _model.GenreTileSize;
+        set => Update(_model with { GenreTileSize = value }, notify: false);
     }
 
     /// <summary>The user closed the "Playlists you can unlock" card under the playlists tree. This is set

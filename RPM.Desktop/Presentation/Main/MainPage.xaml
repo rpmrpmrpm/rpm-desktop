@@ -15,6 +15,7 @@
       xmlns:grids="using:RPM.Desktop.Presentation.Grids"
       xmlns:conv="using:RPM.Desktop.Converters"
       xmlns:loc="using:RPM.Desktop.Strings"
+      xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
       Background="Transparent">
 
   <Page.Resources>
@@ -393,48 +394,12 @@
                   <TranslateTransform x:Name="ViewToggleShift"/>
                 </StackPanel.RenderTransform>
 
-                <!-- The library's search, in the header over the thing it filters (the list AND the
-                     wall), which is why it sits above both rather than in either. Same field the import
-                     grid wears in its own header: frosted glass, magnifier, every default TextBox chrome
-                     stripped so it reads as bare text on the glass. -->
-                <Border x:Name="SearchSlot" Width="150" Height="28" CornerRadius="6" Padding="9,0"
-                        Background="{StaticResource OnGlassBrush}"
-                        VerticalAlignment="Center" BorderBrush="#22FFFFFF" BorderThickness="1">
-                  <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto"/>
-                      <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="12" Foreground="#99ffffff"
-                               VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
-                    <!-- The TextBox centres itself rather than stretching: stretched, its template keeps
-                         the text (and the placeholder) pinned to the top of the box. -->
-                    <TextBox Grid.Column="1" x:Name="SearchBox" FontSize="12"
-                             VerticalAlignment="Center" VerticalContentAlignment="Center"
-                             Background="Transparent" BorderThickness="0" Padding="0"
-                             MinHeight="0" Height="18"
-                             PlaceholderText="{loc:Str Key=Review_SearchPlaceholder}"
-                             Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                      <!-- Strip ALL the default TextBox chrome: the template paints a filled box + a
-                           rounded border, and on FOCUS an accent-blue bottom line
-                           (TextControlBorderBrushFocused × ...ThicknessFocused 0,0,0,2) that the
-                           control's own BorderThickness=0 can't override. Zero every state's background,
-                           border brush and the focused border thickness. Text carets/selection stay. -->
-                      <TextBox.Resources>
-                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
-                        <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
-                        <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
-                        <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                      </TextBox.Resources>
-                    </TextBox>
-                  </Grid>
-                </Border>
+                <!-- The library search: the magnifier, which slides out to the left into a box. What is typed is
+                     searched through the whole collection, every view, in a panel that drops down under this
+                     heading (LibrarySearchView). It no longer narrows the wall or the list; a search answers
+                     in its own list, as on the phones. The open width is the header's to set
+                     (ApplyHeaderDensity). -->
+                <search:LibrarySearchBox x:Name="SearchSlot" OpenWidth="150" VerticalAlignment="Center"/>
 
                 <!-- The favourites heart: it narrows both album views to the records the listener has
                      marked, and nothing else about them changes: the same shelf, fewer records on it.
@@ -701,66 +666,53 @@
             <TextBlock x:Name="ArtistsSubheading" Grid.Row="1" Grid.ColumnSpan="2"
                        Style="{StaticResource RpmPaneSubheading}"/>
 
-            <!-- The wall's own search, and its OWN: the library's field narrows the collection (which
-                 records are on the shelf at all), and this narrows the wall to the names you are looking
-                 through, which is a different question asked of the same shelf. The same frosted slot the
-                 library's field and the import grid's wear, so it reads as one interface. -->
-            <Border x:Name="ArtistSearchSlot" Grid.Row="0" Grid.Column="1"
-                    Width="180" Height="28" CornerRadius="6" Padding="9,0"
-                    Background="{StaticResource OnGlassBrush}"
-                    VerticalAlignment="Center" BorderBrush="#22FFFFFF" BorderThickness="1">
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="&#xf002;" FontSize="12" Foreground="#99ffffff"
-                           VerticalAlignment="Center" FontFamily="{StaticResource Fa}"/>
-                <!-- The TextBox centres itself rather than stretching: stretched, its template keeps the
-                     text (and the placeholder) pinned to the top of the box. -->
-                <TextBox Grid.Column="1" x:Name="ArtistSearchBox" FontSize="12"
-                         VerticalAlignment="Center" VerticalContentAlignment="Center"
-                         Background="Transparent" BorderThickness="0" Padding="0"
-                         MinHeight="0" Height="18"
-                         PlaceholderText="{loc:Str Key=Artists_SearchPlaceholder}"
-                         TextChanged="ArtistSearch_TextChanged"
-                         KeyDown="ArtistSearch_KeyDown">
-                  <!-- Strip ALL the default TextBox chrome, exactly as the library's field does: the
-                       template paints a filled box, a rounded border, and on FOCUS an accent-blue bottom
-                       line that the control's own BorderThickness=0 cannot override. -->
-                  <TextBox.Resources>
-                    <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
-                    <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
-                    <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
-                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                  </TextBox.Resources>
-                </TextBox>
+            <!-- The heading's keys, in the album header's order and spacing: the library search (one search
+                 for the whole collection, whichever view it was opened from), the heart, and the box size.
+                 One group with one slide, ArtistChromeShift, which keeps it clear of the spinning record
+                 as the album header's is (MainPage.UpdateChromeAvoidance). -->
+            <StackPanel x:Name="ArtistChrome" Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                        VerticalAlignment="Center">
+              <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="ArtistChromeShift"/>
+              </StackPanel.RenderTransform>
 
-                <!-- The way back out, and only while there is something to come out of. A search you
-                     cannot clear without selecting the text and deleting it is a search you leave on. -->
-                <Button x:Name="ArtistSearchClear" Grid.Column="2" Click="ArtistSearchClear_Click"
-                        Visibility="Collapsed"
-                        Background="Transparent" BorderThickness="0" CornerRadius="4"
-                        Width="16" Height="16" MinWidth="0" MinHeight="0" Padding="0"
-                        VerticalAlignment="Center"
-                        ToolTipService.ToolTip="{loc:Str Key=Artists_SearchClear}"
-                        AutomationProperties.Name="{loc:Str Key=Artists_SearchClear}">
+              <search:LibrarySearchBox x:Name="ArtistSearchSlot" OpenWidth="180" VerticalAlignment="Center"/>
+
+              <!-- The heart: the wall narrowed to the artists something of whom is hearted, a record or a
+                   song (ArtistWall.Favorites). The album header's heart, asking the same of this wall. -->
+              <Border x:Name="ArtistFavoritesSlot" CornerRadius="6" Padding="0"
+                      Background="{StaticResource OnGlassBrush}"
+                      BorderBrush="#22FFFFFF" BorderThickness="1" VerticalAlignment="Center">
+                <Button x:Name="ArtistFavoritesButton" Click="ArtistFavoritesOnly_Click"
+                        Background="Transparent" BorderThickness="0" CornerRadius="5"
+                        Width="32" Height="26" MinWidth="0" MinHeight="0" Padding="0"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTipService.ToolTip="{loc:Str Key=Artists_FavoritesOnly}"
+                        AutomationProperties.Name="{loc:Str Key=Artists_FavoritesOnly}"
+                        AutomationProperties.AutomationId="ArtistFavoritesButton">
                   <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
                   </Button.Resources>
-                  <TextBlock Text="&#xf00d;" FontSize="10" Foreground="#99FFFFFF"
-                             FontFamily="{StaticResource Fa}"/>
+                  <FontIcon x:Name="ArtistFavoritesIcon" Glyph="&#xf004;" FontSize="12"
+                            FontFamily="{StaticResource FaRegular}"
+                            Foreground="{StaticResource FavoriteMarkIdleBrush}"/>
                 </Button>
-              </Grid>
-            </Border>
+              </Border>
+
+              <!-- The box size: the width a box aims for (ArtistWallView.SetTileTarget). -->
+              <StackPanel x:Name="ArtistSizeCluster" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center"
+                          ToolTipService.ToolTip="{loc:Str Key=Library_CardSize}">
+                <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="7" Foreground="#88FFFFFF"
+                          VerticalAlignment="Center"/>
+                <Slider x:Name="ArtistSizeSlider" Style="{StaticResource SeekSizeSliderStyle}"
+                        Width="96" VerticalAlignment="Center" Minimum="190" Maximum="480"
+                        StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False"
+                        AutomationProperties.AutomationId="ArtistSizeSlider"/>
+                <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#88FFFFFF"
+                          VerticalAlignment="Center"/>
+              </StackPanel>
+            </StackPanel>
           </Grid>
 
           <artists:ArtistWallView x:Name="ArtistsWall" Grid.Row="1"/>
@@ -785,9 +737,12 @@
 
           <!-- The same heading box, inset and height the library's chrome band and the artists wall's
                heading stand in: the three views are one panel read three ways, and their first rows have
-               to start on one line. No search field beside it, unlike the artists wall: that one narrows
-               two thousand names, and this wall is eighteen cards that fit on a screen. -->
-          <Grid x:Name="GenresHeading" Grid.Row="0" Margin="16,12,16,0">
+               to start on one line. -->
+          <Grid x:Name="GenresHeading" Grid.Row="0" Margin="16,12,16,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>   <!-- the library search -->
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
               <RowDefinition Height="36"/>
               <RowDefinition Height="Auto"/>
@@ -795,7 +750,30 @@
             <Grid Grid.Row="0" Style="{StaticResource RpmPaneHeadingBox}">
               <TextBlock Text="{loc:Str Key=Genres_Title}" Style="{StaticResource RpmPaneHeading}"/>
             </Grid>
-            <TextBlock x:Name="GenresSubheading" Grid.Row="1"
+            <!-- The library search and the card size, one group that dodges the record as the album
+                 header's does (GenreChromeShift, MainPage.UpdateChromeAvoidance). -->
+            <StackPanel x:Name="GenreChrome" Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                        VerticalAlignment="Center">
+              <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="GenreChromeShift"/>
+              </StackPanel.RenderTransform>
+
+              <search:LibrarySearchBox x:Name="GenreSearchSlot" OpenWidth="180" VerticalAlignment="Center"/>
+
+              <!-- The card size: the width a card aims for (GenreWallView.SetCardTarget). -->
+              <StackPanel x:Name="GenreSizeCluster" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center"
+                          ToolTipService.ToolTip="{loc:Str Key=Library_CardSize}">
+                <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="7" Foreground="#88FFFFFF"
+                          VerticalAlignment="Center"/>
+                <Slider x:Name="GenreSizeSlider" Style="{StaticResource SeekSizeSliderStyle}"
+                        Width="96" VerticalAlignment="Center" Minimum="190" Maximum="480"
+                        StepFrequency="2" TickFrequency="0" IsThumbToolTipEnabled="False"
+                        AutomationProperties.AutomationId="GenreSizeSlider"/>
+                <FontIcon Glyph="&#xf0c8;" FontFamily="{StaticResource Fa}" FontSize="12" Foreground="#88FFFFFF"
+                          VerticalAlignment="Center"/>
+              </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="GenresSubheading" Grid.Row="1" Grid.ColumnSpan="2"
                        Style="{StaticResource RpmPaneSubheading}"/>
           </Grid>
 
@@ -829,6 +807,10 @@
                        StoredPlaylistRequested="Home_StoredPlaylistRequested"
                        StationRequested="Home_StationRequested"
                        AddMusicRequested="Home_AddMusicRequested"/>
+
+        <!-- The library search, over whichever view is up. Last in the host, so it draws over all of
+             them. Collapsed until a heading's key, or Ctrl+F, asks for it. -->
+        <search:LibrarySearchView x:Name="LibrarySearch"/>
         </Grid>
 
         <!-- The rail: the four views, and the button that folds this pane away for the import

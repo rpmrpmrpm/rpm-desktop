@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.RightPane.PlaylistView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
              xmlns:model="using:RPM.Desktop.Presentation.Main.LeftPane.Models"
              xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
              xmlns:common="using:RPM.Desktop.Presentation.Common"
@@ -116,8 +117,16 @@
              (SelectedSegment). Covers come first, then the list, as in the library. The slider is shown
              only over the tiles, because on the list there is nothing for it to size. It keeps its room
              on the list, so the switch stays where it is, clear of the record at the pane's top right. -->
-        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
+        <!-- PlaylistChromeShift is the group's slide clear of the spinning record, which the page works
+             out as it does for the album header (MainPage.UpdateChromeAvoidance). -->
+        <StackPanel x:Name="PlaylistChrome" Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
                     VerticalAlignment="Center">
+          <StackPanel.RenderTransform>
+            <TranslateTransform x:Name="PlaylistChromeShift"/>
+          </StackPanel.RenderTransform>
+          <!-- The library search, first on the line as it is in the library's own header. The page wires it
+               (see MainPage.Search): the search looks through the whole collection, not this view. -->
+          <search:LibrarySearchBox x:Name="LibrarySearchSlot" OpenWidth="150" VerticalAlignment="Center"/>
           <Border x:Name="PlaylistViewToggle" CornerRadius="6" Padding="0"
                   VerticalAlignment="Center"
                   Background="{StaticResource OnGlassBrush}"

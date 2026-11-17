@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The library search: everything the collection holds that the words name, whichever view it lives in,
+     each kind under its own heading (artists, albums, tracks, playlists, genres), and the recent searches
+     while the box is empty. It drops down under the view's heading, from the heading's search box to the
+     heading's last control; the words are typed in that box (LibrarySearchBox), not here. -->
+<UserControl
+    x:Class="RPM.Desktop.Presentation.Main.Search.LibrarySearchView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:RPM.Desktop.Presentation.Common"
+    Visibility="Collapsed">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+  </UserControl.Resources>
+
+  <Grid>
+    <!-- A press anywhere on the card below the heading puts the search away, as a press beside a menu does.
+         It starts under the heading (see Place), so the box and the heading's other keys stay in reach. -->
+    <Border x:Name="Catcher" Background="#26000000" PointerPressed="Catcher_PointerPressed"/>
+
+    <!-- Smoked glass, as the app's cards are: a live frost of what lies under it (the wall's covers) with
+         a dark veil over it, and the cards' own lit edge (DmCardBorderBrush). The veil is darker than a
+         card's 20%: a card frosts the dim artwork behind the window, this frosts bright sleeves, and the
+         rows on it have to stay readable. -->
+    <Grid x:Name="Panel" HorizontalAlignment="Left" VerticalAlignment="Top">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="PanelShift"/>
+      </Grid.RenderTransform>
+
+      <Border CornerRadius="8">
+        <Border.Background>
+          <ui:GlassBrush BlurAmount="30"/>
+        </Border.Background>
+      </Border>
+      <Border CornerRadius="8" Background="#73000000"
+              BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+
+      <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled" Margin="1">
+        <StackPanel x:Name="Body" Padding="0,4,0,10"/>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</UserControl>

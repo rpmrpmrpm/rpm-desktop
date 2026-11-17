@@ -45,6 +45,7 @@ public sealed partial class SessionService : IDisposable
         double RightStars = 0,
         string LibrarySearch = "",
         bool FavoritesOnly = false,
+        bool ArtistFavoritesOnly = false,
         double WallScroll = 0,
         double ListScroll = 0,
         double TableScroll = 0,
@@ -171,6 +172,13 @@ public sealed partial class SessionService : IDisposable
     {
         get => _model.FavoritesOnly;
         set => Update(_model with { FavoritesOnly = value });
+    }
+
+    /// <summary>Whether the artists wall was narrowed to the artists with something hearted.</summary>
+    public bool ArtistFavoritesOnly
+    {
+        get => _model.ArtistFavoritesOnly;
+        set => Update(_model with { ArtistFavoritesOnly = value });
     }
 
 

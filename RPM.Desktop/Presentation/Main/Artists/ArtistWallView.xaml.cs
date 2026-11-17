@@ -25,9 +25,17 @@ public sealed partial class ArtistWallView : UserControl
     public ScrollViewer ScrollHost => Scroller;
 
     /// <summary>The box width the wall aims for. It is a target, not a fixed size. Each row is
-    /// filled edge to edge, so a box is drawn at this value rounded to a whole number of columns.</summary>
-    private const double TargetWidth = 300;
+    /// filled edge to edge, so a box is drawn at this value rounded to a whole number of columns. The
+    /// heading's size slider sets it (<see cref="SetTileTarget"/>), between <see cref="SmallestTarget"/>
+    /// and <see cref="LargestTarget"/>.</summary>
+    private double _targetWidth = DefaultTarget;
     private const double MinTileWidth = 190;
+
+    /// <summary>The size slider's range and starting point. The genre wall uses the same three, so the two
+    /// walls in one panel are sized the same way.</summary>
+    public const double SmallestTarget = 190;
+    public const double LargestTarget = 480;
+    public const double DefaultTarget = 300;
     private const double Gap = 14;
 
     /// <summary>What is laid out: the shelf narrowed by the search field. It is a plain list that is
@@ -45,6 +53,10 @@ public sealed partial class ArtistWallView : UserControl
     private IReadOnlyList<ArtistWallItem> _shelf = new List<ArtistWallItem>();
 
     private string _query = "";
+
+    /// <summary>The names the wall is narrowed to by the heading's heart, or null for everybody. See
+    /// <see cref="SetOnly"/>.</summary>
+    private IReadOnlySet<string>? _only;
 
     private readonly Dictionary<string, ArtistTile> _byName = new(StringComparer.OrdinalIgnoreCase);
     private readonly ArtistTileMetrics _metrics = new();
@@ -132,8 +144,28 @@ public sealed partial class ArtistWallView : UserControl
         Scroller.ChangeView(null, 0, null, disableAnimation: true);
     }
 
-    /// <summary>Whether the wall is showing everybody it has, or a search's worth of them.</summary>
-    public bool Searching => _query.Length > 0;
+    /// <summary>
+    /// Narrows the wall to <paramref name="names"/> (the heading's heart: the artists the listener has
+    /// hearted something of), or puts everybody back for null.
+    /// </summary>
+    public void SetOnly(IReadOnlySet<string>? names)
+    {
+        if (ReferenceEquals(_only, names) || (_only is null && names is null))
+            return;
+
+        var narrowedNow = _only is null != (names is null);
+        _only = names;
+        Rebuild();
+
+        // Turning the heart on or off is a different wall, so the reader goes back to the top, as a search
+        // does. A new set of the same kind (a song hearted while the heart is on) keeps their place.
+        if (narrowedNow)
+            Scroller.ChangeView(null, 0, null, disableAnimation: true);
+    }
+
+    /// <summary>Whether the wall is showing everybody it has, or a search's or the heart's worth of
+    /// them.</summary>
+    public bool Searching => _query.Length > 0 || _only is not null;
 
     /// <summary>Whether the list on the wall was read from the collection open now (see
     /// <see cref="SetArtists"/>).</summary>
@@ -160,6 +192,8 @@ public sealed partial class ArtistWallView : UserControl
             // per-name comparison. Inside a comparison, two thousand artists would mean two thousand
             // normalizations per keystroke.
             if (wanted.Length > 0 && !ArtistWall.SearchKey(artist.Name).Contains(wanted, StringComparison.Ordinal))
+                continue;
+            if (_only is not null && !_only.Contains(artist.Name))
                 continue;
 
             if (_byName.TryGetValue(artist.Name, out var tile))
@@ -511,10 +545,27 @@ public sealed partial class ArtistWallView : UserControl
     /// after it. One gap is added back, because the last box in a row has no gap after it. The nearest whole
     /// number of columns is used, not the floor, so the boxes come as close to the target as a whole number
     /// of them allows.</summary>
-    private static int ColumnsAt(double available)
+    private int ColumnsAt(double available)
     {
-        var columns = AlbumGridLayout.ColumnsForTarget(available + Gap, TargetWidth + Gap);
+        var columns = AlbumGridLayout.ColumnsForTarget(available + Gap, _targetWidth + Gap);
         return Math.Max(1, Math.Min(columns, (int)Math.Floor((available + Gap) / (MinTileWidth + Gap))));
+    }
+
+    /// <summary>The heading's size slider moved: the boxes aim for <paramref name="width"/> and the wall is
+    /// laid out again at once, keeping the box at the top of the view where it is.</summary>
+    public void SetTileTarget(double width)
+    {
+        width = Math.Clamp(width, SmallestTarget, LargestTarget);
+        if (Math.Abs(width - _targetWidth) < 0.5)
+            return;
+
+        // The row the reader is on, as an index, so the wall does not jump to another letter as the boxes
+        // grow or shrink under them.
+        var first = (int)Math.Floor(Math.Max(0, Scroller.VerticalOffset) / Math.Max(1, RowStride)) * Math.Max(1, _columns);
+        _targetWidth = width;
+        Relayout();
+        if (first > 0)
+            Scroller.ChangeView(null, first / Math.Max(1, _columns) * RowStride, null, disableAnimation: true);
     }
 
     /// <summary>One row's worth of vertical travel.</summary>

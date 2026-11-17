@@ -590,6 +590,35 @@ public sealed partial class GenreWallView : UserControl
             Pair();
     }
 
+    /// <summary>
+    /// The heading's size slider moved: the cards aim for <paramref name="width"/> and the wall is drawn
+    /// again at once.
+    /// </summary>
+    /// <remarks>A drag is a run of these, so it is treated as a move, as a pane drag is: the cards keep their
+    /// lettering bitmaps, scaled, until the slider has been still for the settle time, and draw it afresh
+    /// once (see <see cref="GenreCardMetrics.Moving"/>).</remarks>
+    public void SetCardTarget(double width)
+    {
+        width = Math.Clamp(width, Artists.ArtistWallView.SmallestTarget, Artists.ArtistWallView.LargestTarget);
+        if (Math.Abs(width - _metrics.Target) < 0.5)
+            return;
+
+        if (_fitted)
+        {
+            _metrics.Moving = true;
+            _settle ??= CreateSettleTimer();
+            _settle.Stop();
+            _settle.Start();
+        }
+
+        _metrics.Target = width;
+
+        // Laid out again at the width it has: the card numbers moved without the width moving, so the check
+        // at the top of Fit would otherwise call it done.
+        _fitted = false;
+        Fit(told: true);
+    }
+
     /// <summary>The width the cards are laid out across: the scroller's, less its padding.</summary>
     private double Available() => Math.Floor(Scroller.ActualWidth - Scroller.Padding.Left - Scroller.Padding.Right);
 
@@ -617,7 +646,7 @@ public sealed partial class GenreWallView : UserControl
         var available = Available();
         if (!_move.Live || available < 1)
             return;
-        _move.Expect(GenreCardMetrics.PairsAt(available + change), available);
+        _move.Expect(GenreCardMetrics.PairsAt(available + change, _metrics.Target), available);
     }
 
     /// <summary>The move has landed. The real card size is written once, at the width the wall keeps.</summary>

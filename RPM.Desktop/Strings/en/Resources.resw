@@ -6186,6 +6186,14 @@
     <value>Favourite albums only</value>
     <comment>Tooltip on the heart toggle in the library header that filters the album wall and list.</comment>
   </data>
+  <data name="Artists_FavoritesOnly" xml:space="preserve">
+    <value>Favourite artists only</value>
+    <comment>Tooltip on the heart toggle in the artists wall's header: it narrows the wall to the artists with a hearted record or song.</comment>
+  </data>
+  <data name="Library_CardSize" xml:space="preserve">
+    <value>Card size</value>
+    <comment>Tooltip on the size slider in the artists and genres walls' headers.</comment>
+  </data>
   <data name="Playlists_FavoriteTracks" xml:space="preserve">
     <value>Favourite tracks</value>
     <comment>Name of the generated playlist listing every song marked as a favorite.</comment>

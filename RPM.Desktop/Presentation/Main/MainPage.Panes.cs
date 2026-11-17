@@ -60,6 +60,8 @@ public sealed partial class MainPage
         // Back out of a list that was pressed on the home screen: home again. The view says the press
         // happened and this puts home up, because home covers both panes and only this page can.
         PlaylistPanel.HomeRequested += () => ShowHome(true);
+        HookSearchBox(PlaylistPanel.SearchBox);   // its heading's library search
+        AttachPlaylistHeading();                  // and its keys' slide clear of the record
         _playlistModel.DetailInvalidated += PlaylistPanel.RefreshDetailIfOpen;        // add/remove ⇒ re-read
         _playlistModel.QueueInvalidated += PlaylistPanel.RefreshQueueDetailIfOpen;    // and the queue, itself only
         _playlistModel.MarksInvalidated += PlaylistPanel.RefreshMarkedDetailIfOpen;   // and a heart, the loved lists only
@@ -227,6 +229,9 @@ public sealed partial class MainPage
         // stopwatch. The rail's tabs do not, and their switch is the bigger move: a whole view stands
         // down and another comes up.
         RPM.Desktop.Diagnostics.SwitchDiag.Begin($"library {tab}");
+
+        // A tab pressed while the search is up is the reader going somewhere else: the search goes away.
+        LibrarySearch.Close();
 
         // Playlists is every list, so pressing it is asking for the tree, not for the one list that
         // happens to be open in it. Said first because the panel has to exist to be asked; the

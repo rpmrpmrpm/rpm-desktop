@@ -668,6 +668,8 @@ public sealed partial class MainPage
 
         chrome.Update(reach, root, animate);
         ImportWorkbench.CloseDodge.Update(reach, root, animate);
+        foreach (var heading in _headingDodges)
+            heading.Update(reach, root, animate);
     }
 
     /// <summary>

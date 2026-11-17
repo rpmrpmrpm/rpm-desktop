@@ -54,6 +54,9 @@ public sealed partial class MainPage
         GenresWall.PortraitLoader = LoadGenreFaceAsync;
         GenresWall.GenreOpened += NavigateToGenrePage;
 
+        // The heading's card size (MainPage.ViewHeadings).
+        AttachGenreHeading();
+
         // ── the genre's own page ──
         //
         // Each loader on the page is one the app already has, pointed at a genre: the sleeve loader the

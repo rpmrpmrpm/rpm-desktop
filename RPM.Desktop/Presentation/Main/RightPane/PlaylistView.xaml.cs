@@ -1273,6 +1273,18 @@ public sealed partial class PlaylistView : UserControl
         }
     }
 
+    /// <summary>The library search's box in this view's heading. The page wires it with the other views'
+    /// boxes: one search for the whole collection.</summary>
+    internal Search.LibrarySearchBox SearchBox => LibrarySearchSlot;
+
+    /// <summary>The heading's keys, which the page slides clear of the spinning record as it does the
+    /// library header's (MainPage.UpdateChromeAvoidance), and their slide.</summary>
+    internal FrameworkElement Chrome => PlaylistChrome;
+    internal Microsoft.UI.Xaml.Media.TranslateTransform ChromeShift => PlaylistChromeShift;
+
+    /// <summary>The heading's row of controls, whose right edge the search's panel reaches to.</summary>
+    internal FrameworkElement SearchRow => (FrameworkElement)LibrarySearchSlot.Parent;
+
     /// <summary>
     /// Opens one playlist's tracklist from outside this view. The artist page's shelf of playlists
     /// uses it.

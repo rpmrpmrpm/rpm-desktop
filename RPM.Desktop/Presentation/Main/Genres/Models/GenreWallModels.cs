@@ -67,8 +67,31 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
     /// artist box would look like a different app. This is a target, not a size: the row is filled
     /// edge to edge, so the real card width is this value adjusted to a whole number of columns.</para>
     /// </summary>
-    private const double TargetWidth = 300;
+    private double _target = 300;
     private const double NarrowestCard = 190;
+
+    /// <summary>The width a card aims for: the heading's size slider (see <c>GenreWallView.SetCardTarget</c>).
+    /// Every number a card is drawn from follows from it, so a change is told as a reshape, the same as a
+    /// change of width.</summary>
+    public double Target
+    {
+        get => _target;
+        set
+        {
+            if (_target == value)
+                return;
+            _target = value;
+            OnChanged(nameof(Columns));
+            OnChanged(nameof(Paired));
+            OnChanged(nameof(CardWidth));
+            OnChanged(nameof(CardHeight));
+            OnChanged(nameof(PairWidth));
+            OnChanged(nameof(NameWidth));
+            OnChanged(nameof(NameHeight));
+            OnChanged(nameof(PictureWidth));
+            Reshaped?.Invoke();
+        }
+    }
 
     /// <summary>The shortest and tallest a card is ever drawn, whatever the shape asks for.</summary>
     private const double Shortest = 120;
@@ -161,23 +184,24 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
     /// </summary>
     public int Columns => Math.Max(1, Pairs * 2);
 
-    /// <summary>How large a card may get before the wall adds another pair to the row. It is a little
-    /// over the target, so an ordinary pane is not pushed to the next pair for a few points.</summary>
-    private const double WidestCard = TargetWidth * 1.15;
+    /// <summary>How large a card may get before the wall adds another pair to the row: a little over the
+    /// target, so an ordinary pane is not pushed to the next pair for a few points.</summary>
+    private static double WidestCardFor(double target) => target * 1.15;
 
     /// <summary>How many pairs go on a row. It is zero when the pane cannot hold two usable cards. The
     /// wall then draws a single unmirrored column, which is <see cref="Paired"/> false.</summary>
-    private int Pairs => PairsAt(_width);
+    private int Pairs => PairsAt(_width, _target);
 
     /// <summary>How many pairs go on a row of <paramref name="width"/>, by the rule above. A pane move asks
     /// this for the width it will land at (see <c>GenreWallView.ExpectLiveWidth</c>).</summary>
-    public static int PairsAt(double width)
+    public static int PairsAt(double width, double target)
     {
+        var widest = WidestCardFor(target);
         if ((width - Gutter) / 2 < NarrowestCard)
             return 0;
 
         var pairs = 1;
-        while (AcrossAt(width, pairs) > WidestCard && AcrossAt(width, pairs + 1) >= NarrowestCard)
+        while (AcrossAt(width, pairs) > widest && AcrossAt(width, pairs + 1) >= NarrowestCard)
             pairs++;
 
         return pairs;

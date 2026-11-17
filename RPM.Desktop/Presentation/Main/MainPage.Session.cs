@@ -53,7 +53,9 @@ public sealed partial class MainPage
         _restoringSession = true;
         try
         {
-            model.SearchText = SessionRestore.Search(session.LibrarySearch);
+            // The album views are no longer narrowed by a search (see LibrarySearchView), so a search left
+            // in them by an earlier version is not put back: it would hide records with no way to see why.
+            model.SearchText = "";
             _favoritesOnly = session.FavoritesOnly;   // painted by AttachAlbumGrid's SetFavoritesToggle
 
             // The queue that Import works on is a temp table: it went with the process that wrote it, so

@@ -23,7 +23,6 @@ namespace RPM.Desktop.Presentation.Main;
 public sealed partial class MainPage
 {
     private bool _artistsHooked;
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _artistSearchDebounce;
 
     private void AttachArtists()
     {
@@ -38,6 +37,9 @@ public sealed partial class MainPage
         ArtistsWall.PortraitLoader = LoadArtistBoxAsync;
         // Opened from the wall, so there is no record under this page. Back from it is the wall itself.
         ArtistsWall.ArtistOpened += artist => NavigateToArtistPage(artist, ArtistFrom.Collection);
+
+        // The heading's box size and heart (MainPage.ViewHeadings).
+        AttachArtistHeading();
 
         // The artist page reads the same records from the same loaders as the album views. It is a way into
         // one collection, not a second copy of it. It uses a different portrait loader from the wall, and
@@ -94,14 +96,6 @@ public sealed partial class MainPage
             Panes.OpenRightTab(RightTab.Playlists);
             PlaylistPanel.OpenPlaylist(nodeId, fromHome: false);   // Opened from an artist's page, so back is the tree
         };
-
-        // The search is coalesced. A keystroke re-folds two thousand names and re-lays the wall. A fast
-        // typist would otherwise do that six times on the way to a three-letter word. The delay is the same
-        // 200 ms that the queue's own search uses.
-        _artistSearchDebounce = DispatcherQueue.CreateTimer();
-        _artistSearchDebounce.Interval = TimeSpan.FromMilliseconds(200);
-        _artistSearchDebounce.IsRepeating = false;
-        _artistSearchDebounce.Tick += (_, _) => ApplyArtistSearch();
 
         model.LibraryAlbumsChanged += OnArtistsChanged;
         Unloaded += (_, _) => model.LibraryAlbumsChanged -= OnArtistsChanged;
@@ -306,6 +300,10 @@ public sealed partial class MainPage
         ArtistsWall.SetArtists(artists, model.ArtistsRead);
         CountArtists();
 
+        // The heart's narrowing is worked out against the list now on the wall.
+        if (_artistFavoritesOnly)
+            NarrowArtistsToFavorites();
+
         // The photographs of the boxes the wall opens on are fetched now, in the background, and not when
         // the reader first opens the wall. See ArtistWallView.Warm.
         ArtistsWall.Warm();
@@ -328,56 +326,6 @@ public sealed partial class MainPage
             : shown == 0
             ? Loc.Get(ArtistsWall.Searching ? "Artists_NoMatch" : "Stats_Empty")
             : Loc.Format(shown == 1 ? "Artists_CountOne" : "Artists_Count", shown);
-    }
-
-    // ── the wall's own search ──
-
-    /// <summary>A keystroke: the clear button appears as soon as there is something to clear, and the
-    /// wall itself is narrowed once the typing settles.</summary>
-    private void ArtistSearch_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        ArtistSearchClear.Visibility = ArtistSearchBox.Text.Length > 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        _artistSearchDebounce?.Stop();
-        _artistSearchDebounce?.Start();
-    }
-
-    /// <summary>Escape clears a search, which is the one key everybody tries. Enter does nothing on purpose.
-    /// The wall narrows as the user types, so there is nothing left for Enter to submit.</summary>
-    private void ArtistSearch_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-    {
-        if (e.Key != Windows.System.VirtualKey.Escape)
-            return;
-
-        ClearArtistSearch();
-        e.Handled = true;
-    }
-
-    private void ArtistSearchClear_Click(object sender, RoutedEventArgs e) => ClearArtistSearch();
-
-    private void ClearArtistSearch()
-    {
-        if (ArtistSearchBox.Text.Length == 0)
-            return;
-
-        ArtistSearchBox.Text = "";
-        // Straight through, without the debounce. Clearing is one gesture, not a word being typed. A fifth
-        // of a second of the old results after it would look like a control that stuck.
-        _artistSearchDebounce?.Stop();
-        ApplyArtistSearch();
-    }
-
-    private void ApplyArtistSearch()
-    {
-        ArtistsWall.SetSearch(ArtistSearchBox.Text);
-        CountArtists();
-
-        // Searching for somebody while looking at somebody else's page means looking for them on the wall. So
-        // the page steps aside. The field is over the wall, and it is the wall that it filters.
-        if (ArtistsWall.Searching)
-            ShowArtistDetail(false);
     }
 
     /// <summary>What one artist's box is drawn from, on the artists wall and on a genre page: their

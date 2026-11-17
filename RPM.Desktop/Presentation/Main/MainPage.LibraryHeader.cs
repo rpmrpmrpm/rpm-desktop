@@ -121,7 +121,7 @@ public sealed partial class MainPage
         // the chrome under it, that gap belongs to the chrome, so the subtitle only needs its own line.
         LibrarySubheading.Margin = new Thickness(0, -4, 0, stacked ? 6 : 12);
 
-        SearchSlot.Width = WantsNarrowSearch(stage) ? SearchSlotNarrowWidth : SearchSlotWidth;
+        SearchSlot.OpenWidth = WantsNarrowSearch(stage) ? SearchSlotNarrowWidth : SearchSlotWidth;
         SearchSlot.Visibility = Shown(WantsSearchSlot(stage));
         ViewToggle.Visibility = Shown(WantsViewToggle(stage));
         SizeCluster.Visibility = Shown(WantsSizeCluster(stage));

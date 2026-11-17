@@ -376,6 +376,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
             AttachAlbumGrid();
             AttachArtists();
             AttachGenres();
+            WireLibrarySearch();   // the headings' search boxes, and the playlists view they search
             AttachProfileReporters();
             RefreshLibraryEmptyHint();
 

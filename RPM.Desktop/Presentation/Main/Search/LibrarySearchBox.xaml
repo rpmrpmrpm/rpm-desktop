@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The library search's box, in each library view's heading. Folded, it is the magnifier key alone; pressed,
+     it slides out to the left into the frosted slot the album header's field always wore, and what is typed
+     is searched in LibrarySearchView, which drops down under the heading from this box to the heading's last
+     control. -->
+<UserControl
+    x:Class="RPM.Desktop.Presentation.Main.Search.LibrarySearchBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:RPM.Desktop.Strings"
+    Height="28" Width="28">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+  </UserControl.Resources>
+
+  <Border CornerRadius="6" Padding="0,0,4,0"
+          Background="{StaticResource OnGlassBrush}" BorderBrush="#22FFFFFF" BorderThickness="1">
+    <Grid ColumnSpacing="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- The magnifier: the whole control while it is folded, and the key that unfolds it. -->
+      <Button x:Name="IconKey" Grid.Column="0" Click="IconKey_Click"
+              Width="26" Height="26" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="5"
+              Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+              AutomationProperties.AutomationId="LibrarySearchKey"
+              AutomationProperties.Name="{loc:Str Key=Lookup_SearchButton}"
+              ToolTipService.ToolTip="{loc:Str Key=Lookup_SearchButton}">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#18FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#28FFFFFF"/>
+        </Button.Resources>
+        <TextBlock Text="&#xf002;" FontSize="12" Foreground="#B3FFFFFF" FontFamily="{StaticResource Fa}"/>
+      </Button>
+
+      <!-- Every default TextBox chrome stripped, so it reads as bare text on the glass: the template paints a
+           filled box, a rounded border, and on focus an accent line that BorderThickness=0 cannot override.
+           It centres itself rather than stretching: stretched, its template pins the text to the top.
+           Collapsed while the box is folded, so Tab does not land in a box nobody can see. -->
+      <TextBox x:Name="Field" Grid.Column="1" FontSize="12" Visibility="Collapsed"
+               VerticalAlignment="Center" VerticalContentAlignment="Center"
+               Background="Transparent" BorderThickness="0" Padding="0"
+               MinHeight="0" Height="18" MinWidth="0"
+               PlaceholderText="{loc:Str Key=Lookup_SearchButton}"
+               AutomationProperties.AutomationId="LibrarySearchBox"
+               TextChanged="Field_TextChanged" GotFocus="Field_GotFocus" LostFocus="Field_LostFocus"
+               KeyDown="Field_KeyDown">
+        <TextBox.Resources>
+          <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+          <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+          <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+          <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+        </TextBox.Resources>
+      </TextBox>
+
+      <!-- Empties the box and folds it away. Shown only while there is something to clear. -->
+      <Button x:Name="ClearKey" Grid.Column="2" Click="ClearKey_Click" Visibility="Collapsed"
+              Width="18" Height="18" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="4"
+              Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+              AutomationProperties.AutomationId="LibrarySearchClear"
+              AutomationProperties.Name="{loc:Str Key=Artists_SearchClear}"
+              ToolTipService.ToolTip="{loc:Str Key=Artists_SearchClear}">
+        <Button.Resources>
+          <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+          <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+        </Button.Resources>
+        <TextBlock Text="&#xf00d;" FontSize="10" Foreground="#99FFFFFF" FontFamily="{StaticResource Fa}"/>
+      </Button>
+    </Grid>
+  </Border>
+</UserControl>

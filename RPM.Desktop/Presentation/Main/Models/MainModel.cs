@@ -287,6 +287,10 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     /// field, and the artists wall has one of its own.</para></summary>
     public LibraryAlbumIndex.ArtistShelf ArtistShelf => _libraryAlbums.Artists;
 
+    /// <summary>The collection's records as the album views read them, for the library search, which
+    /// looks through all of them whichever view is up.</summary>
+    public LibraryAlbumIndex AlbumIndex => _libraryAlbums;
+
     /// <summary>What the collection adds up to under the current search: albums, songs, and running time.
     /// This is the line under the library panel's heading.</summary>
     public string LibrarySubheading => Presentation.Common.PaneStats.Library(

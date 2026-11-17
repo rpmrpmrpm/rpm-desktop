@@ -351,6 +351,41 @@ public static class ArtistWall
         return wanted.Length == 0 || SearchKey(name).Contains(wanted, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The artists the listener has hearted something of: one of their own records (alone or shared,
+    /// <see cref="ArtistWallItem.Own"/>), or a song credited to them, wherever it is filed. The artists
+    /// wall's heart narrows the wall to these, as the album views' heart narrows them to the hearted
+    /// records.
+    /// </summary>
+    /// <remarks>
+    /// A song is matched by its credit, not by its folder: a hearted track on a compilation belongs to the
+    /// act who sings it, not to every guest on the record. Each credit is read the wide way an artist's page
+    /// reads one (<see cref="Names"/>): whole first, then each act it names. The names are squashed once
+    /// into a set, so the wall is not compared credit by credit.
+    /// </remarks>
+    public static IReadOnlySet<string> Favorites(
+        IReadOnlyList<ArtistWallItem> shelf,
+        IReadOnlySet<string> favoriteFolders,
+        IEnumerable<string> favoriteSongCredits)
+    {
+        var credited = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var credit in favoriteSongCredits)
+        {
+            if (string.IsNullOrWhiteSpace(credit))
+                continue;
+            credited.Add(NameMatch.Squash(credit));
+            foreach (var act in ArtistCredit.SplitWide(credit))
+                credited.Add(NameMatch.Squash(act));
+        }
+        credited.Remove("");
+
+        var kept = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var artist in shelf)
+            if (credited.Contains(NameMatch.Squash(artist.Name)) || artist.Own.Any(favoriteFolders.Contains))
+                kept.Add(artist.Name);
+        return kept;
+    }
+
     /// <summary>A name as the search compares it: lower case, accents off, and everything that is not a
     /// letter or a digit removed. It is public, so a caller that filters a long list can fold the query
     /// once, not once per name.</summary>
