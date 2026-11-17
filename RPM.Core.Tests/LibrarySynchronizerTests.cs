@@ -273,6 +273,43 @@ public class LibrarySynchronizerTests : IDisposable
         Assert.Equal(original.RpmId, kept.RpmId);
     }
 
+    /// <summary>Two copies of one backed-up file share its id, and both rows say the store knows the track
+    /// by it. No pass may give either a new name, so the duplicate stays. What must not happen is the
+    /// pass reporting both as updated on every launch: that tells every view the shelf changed.</summary>
+    [Fact]
+    public void Two_copies_of_a_backed_up_file_are_not_reported_on_every_sync()
+    {
+        var path = Touch("Artist/Album/01 - a.flac");
+        Sync();
+        var copy = CopyOnDisk("Artist/Album/01 - a.flac", "Artist/Album/01 - a (2).flac");
+
+        // Both rows hold the one id, as a copy made before ids were checked would.
+        _db.Upsert(LibraryDatabase.FromTrackInfo(FakeRead(copy), _root));
+        foreach (var row in _db.Query())
+            _db.SeedSynced(row.Id, "hash", 1, 1);
+        Assert.Single(_db.DuplicateRpmIds());
+
+        // The real tag write rewrites the file, so its size and date change. A pass that wrote the name back
+        // into a file that already had it would see the file as changed on the next pass.
+        var writes = 0;
+        SyncResult Pass() => LibrarySynchronizer.Sync(_db, FakeRead, stampId: FakeStamp, keepId: (file, id) =>
+        {
+            writes++;
+            File.AppendAllText(file, "retagged");
+            _ids[file] = id;
+            return true;
+        });
+
+        var first = Pass();
+        var second = Pass();
+
+        Assert.Equal(new SyncResult(0, 0, 0), first);
+        Assert.Equal(new SyncResult(0, 0, 0), second);
+        Assert.Equal(0, writes);
+        Assert.Equal(2, _db.Query().Count);
+        Assert.Equal(_ids[path], _ids[copy]);
+    }
+
     [Fact]
     public void A_move_and_a_delete_in_one_pass_are_told_apart()
     {

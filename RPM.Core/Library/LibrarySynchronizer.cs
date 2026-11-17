@@ -169,6 +169,10 @@ public static class LibrarySynchronizer
         var pending = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Files that are pending for their shared id alone: nothing about the file has changed, and every
+        // fact about it has been read. See where they are passed over, below.
+        var onlyShared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         // Rows whose bytes were offloaded to the cloud, but whose file is on disk again. The user restored
         // it, or copied it back in. The cloud copy is still there, so the track is Synced, not CloudOnly,
         // and playback should read the disk instead of streaming.
@@ -214,6 +218,15 @@ public static class LibrarySynchronizer
                     && row.MovementNumber is not null
                     && !row.Elsewhere)
                     continue;
+
+                if (row.SizeBytes == fi.Length
+                    && row.ModifiedUtcTicks == fi.LastWriteTimeUtc.Ticks
+                    && row.RpmId is { } shared && duplicateIds.Contains(shared)
+                    && row.Channels is not null
+                    && row.Advisory is not null
+                    && row.MovementNumber is not null
+                    && !row.Elsewhere)
+                    onlyShared.Add(relative);
 
                 // A row that comes back pending on a library where nothing has happened will come back
                 // pending on every launch, forever. Each time, this pass claims that the shelf moved. That
@@ -352,7 +365,10 @@ public static class LibrarySynchronizer
 
                 if (itsCloudName is not null)
                 {
-                    if (!kept)
+                    // A file that already carries the name is not written again. A copy of a backed-up file
+                    // does: it came with the name. The write changes the file's size and date, so the next
+                    // sync would read the file as changed, and write it again, on every launch.
+                    if (!kept && !string.Equals(info.RpmId, itsCloudName, StringComparison.Ordinal))
                         keepId(file, itsCloudName);
                     id = itsCloudName;
                 }
@@ -374,6 +390,24 @@ public static class LibrarySynchronizer
             }
 
             var track = LibraryDatabase.FromTrackInfo(info, db.Root);
+
+            // Pending only because it shares its id, and it keeps that id. That happens when the id is the
+            // store's name for the track on both rows: two copies of one backed-up file. This pass may not
+            // give either a new name (see CloudName), so the duplicate cannot be repaired here, and the file
+            // is as it was. Nothing about the row changes, so it is not written and not counted. Counted, it
+            // reported the shelf as changed on every launch (38 such files on one library), and every view
+            // read the library again: home fetched all its pictures a second time, just after the app
+            // appeared.
+            if (onlyShared.Contains(relative)
+                && known.TryGetValue(track.RelativePath, out var unchanged)
+                && string.Equals(unchanged.RpmId, track.RpmId, StringComparison.Ordinal)
+                && unchanged.SizeBytes == track.SizeBytes
+                && unchanged.ModifiedUtcTicks == track.ModifiedUtcTicks)
+            {
+                if (RpmTag.IsId(id))
+                    claimed[id!] = track.RelativePath;
+                continue;
+            }
 
             // An offloaded track's file has been found back on disk somewhere else. The id says it is that
             // track, so the row follows the file. A second row does not appear beside it.
