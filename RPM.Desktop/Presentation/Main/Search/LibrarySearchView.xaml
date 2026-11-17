@@ -7,7 +7,6 @@
     x:Class="RPM.Desktop.Presentation.Main.Search.LibrarySearchView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:ui="using:RPM.Desktop.Presentation.Common"
     Visibility="Collapsed">
 
   <UserControl.Resources>
@@ -19,22 +18,17 @@
          It starts under the heading (see Place), so the box and the heading's other keys stay in reach. -->
     <Border x:Name="Catcher" Background="#26000000" PointerPressed="Catcher_PointerPressed"/>
 
-    <!-- Smoked glass, as the app's cards are: a live frost of what lies under it (the wall's covers) with
-         a dark veil over it, and the cards' own lit edge (DmCardBorderBrush). The veil is darker than a
-         card's 20%: a card frosts the dim artwork behind the window, this frosts bright sleeves, and the
-         rows on it have to stay readable. -->
+    <!-- The surface of the app's flyouts (the deck's cast, view and share pickers): the framework's flyout
+         fill and edge, read from the same theme resources the flyout presenter uses, with the 8 px corners
+         the deck sets on its flyouts. The panel looks like the flyouts, and follows them if their brushes
+         change. -->
     <Grid x:Name="Panel" HorizontalAlignment="Left" VerticalAlignment="Top">
       <Grid.RenderTransform>
         <TranslateTransform x:Name="PanelShift"/>
       </Grid.RenderTransform>
 
-      <Border CornerRadius="8">
-        <Border.Background>
-          <ui:GlassBrush BlurAmount="30"/>
-        </Border.Background>
-      </Border>
-      <Border CornerRadius="8" Background="#73000000"
-              BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+      <Border CornerRadius="8" Background="{ThemeResource FlyoutPresenterBackground}"
+              BorderBrush="{ThemeResource FlyoutBorderThemeBrush}" BorderThickness="1"/>
 
       <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled" Margin="1">

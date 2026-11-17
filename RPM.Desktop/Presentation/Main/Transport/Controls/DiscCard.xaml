@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
              xmlns:loc="using:RPM.Desktop.Strings"
-             xmlns:ui="using:RPM.Desktop.Presentation.Common"
              RequestedTheme="Dark"
              Visibility="Collapsed">
 
@@ -15,16 +14,11 @@
       <TranslateTransform x:Name="Rise"/>
     </Grid.RenderTransform>
 
-    <!-- Smoked glass, as the app's cards are: a live frost of whatever the card rises over, a dark veil on
-         it, and the cards' own lit edge (DmCardBorderBrush). The veil is darker than a card's 20%, because
-         this one floats over the window's brightest parts (sleeves, the deck) and its words have to read. -->
-    <Border CornerRadius="12">
-      <Border.Background>
-        <ui:GlassBrush BlurAmount="30"/>
-      </Border.Background>
-    </Border>
-    <Border CornerRadius="12" Background="#73000000"
-            BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+    <!-- The surface of the app's flyouts (the deck's cast, view and share pickers): the framework's flyout
+         fill and edge, read from the same theme resources the flyout presenter uses. The card keeps its own
+         12 px corners. -->
+    <Border CornerRadius="12" Background="{ThemeResource FlyoutPresenterBackground}"
+            BorderBrush="{ThemeResource FlyoutBorderThemeBrush}" BorderThickness="1"/>
 
     <Grid RowSpacing="12" Margin="17,13,17,17">
       <Grid.RowDefinitions>
