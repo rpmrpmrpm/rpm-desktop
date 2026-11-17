@@ -1320,7 +1320,8 @@ public sealed partial class AlbumDetailView
         StackedPanels.Spacing = StackAir;
         StackedPanels.Margin = new Thickness(
             0, StackedPanels.Children.Count > 0 ? rowAir : 0, 0, 0);
-        SimilarBlock.Margin = new Thickness(0, rowAir, 0, 0);
+        _similarAir = rowAir;
+        SimilarBlock.Margin = new Thickness(0, rowAir - OverlayLift, 0, 0);
 
         ColumnsRow.Height = stacked ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
         TracksRow.Height = stacked ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
@@ -1551,6 +1552,11 @@ public sealed partial class AlbumDetailView
         if (!_hasSimilar)
             return SimilarState.Gone;
 
+        // A card too short to make room for the row never lays it out: the row lies over the page when it
+        // is opened (AlbumDetailView.SimilarOverlay), and every record opens with it shut.
+        if (SimilarOverlays)
+            return SimilarState.Shut;
+
         // The reader's own answer, where they have given one. Opening the row on a short card is a
         // choice to spend the sleeve's room on it, and the page keeps that choice.
         if (Settings.AlbumSimilarOpen is { } wanted)
@@ -1680,8 +1686,14 @@ public sealed partial class AlbumDetailView
 
         var open = _similarRow == SimilarState.Open;
 
-        SimilarScroller.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-        PointSimilarChevron(open);
+        // A row lying over the page goes when the card grows tall enough to make room for it, or the record
+        // has nothing to suggest: the page lays it out as it does on every tall card.
+        if (_similarOverlay && (_similarRow == SimilarState.Gone || !SimilarOverlays))
+            DropSimilarOverlay();
+
+        SimilarScroller.Visibility = open || _similarOverlay ? Visibility.Visible : Visibility.Collapsed;
+        PointSimilarChevron(open || (_similarOverlay && !_overlayClosing));
+        PlaceSimilarOverlay();
     }
 
     /// <summary>Down while the row is shut and up while it is open, which is what an expander points
@@ -1724,6 +1736,13 @@ public sealed partial class AlbumDetailView
     /// AlbumDetailView.Series), and that row opens and shuts as this one always has.</summary>
     private void ToggleFoot()
     {
+        // On a card too short to make room for the row, it lies over the page instead.
+        if (SimilarOverlays)
+        {
+            ToggleSimilarOverlay();
+            return;
+        }
+
         // A groove fold in flight lands first. It clips this block on its right while it slides, and
         // the two moves cannot share one element.
         if (_grooveGlide.Running)

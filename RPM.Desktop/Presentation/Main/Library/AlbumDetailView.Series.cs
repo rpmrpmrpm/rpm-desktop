@@ -151,6 +151,13 @@ public sealed partial class AlbumDetailView
     /// press on its heading.</summary>
     private void UnfoldFoot()
     {
+        if (SimilarOverlays)
+        {
+            if (!_similarOverlay || _overlayClosing)
+                ToggleSimilarOverlay();
+            return;
+        }
+
         if (SimilarRowState() == SimilarState.Open)
             return;
         ToggleFoot();

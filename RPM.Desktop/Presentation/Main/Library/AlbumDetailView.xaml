@@ -7,7 +7,8 @@
       xmlns:conv="using:RPM.Desktop.Converters"
       xmlns:loc="using:RPM.Desktop.Strings"
       SizeChanged="Page_SizeChanged"
-      RequestedTheme="Dark">
+      RequestedTheme="Dark"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common">
 
   <UserControl.Resources>
     <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
@@ -1458,6 +1459,20 @@
         for the groove to have a column, the third column is zero wide, and these two are the whole
         width anyway. So the span is right in both states without being switched.
         -->
+    <!-- The smoked glass the row stands on while it lies over the page, on a card too short to make room
+         for it (AlbumDetailView.SimilarOverlay). The same glass as the app's cards: a live frost of what is
+         under it, a dark veil, and the cards' lit edge. Placed and shown from code, behind the block. -->
+    <Grid x:Name="SimilarBackdrop" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+          Visibility="Collapsed" IsHitTestVisible="False" Canvas.ZIndex="4">
+      <Border CornerRadius="8">
+        <Border.Background>
+          <ui:GlassBrush BlurAmount="30"/>
+        </Border.Background>
+      </Border>
+      <Border CornerRadius="8" Background="#73000000"
+              BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+    </Grid>
+
     <StackPanel x:Name="SimilarBlock" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                 Spacing="8" Visibility="Collapsed">
       <!-- The app's seam (see Generic.xaml). It is the same rule that runs under the pressing well
@@ -1465,7 +1480,9 @@
           both fading out at their ends. A flat grey line would be the one rule on this page that is not
           the seam.
           -->
-      <Grid Height="2">
+      <!-- Hidden (not collapsed, so the block keeps its height) while the row lies over the page on its own
+           card: a card has an edge of its own, and a rule under it reads as a second one. -->
+      <Grid x:Name="SimilarSeam" Height="2">
         <Rectangle Height="1" VerticalAlignment="Top" Fill="{StaticResource RpmSeamShade}"/>
         <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource RpmSeamLight}"/>
       </Grid>
@@ -1500,6 +1517,8 @@
           </StackPanel>
         </Button>
         <Button x:Name="SimilarToggle" Click="SimilarToggle_Click"
+                AutomationProperties.AutomationId="SimilarToggle"
+                AutomationProperties.Name="{loc:Str Key=Album_SimilarAlbums}"
                 Background="Transparent" BorderThickness="0" Padding="0,2" MinHeight="0" MinWidth="0"
                 HorizontalContentAlignment="Left">
           <Button.Resources>

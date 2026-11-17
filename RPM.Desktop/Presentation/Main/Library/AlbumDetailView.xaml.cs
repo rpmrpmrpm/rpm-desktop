@@ -243,6 +243,7 @@ public sealed partial class AlbumDetailView : UserControl
         {
             _hasTopReview = false;
             _hasSimilar = false;
+            DropSimilarOverlay();   // every record opens with the row shut on a short card
             _similarRows = [];
             _seriesRows = [];
             ShowTopReview();
