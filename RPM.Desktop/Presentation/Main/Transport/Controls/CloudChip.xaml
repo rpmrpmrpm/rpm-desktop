@@ -10,8 +10,8 @@
   <!-- The cloud upload work, minimised. It is the twin of the rip chip. Adding an album to the
        cloud can take minutes of transcoding and uploading. It starts from a right-click menu, with
        no window to watch, so the deck shows a cloud with a ring around it. The ring is the batch
-       progress. The flyout names every track and its stage. The chip is shown only while there is
-       work to show. -->
+       progress. The flyout shows the count, a bar for the whole run, and the tracks that are being
+       worked on now. The chip is shown only while there is work to show. -->
   <UserControl.Resources>
     <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
   </UserControl.Resources>
@@ -79,58 +79,69 @@
           </Border>
 
           <StackPanel Padding="14,12,14,12" Spacing="10">
-            <TextBlock x:Name="SummaryText" FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap"/>
+            <!-- The run as a whole: how many tracks went through out of how many, the same as a percentage,
+                 and a bar. The ring on the chip shows the same fraction. -->
+            <Grid ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="CountText" FontSize="12" FontWeight="SemiBold" Foreground="#F2FFFFFF"
+                         TextWrapping="Wrap"/>
+              <TextBlock x:Name="PercentText" Grid.Column="1" FontSize="12" Foreground="#99FFFFFF"
+                         VerticalAlignment="Top"/>
+            </Grid>
+            <ProgressBar x:Name="RunBar" Minimum="0" Maximum="1" Height="4" Background="#22FFFFFF"/>
 
-            <!-- Link to the full error reasons. The rows below only say that a track did not finish. The
-                 full reasons are on the settings page, which has room for them and a button to send
-                 them in. -->
+            <!-- Shown only when a track was refused. The count is here. The reasons are on the settings page,
+                 which has room for them and a button to send them in. -->
             <ctl:RpmLink x:Name="ErrorsHint" Click="Errors_Click" Padding="0"
                          Visibility="Collapsed">
-              <TextBlock Text="{loc:Str Key=CloudChip_ErrorsHint}" MaxWidth="300"
-                         FontSize="11" Foreground="#99FFFFFF" TextWrapping="Wrap"/>
+              <TextBlock x:Name="ErrorsText" MaxWidth="300" FontSize="11"
+                         Foreground="{StaticResource RpmRedBrush}" TextWrapping="Wrap"/>
             </ctl:RpmLink>
 
-            <!-- One row per track: what it is, what is being done to it, and its own progress bar. Each
-                 track has its own bar on purpose. The ring on the chip already shows how much of the
-                 batch is done. A total such as "8 of 40" does not help when track 9 is a 300 MB
-                 transcode. -->
-            <ListView x:Name="JobList" SelectionMode="None" Background="Transparent"
-                      MaxHeight="240"
-                      ItemContainerStyle="{StaticResource RipTrackContainerStyle}">
-              <ListView.ItemTemplate>
-                <DataTemplate x:DataType="svc:CloudJobRow">
-                  <Grid ColumnSpacing="9" Opacity="{x:Bind RowOpacity, Mode=OneWay}" Margin="0,3">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="16"/>
-                      <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+            <!-- The tracks being worked on now, each with its stage and its own bar. Waiting and finished
+                 tracks are not listed. The count above says how many are done. -->
+            <StackPanel x:Name="WorkingPanel" Spacing="2" Margin="0,4,0,0" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=CloudChip_InProgress}" FontSize="11" Foreground="#99FFFFFF"/>
+              <ListView x:Name="JobList" SelectionMode="None" Background="Transparent"
+                        MaxHeight="240"
+                        ItemContainerStyle="{StaticResource RipTrackContainerStyle}">
+                <ListView.ItemTemplate>
+                  <DataTemplate x:DataType="svc:CloudJobRow">
+                    <Grid ColumnSpacing="9" Margin="0,3">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                      </Grid.RowDefinitions>
 
-                    <!-- Up, down or removed: the operation is shown as an arrow, not a word, so the line beside it
-                         can say what is really happening. -->
-                    <FontIcon Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
-                              Style="{StaticResource FaIcon}" FontSize="10"
-                              Glyph="{x:Bind OpGlyph}" Foreground="#99FFFFFF"
-                              VerticalAlignment="Center"/>
+                      <!-- Up, down or removed: the operation is shown as an arrow, not a word, so the line beside it
+                           can say what is really happening. -->
+                      <FontIcon Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
+                                Style="{StaticResource FaIcon}" FontSize="10"
+                                Glyph="{x:Bind OpGlyph}" Foreground="#99FFFFFF"
+                                VerticalAlignment="Center"/>
 
-                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Title}" FontSize="11.5"
-                               Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind StageText, Mode=OneWay}"
-                               FontSize="10.5" Foreground="{x:Bind StageBrush, Mode=OneWay}"
-                               TextTrimming="CharacterEllipsis"/>
-                    <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="1" Height="3"
-                                 Margin="0,4,0,0"
-                                 Value="{x:Bind Fraction, Mode=OneWay}"
-                                 Foreground="{x:Bind StageBrush, Mode=OneWay}"
-                                 Background="#22FFFFFF"/>
-                  </Grid>
-                </DataTemplate>
-              </ListView.ItemTemplate>
-            </ListView>
+                      <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Title}" FontSize="11.5"
+                                 Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind StageText, Mode=OneWay}"
+                                 FontSize="10.5" Foreground="{StaticResource RpmCyanBrush}"
+                                 TextTrimming="CharacterEllipsis"/>
+                      <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="1" Height="3"
+                                   Margin="0,4,0,0"
+                                   Value="{x:Bind Fraction, Mode=OneWay}"
+                                   Background="#22FFFFFF"/>
+                    </Grid>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+            </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
               <Button x:Name="PauseButton" Click="Pause_Click"

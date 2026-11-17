@@ -85,8 +85,46 @@ public sealed class CloudJobLedger
     public IReadOnlyList<long> Tracks => _order;
 
     public int Total => _order.Count;
+
+    /// <summary>Tracks that are over, refused or not. This is what the bar measures.</summary>
     public int Finished => _byTrack.Values.Count(e => e.Finished);
+
     public int Failed => _byTrack.Values.Count(e => e.Failed);
+
+    /// <summary>Tracks that are over and were not refused.</summary>
+    public int Succeeded => _byTrack.Values.Count(e => e is { Finished: true, Failed: false });
+
+    /// <summary>
+    /// The operation that every track in the batch has, or null when the batch has no tracks or has
+    /// more than one operation. A removal started from a menu while the upload run is going gives a
+    /// batch with two operations. The count line names the operation ("uploaded") only when there is
+    /// one to name.
+    /// </summary>
+    public CloudOp? SharedOp
+    {
+        get
+        {
+            CloudOp? shared = null;
+            foreach (var entry in _byTrack.Values)
+            {
+                if (shared is null) shared = entry.Op;
+                else if (shared != entry.Op) return null;
+            }
+            return shared;
+        }
+    }
+
+    /// <summary>
+    /// The pair the count line is written with: tracks that succeeded, out of a total.
+    ///
+    /// <para>While the batch runs or is paused, the total is everything the batch expects. That is the
+    /// total the bar is measured against. Once the batch has finished, the total is the tracks it took
+    /// up. A track that was put back in the queue (for example, because a program was writing the file)
+    /// is not part of what this run did. Counting it would show "3,600 of 3,663" under a full
+    /// bar.</para>
+    /// </summary>
+    public (int Succeeded, int Total) Tally =>
+        (Succeeded, Phase == CloudBatchPhase.Finished ? _order.Count : Progress.Total);
 
     /// <summary>What a batch that deleted local copies made room for. Only offloads count: an
     /// upload's bytes went up, they did not come off the disk.</summary>

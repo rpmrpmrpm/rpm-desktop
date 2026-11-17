@@ -1,5 +1,6 @@
 // ProgressArc is in RPM.Core.Ripping because the rip chip's ring used it first. This chip is a
 // second user.
+using System.Globalization;
 using RPM.Core.Ripping;
 using RPM.Desktop.Services;
 using RPM.Desktop.Strings;
@@ -65,7 +66,7 @@ public sealed partial class CloudChip : UserControl
 
         _jobs = App.Services.GetRequiredService<CloudJobService>();
         _cloud = App.Services.GetRequiredService<CloudSyncService>();
-        JobList.ItemsSource = _jobs.Rows;
+        JobList.ItemsSource = _jobs.Working;
 
         FillRing(RingTrack, 1);
 
@@ -123,16 +124,28 @@ public sealed partial class CloudChip : UserControl
         // mostly waiting would say the opposite of what happened.
         FillRing(RingArc, done ? 1 : looking ? LookingArc : Math.Max(_jobs.Fraction, MinArc));
 
-        SummaryText.Text = _jobs.Summary;
-        IconName.Set(ChipButton, _jobs.Summary);
+        var count = _jobs.CountText;
+        CountText.Text = count;
+        IconName.Set(ChipButton, count);
 
-        // Show this only after something was refused. On a run with no errors, the line would send the user
-        // to look for a problem that does not exist.
-        ErrorsHint.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
+        // Before the first track is taken up there is nothing to count. The sentence says what is being
+        // prepared, and an empty bar would only say "0%".
+        var counting = !_jobs.IsPreparing;
+        var fraction = done ? 1 : _jobs.Fraction;
+        RunBar.Visibility = Show(counting);
+        RunBar.Value = fraction;
+        PercentText.Visibility = Show(counting);
+        PercentText.Text = Percent(fraction);
 
-        // The chip is shown before the first track starts, so for a moment there is a summary and no list.
-        // An empty box would look like there is nothing to do.
-        JobList.Visibility = _jobs.Total > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Shown only after something was refused. On a run with no errors, the line would send the user to
+        // look for a problem that does not exist.
+        ErrorsHint.Visibility = Show(failed);
+        if (failed)
+            ErrorsText.Text = Loc.Format("CloudChip_FailedCount", _jobs.Failed.ToString("N0", CultureInfo.CurrentCulture));
+
+        // Only a running batch has tracks in progress. The list is empty after a pause or at the end, and the
+        // check on the state keeps the heading off a list that has nothing in it.
+        WorkingPanel.Visibility = Show(_jobs.State == CloudJobState.Running && _jobs.Working.Count > 0);
 
         // Pause is for work that is still moving. A paused run shows Resume. A finished run can only be
         // dismissed.
@@ -218,6 +231,11 @@ public sealed partial class CloudChip : UserControl
         _turning.Children.Add(spin);
         _turning.Begin();
     }
+
+    /// <summary>The fraction as a whole percentage, in the user's own format ("33%", "33 %"). It is rounded
+    /// down, so a run with one track left never says 100%.</summary>
+    private static string Percent(double fraction) =>
+        (Math.Floor(fraction * 100) / 100).ToString("P0", CultureInfo.CurrentCulture);
 
     /// <summary>Sets the ring to a fraction of a full circle, as plain points from the top, going clockwise.
     /// Code-built arc geometry draws nothing under Uno-Skia, but Polyline points are drawn as given.</summary>

@@ -1,10 +1,9 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using RPM.Core.Cloud;
 using RPM.Desktop.Strings;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml.Media;
-using Windows.UI;
 
 namespace RPM.Desktop.Services.Cloud;
 
@@ -68,14 +67,6 @@ public sealed partial class CloudJobRow : INotifyPropertyChanged
     public string Title { get; }
     public string Subtitle { get; }
 
-    /// <summary>
-    /// The failure's message. It is written to the log book and shown on the cloud settings page, but not
-    /// here. The full error output of ffmpeg, several lines per row, would turn a panel meant to say "this
-    /// did not work" into a wall of text nobody reads. The row gives the short message, and the page
-    /// explains why.
-    /// </summary>
-    public string Detail { get; private set; } = "";
-
     /// <summary>The size of the canonical copy, once there is one. It is the log's record of the
     /// upload.</summary>
     public long Bytes { get; set; }
@@ -90,9 +81,6 @@ public sealed partial class CloudJobRow : INotifyPropertyChanged
             _stage = value;
             Raise(nameof(Stage));
             Raise(nameof(StageText));
-            Raise(nameof(StageBrush));
-            Raise(nameof(IsFailed));
-            Raise(nameof(RowOpacity));
         }
     }
 
@@ -109,10 +97,9 @@ public sealed partial class CloudJobRow : INotifyPropertyChanged
         }
     }
 
-    public bool IsFailed => Stage == CloudStage.Failed;
-
-    /// <summary>A finished row moves back, so the rows still being worked on are read first.</summary>
-    public double RowOpacity => Stage is CloudStage.Done ? 0.55 : 1;
+    /// <summary>True while something is being done to the track: it is not waiting for its turn, and it
+    /// is not over. Only these rows are listed in the flyout.</summary>
+    public bool IsWorking => Stage is not (CloudStage.Waiting or CloudStage.Done or CloudStage.Failed);
 
     /// <summary>Up, down or gone. It is shown as an icon rather than a word, so the text beside it is free
     /// to show the stage, which is the part that changes.</summary>
@@ -124,47 +111,25 @@ public sealed partial class CloudJobRow : INotifyPropertyChanged
         _ => "\uf062",                 // arrow up
     };
 
-    /// <summary>The colour of the row's mark. The accent colour while it works, the app's red when it has
-    /// failed, and a plain grey once it is over. A finished row needs no attention.</summary>
-    public Brush StageBrush => Stage switch
-    {
-        CloudStage.Failed => Failed,
-        CloudStage.Done => Quiet,
-        _ => Working,
-    };
-
-    private static readonly Brush Working = new SolidColorBrush(Color.FromArgb(0xFF, 0x04, 0xC8, 0xFF));
-    private static readonly Brush Failed = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0x6B, 0x6B));
-    private static readonly Brush Quiet = new SolidColorBrush(Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF));
-
+    /// <summary>What is being done to the track now. The flyout lists only rows that are
+    /// <see cref="IsWorking"/>, so the other stages have no words here. A refused track is counted on the
+    /// line above the list, and its reason is on the cloud settings page.</summary>
     public string StageText => Stage switch
     {
-        CloudStage.Waiting => Loc.Get("CloudChip_StageWaiting"),
         CloudStage.Transcoding => Loc.Get("CloudChip_StageTranscoding"),
         CloudStage.Uploading => Loc.Get("CloudChip_StageUploading"),
         CloudStage.Removing => Loc.Get("CloudChip_StageRemoving"),
         CloudStage.Restoring => Loc.Get("CloudChip_StageRestoring"),
         CloudStage.Verifying => Loc.Get("CloudChip_StageVerifying"),
-        // The message names the operation. "Failed" on its own leaves the user to work out what did not
-        // happen to the track. A removal that failed is not the same as an upload that failed.
-        CloudStage.Failed => Loc.Get(Op switch
-        {
-            CloudOp.Remove => "CloudChip_StageFailedRemove",
-            CloudOp.Restore => "CloudChip_StageFailedRestore",
-            // This has its own wording, not "upload failed". The upload worked. What did not happen is that
-            // the local file was kept. That is the safe outcome, not a loss.
-            CloudOp.Offload => "CloudChip_StageFailedOffload",
-            _ => "CloudChip_StageFailedUpload",
-        }),
-        _ => Loc.Get("CloudChip_StageDone"),
+        _ => "",
     };
 
-    internal void Fail(string? detail)
+    /// <summary>Marks the track as refused. The reason is not kept on the row: the log book has it, and
+    /// the cloud settings page shows it.</summary>
+    internal void Fail()
     {
-        Detail = detail ?? "";
         Fraction = 1;
         Stage = CloudStage.Failed;
-        Raise(nameof(StageText));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -178,8 +143,8 @@ public sealed partial class CloudJobRow : INotifyPropertyChanged
 /// <para>This is modelled on <see cref="RipJobService"/>, for the same reason: the work outlives the window
 /// that started it. A user who picks "add album to cloud" from a right-click menu has no window at all.
 /// Sixteen tracks may be transcoded and sent, with nothing on screen but a badge that changes minutes
-/// later. This makes that work visible: a ring on the deck, and a flyout that names every track and the
-/// stage it is at.</para>
+/// later. This makes that work visible: a ring on the deck, and a flyout with the count, a bar for the
+/// whole run, and the tracks that are being worked on now.</para>
 ///
 /// <para>It owns none of the work. <see cref="CloudSyncService"/> does the uploading and the deleting, and
 /// reports through here, so the chip and the engine cannot disagree. Every finished row is also written to
@@ -191,7 +156,8 @@ public sealed class CloudJobService
     private readonly DispatcherQueue _dispatcher;
 
     /// <summary>Rows by track, so a report from one of the three upload workers finds its row without a
-    /// scan.</summary>
+    /// scan. It holds every track the batch has touched, not only the ones in <see cref="Working"/>,
+    /// because a track that is taken up again keeps its row.</summary>
     private readonly Dictionary<long, CloudJobRow> _byTrack = [];
 
     /// <summary>Which tracks a batch has touched, how far in it is, and when it is over. This is everything
@@ -199,15 +165,22 @@ public sealed class CloudJobService
     /// report paths overlap.</summary>
     private readonly CloudJobLedger _ledger = new();
 
+    /// <summary>The operation of the batch that is preparing. It chooses the sentence shown before the first
+    /// track is taken up.</summary>
+    private CloudOp _preparing = CloudOp.Upload;
+
     public CloudJobService(LibraryService library, DispatcherQueue dispatcher)
     {
         _library = library;
         _dispatcher = dispatcher;
     }
 
-    /// <summary>Every track this batch has touched, in the order it was taken up. New work is appended, so
-    /// the list reads as a running order.</summary>
-    public ObservableCollection<CloudJobRow> Rows { get; } = [];
+    /// <summary>
+    /// The tracks that are being worked on now, in the order they started. A track that waits for its turn,
+    /// or is over, is not here. The count line says how many tracks are done, so a list of finished
+    /// tracks would only repeat it, one row at a time.
+    /// </summary>
+    public ObservableCollection<CloudJobRow> Working { get; } = [];
 
     public CloudJobState State => _ledger.Phase switch
     {
@@ -217,20 +190,73 @@ public sealed class CloudJobService
         _ => CloudJobState.Idle,
     };
 
-    /// <summary>0..1 across the whole batch, counted in tracks. The per-track bars show the detail. The
-    /// ring shows how much of what was asked for is done.</summary>
+    /// <summary>0..1 across the whole batch, counted in tracks. A refused track is over, so it counts. This
+    /// is the ring on the chip and the bar in the flyout.</summary>
     public double Fraction => _ledger.Fraction;
 
-    /// <summary>The one-line summary for the chip's tooltip and the flyout header. The ledger decides which
-    /// sentence applies, and with which numbers. The words are here, because they are translated.</summary>
-    public string Summary { get; private set; } = "";
+    /// <summary>True between the batch opening and the first track being taken up. There is nothing to
+    /// count yet, so the flyout shows a sentence and no bar.</summary>
+    public bool IsPreparing => _ledger.Summary == CloudSummary.Preparing;
+
+    /// <summary>
+    /// The line above the bar, and the chip's tooltip: how many tracks went through, out of how many, with
+    /// the operation's own word ("uploaded", "downloaded"). It is worked out from the ledger each time it
+    /// is read, so it cannot fall behind the counts.
+    /// </summary>
+    public string CountText => _ledger.Summary switch
+    {
+        CloudSummary.Silent => "",
+        CloudSummary.Preparing => Loc.Get(PreparingKey(_preparing)),
+
+        // Counts are given when there are counts to give. A pause in the gap between the batch opening and
+        // the first wave being sized leaves nothing to count, and "0 of 0" is worse than the plain word.
+        CloudSummary.Paused => _ledger.Tally.Total > 0
+            ? Loc.Format("CloudChip_CountPaused", Count())
+            : Loc.Get("CloudChip_Paused"),
+
+        // Space freed is the only result here that the user cannot see for themselves. The tracks are still
+        // in the library and still playable. So a batch that deleted local copies says how much space it
+        // freed.
+        CloudSummary.Freed => Loc.Format("CloudChip_SummaryFreed", _ledger.Total, ByteSize.Human(_ledger.FreedBytes)),
+
+        _ => Count(),
+    };
 
     /// <summary>Raised on the UI thread whenever anything above changes.</summary>
     public event Action? Changed;
 
     public int Total => _ledger.Total;
-    public int Finished => _ledger.Finished;
     public int Failed => _ledger.Failed;
+
+    /// <summary>The count line's key for the batch's operation. A batch with two operations, or with one
+    /// that has no word of its own, uses "done". A total of one takes the singular.</summary>
+    internal static string CountKey(CloudOp? op, int total)
+    {
+        var key = op switch
+        {
+            CloudOp.Upload => "CloudChip_CountUpload",
+            CloudOp.Restore => "CloudChip_CountRestore",
+            CloudOp.Remove => "CloudChip_CountRemove",
+            _ => "CloudChip_CountDone",
+        };
+        return total == 1 ? key + "One" : key;
+    }
+
+    private static string PreparingKey(CloudOp op) => op switch
+    {
+        CloudOp.Remove => "CloudChip_SummaryPreparingRemove",
+        CloudOp.Restore => "CloudChip_SummaryPreparingRestore",
+        CloudOp.Offload => "CloudChip_SummaryPreparingOffload",
+        _ => "CloudChip_SummaryPreparingUpload",
+    };
+
+    private string Count()
+    {
+        var (succeeded, total) = _ledger.Tally;
+        var culture = CultureInfo.CurrentCulture;
+        return Loc.Format(CountKey(_ledger.SharedOp, total),
+            succeeded.ToString("N0", culture), total.ToString("N0", culture));
+    }
 
     // ── what the engine calls ──
 
@@ -247,13 +273,7 @@ public sealed class CloudJobService
             ClearRows();
 
         if (_ledger.Summary == CloudSummary.Preparing)
-            Summary = Loc.Get(kind switch
-            {
-                CloudOp.Remove => "CloudChip_SummaryPreparingRemove",
-                CloudOp.Restore => "CloudChip_SummaryPreparingRestore",
-                CloudOp.Offload => "CloudChip_SummaryPreparingOffload",
-                _ => "CloudChip_SummaryPreparingUpload",
-            });
+            _preparing = kind;
         Changed?.Invoke();
     });
 
@@ -263,54 +283,34 @@ public sealed class CloudJobService
     public void Expect(int stillQueued) => OnUi(() =>
     {
         _ledger.Expect(stillQueued);
-        Recount();
+        Changed?.Invoke();
     });
 
-    /// <summary>Closes a batch. The last batch to close decides what the chip is left saying: a summary if
+    /// <summary>Closes a batch. The last batch to close decides what the chip is left saying: a count if
     /// anything happened, and nothing at all if the run had no work in it.</summary>
     public void EndBatch() => OnUi(() =>
     {
         if (!_ledger.EndBatch())
             return;   // Another batch is still open. That batch decides what the chip says.
 
-        // Space freed is the only result here that the user cannot see for themselves. The tracks are still
-        // in the library and still playable. The one thing that changed is a number on a disk that the user
-        // is not looking at. So a batch that deleted local copies reports how much space it freed.
-        Summary = _ledger.Summary switch
-        {
-            CloudSummary.Failed => Loc.Format("CloudChip_SummaryFailed", _ledger.Failed, _ledger.Total),
-            CloudSummary.Freed => Loc.Format("CloudChip_SummaryFreed", _ledger.Total, ByteSize.Human(_ledger.FreedBytes)),
-            CloudSummary.Done => Loc.Format("CloudChip_SummaryDone", _ledger.Total),
-            _ => "",   // A kick that found nothing due. Not worth a chip.
-        };
-
         if (_ledger.Summary == CloudSummary.Silent)
-            ClearRows();
+            ClearRows();   // A kick that found nothing due. Not worth a chip.
 
         Changed?.Invoke();
     });
 
-    /// <summary>Closes a batch the user stopped part-way. The rows that finished stay finished, because
-    /// they really were uploaded. The line above them says how far the run got through what it had to do.
-    /// It does not call a stopped run a completed one.</summary>
+    /// <summary>Closes a batch the user stopped part-way. The tracks that finished stay counted, because
+    /// they really were uploaded. The count line says how far the run got through what it had to do. It
+    /// does not call a stopped run a completed one.</summary>
     public void PauseBatch() => OnUi(() =>
     {
         if (!_ledger.PauseBatch())
             return;   // Another batch is still open. That batch decides what the chip says.
-
-        // Counts are given when there are counts to give. Pausing in the gap between the batch opening and
-        // the first wave being sized leaves nothing to count. "0 of 0 tracks done" is worse than the plain
-        // word.
-        var (finished, total) = _ledger.Progress;
-        Summary = total > 0
-            ? Loc.Format("CloudChip_SummaryPaused", finished, total)
-            : Loc.Get("CloudChip_Paused");
-
         Changed?.Invoke();
     });
 
-    /// <summary>Takes a track up. This is called the moment the engine commits to it, so the row is on
-    /// screen before the first slow step happens to it.</summary>
+    /// <summary>Takes a track up. This is called the moment the engine commits to it, so the row exists
+    /// before the first slow step happens to it.</summary>
     public void Begin(long trackId, CloudOp op, string title, string? subtitle) => OnUi(() =>
     {
         // A row exists, so something is happening, so the chip is shown. The engine opens a batch before it
@@ -322,10 +322,7 @@ public sealed class CloudJobService
         if (_ledger.Begin(trackId, op))
         {
             if (wasFinished) ClearRows();
-
-            var row = new CloudJobRow(trackId, op, title, subtitle);
-            _byTrack[trackId] = row;
-            Rows.Add(row);
+            _byTrack[trackId] = new CloudJobRow(trackId, op, title, subtitle);
         }
         else if (_byTrack.TryGetValue(trackId, out var existing))
         {
@@ -333,9 +330,10 @@ public sealed class CloudJobService
             // existing row is reused, so the list does not grow a duplicate.
             existing.Stage = CloudStage.Waiting;
             existing.Fraction = 0;
+            Place(Working, existing);
         }
 
-        Recount();
+        Changed?.Invoke();
     });
 
     /// <summary>Moves a track to a stage, and optionally sets how far into that stage it is. Unknown tracks
@@ -346,7 +344,8 @@ public sealed class CloudJobService
             return;
         row.Stage = stage;
         row.Fraction = fraction;
-        Recount();
+        Place(Working, row);
+        Changed?.Invoke();
     });
 
     /// <summary>Finishes a track and writes it to the log book.</summary>
@@ -358,13 +357,15 @@ public sealed class CloudJobService
         row.Bytes = bytes;
         row.Fraction = 1;
         row.Stage = CloudStage.Done;
+        Place(Working, row);
         Log(row, CloudOutcome.Done, null, null);
-        Recount();
+        Changed?.Invoke();
     });
 
-    /// <summary>Fails a track and writes it to the log book. The row stays on the list. A failure that
-    /// disappears is a failure the user never sees.</summary>
-    /// <param name="detail">The sentence the user is shown.</param>
+    /// <summary>Fails a track and writes it to the log book. The track leaves the list, and the failed count
+    /// under the bar goes up. That count stays until the chip is cleared, so the failure is still seen.
+    /// </summary>
+    /// <param name="detail">The sentence the user is shown on the cloud settings page.</param>
     /// <param name="fullError">Everything known about the failure. It is kept in the log book for a report
     /// (<see cref="CloudFailure.InFull(Exception)"/>). This is null only when nothing was thrown.</param>
     public void Fail(long trackId, string? detail, string? fullError) => OnUi(() =>
@@ -372,9 +373,10 @@ public sealed class CloudJobService
         if (!_byTrack.TryGetValue(trackId, out var row))
             return;
         _ledger.Fail(trackId);
-        row.Fail(detail);
+        row.Fail();
+        Place(Working, row);
         Log(row, CloudOutcome.Failed, detail, fullError);
-        Recount();
+        Changed?.Invoke();
     });
 
     /// <summary>Drops a track's row without logging it. This is for work that was neither done nor refused.
@@ -385,10 +387,8 @@ public sealed class CloudJobService
         if (!_byTrack.Remove(trackId, out var row))
             return;
         _ledger.Abandon(trackId);
-        Rows.Remove(row);
-        if (Rows.Count == 0)
-            Summary = "";
-        Recount();
+        Working.Remove(row);
+        Changed?.Invoke();
     });
 
     // ── what the chip calls ──
@@ -406,31 +406,25 @@ public sealed class CloudJobService
 
     // ── internals ──
 
+    /// <summary>
+    /// Puts a row in the list, or takes it out, from the stage it is at now. The answer depends only on the
+    /// row's own stage, never on which report came before. So reports from the three workers can arrive in
+    /// any order and the list still holds exactly the rows that are being worked on.
+    /// </summary>
+    internal static void Place(IList<CloudJobRow> working, CloudJobRow row)
+    {
+        var listed = working.Contains(row);
+        if (row.IsWorking && !listed)
+            working.Add(row);
+        else if (!row.IsWorking && listed)
+            working.Remove(row);
+    }
+
     /// <summary>The display's half of a clear. The ledger clears its own counts.</summary>
     private void ClearRows()
     {
-        Rows.Clear();
+        Working.Clear();
         _byTrack.Clear();
-        Summary = "";
-    }
-
-    /// <summary>
-    /// Works out the ring and the line under it again.
-    ///
-    /// <para>This does NOT decide that the batch is over. Every row being done only means that no worker is
-    /// in the middle of a file. Between two waves of an upload, that is true for a moment. A chip that read
-    /// it as the end would announce twelve tracks done, fade out, and start again on the thirteenth. The
-    /// engine says when it has stopped. See <see cref="EndBatch"/>.</para>
-    /// </summary>
-    private void Recount()
-    {
-        if (_ledger.Summary == CloudSummary.Running)
-        {
-            var (finished, total) = _ledger.Progress;
-            Summary = Loc.Format("CloudChip_SummaryRunning", finished, total);
-        }
-
-        Changed?.Invoke();
     }
 
     /// <summary>Writes one finished row to the mirror's log book. This is best effort. A log that cannot be

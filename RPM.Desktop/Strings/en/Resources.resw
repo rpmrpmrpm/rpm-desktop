@@ -4105,8 +4105,49 @@
   <data name="CloudChip_Title" xml:space="preserve">
     <value>Cloud</value>
   </data>
-  <data name="CloudChip_StageWaiting" xml:space="preserve">
-    <value>Waiting</value>
+  <data name="CloudChip_CountUpload" xml:space="preserve">
+    <value>{0} of {1} tracks uploaded</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Upload run.</comment>
+  </data>
+  <data name="CloudChip_CountUploadOne" xml:space="preserve">
+    <value>{0} of {1} track uploaded</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Upload run of one track ({1} is 1).</comment>
+  </data>
+  <data name="CloudChip_CountRestore" xml:space="preserve">
+    <value>{0} of {1} tracks downloaded</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Download run.</comment>
+  </data>
+  <data name="CloudChip_CountRestoreOne" xml:space="preserve">
+    <value>{0} of {1} track downloaded</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Download of one track ({1} is 1).</comment>
+  </data>
+  <data name="CloudChip_CountRemove" xml:space="preserve">
+    <value>{0} of {1} tracks removed from the cloud</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Removal from the cloud.</comment>
+  </data>
+  <data name="CloudChip_CountRemoveOne" xml:space="preserve">
+    <value>{0} of {1} track removed from the cloud</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Removal of one track ({1} is 1).</comment>
+  </data>
+  <data name="CloudChip_CountDone" xml:space="preserve">
+    <value>{0} of {1} tracks done</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Run that mixes uploads and removals.</comment>
+  </data>
+  <data name="CloudChip_CountDoneOne" xml:space="preserve">
+    <value>{0} of {1} track done</value>
+    <comment>Cloud chip flyout, line above the bar for the whole run: tracks that went through, out of the total. Mixed run of one track ({1} is 1).</comment>
+  </data>
+  <data name="CloudChip_CountPaused" xml:space="preserve">
+    <value>{0} (paused)</value>
+    <comment>Cloud chip flyout, count line after the user pauses a run. {0} is the count, for example "12 of 200 tracks uploaded".</comment>
+  </data>
+  <data name="CloudChip_FailedCount" xml:space="preserve">
+    <value>{0} failed. Open cloud settings to see why.</value>
+    <comment>Cloud chip flyout, red link under the bar, shown only when tracks failed. {0} is how many. Opens the error list in cloud settings.</comment>
+  </data>
+  <data name="CloudChip_InProgress" xml:space="preserve">
+    <value>In progress</value>
+    <comment>Cloud chip flyout, heading above the tracks that are being uploaded or downloaded now.</comment>
   </data>
   <data name="CloudChip_StageTranscoding" xml:space="preserve">
     <value>Transcoding</value>
@@ -4132,15 +4173,6 @@
   <data name="CloudChip_StageFailedRestore" xml:space="preserve">
     <value>Failed to download</value>
   </data>
-  <data name="CloudChip_SummaryRunning" xml:space="preserve">
-    <value>{0} of {1} tracks done</value>
-  </data>
-  <data name="CloudChip_SummaryDone" xml:space="preserve">
-    <value>{0} tracks done.</value>
-  </data>
-  <data name="CloudChip_SummaryFailed" xml:space="preserve">
-    <value>{0} of {1} tracks failed.</value>
-  </data>
   <data name="CloudChip_Pause" xml:space="preserve">
     <value>Pause</value>
   </data>
@@ -4149,10 +4181,6 @@
   </data>
   <data name="CloudChip_Dismiss" xml:space="preserve">
     <value>Dismiss</value>
-  </data>
-  <data name="CloudChip_SummaryPaused" xml:space="preserve">
-    <value>{0} of {1} tracks done (paused)</value>
-    <comment>Cloud chip flyout header after the user pauses an upload run, with the tracks finished and the total expected.</comment>
   </data>
   <data name="CloudChip_Paused" xml:space="preserve">
     <value>Paused</value>
@@ -5501,10 +5529,6 @@
   <data name="Cloud_ErrorsReportRefused" xml:space="preserve">
     <value>The report couldn’t be sent. Please try again a little later.</value>
     <comment>Cloud settings: shown when sending the error report was refused.</comment>
-  </data>
-  <data name="CloudChip_ErrorsHint" xml:space="preserve">
-    <value>Some tracks could not be synced. Open cloud settings to see why.</value>
-    <comment>Cloud chip flyout: link to the error list in cloud settings.</comment>
   </data>
   <data name="LeftNav_TrackInfo" xml:space="preserve">
     <value>Track info</value>

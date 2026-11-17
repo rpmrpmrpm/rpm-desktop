@@ -508,6 +508,103 @@ public class CloudJobLedgerTests
         Assert.Equal(CloudBatchPhase.Running, ledger.Phase);
     }
 
+    // ── the count line ──
+    //
+    // The flyout says how many tracks went through, out of how many. A refused track is over, so the bar
+    // counts it, but it was not uploaded, so the count line does not.
+
+    [Fact]
+    public void The_tally_counts_only_tracks_that_went_through()
+    {
+        var ledger = Running();
+        ledger.Begin(1, CloudOp.Upload);
+        ledger.Begin(2, CloudOp.Upload);
+        ledger.Begin(3, CloudOp.Upload);
+        ledger.Expect(7);
+        ledger.Complete(1);
+        ledger.Fail(2);
+
+        Assert.Equal((1, 10), ledger.Tally);
+        Assert.Equal((2, 10), ledger.Progress);
+        Assert.Equal(1, ledger.Succeeded);
+        Assert.Equal(1, ledger.Failed);
+    }
+
+    /// <summary>A paused run is tallied against everything it expected, the same total as its bar.</summary>
+    [Fact]
+    public void A_paused_batch_is_tallied_against_what_it_expected()
+    {
+        var ledger = Running();
+        for (var id = 1; id <= 12; id++) ledger.Begin(id, CloudOp.Upload);
+        ledger.Expect(188);
+        for (var id = 1; id <= 12; id++) ledger.Complete(id);
+        ledger.PauseBatch();
+
+        Assert.Equal((12, 200), ledger.Tally);
+    }
+
+    /// <summary>
+    /// A track that was put back in the queue is not part of what a finished run did. The bar of a
+    /// finished run is full, so the count under it must not read "1 of 2".
+    /// </summary>
+    [Fact]
+    public void A_finished_batch_is_tallied_against_the_tracks_it_took_up()
+    {
+        var ledger = Running();
+        ledger.Begin(1, CloudOp.Upload);
+        ledger.Begin(2, CloudOp.Upload);
+        ledger.Expect(0);
+        ledger.Abandon(2);                  // a program was writing the file: back in the queue
+        ledger.Complete(1);
+
+        Assert.Equal((1, 2), ledger.Tally);
+
+        ledger.EndBatch();
+
+        Assert.Equal((1, 1), ledger.Tally);
+        Assert.Equal(1.0, ledger.Fraction, 6);
+    }
+
+    [Fact]
+    public void A_finished_batch_with_a_refusal_counts_it_out_of_the_tally()
+    {
+        var ledger = Running();
+        ledger.Begin(1, CloudOp.Upload);
+        ledger.Complete(1);
+        ledger.Begin(2, CloudOp.Upload);
+        ledger.Fail(2);
+        ledger.EndBatch();
+
+        Assert.Equal((1, 2), ledger.Tally);
+    }
+
+    [Fact]
+    public void A_batch_of_one_operation_names_it()
+    {
+        var ledger = Running();
+        ledger.Begin(1, CloudOp.Upload);
+        ledger.Begin(2, CloudOp.Upload);
+
+        Assert.Equal(CloudOp.Upload, ledger.SharedOp);
+    }
+
+    /// <summary>A removal started from a menu while the upload run is going. Neither word fits all of
+    /// the tracks, so the count line uses the word that fits both.</summary>
+    [Fact]
+    public void A_batch_with_two_operations_names_neither()
+    {
+        var ledger = Running();
+        ledger.Begin(1, CloudOp.Upload);
+        ledger.StartBatch();
+        ledger.Begin(2, CloudOp.Remove);
+
+        Assert.Null(ledger.SharedOp);
+    }
+
+    [Fact]
+    public void A_batch_with_no_tracks_names_no_operation()
+        => Assert.Null(Running().SharedOp);
+
     /// <summary>
     /// The single-track path called in a loop would open a batch of one on every turn. The chip would
     /// read "0 of 1" over a twelve-track album, and each track's EndBatch would call the whole thing
