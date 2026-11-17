@@ -14,7 +14,8 @@ namespace RPM.Desktop.Services.Art;
 /// gate, in the order they were asked for. Each one books what it spent against <see cref="FrameBudget"/>.
 /// So the pictures take their share of a frame and give the rest back. The order matters as much as the
 /// limit. Cards realise from the top down, so the shelf the user is looking at is decoded before the shelves
-/// below the fold.</para>
+/// below the fold. Where a page asks for everything at once, it says which pictures are below the fold
+/// (see <see cref="Next{T}"/>), and those wait for the rest.</para>
 ///
 /// <para>The FETCH is not in here, and it must not be. Reading a cover runs on another thread, and it can
 /// happen for every card at once. Only the decode at the end costs the drawing thread. If the fetch were
@@ -47,47 +48,81 @@ internal sealed class PacedPictures
     /// sharing one clock would be two budgets measuring the same window.</summary>
     private readonly System.Diagnostics.Stopwatch _pace = System.Diagnostics.Stopwatch.StartNew();
 
-    /// <summary>What is in the gate, or a finished task where nothing is.</summary>
-    private Task _queue = Task.CompletedTask;
+    /// <summary>The decodes waiting their turn: what is on screen, and what is further down the page.</summary>
+    private readonly Queue<Func<Task>> _above = new();
+
+    private readonly Queue<Func<Task>> _below = new();
+
+    /// <summary>Whether a decode is being run or its frame paid for. Only one is, ever.</summary>
+    private bool _running;
 
     /// <summary>
-    /// Runs one decode in its turn and holds the next caller off until the frame it spent has room again.
+    /// Runs one decode in its turn and holds the next one off until the frame it spent has room again.
     /// </summary>
     /// <param name="decode">The work that costs the drawing thread. It is called when the gate reaches it,
     /// and never before. Anything read inside it is read at that moment, not at the time of the request.</param>
+    /// <param name="below">A picture further down the page than the reader is looking. It waits for every
+    /// picture that is not, whenever that one was asked for.
+    ///
+    /// <para><b>Why the order of asking is not enough.</b> A picture joins the gate when its bytes are in,
+    /// not when it was asked for, and the bytes do not come back in the order they were asked for. On the
+    /// home screen the banner's photographs are cut by two models before they can be decoded. The fifty
+    /// record covers below the fold are a file read each. In arrival order, every one of those covers was
+    /// decoded before the biggest picture on the screen, and the splash lifted on a banner of grey plates
+    /// with a spinner turning on each.</para></param>
     /// <returns>What the decode returned. A decode that throws passes the exception to its own caller only.
     /// The gate decides when work runs, not what happens to it. One picture that cannot be read must not
     /// leave the rest of the page blank.</returns>
-    public Task<T> Next<T>(Func<Task<T>> decode)
+    public Task<T> Next<T>(Func<Task<T>> decode, bool below = false)
     {
-        var mine = Queued(_queue);
-        _queue = mine;
-        return mine;
-
-        async Task<T> Queued(Task after)
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        (below ? _below : _above).Enqueue(async () =>
         {
             try
             {
-                await after;
+                done.TrySetResult(await decode());
             }
-            catch
+            catch (OperationCanceledException cancelled)
             {
-                // Whatever the one in front did with itself, this one still goes.
+                done.TrySetCanceled(cancelled.CancellationToken);
             }
+            catch (Exception ex)
+            {
+                done.TrySetException(ex);
+            }
+        });
 
-            var at = _pace.Elapsed.TotalMilliseconds;
-            try
+        if (!_running)
+            _ = RunAsync();
+
+        return done.Task;
+    }
+
+    /// <summary>Takes the decodes one at a time, everything above the fold first, until none is left.</summary>
+    private async Task RunAsync()
+    {
+        _running = true;
+        try
+        {
+            while (_above.Count > 0 || _below.Count > 0)
             {
-                return await decode();
-            }
-            finally
-            {
+                var one = _above.Count > 0 ? _above.Dequeue() : _below.Dequeue();
+
+                var at = _pace.Elapsed.TotalMilliseconds;
+
+                // It cannot throw: what the decode did is handed to its own caller (see Next).
+                await one();
+
                 // Booked whether the decode returned or threw. A decode that failed halfway still used the
                 // thread, so the frame is not given back.
                 var wait = _budget.Spend(at, _pace.Elapsed.TotalMilliseconds - at, _shareMs);
                 if (wait > 0)
                     await Task.Delay(TimeSpan.FromMilliseconds(wait));
             }
+        }
+        finally
+        {
+            _running = false;
         }
     }
 }

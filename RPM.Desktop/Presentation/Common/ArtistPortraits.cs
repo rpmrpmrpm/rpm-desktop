@@ -250,6 +250,71 @@ public static class ArtistPortraits
         return Asked.Answer<Portrait?>(picture);
     }
 
+    /// <summary>What a box on the artists wall is drawn from: the cut-down copy, and the colour to lay over
+    /// it.</summary>
+    public sealed record Box(byte[] Thumb, Windows.UI.Color? Tint);
+
+    /// <summary>The colour read from each photograph this session, by address. A colour is a few bytes, so
+    /// every box on a wall of a thousand can keep one, where the cut-down pictures cannot be kept.</summary>
+    private static readonly Dictionary<string, Windows.UI.Color?> Tints = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The part of <see cref="PictureAsync"/> a box on the artists wall draws, and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// <b>A box draws the cut-down copy, and the colour over it.</b> <see cref="PictureAsync"/> also makes a
+    /// grey copy, which a genre page draws, and a blur of the whole photograph, which an artist's page
+    /// stands on. The blur is the costly one: the full press shot decoded and blurred, for every box on a
+    /// wall that shows neither. Measured on a wall of 965 artists, the picture step took 120 to 230 ms a
+    /// box, about half of what each box cost to fill in.
+    ///
+    /// <para>The cut-down copy is kept on disk by <see cref="ThumbCache"/>, and the photograph by the web
+    /// cache, so a box that comes back costs two reads and no network. The colour is kept here.</para>
+    /// </remarks>
+    /// <returns>The same kinds of answer as <see cref="PictureAsync"/>.</returns>
+    public static async Task<Asked<Box?>> BoxAsync(string url, CancellationToken ct = default)
+    {
+        lock (Pictures)
+        {
+            if (Pictures.TryGetValue(url, out var whole))
+                return Asked.Answer<Box?>(new Box(whole.Thumb, whole.Tint));
+        }
+
+        if (!(await RemoteImage.BytesAsync(url, ct)).Answers(out var bytes, out var why))
+            return Asked.Failed<Box?>(why);
+        if (bytes is null)
+            return Asked.Answer<Box?>(null);
+
+        var thumb = await ThumbCache.GetAsync(bytes, ArtScaler.TileEdge, ct);
+
+        Windows.UI.Color? tint;
+        bool known;
+        lock (Tints)
+            known = Tints.TryGetValue(url, out tint);
+
+        if (!known)
+        {
+            try
+            {
+                // The same reading PictureAsync makes, from the same copy, so a box and a pane agree.
+                var (read, colour) = await Cancellable.RunAsync(
+                    () => (Windows.UI.Color?)(CoverColor.Dominant(thumb) ?? CoverColor.Highlight(thumb)), ct);
+                if (!read)
+                    return Asked.Failed<Box?>("cancelled");
+                tint = colour;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                tint = null;   // a box without its colour keeps the wall's own
+            }
+
+            lock (Tints)
+                Tints[url] = tint;
+        }
+
+        return Asked.Answer<Box?>(new Box(thumb, tint));
+    }
+
     /// <summary>Whether BLACK text reads better than white text on this ground. See
     /// <see cref="CoverColor.PrefersBlackInk"/>, which holds the rule. The rule was moved there for the
     /// phone head. A transparent logo's ground is decided by the same sum. The phone head needs the colour
@@ -278,7 +343,8 @@ public static class ArtistPortraits
     /// <para><b>Then it is remembered.</b> This is not for speed. The carousel rewrites the saved order
     /// whenever the user stops on a picture (see ArtistArtChoice). A surface that decided again would
     /// change the artist's photograph while a reader only paged back and forth. So the choice is made once
-    /// per artist per session, and everything that shows the artist stays as steady as the name.</para>
+    /// per artist per session, and everything that shows the artist stays as steady as the name. It is also
+    /// kept between sessions, and that IS for speed: see <see cref="Services.Art.ArtistChoices"/>.</para>
     /// </summary>
     /// <returns>Answered with the chosen address, or with null where the artist has no photograph;
     /// unanswered where the artwork lookup did not answer. Only an address is settled.</returns>
@@ -330,16 +396,31 @@ public static class ArtistPortraits
     private static async Task<Asked<string?>> ChooseCoreAsync(string artist, string? album)
     {
         var ct = CancellationToken.None;
-        if (!(await CandidatesAsync(artist, album, ct)).Answers(out var candidates, out var why))
+
+        // Decided on an earlier launch, with the user's saved photographs as they are now: that answer,
+        // without asking the artwork service or measuring anything. See Services.Art.ArtistChoices for what
+        // it costs to decide, and for what makes a kept answer stale.
+        var saved = SavedBackdrops(artist);
+        var from = Services.Art.ArtistChoices.FromOf(saved);
+        if (Services.Art.ArtistChoices.For(artist, from) is { } kept)
+            return Asked.Answer(kept.Url is { } url ? Settle(artist, url) : null);
+
+        if (!(await CandidatesAsync(artist, album, saved, ct)).Answers(out var candidates, out var why))
             return Asked.Failed<string?>(why);
 
         if (candidates.Count == 0)
+        {
+            Services.Art.ArtistChoices.Keep(artist, from, null);
             return Asked.Answer<string?>(null);
+        }
 
         // With one photograph, that photograph is the answer, whatever its shape. There is nothing to
         // choose between. A fetch made only to measure a picture that will be shown anyway is wasted.
         if (candidates.Count == 1)
+        {
+            Services.Art.ArtistChoices.Keep(artist, from, candidates[0]);
             return Asked.Answer<string?>(Settle(artist, candidates[0]));
+        }
 
         var considered = candidates.Take(PhotosConsidered).ToArray();
 
@@ -375,7 +456,17 @@ public static class ArtistPortraits
         // Nothing could be measured. This happens when the app is offline, or when every candidate refuses
         // to be read. Then the fallback rule applies: use the second photograph, and use the first only
         // when there is no second one.
+        //
+        // A choice is written down when it was measured, or when nothing here CAN be measured (every
+        // candidate is on a host this process may not reach), because then the fallback is the answer every
+        // launch would come to. Not when there were pictures to measure and none answered: that is what
+        // this launch could manage offline, and keeping it would stop a later one from measuring at all.
+        var keep = best is not null || !considered.Any(Measurable);
+
         best ??= candidates.Count > 1 ? candidates[1] : candidates[0];
+
+        if (keep)
+            Services.Art.ArtistChoices.Keep(artist, from, best);
 
         return Asked.Answer<string?>(Settle(artist, best));
     }
@@ -546,10 +637,15 @@ public static class ArtistPortraits
 
     /// <summary>The artist's photographs to choose between: the order the app has saved for them, or the
     /// catalogues' if nothing is saved, with one entry per picture.</summary>
-    private static async Task<Asked<IReadOnlyList<string>>> CandidatesAsync(
+    private static Task<Asked<IReadOnlyList<string>>> CandidatesAsync(
         string artist, string? album, CancellationToken ct)
+        => CandidatesAsync(artist, album, SavedBackdrops(artist), ct);
+
+    /// <summary>The same, with the saved order already read.</summary>
+    private static async Task<Asked<IReadOnlyList<string>>> CandidatesAsync(
+        string artist, string? album, IReadOnlyList<string> saved, CancellationToken ct)
     {
-        var candidates = SavedBackdrops(artist);
+        var candidates = saved;
         if (candidates.Count == 0)
         {
             if (!(await App.Services.GetRequiredService<ArtworkService>().GetAsync(artist, album, ct: ct))

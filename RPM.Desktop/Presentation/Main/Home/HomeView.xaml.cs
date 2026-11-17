@@ -2293,9 +2293,12 @@ public sealed partial class HomeView : UserControl
         var listCoats = new Coats("lists", Dressed);
         var rowCoats = new Coats("rows", Dressed);
 
+        // Everything above the fold, so the rows below it can wait for it. See DressRowsAsync.
+        var fold = new List<Task>();
+
         // The banner's pictures are two per card, not one: the cover and the blur behind it.
         foreach (var card in _features)
-            bannerCoats.Add(FillFeatureAsync(card, ct));
+            fold.Add(bannerCoats.Add(FillFeatureAsync(card, ct)));
 
         // AND THE ARTISTS' PHOTOGRAPHS, which are the largest pictures on this screen. They must be
         // counted. If the gate opens without them, the front card's photograph can land just after the
@@ -2313,7 +2316,7 @@ public sealed partial class HomeView : UserControl
         foreach (var host in new[] { PlateHost, PeekLeftHost, PeekRightHost })
             if (host.Content is HomeFeatureCard drawn)
             {
-                bannerCoats.Add(drawn.Face);
+                fold.Add(bannerCoats.Add(drawn.Face));
                 drawnFaces.Add(drawn.Face);
             }
 
@@ -2323,22 +2326,20 @@ public sealed partial class HomeView : UserControl
         // filling. It is counted with the lists, which are its neighbours and arrive on the same kind
         // of clock.
         foreach (var card in _quick)
-            listCoats.Add(FillQuickCoverAsync(card, ct));
+            fold.Add(listCoats.Add(FillQuickCoverAsync(card, ct)));
 
         // The lists' squares: one card held up by a slow read, not the whole screen.
         foreach (var card in offered)
-            listCoats.Add(FillListCoverAsync(card, ct));
-
-        // The covers come last, and per card: a slow disk or a slow network holds up one square and
-        // not the screen. These are below the fold on every window this app opens at, and there are
-        // about fifty of them. They are counted to be REPORTED, never to be waited for.
-        foreach (var row in _rows)
-            foreach (var card in row.Cards)
-                rowCoats.Add(FillCoverAsync(card, ct));
+            fold.Add(listCoats.Add(FillListCoverAsync(card, ct)));
 
         bannerCoats.Close();
         listCoats.Close();
-        rowCoats.Close();
+
+        // The covers come last, and per card: a slow disk or a slow network holds up one square and
+        // not the screen. These are below the fold on every window this app opens at, and there are
+        // about fifty of them. They are counted to be REPORTED, never to be waited for, and they are
+        // not STARTED until what is above them is in. See DressRowsAsync.
+        _ = DressRowsAsync([.. _rows], fold, rowCoats, ct);
 
         // And the photographs for the cards that are NOT drawn yet, so that a step never shows one
         // arriving. The banner steps itself every seven seconds. If the fourth and fifth cards were
@@ -2764,12 +2765,18 @@ public sealed partial class HomeView : UserControl
         {
             // Through the one door, so the card is told there is no picture as well as told there is
             // one. Until it has been told, its generated cover is not drawn at all. See CoverFill.
+            // BELOW THE FOLD: these wait in the gate for the banner and the two lists, which are what is on
+            // screen when the splash lifts. Their bytes are a file read and the banner's photographs are a
+            // cut by two models, so in the order the bytes came back these fifty were decoded first, and
+            // the splash lifted on a banner of grey plates. See PacedPictures.Next.
             await Services.Art.CoverFill.DressAsync(
                 card,
                 token => load(folder, ArtScaler.TileEdge, token),
-                async bytes => await _pictures.Next(() => RemoteImage.DecodeAsync(
-                    bytes,
-                    ArtScaler.DecodeEdgeFor(card.Metrics.Edge, XamlRoot?.RasterizationScale ?? 1))),
+                async bytes => await _pictures.Next(
+                    () => RemoteImage.DecodeAsync(
+                        bytes,
+                        ArtScaler.DecodeEdgeFor(card.Metrics.Edge, XamlRoot?.RasterizationScale ?? 1)),
+                    below: true),
                 ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -3209,10 +3216,12 @@ public sealed partial class HomeView : UserControl
         private int _outstanding = 1;   // the group's own, given back by Close
         private int _said;
 
-        public void Add(Task picture)
+        /// <returns>The picture, so the caller can also wait on it.</returns>
+        public Task Add(Task picture)
         {
             Interlocked.Increment(ref _outstanding);
             _ = Landed(picture);
+            return picture;
 
             async Task Landed(Task one)
             {
@@ -3244,6 +3253,52 @@ public sealed partial class HomeView : UserControl
                 filled(name);
         }
     }
+
+    /// <summary>
+    /// The rows' covers, once the banner and the lists above them are in.
+    /// </summary>
+    /// <remarks>
+    /// <b>Started together, the fifty covers below the fold held up the six above it.</b> A cover is a
+    /// job on the thread pool that looks for a picture in the record's folder, and where there is none,
+    /// reads the record's first track from the library, whose reads are taken one at a time, and its
+    /// embedded art. At startup the library is busy with this screen's own reading and the views being
+    /// attached behind it, and the banner's covers queued with fifty others nobody could see yet: six
+    /// to seven seconds for a cover on one launch, and the splash lifted on grey plates.
+    ///
+    /// <para><b>The wait has a ceiling</b>, the reveal's own four seconds: a banner photograph that has
+    /// to be fetched from the network must not leave the rows blank for as long as the network takes.
+    /// Nobody is looking at the rows until the splash has lifted, and at the ceiling it has.</para>
+    ///
+    /// <para>The rows are passed in as they stood, for the reason the strip is passed to
+    /// <see cref="ReadyOffScreenFacesAsync"/>: a later reading replaces the list.</para>
+    /// </remarks>
+    private async Task DressRowsAsync(
+        IReadOnlyList<HomeRowModel> rows, IReadOnlyList<Task> fold, Coats rowCoats, CancellationToken ct)
+    {
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            await Task.WhenAny(Task.WhenAll(fold), Task.Delay(RowsWaitMs, ct));
+
+            if (RPM.Core.Diagnostics.Scope.On)
+                RPM.Core.Diagnostics.Scope.Said(
+                    "home",
+                    $"rows asked {started.ElapsedMilliseconds} ms after the fold"
+                    + (Task.WhenAll(fold).IsCompleted ? ", which is in" : ", which is not in yet"));
+
+            if (!ct.IsCancellationRequested)
+                foreach (var row in rows)
+                    foreach (var card in row.Cards)
+                        _ = rowCoats.Add(FillCoverAsync(card, ct));
+        }
+        finally
+        {
+            rowCoats.Close();
+        }
+    }
+
+    /// <summary>The longest the rows wait for the fold. See <see cref="DressRowsAsync"/>.</summary>
+    private const int RowsWaitMs = 4000;
 
     /// <summary>Which groups have to be in before the screen counts as dressed: what is above the fold
     /// on any window this app opens at. The rows are reported and not waited for.</summary>
@@ -5427,24 +5482,41 @@ public sealed partial class HomeView : UserControl
                 if (ct.IsCancellationRequested)
                     return;
 
-                var fetched = await ArtistPortraits.PictureAsync(url, ct);
+                // Each step's time, for the line on the ring below: which of them a banner that arrives
+                // after the splash is waiting for.
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                double Lap()
+                {
+                    var ms = clock.Elapsed.TotalMilliseconds;
+                    clock.Restart();
+                    return ms;
+                }
+
+                // The photograph's bytes and nothing else, through the same cached client every picture
+                // in the app is fetched by. ArtistPortraits.PictureAsync would also make a thumb, read its
+                // colours, and make a grey copy and a blur of it, each on a trip to the thread pool. That
+                // is what the artists wall and the track pane draw, and none of it is what this plate
+                // draws: it blurs the photograph itself, below, from these same bytes. At startup, when
+                // the pool is busy with everything else the app is opening, that whole call took 3.8 and
+                // 9.2 seconds for the two photographs the splash was waiting for, against 55 to 96 ms for
+                // the same call a moment later.
+                //
+                // They are the photograph as it was taken, at its full size. The plate draws a window
+                // out of it across most of 760 points, so a copy reduced to a tile's worth of pixels
+                // would be drawn bigger than it is and look soft.
+                var fetched = await RemoteImage.BytesAsync(url, ct);
+                var fetchMs = Lap();
                 if (ct.IsCancellationRequested)
                     continue;
 
-                if (!fetched.Answers(out var found, out _))
+                if (!fetched.Answers(out var bytes, out _))
                 {
                     unfetched = true;
                     continue;
                 }
 
-                if (found is not { Thumb.Length: > 0 } picture)
+                if (bytes is not { Length: > 0 } source)
                     continue;
-
-                // The picture as fetched where this fetch made it, the cut-down copy where the answer
-                // came out of the cache. The plate draws a window out of this across most of 760 points,
-                // so a copy already reduced to a tile's worth of pixels would be drawn bigger than it is
-                // and look soft. See ArtistPortraits.Portrait.Full.
-                var source = picture.Full is { Length: > 0 } whole ? whole : picture.Thumb;
 
                 if (await CutToThePlateAsync(source, ct) is not { Bytes.Length: > 0 } cut)
                 {
@@ -5458,6 +5530,7 @@ public sealed partial class HomeView : UserControl
                     return;
                 }
 
+                var cutMs = Lap();
                 if (ct.IsCancellationRequested)
                     return;
 
@@ -5468,10 +5541,12 @@ public sealed partial class HomeView : UserControl
                 //
                 // The flag is set with the picture and not after it, so the cover's wash landing in the
                 // same moment is refused and not drawn for a frame.
+                var washMs = 0.0;
                 if (await Cancellable.RunAsync(() => ArtScaler.Wash(source), ct)
                         is { Ran: true, Value: { Length: > 0 } washed }
                     && !ct.IsCancellationRequested)
                 {
+                    washMs = Lap();
                     card.GroundIsPortrait = true;
                     card.Ground = await _pictures.Next(
                         () => RemoteImage.DecodeAsync(washed, ArtScaler.WashEdge));
@@ -5484,6 +5559,7 @@ public sealed partial class HomeView : UserControl
                 // here for it to match, and what goes over it is a scrim and not a colour cast.
                 var drawn = await _pictures.Next(
                     () => RemoteImage.DecodeAsync(cut.Bytes, ArtScaler.TileEdge));
+                var decodeMs = Lap();
 
                 // A first picture comes up out of the cover's blur. Two cases do not, and both are the
                 // same case: there is no reader for the fade to be for.
@@ -5495,16 +5571,21 @@ public sealed partial class HomeView : UserControl
                 // order things arrive in: `Phase.Ready` is reached in the gate's own callback, by every
                 // route out of it (dressed, patience or backstop), so a launch that reveals early
                 // without its pictures still fades the ones that land afterwards.
-                if (!Revealed)
+                var revealed = Revealed;
+                if (!revealed)
                     card.SwapPortrait(drawn);
                 else
                     card.ShowPortrait(drawn);
 
                 // This goes on the ring and not through Faces, which is off unless RPM_FACES_DIAG is
                 // set: it is one line per card, and which width a picture was framed for is not
-                // otherwise visible from outside the app.
+                // otherwise visible from outside the app. So is what each step cost, and whether the
+                // picture made it under the splash.
                 RPM.Core.Diagnostics.Scope.Said(
-                    "home", $"cut {card.Title} for a plate of {cut.Plate:F0}");
+                    "home",
+                    $"cut {card.Title} for a plate of {cut.Plate:F0} ({(cut.Kept ? "kept" : "cut now")}): "
+                    + $"fetch {fetchMs:F0}, cut {cutMs:F0}, wash {washMs:F0}, decodes {decodeMs:F0} ms, "
+                    + (revealed ? "after the reveal" : "under the splash"));
 
                 card.CutFor = cut.Plate;
 
@@ -5845,7 +5926,9 @@ public sealed partial class HomeView : UserControl
     /// all worked out for. The width is carried out with the bytes because it is read BEFORE two model
     /// runs and a wait for a calm frame, so by the time the cut lands the plate may be somewhere else,
     /// and what the card has to remember is the width the picture actually fits.</summary>
-    private readonly record struct PlateCut(byte[] Bytes, double Plate);
+    /// <param name="Kept">Read back from <see cref="Services.Art.PlateCutCache"/> and not cut on this
+    /// launch. Said on the ring with the card's times.</param>
+    private readonly record struct PlateCut(byte[] Bytes, double Plate, bool Kept = false);
 
     /// <summary>
     /// One photograph, cut to the plate around whoever is in it.
@@ -5869,6 +5952,33 @@ public sealed partial class HomeView : UserControl
     /// </summary>
     private async Task<PlateCut?> CutToThePlateAsync(byte[] photo, CancellationToken ct)
     {
+        // A cut made on an earlier launch first, and without waiting for the screen to be still. Reading
+        // it back is a file read on a worker, which is nothing a moving screen would feel, and it is the
+        // usual case: the banner is chosen by the hour and the day.
+        //
+        // The wait below is for the MODELS, and it is long at startup. Every picture on this screen is
+        // decoding then, the thread is not still for six turns running until they are all in, and the
+        // ceiling is four seconds. Asked first, the kept cut also waited for all of that, so the banner's
+        // photographs were the last pictures on the screen to arrive, and the splash's own four-second
+        // limit lifted it before they had.
+        //
+        // The width is the plate's once it has one. The photograph is usually fetched before the screen
+        // has been laid out at all: the strip is put up while the shelf is still being read. Without a
+        // width there is no key, and the cut fell through to the wait below, six seconds of it on one
+        // launch, before the same kept cut was read at the end of it. So this waits for the LAYOUT, which
+        // comes in the next few frames, and not for the thread to be still, which at startup it is not.
+        // A plate that is still not laid out at the ceiling is framed below, after the wait, as before.
+        var now = await PlateLaidAsync(ct);
+        if (now > 0)
+        {
+            var kept = await Task.Run(
+                () => Services.Art.PlateCutCache.Find(Services.Art.PlateCutCache.KeyFor(photo, now)), ct);
+            if (ct.IsCancellationRequested)
+                return null;
+            if (kept is { Length: > 0 })
+                return new PlateCut(kept, now, Kept: true);
+        }
+
         // Not while the screen is moving. The framing runs two models and a Skia pass over a
         // photograph, and it is started by the very press that also steps the banner, so it would land
         // on the frames of the slide, which is where a hitch is most visible. Nothing here is urgent:
@@ -5883,9 +5993,7 @@ public sealed partial class HomeView : UserControl
         //
         // The band's own arithmetic is used where the plate has still not been given a width, because
         // the plate is told its width by SizeFeatures from exactly that number.
-        var plate = FeaturePlate.ActualWidth > 0
-            ? FeaturePlate.ActualWidth
-            : HomeBanner.PlateWidth(FeatureBand.ActualWidth);
+        var plate = PlateWidthNow();
 
         // Neither has laid out yet. Nothing sensible can be framed against no width, and a picture cut
         // for one is worse than no picture: the card keeps the record's own colour and is asked again
@@ -5914,6 +6022,33 @@ public sealed partial class HomeView : UserControl
         return ct.IsCancellationRequested ? null : new PlateCut(cut, plate);
     }
 
+    /// <summary>The plate's width as it is laid out now, or as <see cref="SizeFeatures"/> will give it
+    /// from the band's width where it has not been laid out yet. Zero where neither has been.</summary>
+    private double PlateWidthNow() =>
+        FeaturePlate.ActualWidth > 0
+            ? FeaturePlate.ActualWidth
+            : HomeBanner.PlateWidth(FeatureBand.ActualWidth);
+
+    /// <summary>The plate's width once it has been laid out, asked on the same beat and to the same
+    /// ceiling as <see cref="CalmAsync"/>. Zero where it still has none at the ceiling, or where the
+    /// reading was cancelled.</summary>
+    private async Task<double> PlateLaidAsync(CancellationToken ct)
+    {
+        for (var waited = 0; PlateWidthNow() <= 0 && waited < CalmCeilingMs; waited += CalmBeatMs)
+        {
+            try
+            {
+                await Task.Delay(CalmBeatMs, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return 0;
+            }
+        }
+
+        return PlateWidthNow();
+    }
+
     /// <summary>
     /// One featured card's two pictures: the cover on the left, and the same cover blurred behind the
     /// text.
@@ -5936,6 +6071,7 @@ public sealed partial class HomeView : UserControl
         // The plate's spinner turns while this runs (HomeFeatureCard.PlateWaiting). It is cleared in
         // the finally, so no outcome, cancellation included, leaves it turning.
         card.GroundFetching = true;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             byte[]? sleeve = null;
@@ -5955,9 +6091,13 @@ public sealed partial class HomeView : UserControl
             if (sleeve is not { Length: > 0 } bytes || ct.IsCancellationRequested)
                 return;
 
+            var sleeveMs = clock.Elapsed.TotalMilliseconds;
+
             if (await Cancellable.RunAsync(() => ArtScaler.Wash(bytes), ct)
                 is not { Ran: true, Value: { Length: > 0 } washed } || ct.IsCancellationRequested)
                 return;
+
+            var washMs = clock.Elapsed.TotalMilliseconds - sleeveMs;
 
             // Written to the CARD, which is why the reader stepping the banner while this is in the air
             // is safe: the card is in the strip whether or not it is the one in front, and a card that
@@ -5969,6 +6109,13 @@ public sealed partial class HomeView : UserControl
             var drawn = await _pictures.Next(() => RemoteImage.DecodeAsync(washed, ArtScaler.WashEdge));
             if (!card.GroundIsPortrait)
                 card.Ground = drawn;
+
+            if (RPM.Core.Diagnostics.Scope.On)
+                RPM.Core.Diagnostics.Scope.Said(
+                    "home",
+                    $"ground {card.Title}: sleeve {sleeveMs:F0}, wash {washMs:F0}, "
+                    + $"decode {clock.Elapsed.TotalMilliseconds - sleeveMs - washMs:F0} ms, "
+                    + (Revealed ? "after the reveal" : "under the splash"));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

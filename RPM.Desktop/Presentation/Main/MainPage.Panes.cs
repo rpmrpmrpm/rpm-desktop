@@ -1429,9 +1429,12 @@ public sealed partial class MainPage
                 PinDrawer(Math.Max(from, target));
                 WritePixels(from);
 
-                // The library takes what the pane gives up. The wall chooses its columns for the whole move
-                // from where it will land.
+                // The library takes what the pane gives up. Each grid chooses its columns for the whole move
+                // from where it will land. A grid that is not on screen is not holding a move, and ignores it.
                 p.AlbumWall.ExpectLiveWidth(from - target);
+                p.ArtistsWall.ExpectLiveWidth(from - target);
+                p.GenresWall.ExpectLiveWidth(from - target);
+                p.PlaylistPanel.ExpectLiveWidth(from - target);
             }
 
             // Where the fade-out starts FROM, rather than from 1: a move redirected while an earlier one
@@ -2066,6 +2069,8 @@ public sealed partial class MainPage
                 p.AlbumWall.BeginLiveResize();
                 p.AlbumList.BeginLiveResize();
                 p.ArtistsWall.BeginLiveResize();
+                p.GenresWall.BeginLiveResize();
+                p.PlaylistPanel.BeginLiveResize();
             }
             else
                 p.AlbumWall.HoldReflow();
@@ -2094,6 +2099,8 @@ public sealed partial class MainPage
                 p.AlbumWall.EndLiveResize();
                 p.AlbumList.EndLiveResize();
                 p.ArtistsWall.EndLiveResize();
+                p.GenresWall.EndLiveResize();
+                p.PlaylistPanel.EndLiveResize();
             }
             else
                 p.AlbumWall.ReleaseReflow();

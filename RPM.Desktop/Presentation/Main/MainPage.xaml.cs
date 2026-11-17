@@ -34,7 +34,11 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
 
         // `TableView` does not accept `ItemsSource` through `{Binding}` on Uno. Assign it from the code
         // behind, and only after the control is `Loaded`: an earlier assignment is ignored.
-        Loaded += (_, _) => AttachSources();
+        Loaded += (_, _) => AttachSources("loaded");
+
+        // A page taken out of the window lets go of what it listened to (the Unloaded handlers in
+        // AttachSources), so a page put back has to be attached again.
+        Unloaded += (_, _) => _attachedTo = null;
 
         // The first-run hints point at two controls on this page. The shell that draws them cannot know when
         // these controls exist, because the navigation to this page happens before its rail and header are
@@ -44,7 +48,7 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
 
 
 
-        DataContextChanged += (_, _) => AttachSources();
+        DataContextChanged += (_, _) => AttachSources("data context");
 
         Loaded += (_, _) =>
         {
@@ -239,10 +243,28 @@ public sealed partial class MainPage : Microsoft.UI.Xaml.Controls.Page, Presenta
         ImportWorkbench.MarkPlayingChanged();
     }
 
-    private void AttachSources()
+    /// <summary>The model this page has been attached to while it is in the window, or null. See the
+    /// check at the top of <see cref="AttachSources"/>.</summary>
+    private MainModel? _attachedTo;
+
+    private void AttachSources(string why)
     {
         if (!IsLoaded || Model is not { } m)
             return;
+
+        // Once per model while the page is in the window. It was asked again a few seconds after the
+        // app appeared, on three launches of four measured (2026-11-17), with the same model. Run again, it did all of its work again on the drawing thread: the queue's counts,
+        // the queue's columns and every view's wiring, each a read of the library. On one launch the cloud
+        // mirror was writing at that moment, and the app stood still for 8.5 seconds just after it had
+        // appeared. It also added a second handler to every event it listens to, so a shelf change
+        // redrew the band and the cloud marks twice.
+        if (ReferenceEquals(_attachedTo, m))
+        {
+            RPM.Core.Diagnostics.Scope.Said("boot", $"attach asked again ({why}), same model: not run");
+            return;
+        }
+
+        _attachedTo = m;
 
         WatchShelfReading(m);
 

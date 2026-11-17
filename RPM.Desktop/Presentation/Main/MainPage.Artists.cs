@@ -35,7 +35,7 @@ public sealed partial class MainPage
         // So a wall of forty artists is not forty downloads, even on a machine that has been playing music
         // all evening. The picture, its grey copy and its colour are worked out once per artist per session,
         // the first time they are asked for.
-        ArtistsWall.PortraitLoader = LoadArtistPortraitAsync;
+        ArtistsWall.PortraitLoader = LoadArtistBoxAsync;
         // Opened from the wall, so there is no record under this page. Back from it is the wall itself.
         ArtistsWall.ArtistOpened += artist => NavigateToArtistPage(artist, ArtistFrom.Collection);
 
@@ -306,6 +306,10 @@ public sealed partial class MainPage
         ArtistsWall.SetArtists(artists, model.ArtistsRead);
         CountArtists();
 
+        // The photographs of the boxes the wall opens on are fetched now, in the background, and not when
+        // the reader first opens the wall. See ArtistWallView.Warm.
+        ArtistsWall.Warm();
+
         // An artist left open who is no longer in the collection (their last record was deleted) has nothing
         // left to be a page about. A search cannot cause this, because the list is the whole collection.
         if (ArtistDetail.Visibility == Visibility.Visible
@@ -396,6 +400,61 @@ public sealed partial class MainPage
     private Task<ArtistFace> LoadArtistPortraitAsync(ArtistWallItem artist, CancellationToken ct)
         => LoadArtistFaceAsync(artist, ArtistPortraits.ChooseAsync, ct);
 
+    /// <summary>
+    /// The same face, for a box on the artists wall: the photograph and its colour, and none of the copies
+    /// the wall does not draw.
+    /// </summary>
+    /// <remarks>
+    /// The wall draws the photograph as taken under its own colour (see <c>ArtistWallView.FetchAsync</c>).
+    /// The grey copy is for a genre page's boxes and the blur for an artist's page, and making them was half
+    /// of what each of the wall's boxes cost. See <see cref="ArtistPortraits.BoxAsync"/>. A genre page keeps
+    /// <see cref="LoadArtistPortraitAsync"/>, because it draws the grey one.
+    /// </remarks>
+    private async Task<ArtistFace> LoadArtistBoxAsync(ArtistWallItem artist, CancellationToken ct)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            return await LoadArtistFaceAsync(artist, ArtistPortraits.ChooseAsync, ct, boxOnly: true);
+        }
+        finally
+        {
+            ArtistFaceTimes.Add(clock.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    /// <summary>What the wall's boxes cost to answer, said on the ring every forty boxes: which of the steps
+    /// a wall that fills in slowly is waiting on. Read and written on the UI thread only.</summary>
+    internal static class ArtistFaceTimes
+    {
+        private static int _n;
+        private static double _total, _worst, _choose, _picture, _figure;
+
+        public static void Choose(double ms) => _choose += ms;
+
+        public static void Picture(double ms) => _picture += ms;
+
+        public static void Figure(double ms) => _figure += ms;
+
+        public static void Add(double ms)
+        {
+            _n++;
+            _total += ms;
+            _worst = Math.Max(_worst, ms);
+            if (_n < 40)
+                return;
+
+            RPM.Core.Diagnostics.Scope.Said(
+                "artists",
+                FormattableString.Invariant(
+                    $"{_n} boxes answered: {_total / _n:F0} ms each (worst {_worst:F0}); choose {_choose / _n:F0}, ")
+                + FormattableString.Invariant(
+                    $"picture {_picture / _n:F0}, figure {_figure / _n:F0}"));
+            _n = 0;
+            _total = _worst = _choose = _picture = _figure = 0;
+        }
+    }
+
     /// <summary>One artist's face, with the picture chosen by <paramref name="choose"/>.
     /// </summary>
     /// <param name="choose">Which of the artist's pictures this surface wears:
@@ -403,34 +462,78 @@ public sealed partial class MainPage
     /// cref="ArtistPortraits.PageSquareAsync"/> (a square first) for the artist page. No default: the two
     /// surfaces differ on purpose, and a default would be one of them wearing the other's picture without
     /// anybody deciding it.</param>
+    /// <param name="boxOnly">Only what a box on the artists wall draws. See <see cref="LoadArtistBoxAsync"/>.</param>
     private async Task<ArtistFace> LoadArtistFaceAsync(
-        ArtistWallItem artist, Func<string, string?, CancellationToken, Task<Asked<string?>>> choose, CancellationToken ct)
+        ArtistWallItem artist, Func<string, string?, CancellationToken, Task<Asked<string?>>> choose, CancellationToken ct,
+        bool boxOnly = false)
     {
+        // Each step's time, for ArtistFaceTimes.
+        var step = System.Diagnostics.Stopwatch.StartNew();
+        double Lap()
+        {
+            var ms = step.Elapsed.TotalMilliseconds;
+            step.Restart();
+            return ms;
+        }
+
+        async Task<ArtistFace> Figure()
+        {
+            Lap();
+            var face = await FigureAsync(artist, artist.Name, ct);
+            ArtistFaceTimes.Figure(Lap());
+            return face;
+        }
+
         // The compilations shelf is not a person and has no photograph, see NobodyInParticular. Its
         // box is the made figure, drawn from the colours of the records on it.
         if (NobodyInParticular(artist.Name))
-            return await FigureAsync(artist, artist.Name, ct);
+            return await Figure();
 
         // The lookup that names the photograph did not answer: the same stand-in as a photograph that
         // could not be fetched, for the same reason.
-        if (!(await choose(artist.Name, AlbumAskedAbout(artist), ct)).Answers(out var chosen, out _))
-            return (await FigureAsync(artist, artist.Name, ct)).InsteadOfUnfetchedPhoto();
+        var asked = await choose(artist.Name, AlbumAskedAbout(artist), ct);
+        ArtistFaceTimes.Choose(Lap());
+        if (!asked.Answers(out var chosen, out _))
+            return (await Figure()).InsteadOfUnfetchedPhoto();
 
-        if (chosen is { } url)
+        if (boxOnly && chosen is { } boxUrl)
+        {
+            // As below, with only the copy and the colour a box draws. The cut-down copy stands where the
+            // grey one would: the wall draws the picture as taken (Original), and nothing reads the other.
+            var boxed = await ArtistPortraits.BoxAsync(boxUrl, ct);
+            ArtistFaceTimes.Picture(Lap());
+            if (!boxed.Answers(out var box, out _))
+                return (await Figure()).InsteadOfUnfetchedPhoto();
+
+            if (box is { Thumb.Length: > 0 })
+                return ArtistFace.Photograph(box.Thumb, box.Thumb, wash: null, box.Tint);
+
+            // Answered, and there is no picture at the address: the photograph has gone from its host. A
+            // choice kept from an earlier launch named it, and the next launch must choose again.
+            if (box is null)
+                Services.Art.ArtistChoices.Forget(artist.Name);
+        }
+        else if (chosen is { } url)
         {
             // The photograph could not be fetched, so the made figure stands in. It is marked, so a box that
             // remembers it has asked asks again the next time it is shown. The artist does have a photograph.
             // It just did not arrive this time.
-            if (!(await ArtistPortraits.PictureAsync(url, ct)).Answers(out var picture, out _))
-                return (await FigureAsync(artist, artist.Name, ct)).InsteadOfUnfetchedPhoto();
+            var fetched = await ArtistPortraits.PictureAsync(url, ct);
+            ArtistFaceTimes.Picture(Lap());
+            if (!fetched.Answers(out var picture, out _))
+                return (await Figure()).InsteadOfUnfetchedPhoto();
 
             // The grey copy is what a box draws. The colour copy stands in where the drain failed, because a
             // colour photograph under the wash is a better box than an empty one.
             if (picture is not null && (picture.Grey ?? picture.Thumb) is { Length: > 0 } grey)
                 return ArtistFace.Photograph(grey, picture.Thumb, picture.Wash, picture.Tint);
+
+            // As in the box's branch: a photograph gone from its host is not kept as the choice.
+            if (picture is null)
+                Services.Art.ArtistChoices.Forget(artist.Name);
         }
 
-        return await FigureAsync(artist, artist.Name, ct);
+        return await Figure();
     }
 
     /// <summary>

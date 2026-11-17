@@ -841,10 +841,11 @@ public partial class App : Application
         // frame no longer fits the screens that are here, it is maximised instead. The work area is used,
         // with the title bar kept. It is NOT macOS full screen.
         //
-        // It is not applied now, though. This runs when the splash has gone and the interface is on screen.
-        // Until then, the window is under a black rectangle with a logo on it. A window that jumped to
-        // another size and place behind that would look as if the app were struggling to start. The handler
-        // is subscribed before the window is activated, because the page starts its own reveal from Loaded.
+        // On Windows, behind the splash card, it is applied as soon as the window is activated (see below). The
+        // window is cloaked then, so nobody sees it change size. Everywhere else it is applied when the splash
+        // has gone and the interface is on screen. A window that jumped to another size and place in front of
+        // the reader would look as if the app were struggling to start. The handler is subscribed before the
+        // window is activated, because the page starts its own reveal from Loaded.
         ShellPage.Revealed += RestorePlacement;
 
         // This is the one measurement of the drawing thread. It starts here, because the input half needs
@@ -877,6 +878,20 @@ public partial class App : Application
         RPM.Core.Diagnostics.Scope.Said("boot", "activate");
         MainWindow.Activate();
         RPM.Core.Diagnostics.Scope.Said("boot", "activated");
+
+        // ── Windows: the window takes its size now, while it is cloaked ──────────────────────────
+        //
+        // The shell is laid out for the first time after this, and the first screen is dressed at the size the
+        // window has then. Placed at the reveal instead, the first screen was dressed for the window's opening
+        // size, which nobody ever sees, and the reveal then maximised it. Every card on home grew, and fetched
+        // and cut its pictures again at the new size. They arrived about three seconds after the splash had
+        // gone, one group at a time. The window is cloaked behind the splash card here, so the change of size
+        // is not seen. RestorePlacement still runs at the reveal and finds the window where it belongs.
+        if (OperatingSystem.IsWindows() && Presentation.Startup.SplashWindow.IsUp)
+        {
+            RPM.Core.Diagnostics.Scope.Said("boot", "placement, while cloaked");
+            Presentation.Shell.SkinWindow.PlaceLibrary(MainWindow);
+        }
 
         // ── macOS: the window exists now, so this is the first moment it can be hidden ──────────
         //
@@ -1346,7 +1361,9 @@ public partial class App : Application
     private static readonly TimeSpan UncloakBackstop = TimeSpan.FromMilliseconds(600);
 
     /// <summary> The opening, once the interface is on screen. <see cref="ShellPage.Revealed"/> calls this.
-    /// The window takes back the size and place that it was left at, and then the app plays its sound.
+    /// The window takes back the size and place that it was left at, and then the app plays its sound. On
+    /// Windows behind the splash card the window already took them while it was cloaked, before the shell's
+    /// first layout (see where it is activated), and the call here changes nothing.
     ///
     /// <para>This order is required, and it must not be changed. A window that resizes itself while the
     /// user is looking at it looks like an app that is struggling to start. When there is a splash window,

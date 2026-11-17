@@ -378,9 +378,12 @@
         <StackPanel x:Name="IconPath" Grid.Row="0" Orientation="Horizontal" Spacing="4"
                     Margin="16,0,16,8" VerticalAlignment="Center" Visibility="Collapsed"/>
 
+        <!-- Scroll anchoring is off: VerticalAnchorRatio is NaN. Its default is 0, which is ON. With it on, the
+             scroller moves the offset by itself after a pass that moves the tile it has chosen as its anchor,
+             and that undoes the offset a pane move sets to keep the reader's row in place (see TileGridMove). -->
         <ScrollViewer x:Name="TilesScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
-                      BringIntoViewOnFocusChange="False"
+                      BringIntoViewOnFocusChange="False" VerticalAnchorRatio="NaN"
                       SizeChanged="TilesScroller_SizeChanged"
                       Padding="16,0,16,16">
           <!-- MinWidth must be a WHOLE TILE. The grid divides by the number of tiles that fit, and a
@@ -392,116 +395,122 @@
                (see FitTiles). The numbers here are only what the grid opens at. They are the wall's default
                card. ItemsStretch is None, not Fill. The stride is worked out so that the row already fills
                edge to edge. A second stretch on top of it would undo the column arithmetic. -->
-          <ItemsRepeater x:Name="Tiles" MinWidth="112">
-            <ItemsRepeater.Layout>
-              <UniformGridLayout x:Name="TilesLayout" MinItemWidth="166" MinItemHeight="205"
-                                 MinColumnSpacing="0" MinRowSpacing="14"
-                                 ItemsStretch="None"/>
-            </ItemsRepeater.Layout>
-            <ItemsRepeater.ItemTemplate>
-              <DataTemplate x:DataType="model:PlaylistTreeItem">
-                <!-- The whole tile is the button. In a grid, the picture and the name under it are one
-                     thing to press. That is how every file browser works. What the press does depends on
-                     the row, and that is decided in one place. See Tile_Click. -->
-                <!-- The row that this tile draws is written onto the element when the repeater realises it
-                     (see Tile_ElementPrepared). The picture is requested there too. Neither is done here.
-                     This template uses x:Bind, and a repeater whose template has compiled bindings does not
-                     set a DataContext on WinUI. So a handler on this element that reads one would read the
-                     pane's model. -->
-                <Button Style="{StaticResource PlaylistTileButton}"
-                        Click="Tile_Click"
-                        ContextRequested="Row_ContextRequested"
-                        Width="{x:Bind Metrics.Stride, Mode=OneWay}"
-                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}">
-                  <!-- The album wall's card, with the same measurements: eight points of padding on each
-                       side, which is the gutter between covers, then the ten under it, then the seven
-                       between the square and the writing. The square itself is sized from the one live
-                       AlbumTileMetrics that every tile here shares with the wall's own cards. A playlist
-                       and a record are two pictures in a grid of pictures, so there is no reason for them
-                       to be two sizes. See PlaylistView.FitTiles, which is AlbumWallView.RecomputeLayout
-                       asked about this scroller.
+          <!-- The repeater sits in a Grid of its own, and is not the scroller's content itself. A pane move
+               draws the repeater scaled through its composition visual (see TileGridMove). The scroller
+               moves its content through the content's composition visual, so a scale set on the content
+               would replace the scroll. -->
+          <Grid>
+            <ItemsRepeater x:Name="Tiles" MinWidth="112">
+              <ItemsRepeater.Layout>
+                <UniformGridLayout x:Name="TilesLayout" MinItemWidth="166" MinItemHeight="205"
+                                   MinColumnSpacing="0" MinRowSpacing="14"
+                                   ItemsStretch="None"/>
+              </ItemsRepeater.Layout>
+              <ItemsRepeater.ItemTemplate>
+                <DataTemplate x:DataType="model:PlaylistTreeItem">
+                  <!-- The whole tile is the button. In a grid, the picture and the name under it are one
+                       thing to press. That is how every file browser works. What the press does depends on
+                       the row, and that is decided in one place. See Tile_Click. -->
+                  <!-- The row that this tile draws is written onto the element when the repeater realises it
+                       (see Tile_ElementPrepared). The picture is requested there too. Neither is done here.
+                       This template uses x:Bind, and a repeater whose template has compiled bindings does not
+                       set a DataContext on WinUI. So a handler on this element that reads one would read the
+                       pane's model. -->
+                  <Button Style="{StaticResource PlaylistTileButton}"
+                          Click="Tile_Click"
+                          ContextRequested="Row_ContextRequested"
+                          Width="{x:Bind Metrics.Stride, Mode=OneWay}"
+                          ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}">
+                    <!-- The album wall's card, with the same measurements: eight points of padding on each
+                         side, which is the gutter between covers, then the ten under it, then the seven
+                         between the square and the writing. The square itself is sized from the one live
+                         AlbumTileMetrics that every tile here shares with the wall's own cards. A playlist
+                         and a record are two pictures in a grid of pictures, so there is no reason for them
+                         to be two sizes. See PlaylistView.FitTiles, which is AlbumWallView.RecomputeLayout
+                         asked about this scroller.
 
-                       It differs only in the writing, because there is less of it. A record has a title
-                       over an artist. A playlist has a name. So the name uses BOTH lines of room: 16, then
-                       7, then 15, which is what the card's caption block measures. The name wraps into as
-                       much of that room as it needs. The tile is the same height either way, and that is
-                       what keeps a row of tiles on one line. -->
-                  <StackPanel Spacing="7">
-                    <Grid Width="{x:Bind Metrics.Art, Mode=OneWay}" Height="{x:Bind Metrics.Art, Mode=OneWay}"
-                          HorizontalAlignment="Center">
-                      <Border CornerRadius="6" Background="#22000000"/>
-                      <!-- What the row is, until it has a picture of its own. These are not the tree's
-                           colours, and not the tree's one font size. On a wall of squares they are
-                           placeholders for a sleeve. They read as one set only if they are one size and one
-                           colour. The size is measured per glyph (PlaylistIcons.TileGlyphSize), because a
-                           font size is the em and not the mark. The colour is the faint white that the
-                           library's records wear where an album has no cover. The list view keeps its own
-                           colours.
+                         It differs only in the writing, because there is less of it. A record has a title
+                         over an artist. A playlist has a name. So the name uses BOTH lines of room: 16, then
+                         7, then 15, which is what the card's caption block measures. The name wraps into as
+                         much of that room as it needs. The tile is the same height either way, and that is
+                         what keeps a row of tiles on one line. -->
+                    <StackPanel Spacing="7">
+                      <Grid Width="{x:Bind Metrics.Art, Mode=OneWay}" Height="{x:Bind Metrics.Art, Mode=OneWay}"
+                            HorizontalAlignment="Center">
+                        <Border CornerRadius="6" Background="#22000000"/>
+                        <!-- What the row is, until it has a picture of its own. These are not the tree's
+                             colours, and not the tree's one font size. On a wall of squares they are
+                             placeholders for a sleeve. They read as one set only if they are one size and one
+                             colour. The size is measured per glyph (PlaylistIcons.TileGlyphSize), because a
+                             font size is the em and not the mark. The colour is the faint white that the
+                             library's records wear where an album has no cover. The list view keeps its own
+                             colours.
 
-                           It is drawn at the size that the measurement gives, inside a box of
-                           PlaylistIcons.ArtEdge. Then it is SCALED to whatever the square currently is. The
-                           equalisation is a ratio, so scaling the finished glyph keeps it. Working it out
-                           again against a moving box would repeat the same arithmetic for every tile on
-                           every frame of a drag. -->
-                      <Viewbox Stretch="Uniform">
-                        <Grid Width="96" Height="96">
-                          <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}"
-                                    FontSize="{x:Bind TileGlyphSize}" Foreground="#3AFFFFFF"
-                                    Visibility="{x:Bind TileGlyphVisibility, Mode=OneWay}"/>
-                          <!-- The moods folder's mark, as faint as the glyphs beside it and in the square
-                               that they are measured to (PlaylistIcons.GlyphBox). -->
-                          <Image Source="{x:Bind MarkImage, Mode=OneWay}" Width="34" Height="34" Opacity="0.4"/>
-                        </Grid>
-                      </Viewbox>
-                      <Border CornerRadius="6">
-                        <Image Source="{x:Bind TileImage, Mode=OneWay}" Stretch="UniformToFill"
-                               Visibility="{x:Bind TileImageVisibility, Mode=OneWay}"/>
-                      </Border>
-                      <!-- The hairline that the wall draws round every cover, over both layers. -->
-                      <Border CornerRadius="6" BorderThickness="1" BorderBrush="#22FFFFFF"
-                              IsHitTestVisible="False"/>
-                      <!-- The same cloud that the tree's rows wear. It is in the corner of the square, not
-                           after the name. A tile's name is centred and can be two lines long. A mark hung
-                           off the end of it would sit somewhere different on every tile. -->
-                      <Border CornerRadius="4" Background="#66000000" Padding="4,2"
-                              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
-                              Visibility="{x:Bind CloudBadgeVisibility, Mode=OneWay}">
-                        <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind CloudGlyph, Mode=OneWay}"
-                                  FontSize="10" Foreground="#DDFFFFFF"
-                                  Opacity="{x:Bind CloudPulse, Mode=OneWay}"/>
-                      </Border>
-                    </Grid>
-                    <!-- Up to two lines, then an ellipsis, centred under the square, in the card's own
-                         title colour. Long names are normal for a playlist. A single line would leave most
-                         of them ending in a dot. The text stands at the TOP of its room. So a one-line name
-                         sits under its picture, and does not float in the middle. -->
-                    <Grid MinHeight="38">
-                      <!-- The name and its badge are centred as ONE thing. This is the album card's own
-                           arrangement, and it has its own cost. With a badge showing, the group's centre is
-                           the centre, so the NAME sits half a badge-width to the left of the tile's centre
-                           line. A list with no badge is not affected, and most lists have none.
+                             It is drawn at the size that the measurement gives, inside a box of
+                             PlaylistIcons.ArtEdge. Then it is SCALED to whatever the square currently is. The
+                             equalisation is a ratio, so scaling the finished glyph keeps it. Working it out
+                             again against a moving box would repeat the same arithmetic for every tile on
+                             every frame of a drag. -->
+                        <Viewbox Stretch="Uniform">
+                          <Grid Width="96" Height="96">
+                            <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind Glyph}"
+                                      FontSize="{x:Bind TileGlyphSize}" Foreground="#3AFFFFFF"
+                                      Visibility="{x:Bind TileGlyphVisibility, Mode=OneWay}"/>
+                            <!-- The moods folder's mark, as faint as the glyphs beside it and in the square
+                                 that they are measured to (PlaylistIcons.GlyphBox). -->
+                            <Image Source="{x:Bind MarkImage, Mode=OneWay}" Width="34" Height="34" Opacity="0.4"/>
+                          </Grid>
+                        </Viewbox>
+                        <Border CornerRadius="6">
+                          <Image Source="{x:Bind TileImage, Mode=OneWay}" Stretch="UniformToFill"
+                                 Visibility="{x:Bind TileImageVisibility, Mode=OneWay}"/>
+                        </Border>
+                        <!-- The hairline that the wall draws round every cover, over both layers. -->
+                        <Border CornerRadius="6" BorderThickness="1" BorderBrush="#22FFFFFF"
+                                IsHitTestVisible="False"/>
+                        <!-- The same cloud that the tree's rows wear. It is in the corner of the square, not
+                             after the name. A tile's name is centred and can be two lines long. A mark hung
+                             off the end of it would sit somewhere different on every tile. -->
+                        <Border CornerRadius="4" Background="#66000000" Padding="4,2"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"
+                                Visibility="{x:Bind CloudBadgeVisibility, Mode=OneWay}">
+                          <FontIcon Style="{StaticResource FaIcon}" Glyph="{x:Bind CloudGlyph, Mode=OneWay}"
+                                    FontSize="10" Foreground="#DDFFFFFF"
+                                    Opacity="{x:Bind CloudPulse, Mode=OneWay}"/>
+                        </Border>
+                      </Grid>
+                      <!-- Up to two lines, then an ellipsis, centred under the square, in the card's own
+                           title colour. Long names are normal for a playlist. A single line would leave most
+                           of them ending in a dot. The text stands at the TOP of its room. So a one-line name
+                           sits under its picture, and does not float in the middle. -->
+                      <Grid MinHeight="38">
+                        <!-- The name and its badge are centred as ONE thing. This is the album card's own
+                             arrangement, and it has its own cost. With a badge showing, the group's centre is
+                             the centre, so the NAME sits half a badge-width to the left of the tile's centre
+                             line. A list with no badge is not affected, and most lists have none.
 
-                           The name's cap is Metrics.TitleRoom, not Metrics.Art. Metrics.Art is the art less
-                           the badge and the gap in front of it. The cap stops a long name from pushing the
-                           E off the tile. It also lets the name WRAP at all. A horizontal StackPanel
-                           measures its children with unlimited width. Without a cap, the text would run on
-                           one line for ever. -->
-                      <StackPanel Orientation="Horizontal" Spacing="4"
-                                  HorizontalAlignment="Center" VerticalAlignment="Top">
-                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="#F2FFFFFF" MaxWidth="{x:Bind Metrics.TitleRoom, Mode=OneWay}"
-                                   TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
-                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Top"/>
-                        <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Top" Margin="0,2,0,0"
-                                           IsExplicit="{x:Bind IsExplicit, Mode=OneWay}"
-                                           ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
-                      </StackPanel>
-                    </Grid>
-                  </StackPanel>
-                </Button>
-              </DataTemplate>
-            </ItemsRepeater.ItemTemplate>
-          </ItemsRepeater>
+                             The name's cap is Metrics.TitleRoom, not Metrics.Art. Metrics.Art is the art less
+                             the badge and the gap in front of it. The cap stops a long name from pushing the
+                             E off the tile. It also lets the name WRAP at all. A horizontal StackPanel
+                             measures its children with unlimited width. Without a cap, the text would run on
+                             one line for ever. -->
+                        <StackPanel Orientation="Horizontal" Spacing="4"
+                                    HorizontalAlignment="Center" VerticalAlignment="Top">
+                          <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="12" FontWeight="SemiBold"
+                                     Foreground="#F2FFFFFF" MaxWidth="{x:Bind Metrics.TitleRoom, Mode=OneWay}"
+                                     TextAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                     TextTrimming="CharacterEllipsis" VerticalAlignment="Top"/>
+                          <ctl:ExplicitBadge Width="12" Height="12" VerticalAlignment="Top" Margin="0,2,0,0"
+                                             IsExplicit="{x:Bind IsExplicit, Mode=OneWay}"
+                                             ToolTipService.ToolTip="{loc:Str Key=Library_Explicit}"/>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+          </Grid>
         </ScrollViewer>
 
         <!-- A folder that somebody made and has not filled yet. It says what is here, and then how to fill

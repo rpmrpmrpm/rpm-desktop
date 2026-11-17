@@ -190,9 +190,12 @@
     <!-- There is no index rail down the edge. So the right padding is the same as the left, not the
          artists wall's 26. A rail indexes about two thousand names. This wall holds few enough cards to
          fit on one screen, so it needs no rail. -->
+    <!-- Scroll anchoring is off: VerticalAnchorRatio is NaN. Its default is 0, which is ON. With it on, the
+         scroller moves the offset by itself after a pass that moves the tile it has chosen as its anchor,
+         and that undoes the offset a pane move sets to keep the reader's row in place (see TileGridMove). -->
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
-                  BringIntoViewOnFocusChange="False"
+                  BringIntoViewOnFocusChange="False" VerticalAnchorRatio="NaN"
                   Padding="14,0,14,20" SizeChanged="Scroller_SizeChanged">
       <!-- The wall lays out PAIRS, not cards. That keeps a pair from being split across two lines: the
            layout only sees one item per pair, so it cannot break one up.
@@ -203,12 +206,18 @@
            floor for the first pass only. From then on Fit sets this and MinItemWidth together, and both
            must hold the same number, or neither is a floor. The artists wall has the same guard for the
            same reason. -->
-      <ItemsRepeater x:Name="Rows" MinWidth="380" ItemTemplate="{StaticResource GenrePairTemplate}">
-        <ItemsRepeater.Layout>
-          <UniformGridLayout x:Name="PairLayout" MinItemWidth="380" MinItemHeight="150"
-                             MinColumnSpacing="14" MinRowSpacing="14"/>
-        </ItemsRepeater.Layout>
-      </ItemsRepeater>
+      <!-- The repeater sits in a Grid of its own, and is not the scroller's content itself. A pane move
+           draws the repeater scaled through its composition visual (see TileGridMove). The scroller moves
+           its content through the content's composition visual, so a scale set on the content would
+           replace the scroll. -->
+      <Grid>
+        <ItemsRepeater x:Name="Rows" MinWidth="380" ItemTemplate="{StaticResource GenrePairTemplate}">
+          <ItemsRepeater.Layout>
+            <UniformGridLayout x:Name="PairLayout" MinItemWidth="380" MinItemHeight="150"
+                               MinColumnSpacing="14" MinRowSpacing="14"/>
+          </ItemsRepeater.Layout>
+        </ItemsRepeater>
+      </Grid>
     </ScrollViewer>
 
     <!-- Shown when the library has no music, so there is nothing to file. -->

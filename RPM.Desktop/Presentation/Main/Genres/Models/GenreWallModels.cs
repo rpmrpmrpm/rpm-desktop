@@ -167,23 +167,26 @@ public sealed partial class GenreCardMetrics : INotifyPropertyChanged
 
     /// <summary>How many pairs go on a row. It is zero when the pane cannot hold two usable cards. The
     /// wall then draws a single unmirrored column, which is <see cref="Paired"/> false.</summary>
-    private int Pairs
+    private int Pairs => PairsAt(_width);
+
+    /// <summary>How many pairs go on a row of <paramref name="width"/>, by the rule above. A pane move asks
+    /// this for the width it will land at (see <c>GenreWallView.ExpectLiveWidth</c>).</summary>
+    public static int PairsAt(double width)
     {
-        get
-        {
-            if ((_width - Gutter) / 2 < NarrowestCard)
-                return 0;
+        if ((width - Gutter) / 2 < NarrowestCard)
+            return 0;
 
-            var pairs = 1;
-            while (Across(pairs) > WidestCard && Across(pairs + 1) >= NarrowestCard)
-                pairs++;
+        var pairs = 1;
+        while (AcrossAt(width, pairs) > WidestCard && AcrossAt(width, pairs + 1) >= NarrowestCard)
+            pairs++;
 
-            return pairs;
-        }
+        return pairs;
     }
 
     /// <summary>What a card comes out at for a given number of pairs on the row.</summary>
-    private double Across(int pairs) => (_width - Gutter * (2 * pairs - 1)) / (2 * pairs);
+    private double Across(int pairs) => AcrossAt(_width, pairs);
+
+    private static double AcrossAt(double width, int pairs) => (width - Gutter * (2 * pairs - 1)) / (2 * pairs);
 
     /// <summary>Whether the wall is laying out mirrored pairs at all. False only on a pane too narrow
     /// to hold two cards, where every card is drawn as a left one.</summary>

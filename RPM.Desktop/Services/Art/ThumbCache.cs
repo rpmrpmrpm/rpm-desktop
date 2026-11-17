@@ -161,27 +161,56 @@ public static class ThumbCache
     private static string Entry(string key, int maxEdge)
         => Path.Combine(Dir, $"{key}-{maxEdge}.{Cutter}{ExtensionlessMarker}");
 
+    /// <summary>
+    /// Starts the session's one sweep of the folder, on a thread of its own.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not on the asker's thread.</b> It is started by the first picture asked for in a session, and on
+    /// the home screen that is the banner's front cover, which the splash is waiting for. Run in place, the
+    /// sweep was part of that one cover: 4.8 seconds for it on one launch, against 15 ms for the covers
+    /// asked for beside it, and the splash lifted without it. Nothing that asks for a thumb needs the sweep
+    /// to have finished. A thumb it deletes is one that nothing reads (an earlier cutter's, or one unread for
+    /// 90 days), and a read that loses a race with it falls back to the picture itself, as every failure
+    /// here does.
+    /// </remarks>
     private static void PruneOnce()
     {
         if (Interlocked.Exchange(ref _pruned, 1) == 1)
             return;
+
+        _ = Task.Run(Prune);
+    }
+
+    /// <summary>
+    /// Removes what no session will read again.
+    /// </summary>
+    /// <remarks>
+    /// <b>The dates come with the listing.</b> The folder holds tens of thousands of thumbs (31,617 on one
+    /// machine). Listed by name and then asked for each file's date, that was one more call to the disk per
+    /// file: 2.3 seconds on a quiet machine. A <see cref="FileInfo"/> from the listing already carries the
+    /// date the directory read returned, and the same sweep took 90 ms.
+    /// </remarks>
+    private static void Prune()
+    {
         try
         {
             var cutoff = DateTime.UtcNow - MaxAge;
             var mine = $".{Cutter}{ExtensionlessMarker}";
-            foreach (var file in Directory.EnumerateFiles(Dir))
+            foreach (var file in new DirectoryInfo(Dir).EnumerateFiles())
             {
+                var name = file.Name;
+
                 // A thumb that an earlier cutter made is a picture this app will never read again. There are
                 // thousands of them, so they are removed on the first sweep, rather than aging out one by one over
                 // 90 days. This applies to thumbs only. The resident packs share this folder. They are named
                 // differently, and this sweep does not judge them.
-                var stale = file.EndsWith(ExtensionlessMarker, StringComparison.Ordinal)
-                            && !file.EndsWith(mine, StringComparison.Ordinal);
+                var stale = name.EndsWith(ExtensionlessMarker, StringComparison.Ordinal)
+                            && !name.EndsWith(mine, StringComparison.Ordinal);
 
                 if (stale
-                    || file.EndsWith(".tmp", StringComparison.Ordinal)
-                    || File.GetLastWriteTimeUtc(file) < cutoff)
-                    File.Delete(file);
+                    || name.EndsWith(".tmp", StringComparison.Ordinal)
+                    || file.LastWriteTimeUtc < cutoff)
+                    file.Delete();
             }
         }
         catch { /* a sweep that fails just leaves files for the next one */ }

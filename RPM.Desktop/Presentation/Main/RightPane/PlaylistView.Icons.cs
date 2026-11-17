@@ -47,6 +47,11 @@ public sealed partial class PlaylistView
         _iconsAttached = true;
         Tiles.ElementPrepared += Tile_ElementPrepared;
         Tiles.ItemsSource = _tiles;
+        _tileMove = new TileGridMove(TilesScroller, Tiles, "playlists",
+            () => _tileColumns > 0 && _tileMetrics.Stride > 0
+                ? new TileGridMove.Shape(_tileColumns, _tileMetrics.Stride,
+                    _tileMetrics.Stride - TileChrome + TileCaption, 0, TilesRowGap)
+                : null);
 
         // The remembered cover size is seeded before the first tile is laid out. So the grid is never seen
         // at one size and then resized into another. This is quiet. The slider's own handler writes the
@@ -443,17 +448,71 @@ public sealed partial class PlaylistView
             return;   // not measured yet: the tiles keep the opening size, rather than one worked out from
                       // nothing
 
+        // While a pane moves, the tiles keep the size the move began at, and the grid keeps one column count
+        // and is drawn to fit. See BeginLiveResize.
         var available = _tilesWidth - TilesScrollerPadding;
-        var columns = RPM.Core.Library.AlbumGridLayout.ColumnsForTarget(
-            available, _tileTargetArt + TileChrome);
+        if (_tileMove?.Draw(available) == true)
+            return;
+
+        var columns = TileColumnsAt(available);
         var stride = RPM.Core.Library.AlbumGridLayout.StrideFor(
             available, columns, Library.AlbumWallView.MaxArt + TileChrome);
 
+        _tileColumns = columns;
         _tileMetrics.Set(stride, stride - TileChrome);
 
         TilesLayout.MinItemWidth = stride;
         TilesLayout.MinItemHeight = stride - TileChrome + TileCaption;
     }
+
+    /// <summary>How many tiles go across <paramref name="available"/> at the reader's chosen size.</summary>
+    private int TileColumnsAt(double available)
+        => RPM.Core.Library.AlbumGridLayout.ColumnsForTarget(available, _tileTargetArt + TileChrome);
+
+    /// <summary>How many tiles go across, as the grid was last laid out at rest.</summary>
+    private int _tileColumns;
+
+    /// <summary>The space between two rows of tiles. The markup's MinRowSpacing, which must be the same
+    /// number.</summary>
+    private const double TilesRowGap = 14;
+
+    // ── a pane moving beside the tiles ──
+
+    /// <summary>
+    /// A pane is about to resize the tiles live, one frame at a time. Until <see cref="EndLiveResize"/>, the
+    /// tiles keep the size they have now, the grid keeps one column count, and the whole grid is drawn
+    /// larger or smaller to fill the width it is given. The tiles are dealt into a new column count once, and
+    /// slide there. See <see cref="TileGridMove"/>, which the artists wall and the genre wall use too.
+    /// </summary>
+    /// <remarks>
+    /// Without this, every frame of a move wrote a new tile size, which every tile laid out again, and the
+    /// tiles were dealt into a new column count two or three times in one move, each time in one frame.
+    ///
+    /// <para>WinUI only. On the Skia head the grid keeps re-flowing every frame.</para>
+    /// </remarks>
+    public void BeginLiveResize() => _tileMove?.Begin();
+
+    /// <summary>The pane says how much wider (a positive <paramref name="change"/>) or narrower the tiles will
+    /// be when the move lands. The grid keeps the larger of the column count it has and the one it will
+    /// have, for the whole move.</summary>
+    public void ExpectLiveWidth(double change)
+    {
+        var available = _tilesWidth - TilesScrollerPadding;
+        if (_tileMove is not { Live: true } move || available <= 0)
+            return;
+        move.Expect(TileColumnsAt(available + change), available);
+    }
+
+    /// <summary>The move has landed. The real tile size is written once, at the width the grid keeps.</summary>
+    public void EndLiveResize()
+    {
+        if (_tileMove is { } move)
+            move.End(FitTiles);
+    }
+
+    /// <summary>The tiles' size and column count while a pane moves. It is made when the grid is first
+    /// attached. See <see cref="BeginLiveResize"/>.</summary>
+    private TileGridMove? _tileMove;
 
     private DispatcherQueueTimer? _tileSizeTimer;
 

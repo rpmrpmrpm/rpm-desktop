@@ -71,6 +71,8 @@ public sealed partial class ArtistWallView : UserControl
         InitializeComponent();
         Tiles.ElementPrepared += Tile_ElementPrepared;
         Rail.Picked += JumpTo;
+        _move = new TileGridMove(Scroller, Tiles, "artists",
+            () => _metrics.Width > 0 ? new TileGridMove.Shape(_columns, _metrics.Width, _metrics.Height, Gap, Gap) : null);
 
         Unloaded += (_, _) =>
         {
@@ -343,6 +345,110 @@ public sealed partial class ArtistWallView : UserControl
         }
     }
 
+    // ── ready before the wall is opened ──
+
+    /// <summary>How many boxes have their photographs decoded before the wall is first opened: about two
+    /// screens of a maximised window at the usual box size. Every photograph is decoded at the size it is
+    /// drawn, so decoding the whole wall ahead would hold a few hundred megabytes of pictures that nobody
+    /// may scroll to. The rest are made READY instead: see <see cref="Warm"/>.</summary>
+    private const int WarmBoxes = 120;
+
+    private bool _warming;
+
+    /// <summary>
+    /// Fetches the photographs of the boxes the wall opens on, before anybody has opened it.
+    /// </summary>
+    /// <remarks>
+    /// <para>A box asks for its photograph when it is realized, and a wall that is not on screen realizes
+    /// nothing. So the wall filled in its photographs only after the reader had opened it, a few at a
+    /// time. This asks for the first boxes in the background once the app has opened, so they are there
+    /// when the wall is.</para>
+    ///
+    /// <para>It goes through the governor, in the second wave (what the reader looks at next), and asks
+    /// before each box. A photograph the reader is waiting for is not governed (see
+    /// <see cref="Tile_ElementPrepared"/>): a box that comes on screen first is asked for at once, and this
+    /// pass then skips it.</para>
+    ///
+    /// <para><b>The whole wall, not only its first screens.</b> Past <see cref="WarmBoxes"/> a box is asked
+    /// for its answer and the answer is let go, without a picture decoded or worn. What that leaves behind is
+    /// what made a box slow to fill in: the choice of photograph is made and written down, the photograph is
+    /// on this disk, its cut-down copy too, and its colour is held. A box scrolled to later is then two reads
+    /// and a decode. Only the first screens were ready before, and the rest of a wall of 965 artists filled
+    /// in a few boxes at a time as the reader scrolled down it.</para>
+    ///
+    /// <para>Not worn, because a box that wore its colour before its picture would show the colour first and
+    /// the photograph a moment later, which is the change this exists to take off the screen.</para>
+    /// </remarks>
+    public async void Warm()
+    {
+        if (_warming || PortraitLoader is null || _tiles.Count == 0)
+            return;
+        _warming = true;
+        var fetched = 0;
+        var readied = 0;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var sweep = App.Services.GetRequiredService<Services.Shell.Governor>()
+                .Pass("artist photographs", Services.Shell.Lane.Network, Services.Shell.Wave.Second,
+                      notBefore: Services.Shell.Phase.Ready);
+
+            // The token the fetches use, which the view cancels when it unloads.
+            if (_fetching is null || _fetching.IsCancellationRequested)
+                _fetching = new CancellationTokenSource();
+            var stop = _fetching.Token;
+
+            // The list is read afresh for every box. A library change rebuilds it while this pass runs, and
+            // the pass carries on down the new one: a box kept across the rebuild keeps its photograph and
+            // is passed over, and a new one is fetched.
+            for (var i = 0; i < _tiles.Count; i++)
+            {
+                if (_tiles[i].Asked)
+                    continue;
+
+                using var slot = await sweep.Next(stop);
+                if (!slot.Go)
+                    return;
+                if (i >= _tiles.Count)
+                    break;
+
+                // Asked for while this pass waited its turn: the box came on screen.
+                var tile = _tiles[i];
+                if (tile.Asked)
+                    continue;
+
+                if (i < WarmBoxes)
+                {
+                    tile.Asked = true;
+                    await FetchAsync(tile);
+                    fetched++;
+                    continue;
+                }
+
+                // Made ready and let go. The box is not marked as asked: it asks for itself when it comes on
+                // screen, and finds the answer waiting.
+                try
+                {
+                    if (PortraitLoader is not { } load)
+                        return;
+                    _ = await load(tile.Artist, stop);
+                    readied++;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // A box that could not be made ready is fetched as it was before, when it is shown.
+                }
+            }
+        }
+        finally
+        {
+            _warming = false;
+            RPM.Core.Diagnostics.Scope.Said("artists",
+                $"{fetched} photographs fetched ahead of the wall and {readied} more made ready, "
+                + $"in {clock.ElapsedMilliseconds} ms");
+        }
+    }
+
     // ── the layout, and the rail that reads it ──
 
     /// <summary>
@@ -357,31 +463,25 @@ public sealed partial class ArtistWallView : UserControl
 
     private void Relayout()
     {
-        var available = Scroller.ActualWidth - Scroller.Padding.Left - Scroller.Padding.Right;
+        var available = Available();
         if (available <= 0)
             return;
 
-        // Counted in strides: a box plus the gap after it. One gap is added back, because the last box in
-        // a row has no gap after it. The nearest whole number of columns is used, not the floor, so the
-        // boxes come as close to the target as a whole number of them allows.
-        var columns = AlbumGridLayout.ColumnsForTarget(available + Gap, TargetWidth + Gap);
-        columns = Math.Max(1, Math.Min(columns, (int)Math.Floor((available + Gap) / (MinTileWidth + Gap))));
-        columns = Math.Max(1, columns);
+        // While a pane moves, the boxes keep the size the move began at, and the wall keeps one column count
+        // and is drawn to fit. See BeginLiveResize.
+        if (_move.Draw(available))
+        {
+            _columns = _move.Columns;
+            ReadStandingLetter();
+            return;
+        }
 
+        var columns = ColumnsAt(available);
         var width = Math.Floor((available - ((columns - 1) * Gap)) / columns);
         if (width < 1)
             return;
 
         _columns = columns;
-
-        // While a pane moves, the boxes keep the size the move began at, and the wall is drawn to fit.
-        // See BeginLiveResize.
-        if (ScaleLive(available, columns))
-        {
-            ReadStandingLetter();
-            return;
-        }
-
         _metrics.Set(width);
 
         // The layout is given the same numbers the boxes are drawn at. So the layout and the rail's
@@ -404,6 +504,19 @@ public sealed partial class ArtistWallView : UserControl
         ReadStandingLetter();
     }
 
+    /// <summary>The width the boxes are laid out across: the scroller's, less its padding.</summary>
+    private double Available() => Scroller.ActualWidth - Scroller.Padding.Left - Scroller.Padding.Right;
+
+    /// <summary>How many boxes go across <paramref name="available"/>. Counted in strides: a box plus the gap
+    /// after it. One gap is added back, because the last box in a row has no gap after it. The nearest whole
+    /// number of columns is used, not the floor, so the boxes come as close to the target as a whole number
+    /// of them allows.</summary>
+    private static int ColumnsAt(double available)
+    {
+        var columns = AlbumGridLayout.ColumnsForTarget(available + Gap, TargetWidth + Gap);
+        return Math.Max(1, Math.Min(columns, (int)Math.Floor((available + Gap) / (MinTileWidth + Gap))));
+    }
+
     /// <summary>One row's worth of vertical travel.</summary>
     private double RowStride => _metrics.Height + Gap;
 
@@ -411,86 +524,38 @@ public sealed partial class ArtistWallView : UserControl
 
     /// <summary>
     /// A pane is about to resize the wall live, one frame at a time. Until <see cref="EndLiveResize"/>,
-    /// the boxes keep the size they have now, and the whole wall is drawn larger or smaller to fill the
-    /// width it is given.
+    /// the boxes keep the size they have now, the wall keeps one column count, and the whole wall is drawn
+    /// larger or smaller to fill the width it is given.
     /// </summary>
     /// <remarks>
     /// <b>Why.</b> A new box width on every frame makes every realized box dirty: its size, its photograph
     /// and its name, which wraps again. That is about fifty boxes, and each frame of a move took about
     /// 45 ms of the drawing thread. Here a frame writes one scale to the repeater's composition visual,
-    /// which dirties nothing. The column count still follows the width, so the boxes are dealt into the
-    /// new number of columns during the move. Moving a box costs an arrange, not a measure, because its
-    /// size does not change.
-    ///
-    /// <para>The album wall does the same, row by row (see <c>AlbumWallView.BeginLiveResize</c>). This
-    /// wall is one flat grid, so one scale on the repeater is enough. It is scaled about the top of the
-    /// viewport, so the row the reader is on stays where it is.</para>
+    /// which dirties nothing. The boxes are dealt into a new column count once, and slide there. See
+    /// <see cref="TileGridMove"/>, which the genre wall and the playlists' tiles use too.
     ///
     /// <para>WinUI only. On the Skia head the wall keeps re-flowing every frame.</para>
     /// </remarks>
-    public void BeginLiveResize()
+    public void BeginLiveResize() => _move.Begin();
+
+    /// <summary>The pane says how much wider (a positive <paramref name="change"/>) or narrower the wall will
+    /// be when the move lands. The wall keeps the larger of the column count it has and the one it will
+    /// have, for the whole move. See <see cref="TileGridMove.Expect"/>.</summary>
+    public void ExpectLiveWidth(double change)
     {
-#if RPM_WINUI
-        // RPM_PANE_FREEZE=none turns this off along with the album wall's scale, for measuring.
-        if (_liveWidth > 0
-            || Library.AlbumWallView.Freeze != Library.AlbumWallView.WallFreeze.Scale)
+        var available = Available();
+        if (!_move.Live || available <= 0)
             return;
-        _liveWidth = _metrics.Width;
-#endif
+        _move.Expect(ColumnsAt(available + change), available);
+        _columns = _move.Columns;
     }
 
     /// <summary>The move has landed. The real box width is written once, at the width the wall
     /// keeps.</summary>
-    public void EndLiveResize()
-    {
-#if RPM_WINUI
-        if (_liveWidth <= 0)
-            return;
-        _liveWidth = 0;
+    public void EndLiveResize() => _move.End(Relayout);
 
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(Tiles).TransformMatrix =
-            System.Numerics.Matrix4x4.Identity;
-        Tiles.Width = double.NaN;
-        Tiles.HorizontalAlignment = HorizontalAlignment.Stretch;
-        Relayout();
-#endif
-    }
-
-    /// <summary>The box width a live resize holds, or zero when no move is running.</summary>
-    private double _liveWidth;
-
-    /// <summary>
-    /// Lays the wall out at <paramref name="columns"/> boxes of the held width and draws it scaled to
-    /// <paramref name="available"/>. Returns false when no live resize is running, and the caller then
-    /// lays the wall out normally.
-    /// </summary>
-    private bool ScaleLive(double available, int columns)
-    {
-#if RPM_WINUI
-        if (_liveWidth <= 0)
-            return false;
-
-        // The repeater is given exactly the width of the held columns. UniformGridLayout then fits that
-        // many boxes, and nothing in a box changes. Half a point more than the sum keeps a rounding
-        // error from losing a column.
-        var laid = (columns * _liveWidth) + ((columns - 1) * Gap);
-        Tiles.HorizontalAlignment = HorizontalAlignment.Left;
-        Tiles.Width = laid + 0.5;
-
-        // Scaled about the top of the viewport, in the repeater's own space. The scroll offset is where
-        // the viewport's top edge meets the content. The scale is on the repeater, not on the Grid the
-        // scroller moves: see the note in ArtistWallView.xaml.
-        var k = (float)(available / laid);
-        var top = (float)Scroller.VerticalOffset;
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(Tiles).TransformMatrix =
-            System.Numerics.Matrix4x4.CreateTranslation(0, -top, 0)
-            * System.Numerics.Matrix4x4.CreateScale(k, k, 1)
-            * System.Numerics.Matrix4x4.CreateTranslation(0, top, 0);
-        return true;
-#else
-        return false;
-#endif
-    }
+    /// <summary>The boxes' size and column count while a pane moves. See <see cref="BeginLiveResize"/>.</summary>
+    private readonly TileGridMove _move;
 
     private void Scroller_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e) => ReadStandingLetter();
 

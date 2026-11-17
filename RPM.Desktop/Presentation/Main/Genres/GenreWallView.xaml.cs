@@ -105,6 +105,14 @@ public sealed partial class GenreWallView : UserControl
         Rows.ElementPrepared += Row_ElementPrepared;
         Rows.ElementClearing += Row_ElementClearing;
 
+        // The repeater lays out pairs, so a pair is one tile, and the columns are pairs. A wall too narrow to
+        // pair its cards is not held: a move that pairs or unpairs them makes the cards again.
+        _move = new TileGridMove(Scroller, Rows, "genres",
+            () => _fitted && _metrics.Paired
+                ? new TileGridMove.Shape(_metrics.Columns / 2, _metrics.PairWidth, _metrics.CardHeight,
+                    GenreCardMetrics.Gutter, GenreCardMetrics.Gutter)
+                : null);
+
         // The album wall's own stopwatch is used here too, so the two can be compared. See
         // Library.WallDiag. Switch it on with RPM_WALL_DIAG=1. Realizing a genre card costs more than
         // realizing a sleeve. It reads the genre's name out of the generated outlines (GenreWordmarks), and
@@ -533,11 +541,16 @@ public sealed partial class GenreWallView : UserControl
     /// diagnostic. See Library.WallDiag, and RPM_WALL_DIAG=1.</param>
     private void Fit(bool told)
     {
-        var available = Math.Floor(Scroller.ActualWidth - Scroller.Padding.Left - Scroller.Padding.Right);
+        var available = Available();
 
         // There is no room yet. The view is collapsed, or the pane has not been arranged. There is nothing
         // to draw a card from, and the last real numbers stay in place.
         if (available < 1)
+            return;
+
+        // While a pane moves, the cards keep the size the move began at, and the wall keeps one number of
+        // pairs across and is drawn to fit. See BeginLiveResize.
+        if (_move.Draw(available))
             return;
 
         _metrics.Scale = XamlRoot?.RasterizationScale ?? _metrics.Scale;
@@ -576,6 +589,43 @@ public sealed partial class GenreWallView : UserControl
         if (_metrics.Paired != _laidOutPaired)
             Pair();
     }
+
+    /// <summary>The width the cards are laid out across: the scroller's, less its padding.</summary>
+    private double Available() => Math.Floor(Scroller.ActualWidth - Scroller.Padding.Left - Scroller.Padding.Right);
+
+    // ── a pane moving beside the wall ──
+
+    /// <summary>
+    /// A pane is about to resize the wall live, one frame at a time. Until <see cref="EndLiveResize"/>, the
+    /// cards keep the size they have now, the wall keeps one number of pairs across, and the whole wall is
+    /// drawn larger or smaller to fill the width it is given. The pairs are dealt into a new count once, and
+    /// slide there. See <see cref="TileGridMove"/>, which the artists wall and the playlists' tiles use too.
+    /// </summary>
+    /// <remarks>
+    /// Without this, every frame of a move wrote a new card width: every card drew its name again, and the
+    /// pairs were dealt into a new count two or three times in one move, each time in one frame.
+    ///
+    /// <para>WinUI only. On the Skia head the wall keeps re-flowing every frame.</para>
+    /// </remarks>
+    public void BeginLiveResize() => _move.Begin();
+
+    /// <summary>The pane says how much wider (a positive <paramref name="change"/>) or narrower the wall will
+    /// be when the move lands. The wall keeps the larger of the number of pairs across it has and the one it
+    /// will have, for the whole move. A landing that cannot pair the cards changes nothing here.</summary>
+    public void ExpectLiveWidth(double change)
+    {
+        var available = Available();
+        if (!_move.Live || available < 1)
+            return;
+        _move.Expect(GenreCardMetrics.PairsAt(available + change), available);
+    }
+
+    /// <summary>The move has landed. The real card size is written once, at the width the wall keeps.</summary>
+    public void EndLiveResize() => _move.End(() => Fit(told: true));
+
+    /// <summary>The cards' size and the number of pairs across while a pane moves. See
+    /// <see cref="BeginLiveResize"/>.</summary>
+    private readonly TileGridMove _move;
 
     /// <summary>Whether the wall has ever been drawn at a width it was given. Until then the measurement
     /// holds the number it started with. A first pass that happens to match that number still has to set

@@ -70,9 +70,12 @@
   <Grid>
     <!-- Right padding is 26, not 14. The index rail sits in that strip. A box under the rail would
          have a letter printed over its name. -->
+    <!-- Scroll anchoring is off: VerticalAnchorRatio is NaN. Its default is 0, which is ON. With it on, the
+         scroller moves the offset by itself after a pass that moves the tile it has chosen as its anchor,
+         and that undoes the offset a pane move sets to keep the reader's row in place (see TileGridMove). -->
     <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"
-                  BringIntoViewOnFocusChange="False"
+                  BringIntoViewOnFocusChange="False" VerticalAnchorRatio="NaN"
                   Padding="14,0,26,20" SizeChanged="Scroller_SizeChanged"
                   ViewChanged="Scroller_ViewChanged">
       <!-- MinWidth must be a WHOLE TILE. UniformGridLayout counts how many tiles fit across the width,

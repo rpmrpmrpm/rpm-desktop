@@ -585,6 +585,19 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
     /// why it asks the database for the cloud columns, rather than going through <see cref="Reload"/>. A
     /// reload would re-read the whole tree just to learn one flag per row.
     /// </summary>
+    /// <remarks>
+    /// <b>The reads are made on a worker, and only the badges are set here.</b> Whether a playlist is
+    /// uploading is asked of its tracks, one playlist at a time, under the library's WRITE gate. The cloud
+    /// mirror takes that gate in batches and gives it back between them, so each playlist's question
+    /// could wait out one batch, and on the drawing thread those waits add up. In one session the app
+    /// stood still for 9.1 seconds a little after it appeared, caught waiting in this read behind the
+    /// mirror, which was holding the gate about a second at a time. The badge arriving a moment later is
+    /// the whole cost of moving it.
+    ///
+    /// <para><b>One read at a time.</b> An upload raises this on every tick. A refresh asked for while a
+    /// read is out is not a second read beside it: the read that is out goes round once more when it
+    /// lands, and reads what is true by then.</para>
+    /// </remarks>
     public void RefreshCloudState()
     {
         if (!_library.IsOpen)
@@ -607,30 +620,95 @@ public sealed partial class PlaylistModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
-        var db = _library.Db;
-        var cloud = App.Services.GetRequiredService<CloudSyncService>();
-
-        // One read for the whole tree, not one per row. See LibraryDatabase.PlaylistCloudByNode for what a
-        // query per row would cost.
-        var cloudByNode = db.PlaylistCloudByNode();
-
-        foreach (var item in AllItems(_roots))
+        if (_cloudReading)
         {
-            if (item.Kind != PlaylistRowKind.Playlist || item.NodeId is not { } id)
-                continue;
-
-            var inCloud = cloudByNode.TryGetValue(id, out var mark) && mark.Selected;
-            item.IsInCloud = inCloud;
-            item.IsCloudLeaving = cloud.IsPlaylistLeaving(id);
-            // Flattening a playlist is not free, so it is asked only of one that is actually in the cloud.
-            //
-            // And not at all while the engine is stopped. Its tracks are still marked in flight in the
-            // mirror, but nothing is moving them. A row that shows upload activity for a week over a queue
-            // that is not running would be a badge that lies.
-            item.IsCloudUploading = inCloud && !cloud.UploadsStopped && db.PlaylistHasTracksInFlight(id);
+            _cloudAgain = true;
+            return;
         }
 
-        CloudStateChanged?.Invoke();
+        _cloudReading = true;
+        _ = ReadCloudStateAsync();
+    }
+
+    /// <summary>A cloud read is out. Only read and written on the UI thread.</summary>
+    private bool _cloudReading;
+
+    /// <summary>A refresh was asked for while the read was out, so it goes round once more.</summary>
+    private bool _cloudAgain;
+
+    /// <summary>The reads behind <see cref="RefreshCloudState"/>, on a worker, and the badges set from
+    /// them on the UI thread. Started on the UI thread, so it comes back to it after each read.</summary>
+    private async Task ReadCloudStateAsync()
+    {
+        try
+        {
+            do
+            {
+                _cloudAgain = false;
+
+                if (!_library.IsOpen || IsBorrowed)
+                    return;   // RefreshCloudState answers both of these itself, when it is next asked
+
+                var db = _library.Db;
+                var cloud = App.Services.GetRequiredService<CloudSyncService>();
+                var stopped = cloud.UploadsStopped;
+
+                // The rows are walked here, on the UI thread, where the tree is built. The worker gets ids.
+                var playlists = AllItems(_roots)
+                    .Where(item => item.Kind == PlaylistRowKind.Playlist && item.NodeId is not null)
+                    .Select(item => item.NodeId!.Value)
+                    .ToList();
+
+                var (cloudByNode, moving) = await Task.Run(() =>
+                {
+                    // One read for the whole tree, not one per row. See LibraryDatabase.PlaylistCloudByNode for
+                    // what a query per row would cost.
+                    var marks = db.PlaylistCloudByNode();
+                    var inFlight = new HashSet<long>();
+
+                    // Flattening a playlist is not free, so it is asked only of one that is actually in the
+                    // cloud.
+                    //
+                    // And not at all while the engine is stopped. Its tracks are still marked in flight in the
+                    // mirror, but nothing is moving them. A row that shows upload activity for a week over a
+                    // queue that is not running would be a badge that lies.
+                    if (!stopped)
+                        foreach (var id in playlists)
+                            if (marks.TryGetValue(id, out var mark) && mark.Selected
+                                && db.PlaylistHasTracksInFlight(id))
+                                inFlight.Add(id);
+
+                    return (marks, inFlight);
+                });
+
+                // The library was closed, or another one opened, while the read was out. What it read is
+                // about a tree that is not on screen.
+                if (!_library.IsOpen || IsBorrowed || !ReferenceEquals(db, _library.Db))
+                    continue;
+
+                foreach (var item in AllItems(_roots))
+                {
+                    if (item.Kind != PlaylistRowKind.Playlist || item.NodeId is not { } id)
+                        continue;
+
+                    var inCloud = cloudByNode.TryGetValue(id, out var mark) && mark.Selected;
+                    item.IsInCloud = inCloud;
+                    item.IsCloudLeaving = cloud.IsPlaylistLeaving(id);
+                    item.IsCloudUploading = inCloud && !cloud.UploadsStopped && moving.Contains(id);
+                }
+
+                CloudStateChanged?.Invoke();
+            }
+            while (_cloudAgain);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A read that failed leaves the badges as they were. The next tick or reload asks again.
+        }
+        finally
+        {
+            _cloudReading = false;
+        }
     }
 
     /// <summary>Every node in the tree, expanded or not. The badge has to keep up with a collapsed playlist

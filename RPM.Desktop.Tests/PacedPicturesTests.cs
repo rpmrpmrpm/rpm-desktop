@@ -86,6 +86,42 @@ public class PacedPicturesTests
         Assert.Equal(7, await good);
     }
 
+    /// <summary>A picture below the fold waits for every picture above it, including one asked for after
+    /// it. Pictures join the gate when their bytes are in, not when they were asked for: on the home
+    /// screen the record covers below the fold are a file read each, the banner's photographs are a cut,
+    /// and in arrival order the covers were all decoded first.</summary>
+    [Fact]
+    public async Task WhatIsBelowTheFoldWaitsForWhatIsAbove()
+    {
+        var gate = new PacedPictures(FrameBudget.ShareMs);
+        var ran = new List<string>();
+        var hold = new TaskCompletionSource();
+
+        // The first holds the gate, so the two after it are both waiting when it lets go.
+        var first = gate.Next(async () =>
+        {
+            await hold.Task;
+            ran.Add("first");
+            return 0;
+        });
+        var below = gate.Next(() =>
+        {
+            ran.Add("below");
+            return Task.FromResult(1);
+        }, below: true);
+        var above = gate.Next(() =>
+        {
+            ran.Add("above");
+            return Task.FromResult(2);
+        });
+
+        hold.SetResult();
+        await Task.WhenAll(first, below, above);
+
+        Assert.Equal(new[] { "first", "above", "below" }, ran);
+        Assert.Equal(1, await below);
+    }
+
     /// <summary>A gate nobody has used yet answers at once. A page with one card on it must not wait out
     /// a frame it never spent.</summary>
     [Fact]

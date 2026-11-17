@@ -238,6 +238,9 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         InvalidateMeasure();
     }
 
+    /// <summary>More rows than this in one band is said on the ring. A screen is five or six rows.</summary>
+    private const int WideBand = 30;
+
     protected override Size MeasureOverride(VirtualizingLayoutContext context, Size availableSize)
     {
         // If the held state is missing, keep the new one on the context. A throwaway would lose the realized
@@ -257,11 +260,6 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
         // use the width this pass was given. See RowWidth. A constraint that changes on every pass makes every
         // measure traverse the cards, and avoiding that is the whole saving.
         var room = new Size(RowWidth > 0 ? RowWidth : width, double.PositiveInfinity);
-
-        // The layout is in unscaled space, the scroller's too. Only the drawing is scaled. See Scale.
-        var pitch = _rowHeight;
-        var gap = Spacing;
-        var drawer = _bandHeight;
 
         // Nothing has been measured yet, so there is no pitch to work out the realization band from. One row
         // gives the answer. It must not be the OPEN row. The open row's height is its cards plus a drawer. Used
@@ -293,6 +291,18 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
             return new Size(width, 0);
         }
 
+        // The heights are read HERE, after the probe, and not at the top of the pass. Read before it, on the
+        // first pass of a wall they were still zero when the band below was worked out from them, and a band
+        // with no pitch takes every row the gaps alone can fit into the screen: rows 0 to 78 of 300, on a
+        // screen that shows five, so about 790 cards were built and laid out, and nearly all of them handed
+        // back on the next pass. That was the app standing still for two and a half seconds the first time
+        // the album wall was opened, the hang the probe above exists to prevent.
+        //
+        // The layout is in unscaled space, the scroller's too. Only the drawing is scaled. See Scale.
+        var pitch = _rowHeight;
+        var gap = Spacing;
+        var drawer = _bandHeight;
+
         var band = ResolveBandRow(context, count);
         // The band the scroller asks for is where rows are DRAWN. A drawing smaller than the layout shows rows
         // from further down, so the band is taken back to where those rows are laid out.
@@ -301,6 +311,21 @@ internal sealed partial class AlbumWallLayout : VirtualizingLayout
             count, pitch, gap, band, drawer);
         if (first < 0)
             (first, last) = (0, 0);
+
+        // A band far taller than any screen is a pass that is about to build hundreds of cards. Said on the
+        // ring with what it was worked out from, because nothing on screen says why.
+        if (last - first > WideBand && RPM.Core.Diagnostics.Scope.On)
+        {
+            var rect = context.RealizationRect;
+            RPM.Core.Diagnostics.Scope.Said(
+                "wall",
+                FormattableString.Invariant(
+                    $"wide band: rows {first}-{last} of {count}, realization {rect.Top:F0}-{rect.Bottom:F0}, ")
+                + FormattableString.Invariant(
+                    $"in view {(_inView is { } v ? $"{v.Top:F0}-{v.Bottom:F0}" : "none")}, scale {_scale:F3}, ")
+                + FormattableString.Invariant(
+                    $"anchor {_anchor:F0}, pitch {pitch:F0}, available {availableSize.Width:F0}x{availableSize.Height:F0}"));
+        }
 
         Recycle(context, held, keep: (first, last), alsoKeep: band);
 

@@ -54,6 +54,9 @@ public static class AlbumCovers
             : bytes;
     }
 
+    /// <summary>A cover that takes longer than this is said on the ring, with what it waited for.</summary>
+    private const double SlowMs = 1000;
+
     /// <summary>
     /// The cover for one album folder, or null if none of the four sources can answer.
     /// </summary>
@@ -77,8 +80,24 @@ public static class AlbumCovers
         if ((ownCollection ? library.Root : library.ShelfRoot) is not { } root)
             return null;
 
+        // What a slow cover spent its time on, said on the ring when it is slow. A cover that takes
+        // seconds at startup holds up whatever the screen is waiting for, and from outside the four
+        // places it can wait (a pool thread, the folder, the library, the track's tag) look the same.
+        var asked = System.Diagnostics.Stopwatch.GetTimestamp();
+        double queuedMs = 0, folderMs = 0, mirrorMs = 0, tagMs = 0;
+        var where = "folder";
+
         var (bytes, cloudTrack) = await Task.Run<(byte[]? Bytes, LibraryTrack? Track)>(() =>
         {
+            queuedMs = System.Diagnostics.Stopwatch.GetElapsedTime(asked).TotalMilliseconds;
+            var step = System.Diagnostics.Stopwatch.StartNew();
+            double Lap()
+            {
+                var ms = step.Elapsed.TotalMilliseconds;
+                step.Restart();
+                return ms;
+            }
+
             var directory = folder.Length == 0
                 ? root
                 : Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar));
@@ -86,13 +105,19 @@ public static class AlbumCovers
             try
             {
                 if (FolderArtWriter.FindFolderImage(directory) is { } image)
-                    return (maxEdge > 0 ? ThumbCache.GetFile(image, maxEdge) : File.ReadAllBytes(image),
-                            (LibraryTrack?)null);
+                {
+                    var found = maxEdge > 0 ? ThumbCache.GetFile(image, maxEdge) : File.ReadAllBytes(image);
+                    folderMs = Lap();
+                    return (found, (LibraryTrack?)null);
+                }
             }
             catch
             {
                 return (null, null);   // Optional source. A locked or half-written file gives a blank card.
             }
+
+            folderMs = Lap();
+            where = "tag";
 
             // The mirror lookup is required. If it cannot answer, the card is blank. If it is refused,
             // LibraryService.Read shows the problem screen over the app.
@@ -102,10 +127,16 @@ public static class AlbumCovers
                 || first is null)
                 return (null, null);
 
+            mirrorMs = Lap();
+
             try
             {
                 if (TagReader.LoadArt(first.ToTrackInfo(root).FilePath)?.Bytes is { Length: > 0 } embedded)
-                    return (Cut(embedded), null);
+                {
+                    var cut = Cut(embedded);
+                    tagMs = Lap();
+                    return (cut, null);
+                }
             }
             catch
             {
@@ -117,6 +148,13 @@ public static class AlbumCovers
             // computer that holds the files, for a record borrowed over the network.
             return first.IsOffloaded || first.PeerAdopted ? (null, first) : (null, null);
         }, ct);
+
+        var tookMs = System.Diagnostics.Stopwatch.GetElapsedTime(asked).TotalMilliseconds;
+        if (tookMs >= SlowMs && RPM.Core.Diagnostics.Scope.On)
+            RPM.Core.Diagnostics.Scope.Said(
+                "art",
+                $"slow cover {folder} ({where}, edge {maxEdge}): {tookMs:F0} ms, waiting for a thread "
+                + $"{queuedMs:F0}, folder {folderMs:F0}, library {mirrorMs:F0}, tag and cut {tagMs:F0}");
 
         if (bytes is { Length: > 0 })
             return bytes;
