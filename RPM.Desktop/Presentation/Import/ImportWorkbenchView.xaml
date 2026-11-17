@@ -306,8 +306,13 @@
          empty pane has it too. The top margin centres the 28-unit key on the heading's 36-unit row, which
          starts 12 down; the right margin is the heading's own.
          The spinning record is drawn over this corner while a track plays, so the key slides left, clear of
-         the disc, as the library heading's buttons do (CloseShift, see CloseDodge). -->
+         the disc, as the library heading's buttons do (CloseShift, see CloseDodge). It keeps the same 56
+         point gap from the disc as they do (RecordDodge.Gap).
+         It wears the heading keys' slot (the heart beside the artists heading, the list and wall switch):
+         34 x 28, a hairline rim and 6 point corners, so it reads as one of them and not as a toolbar key. -->
     <Button x:Name="CloseKey" Style="{StaticResource ToolKeyStyle}" Click="Close_Click"
+            Width="34" Height="28" Padding="0" CornerRadius="6"
+            Background="{StaticResource OnGlassBrush}" BorderBrush="#22FFFFFF" BorderThickness="1"
             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,16,0"
             ToolTipService.ToolTip="{loc:Str Key=Queue_Close}"
             AutomationProperties.Name="{loc:Str Key=Queue_Close}">
