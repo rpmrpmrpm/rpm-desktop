@@ -24,9 +24,14 @@ namespace RPM.Desktop.Presentation.Import;
 /// </summary>
 public sealed partial class ImportWorkbenchView : UserControl
 {
+    /// <summary>Keeps the close key clear of the spinning record. The page drives it, because the page is
+    /// what knows where the disc is (see MainPage.UpdateChromeAvoidance).</summary>
+    internal Common.DodgeShift CloseDodge { get; }
+
     public ImportWorkbenchView()
     {
         InitializeComponent();
+        CloseDodge = new Common.DodgeShift(CloseKey, CloseShift);
         Loaded += (_, _) =>
         {
             RestoreTagPanel();

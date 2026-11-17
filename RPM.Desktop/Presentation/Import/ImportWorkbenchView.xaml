@@ -304,11 +304,16 @@
     <!-- Closes the pane and puts back what it was showing before Import (see PaneConductor.CloseImport).
          The queue is kept, and the rail's Import key opens it again. It stands over both states, so the
          empty pane has it too. The top margin centres the 28-unit key on the heading's 36-unit row, which
-         starts 12 down; the right margin is the heading's own. -->
-    <Button Style="{StaticResource ToolKeyStyle}" Click="Close_Click"
+         starts 12 down; the right margin is the heading's own.
+         The spinning record is drawn over this corner while a track plays, so the key slides left, clear of
+         the disc, as the library heading's buttons do (CloseShift, see CloseDodge). -->
+    <Button x:Name="CloseKey" Style="{StaticResource ToolKeyStyle}" Click="Close_Click"
             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,16,0"
             ToolTipService.ToolTip="{loc:Str Key=Queue_Close}"
             AutomationProperties.Name="{loc:Str Key=Queue_Close}">
+      <Button.RenderTransform>
+        <TranslateTransform x:Name="CloseShift"/>
+      </Button.RenderTransform>
       <!-- The toolbar's glyph face and size, written out: its ToolGlyph style is the toolbar's own. -->
       <TextBlock Text="&#xf00d;" FontFamily="{StaticResource Fa}" FontSize="12" VerticalAlignment="Center"/>
     </Button>
