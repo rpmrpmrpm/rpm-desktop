@@ -16,7 +16,16 @@ namespace RPM.Desktop.Presentation.Main.Library;
 /// the cards' slide, which waits for every card in view, does not start.</para>
 ///
 /// <para>Nothing is saved by virtualizing a row. The wall's own layout realizes a row only when the row is in
-/// view or about to be, and then every card in it is in view.</para>
+/// view or about to be, and then every card in it is in view. A virtualizing layout would also cost a measure
+/// of every row on every frame of a pane move, because the repeater measures again whenever its viewport
+/// changes.</para>
+///
+/// <para><b>The row's list is replaced, never changed in place.</b> A repeater with a non-virtualizing layout
+/// does not give back the element of a card that is replaced or removed from its list. The element stays
+/// realized under its old card, and stays on screen where it was last placed. After a re-deal the wall showed
+/// the same record twice, and the slide, which waits for each card's own element, gave up. A new list makes
+/// the repeater clear every element and realize the row again in the same pass. See
+/// <c>AlbumRow.Deal</c>.</para>
 ///
 /// <para>A card sets its own width (<c>Metrics.Stride</c>), so a card is measured with unlimited width, as a
 /// horizontal <c>StackLayout</c> measures it, and placed at the width it asks for.</para>

@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using RPM.Core.Cloud;
 using RPM.Core.Library;
 using RPM.Core.Models;
@@ -905,11 +904,9 @@ public sealed partial class AlbumWallView
         _staleRows = defer ? new bool[chunks.Count] : null;
         var deferred = 0;
 
-        // Reflow without a blank frame. Rows and their card collections stay alive across the reflow.
-        // Each row's ObservableCollection is diffed to its new chunk, so only the cards that moved are
-        // added, removed or replaced. Only the surplus rows at the end are added or trimmed. Nothing is
-        // reset, so nothing blanks. This is the same path a window resize takes, which is why a resize
-        // never flickers.
+        // Reflow without a blank frame. The rows stay alive across the reflow, and only the surplus rows at the
+        // end are added or trimmed. A row whose cards changed is given its new chunk as a whole (AlbumRow.Deal),
+        // and a row that holds the same cards is left alone. This is the same path a window resize takes.
         var moved = false;
         for (var i = 0; i < chunks.Count; i++)
         {
@@ -922,13 +919,12 @@ public sealed partial class AlbumWallView
                     moved = true;
                     continue;
                 }
-                moved |= SyncRow(_rows[i].Cards, chunks[i]);
+                moved |= _rows[i].Deal(chunks[i]);
             }
             else
             {
                 var row = new AlbumRow();
-                foreach (var c in chunks[i])
-                    row.Cards.Add(c);
+                row.Deal(chunks[i]);
                 _rows.Add(row);
                 moved = true;
             }
@@ -962,34 +958,6 @@ public sealed partial class AlbumWallView
 
         if (!_liveResize)
             CheckAnchorLater();   // rows came or went under the repeater's estimate
-    }
-
-    /// <summary>Brings <paramref name="row"/> to match <paramref name="target"/> with the fewest
-    /// item-level changes. A card in a slot that differs is replaced in place. The tail is appended, and
-    /// the surplus is trimmed. So the inner ItemsControl only re-realizes the containers that actually
-    /// moved. Returns whether anything had to change at all.</summary>
-    private static bool SyncRow(ObservableCollection<AlbumCard> row, IReadOnlyList<AlbumCard> target)
-    {
-        var changed = false;
-        while (row.Count > target.Count)
-        {
-            row.RemoveAt(row.Count - 1);
-            changed = true;
-        }
-        for (var j = 0; j < target.Count; j++)
-        {
-            if (j >= row.Count)
-            {
-                row.Add(target[j]);
-                changed = true;
-            }
-            else if (!ReferenceEquals(row[j], target[j]))
-            {
-                row[j] = target[j];
-                changed = true;
-            }
-        }
-        return changed;
     }
 
     // ── rows dealt late, during a live move ──
@@ -1045,7 +1013,7 @@ public sealed partial class AlbumWallView
             || index < 0 || index >= stale.Length || index >= _rows.Count || !stale[index])
             return;
         stale[index] = false;
-        SyncRow(_rows[index].Cards, chunks[index]);
+        _rows[index].Deal(chunks[index]);
     }
 
     /// <summary>Gives every waiting row its cards at once. This runs before anything that searches the rows
@@ -1063,7 +1031,7 @@ public sealed partial class AlbumWallView
                 continue;
             if (_liveDeals.Counting && _onScreen.Contains(_rows[i]))
                 _liveDeals.LandedOnScreen++;
-            SyncRow(_rows[i].Cards, chunks[i]);
+            _rows[i].Deal(chunks[i]);
         }
     }
 

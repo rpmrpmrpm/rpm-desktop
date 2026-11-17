@@ -392,7 +392,7 @@ public sealed partial class AlbumWallView : UserControl
     /// Adding an album to the cloud, removing it, or favouriting it all come back through here with the
     /// same albums in the same order. A fresh <see cref="AlbumCard"/> has no cover. Rebuilding every card
     /// would drop the whole wall to placeholders, and decode every sleeve again. That is the flash. A
-    /// reused card keeps its cover, tint and ring. <see cref="SyncRow"/> then sees the same references,
+    /// reused card keeps its cover, tint and ring. <see cref="AlbumRow.Deal"/> then sees the same references,
     /// and changes nothing.
     /// </para>
     /// </summary>
@@ -539,9 +539,9 @@ public sealed partial class AlbumWallView : UserControl
     /// <summary>
     /// The ROWS the repeater is holding an element for. They are maintained by realize and recycle.
     ///
-    /// <para>Rows, not cards. A change of tile size re-chunks the wall. <see cref="SyncRow"/> does that
-    /// by changing each row's card collection IN PLACE. The row keeps its element, so nothing is realized
-    /// and nothing is cleared. A set of cards captured at realize would go stale as soon as the zoom
+    /// <para>Rows, not cards. A change of tile size re-chunks the wall. <see cref="AlbumRow.Deal"/> does that
+    /// by giving each row a new card list. The row keeps its element, so no row is realized and no row is
+    /// cleared. A set of cards captured at realize would go stale as soon as the zoom
     /// changes. It would list the records that used to stand in those rows, not the ones that stand there
     /// now. The loader would then look past everything on screen, and never fetch the sharper pictures
     /// that the new size asks for. A row stays stable across that change. What is IN it is read when the

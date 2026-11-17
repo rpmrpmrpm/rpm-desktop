@@ -391,13 +391,41 @@ public static class AlbumDrawerSurvival
 [RpmBindable]
 public sealed partial class AlbumRow : INotifyPropertyChanged
 {
-    /// <summary>The row's cards. There is one collection for the row's whole life. It is changed in place
-    /// on a reflow (a column count change on resize), not reassigned. Reassigning the source resets the
-    /// inner ItemsControl, which causes a blank frame and a flicker. Adding, removing or replacing items on
-    /// the same collection updates only the containers that moved, with no blank.</summary>
+    /// <summary>The row's cards, in order. The list is replaced whole when the row is dealt other cards (see
+    /// <see cref="Deal"/>), and never changed in place.</summary>
     /// <remarks>Its own collection type so a {Binding} can hand it to the row's repeater under Native
     /// AOT; see <see cref="Common.AlbumCardList"/>.</remarks>
-    public Common.AlbumCardList Cards { get; } = new();
+    public Common.AlbumCardList Cards { get; private set; } = new();
+
+    /// <summary>
+    /// Gives the row <paramref name="cards"/>. Returns false, and changes nothing, when the row already holds
+    /// exactly those cards in that order.
+    /// </summary>
+    /// <remarks>
+    /// The row's repeater lays its cards out with a non-virtualizing layout (<c>AlbumCardRowLayout</c>). Such a
+    /// repeater does not give back the element of a card that is replaced or removed in its list: the element
+    /// stays realized under the old card and stays on screen. So a changed row gets a new list, and the
+    /// repeater clears its elements and realizes the row again in the same layout pass. Nothing blanks: the
+    /// elements come back from the repeater's own recycling, and each card already holds its picture.
+    /// </remarks>
+    public bool Deal(IReadOnlyList<AlbumCard> cards)
+    {
+        if (Cards.Count == cards.Count)
+        {
+            var same = true;
+            for (var i = 0; i < cards.Count && same; i++)
+                same = ReferenceEquals(Cards[i], cards[i]);
+            if (same)
+                return false;
+        }
+
+        var dealt = new Common.AlbumCardList();
+        foreach (var card in cards)
+            dealt.Add(card);
+        Cards = dealt;
+        OnChanged(nameof(Cards));
+        return true;
+    }
 
     private AlbumBand? _band;
     public AlbumBand? Band
