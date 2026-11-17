@@ -3,19 +3,30 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
              xmlns:loc="using:RPM.Desktop.Strings"
+             xmlns:ui="using:RPM.Desktop.Presentation.Common"
              RequestedTheme="Dark"
              Visibility="Collapsed">
 
   <!-- The card that comes up when an audio CD goes into the drive: what the disc is, once it has been read and
        looked up, and the two things to do with it. It rises from the bottom of the window and sinks back into
        it. See DiscCard.xaml.cs. -->
-  <Border x:Name="Card" Width="440" CornerRadius="12" Padding="16,12,16,16"
-          Background="#F2121A26" BorderBrush="#2BFFFFFF" BorderThickness="1">
-    <Border.RenderTransform>
+  <Grid x:Name="Card" Width="440">
+    <Grid.RenderTransform>
       <TranslateTransform x:Name="Rise"/>
-    </Border.RenderTransform>
+    </Grid.RenderTransform>
 
-    <Grid RowSpacing="12">
+    <!-- Smoked glass, as the app's cards are: a live frost of whatever the card rises over, a dark veil on
+         it, and the cards' own lit edge (DmCardBorderBrush). The veil is darker than a card's 20%, because
+         this one floats over the window's brightest parts (sleeves, the deck) and its words have to read. -->
+    <Border CornerRadius="12">
+      <Border.Background>
+        <ui:GlassBrush BlurAmount="30"/>
+      </Border.Background>
+    </Border>
+    <Border CornerRadius="12" Background="#73000000"
+            BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+
+    <Grid RowSpacing="12" Margin="17,13,17,17">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
@@ -83,5 +94,5 @@
         </Grid>
       </Grid>
     </Grid>
-  </Border>
+  </Grid>
 </UserControl>
