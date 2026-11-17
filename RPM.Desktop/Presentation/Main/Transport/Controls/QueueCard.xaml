@@ -15,9 +15,8 @@
   <UserControl.Resources>
     <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisible"/>
-    <!-- The playing row is lit the way the cast picker lights the speaker that is playing: the app's cyan on
-         the mark, white on the words. The others are a step dimmer. -->
-    <conv:BoolToBrushConverter x:Key="MarkBrush" TrueBrush="#04C8FF" FalseBrush="#66FFFFFF"/>
+    <!-- The playing row is lit the way the cast picker lights the speaker that is playing: a cyan wash, and
+         white on the words. The others are a step dimmer. -->
     <conv:BoolToBrushConverter x:Key="TitleBrush" TrueBrush="#FFFFFFFF" FalseBrush="#DDFFFFFF"/>
     <conv:BoolToBrushConverter x:Key="RowBrush" TrueBrush="#1404C8FF" FalseBrush="Transparent"/>
 
@@ -59,11 +58,10 @@
                 Click="ShuffleKey_Click"/>
 
         <!-- Rearrange: the rows show their grips and can be dragged into another order while the song plays.
-             A press on a row then picks it up rather than playing it. It stays lit while it is on. -->
-        <Button x:Name="RearrangeKey" Grid.Column="2" Style="{StaticResource BandKey}" Content="&#xf338;"
-                Click="RearrangeKey_Click"
-                ToolTipService.ToolTip="{loc:Str Key=Rpm_Queue_Rearrange}"
-                AutomationProperties.Name="{loc:Str Key=Rpm_Queue_Rearrange}"/>
+             A press on a row then picks it up rather than playing it. It stays lit while it is on. The glyphs
+             are the phone's: grip lines to start, a tick to finish (QueueCard.Paint). -->
+        <Button x:Name="RearrangeKey" Grid.Column="2" Style="{StaticResource BandKey}" Content="&#xf7a4;"
+                Click="RearrangeKey_Click"/>
 
         <TextBlock x:Name="CountText" Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Center"
                    FontSize="11" Foreground="#88FFFFFF"/>
@@ -93,36 +91,44 @@
           <!-- The offset of a carried row, and of the rows stepping aside for it, is on the row (Drop) and
                bound here, so a container the list reuses does not keep another row's offset. -->
           <Border Padding="0,1" Background="Transparent" RenderTransform="{Binding Drop}">
+            <!-- The phone's Now playing row: the record's cover in front, the title over artist and album,
+                 the time, and the grip at the right end while rearranging is on. The playing row is the lit
+                 one (RowBrush). -->
             <Grid Padding="8,6" ColumnSpacing="10" CornerRadius="4"
                   Background="{Binding IsCurrent, Converter={StaticResource RowBrush}}">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="26"/>
+                <ColumnDefinition Width="36"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
 
-              <!-- The row's place, or the play mark on the one that is on the deck; the grip on every row
-                   while rearranging is on. -->
-              <TextBlock Grid.Column="0" Text="{Binding Index}" FontSize="11" HorizontalAlignment="Right"
-                         VerticalAlignment="Center" Foreground="#66FFFFFF"
-                         Visibility="{Binding ShowsIndex, Converter={StaticResource BoolToVisible}}"/>
-              <TextBlock Grid.Column="0" Text="&#xf04b;" FontFamily="{StaticResource Fa}" FontSize="10"
-                         HorizontalAlignment="Right" VerticalAlignment="Center"
-                         Foreground="{Binding IsCurrent, Converter={StaticResource MarkBrush}}"
-                         Visibility="{Binding ShowsMark, Converter={StaticResource BoolToVisible}}"/>
-              <TextBlock Grid.Column="0" Text="&#xf58e;" FontFamily="{StaticResource Fa}" FontSize="12"
-                         HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#88FFFFFF"
-                         Visibility="{Binding Grip, Converter={StaticResource BoolToVisible}}"/>
+              <!-- The cover over a placeholder plate with the disc glyph, as the playlist rows draw it. The
+                   picture is empty until it loads, and stays empty for a record with no cover, so the plate
+                   shows through. -->
+              <Grid Grid.Column="0" Width="36" Height="36" VerticalAlignment="Center">
+                <Border CornerRadius="4" Background="#33000000"/>
+                <TextBlock Text="&#xf51f;" FontFamily="{StaticResource Fa}" FontSize="14" Foreground="#40FFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Border CornerRadius="4">
+                  <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                </Border>
+              </Grid>
 
               <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis" MaxLines="1"
                            Foreground="{Binding IsCurrent, Converter={StaticResource TitleBrush}}"/>
-                <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#99FFFFFF"
+                <TextBlock Text="{Binding Byline}" FontSize="11" Foreground="#99FFFFFF"
                            TextTrimming="CharacterEllipsis" MaxLines="1"/>
               </StackPanel>
 
-              <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="11" Foreground="#77FFFFFF"
-                         VerticalAlignment="Center"/>
+              <!-- The grip is in the same panel as the time, so its gap is there only while it shows. -->
+              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding DurationText}" FontSize="11" Foreground="#77FFFFFF"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="&#xf0c9;" FontFamily="{StaticResource Fa}" FontSize="13" Foreground="#66FFFFFF"
+                           Margin="14,0,2,0" VerticalAlignment="Center"
+                           Visibility="{Binding Grip, Converter={StaticResource BoolToVisible}}"/>
+              </StackPanel>
             </Grid>
           </Border>
         </DataTemplate>

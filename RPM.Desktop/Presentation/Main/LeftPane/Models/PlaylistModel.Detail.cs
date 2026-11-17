@@ -1598,11 +1598,20 @@ public sealed partial class PlaylistTrackRow : INotifyPropertyChanged, RPM.Deskt
     /// <param name="maxEdge">The longest side wanted. A cover that is already on this disk is read from
     /// <see cref="ThumbCache"/> by path, so a list of forty rows from one album never opens the
     /// scan.</param>
-    internal async Task<byte[]?> SleeveBytesAsync(int maxEdge)
-    {
-        var path = FilePath;
-        var uri = ArtUri;
+    internal Task<byte[]?> SleeveBytesAsync(int maxEdge) => SleeveBytesAsync(FilePath, ArtUri, Artist, Album, maxEdge);
 
+    /// <summary>
+    /// The sleeve of a song at the size that the caller draws, or null if nothing can answer. The same rule
+    /// as a row's (<see cref="SleeveFor"/>), for a caller that has the song's values but no row: the Now
+    /// playing card on the deck.
+    /// </summary>
+    /// <param name="path">The song's file.</param>
+    /// <param name="uri">The cover image beside the file, or null where there is none on this disk.</param>
+    /// <param name="artist">The song's artist, asked of the cloud for a borrowed record.</param>
+    /// <param name="album">The song's album, asked of the cloud for a borrowed record.</param>
+    /// <param name="maxEdge">The longest side wanted.</param>
+    internal static async Task<byte[]?> SleeveBytesAsync(string path, string? uri, string? artist, string? album, int maxEdge)
+    {
         switch (await Task.Run(() => SleeveFor(uri, File.Exists(path))))
         {
             case RowSleeve.FolderImage:
@@ -1616,7 +1625,7 @@ public sealed partial class PlaylistTrackRow : INotifyPropertyChanged, RPM.Deskt
                 var row = await Task.Run(() => TrackHome.RowFor(path));
                 if (row is null)
                     return null;
-                var bytes = await RemoteSleeve.ForAsync(row, Artist, Album);
+                var bytes = await RemoteSleeve.ForAsync(row, artist, album);
                 return bytes is { Length: > 0 }
                     ? await Task.Run(() => ThumbCache.Get(bytes, maxEdge))
                     : null;

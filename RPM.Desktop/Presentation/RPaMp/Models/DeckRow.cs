@@ -24,10 +24,19 @@ namespace RPM.Desktop.Presentation.RPaMp.Models;
 public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
 {
     private PlaylistTrack _track;
+    private readonly Func<PlaylistTrack, ImageSource?> _cover;
 
-    public DeckRow(PlaylistTrack track)
+    /// <summary>The cover lookup of a list that draws no covers (RPaMp's playlist panel).</summary>
+    public static readonly Func<PlaylistTrack, ImageSource?> NoCovers = _ => null;
+
+    /// <param name="track">The track the row shows first.</param>
+    /// <param name="cover">The cover of a track, or <see cref="NoCovers"/>. The Now playing card keeps the
+    /// covers, one for each record, so a drag that hands a track to another row hands over a cover that is
+    /// already loaded.</param>
+    public DeckRow(PlaylistTrack track, Func<PlaylistTrack, ImageSource?> cover)
     {
         _track = track;
+        _cover = cover;
         _track.PropertyChanged += OnTrackChanged;
     }
 
@@ -62,8 +71,8 @@ public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
         Raise(nameof(RowBackground));
         Raise(nameof(Title));
         Raise(nameof(Artist));
-        Raise(nameof(ShowsIndex));
-        Raise(nameof(ShowsMark));
+        Raise(nameof(Byline));
+        Raise(nameof(Cover));
     }
 
     /// <summary>Stops listening to the track it is showing. Call this when the panel discards its rows.
@@ -79,11 +88,17 @@ public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
     public string Title => _track.Title;
     public string? Artist => _track.Artist;
 
+    /// <summary>Artist and album on one line, as on the phone's Now playing page.</summary>
+    public string Byline => string.Join(" · ", new[] { _track.Artist, _track.Album }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    /// <summary>The cover of the track's record. Empty until it is loaded, and empty for a record with no
+    /// cover; the Now playing card draws a placeholder under it.</summary>
+    public ImageSource? Cover => _cover(_track);
+
     private bool _grip;
 
-    /// <summary>Whether the row shows a grip in place of its number, which the Now playing card does while its
-    /// rearrange key is on. A number says where a song is, which the row's place already shows; the grip says
-    /// it can be moved.</summary>
+    /// <summary>Whether the row shows a grip at its right end, which the Now playing card does while its
+    /// rearrange key is on. The grip says the row can be moved.</summary>
     public bool Grip
     {
         get => _grip;
@@ -93,26 +108,13 @@ public sealed partial class DeckRow : INotifyPropertyChanged, ICarriedRow
                 return;
             _grip = value;
             Raise(nameof(Grip));
-            Raise(nameof(ShowsIndex));
-            Raise(nameof(ShowsMark));
         }
     }
 
-    /// <summary>The row's number shows on every row but the playing one, which has the play mark instead, and
-    /// neither shows while the row has its grip.</summary>
-    public bool ShowsIndex => !_grip && !IsCurrent;
-    public bool ShowsMark => !_grip && IsCurrent;
-
     private void OnTrackChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not { } name)
-            return;
-        Raise(name);
-        if (name == nameof(IsCurrent))
-        {
-            Raise(nameof(ShowsIndex));
-            Raise(nameof(ShowsMark));
-        }
+        if (e.PropertyName is { } name)
+            Raise(name);
     }
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

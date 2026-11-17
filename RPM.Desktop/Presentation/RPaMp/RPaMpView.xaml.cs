@@ -528,7 +528,7 @@ public sealed partial class RPaMpView : UserControl
             return;
 
         foreach (var track in _deckModel.Playlist)
-            _deckRows.Add(new DeckRow(track));
+            _deckRows.Add(new DeckRow(track, DeckRow.NoCovers));
 
         ShowSelection();
     }

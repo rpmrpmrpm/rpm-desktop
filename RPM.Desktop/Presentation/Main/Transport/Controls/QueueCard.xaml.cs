@@ -3,7 +3,11 @@ using System.Collections.Specialized;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using RPM.Core.Import;
+using RPM.Desktop.Presentation.Main.LeftPane.Models;
 using RPM.Desktop.Presentation.RPaMp.Models;
+using RPM.Desktop.Services.Art;
 using RPM.Desktop.Presentation.Shell;
 using RPM.Desktop.Strings;
 using Windows.UI;
@@ -33,6 +37,11 @@ public sealed partial class QueueCard : UserControl
     /// <summary>Whether the rearrange key is on: the rows show their grips, and a press on a row picks it up
     /// rather than playing it.</summary>
     private bool _rearranging;
+
+    /// <summary>The covers on the rows while the card is open, one for each record folder, so the rows of one
+    /// album share one picture and a drag hands over pictures that are already loaded. Emptied when the card
+    /// closes.</summary>
+    private readonly Dictionary<string, BitmapImage> _covers = new(StringComparer.Ordinal);
 
     public QueueCard()
     {
@@ -83,7 +92,39 @@ public sealed partial class QueueCard : UserControl
         foreach (var row in _rows)
             row.Release();
         _rows.Clear();
+        _covers.Clear();
         Paint();
+    }
+
+    /// <summary>The cover of a track's record. The picture is made empty and filled when its bytes are read, so
+    /// a row is drawn at once with its placeholder.</summary>
+    private ImageSource CoverFor(PlaylistTrack track)
+    {
+        var folder = Path.GetDirectoryName(track.FilePath) ?? track.FilePath;
+        if (_covers.TryGetValue(folder, out var cover))
+            return cover;
+        cover = new BitmapImage();
+        _covers[folder] = cover;
+        _ = FillCoverAsync(cover, folder, track);
+        return cover;
+    }
+
+    /// <summary>Reads the cover the way the playlist rows do (<see cref="PlaylistTrackRow.SleeveBytesAsync(string, string?, string?, string?, int)"/>):
+    /// the image beside the files, or for a borrowed record the computer that holds it, then the cloud.</summary>
+    private static async Task FillCoverAsync(BitmapImage cover, string folder, PlaylistTrack track)
+    {
+        try
+        {
+            var image = await Task.Run(() => FolderArtWriter.FindFolderImage(folder));
+            if (await PlaylistTrackRow.SleeveBytesAsync(track.FilePath, image, track.Artist, track.Album, ArtScaler.RowEdge)
+                is not { Length: > 0 } thumb)
+                return;
+            await cover.SetSourceAsync(BitmapBytes.Stream(thumb));
+        }
+        catch
+        {
+            // The cover is decoration. The row keeps its placeholder, as the playlist rows do.
+        }
     }
 
     private void Watch(RPaMpModel? model)
@@ -139,7 +180,7 @@ public sealed partial class QueueCard : UserControl
                                                         && _rows.Count + added.Count == model.Playlist.Count:
                 for (var i = 0; i < added.Count; i++)
                     if (added[i] is PlaylistTrack track)
-                        _rows.Insert(e.NewStartingIndex + i, new DeckRow(track) { Grip = _rearranging });
+                        _rows.Insert(e.NewStartingIndex + i, new DeckRow(track, CoverFor) { Grip = _rearranging });
                 break;
 
             case NotifyCollectionChangedAction.Remove when e.OldItems is { } removed && e.OldStartingIndex >= 0
@@ -203,7 +244,7 @@ public sealed partial class QueueCard : UserControl
 
         if (_watched is not null)
             foreach (var track in _watched.Playlist)
-                _rows.Add(new DeckRow(track) { Grip = _rearranging });
+                _rows.Add(new DeckRow(track, CoverFor) { Grip = _rearranging });
 
         ShowCount();
     }
@@ -272,6 +313,9 @@ public sealed partial class QueueCard : UserControl
 
         RearrangeKey.IsEnabled = _rearranging || _rows.Count > 1;
         PaintKey(RearrangeKey, _rearranging);
+        // The phone's glyphs: grip lines to start rearranging, a tick to finish.
+        RearrangeKey.Content = _rearranging ? "\uf00c" : "\uf7a4";
+        IconName.Set(RearrangeKey, Loc.Get(_rearranging ? "CloudChip_StageDone" : "Rpm_Queue_Rearrange"));
     }
 
     private static void PaintKey(Button key, bool on)
