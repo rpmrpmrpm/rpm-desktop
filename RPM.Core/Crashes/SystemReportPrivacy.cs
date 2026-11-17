@@ -10,9 +10,9 @@ namespace RPM.Core.Crashes;
 ///
 /// <para>A macOS .ips carries the crash reporter's per-machine key, the boot and sleep session ids,
 /// the user id and the trial rollouts; those fields are removed. Both kinds carry the user's name in
-/// home-folder paths (<c>/Users/name/</c>, <c>C:\Users\name\</c>); the name becomes <c>~</c>. What is
-/// left is the crash itself: the exception, the threads, the loaded images, the OS version and the
-/// Mac model.</para>
+/// home-folder paths (<c>/Users/name/</c>, <c>/home/name/</c>, <c>C:\Users\name\</c>); the name
+/// becomes <c>~</c>. What is left is the crash itself: the exception, the threads, the loaded images,
+/// the OS version and the Mac model.</para>
 ///
 /// <para>A Windows Report.wer is cleaned the other way round: only the lines that describe the crash
 /// are kept (<see cref="WerKeys"/>, the Sig lines, the loaded modules and the Windows version), and
@@ -91,10 +91,13 @@ internal static partial class SystemReportPrivacy
     /// <summary>The user name in every home-folder path, as <c>~</c>. Also used on the app's own text in a
     /// report (the exception and the ring's lines), which repeats file paths as they were given.</summary>
     internal static string WithoutHomeFolders(string text) =>
-        WindowsHome().Replace(MacHome().Replace(text, "/Users/~/"), @"$1~\");
+        WindowsHome().Replace(LinuxHome().Replace(MacHome().Replace(text, "/Users/~/"), "/home/~/"), @"$1~\");
 
     [GeneratedRegex("""/Users/[^/"\\\s]+/""")]
     private static partial Regex MacHome();
+
+    [GeneratedRegex("""/home/[^/"\\\s]+/""")]
+    private static partial Regex LinuxHome();
 
     [GeneratedRegex("""([A-Za-z]:\\Users\\)[^\\"\r\n]+\\""")]
     private static partial Regex WindowsHome();

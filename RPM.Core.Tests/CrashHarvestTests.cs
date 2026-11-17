@@ -485,6 +485,22 @@ public class CrashHarvestTests : IDisposable
     }
 
     [Fact]
+    public void The_user_name_is_removed_from_a_linux_home_folder()
+    {
+        var start = Ring(533, closing: false, "scan", "scanning '/home/alex/Music/new' failed (FileMissing)");
+        CrashFile(533, start, exception:
+            "System.IO.FileNotFoundException: Could not find file '/home/alex/Music/a.flac'");
+
+        Harvest().Run(Now);
+
+        var report = Assert.Single(PendingReports());
+        Assert.DoesNotContain("alex", report.Recent);
+        Assert.Contains("'/home/~/Music/new'", report.Recent);
+        Assert.DoesNotContain("alex", report.Exception);
+        Assert.Contains("'/home/~/Music/a.flac'", report.Exception);
+    }
+
+    [Fact]
     public void A_windows_report_keeps_the_crash_and_drops_the_lines_that_are_about_the_machine()
     {
         Ring(532, closing: false);
