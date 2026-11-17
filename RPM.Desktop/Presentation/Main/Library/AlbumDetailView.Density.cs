@@ -1696,10 +1696,12 @@ public sealed partial class AlbumDetailView
         PlaceSimilarOverlay();
     }
 
-    /// <summary>Down while the row is shut and up while it is open, which is what an expander points
-    /// everywhere else: the chevron points at where the row will go when it is pressed.</summary>
+    /// <summary>The chevron points at where the row will go when it is pressed. The row stands at the foot of
+    /// the page and opens upwards, so the chevron points up while the row is shut and down while it is open.
+    /// The first glyph is also set in the markup (SimilarChevron and SeriesChevron in AlbumDetailView.xaml):
+    /// change both.</summary>
     private void PointSimilarChevron(bool open)
-        => SimilarChevron.Glyph = SeriesChevron.Glyph = open ? "\uf077" : "\uf078";
+        => SimilarChevron.Glyph = SeriesChevron.Glyph = open ? "\uf078" : "\uf077";
 
     private readonly SimilarSlide _similarSlide = new();
 

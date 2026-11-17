@@ -7,8 +7,7 @@
       xmlns:conv="using:RPM.Desktop.Converters"
       xmlns:loc="using:RPM.Desktop.Strings"
       SizeChanged="Page_SizeChanged"
-      RequestedTheme="Dark"
-             xmlns:ui="using:RPM.Desktop.Presentation.Common">
+      RequestedTheme="Dark">
 
   <UserControl.Resources>
     <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
@@ -1459,18 +1458,14 @@
         for the groove to have a column, the third column is zero wide, and these two are the whole
         width anyway. So the span is right in both states without being switched.
         -->
-    <!-- The smoked glass the row stands on while it lies over the page, on a card too short to make room
-         for it (AlbumDetailView.SimilarOverlay). The same glass as the app's cards: a live frost of what is
-         under it, a dark veil, and the cards' lit edge. Placed and shown from code, behind the block. -->
+    <!-- The surface the row stands on while it lies over the page, on a card too short to make room for it
+         (AlbumDetailView.SimilarOverlay): the surface of the app's flyouts, the framework's flyout fill and
+         edge, read from the same theme resources the flyout presenter uses. Placed and shown from code,
+         behind the block. -->
     <Grid x:Name="SimilarBackdrop" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
           Visibility="Collapsed" IsHitTestVisible="False" Canvas.ZIndex="4">
-      <Border CornerRadius="8">
-        <Border.Background>
-          <ui:GlassBrush BlurAmount="30"/>
-        </Border.Background>
-      </Border>
-      <Border CornerRadius="8" Background="#73000000"
-              BorderBrush="{StaticResource DmCardBorderBrush}" BorderThickness="1"/>
+      <Border CornerRadius="8" Background="{ThemeResource FlyoutPresenterBackground}"
+              BorderBrush="{ThemeResource FlyoutBorderThemeBrush}" BorderThickness="1"/>
     </Grid>
 
     <StackPanel x:Name="SimilarBlock" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
@@ -1512,7 +1507,7 @@
             <TextBlock x:Name="SeriesHeading" Style="{StaticResource SectionHeadingStyle}"
                        VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"/>
             <TextBlock x:Name="SeriesCount" FontSize="11" Foreground="#88FFFFFF" VerticalAlignment="Center"/>
-            <FontIcon x:Name="SeriesChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
+            <FontIcon x:Name="SeriesChevron" Glyph="&#xf077;" FontFamily="{StaticResource Fa}"
                       FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>
@@ -1528,7 +1523,7 @@
           <StackPanel Orientation="Horizontal" Spacing="7">
             <TextBlock Text="{loc:Str Key=Album_SimilarAlbums}" Style="{StaticResource SectionHeadingStyle}"
                        VerticalAlignment="Center"/>
-            <FontIcon x:Name="SimilarChevron" Glyph="&#xf078;" FontFamily="{StaticResource Fa}"
+            <FontIcon x:Name="SimilarChevron" Glyph="&#xf077;" FontFamily="{StaticResource Fa}"
                       FontSize="9" Foreground="#8AFFFFFF" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>

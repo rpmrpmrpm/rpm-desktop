@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 
@@ -7,7 +8,7 @@ namespace RPM.Desktop.Presentation.Main.Library;
 
 /// <summary>
 /// The suggestions row on a card too short to make room for it: shut whenever a record opens, and when it is
-/// opened, it slides up OVER the bottom of the page on smoked glass, instead of taking room from the panels
+/// opened, it slides up OVER the bottom of the page on the flyouts' surface, instead of taking room from the panels
 /// above it.
 /// </summary>
 /// <remarks>
@@ -38,6 +39,10 @@ public sealed partial class AlbumDetailView
     private double _similarAir;
 
     private Storyboard? _overlayMotion;
+
+    /// <summary>The window's root, listened to for presses while the row is up (see
+    /// <see cref="OverlayDismiss_PointerPressed"/>). Null while nobody listens.</summary>
+    private UIElement? _overlayDismissRoot;
 
     /// <summary>The slide's length, each way.</summary>
     private static readonly TimeSpan OverlaySlide = TimeSpan.FromMilliseconds(260);
@@ -90,7 +95,44 @@ public sealed partial class AlbumDetailView
 
         PointSimilarChevron(true);
         PlaceSimilarOverlay();
+        ListenForDismiss();
         SlideOverlay(from, 0, landed: null);
+    }
+
+    /// <summary>Starts listening for a press anywhere in the window. Handled presses are heard too, so a
+    /// press on a button outside the row closes the row and still presses the button.</summary>
+    private void ListenForDismiss()
+    {
+        if (_overlayDismissRoot is not null || XamlRoot?.Content is not { } root)
+            return;
+        root.AddHandler(PointerPressedEvent, new PointerEventHandler(OverlayDismiss_PointerPressed), handledEventsToo: true);
+        _overlayDismissRoot = root;
+    }
+
+    private void StopListeningForDismiss()
+    {
+        _overlayDismissRoot?.RemoveHandler(PointerPressedEvent, new PointerEventHandler(OverlayDismiss_PointerPressed));
+        _overlayDismissRoot = null;
+    }
+
+    /// <summary>A press outside the row closes it. "Outside" is the block's bounds, not the element that was
+    /// hit: the glass between two sleeves is not hit-testable, and a press there lands on the page under it.
+    /// The block's bounds while the row is up are the glass, because its top margin is lifted by the row's
+    /// height (see <see cref="PlaceSimilarOverlay"/>).</summary>
+    private void OverlayDismiss_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_similarOverlay || _overlayClosing)
+            return;
+        // The page was taken off screen with the row up. Nothing to close.
+        if (XamlRoot is null)
+        {
+            StopListeningForDismiss();
+            return;
+        }
+        var at = e.GetCurrentPoint(SimilarBlock).Position;
+        if (at.X >= 0 && at.Y >= 0 && at.X <= SimilarBlock.ActualWidth && at.Y <= SimilarBlock.ActualHeight)
+            return;
+        CloseSimilarOverlay();
     }
 
     private void CloseSimilarOverlay()
@@ -109,6 +151,7 @@ public sealed partial class AlbumDetailView
     {
         _overlayMotion?.Stop();
         _overlayMotion = null;
+        StopListeningForDismiss();
         var was = _similarOverlay;
         _similarOverlay = false;
         _overlayClosing = false;
