@@ -7,6 +7,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -48,6 +49,16 @@ public sealed partial class CloudChip : UserControl
 
     private DispatcherTimer? _linger;
 
+    /// <summary>How much of the ring the turning arc covers while the engine is still looking.</summary>
+    private const double LookingArc = 0.25;
+
+    /// <summary>One turn of the looking arc.</summary>
+    private static readonly TimeSpan LookingTurn = TimeSpan.FromSeconds(1.1);
+
+    /// <summary>The arc going round, while it is. A render transform's angle, so the turn runs on the
+    /// compositor and costs the UI thread nothing at startup, which is when it is mostly seen.</summary>
+    private Storyboard? _turning;
+
     public CloudChip()
     {
         InitializeComponent();
@@ -67,6 +78,7 @@ public sealed partial class CloudChip : UserControl
         {
             _jobs.Changed -= OnJobChanged;
             CancelLinger();
+            Turn(false);
         };
     }
 
@@ -84,6 +96,7 @@ public sealed partial class CloudChip : UserControl
         if (!show)
         {
             CancelLinger();
+            Turn(false);
             StatusFlyout.Hide();
             return;
         }
@@ -98,10 +111,17 @@ public sealed partial class CloudChip : UserControl
         RingArc.Stroke = ink;
         CloudGlyph.Foreground = failed ? ink : new SolidColorBrush(Colors.White);
 
+        // Still looking: a batch is open (the startup check of what changed in the cloud is one) but nothing
+        // has been counted into it yet. There is no fraction to show, and the sliver that stands for "just
+        // started" would sit still for as long as the look takes, which reads as stuck. A quarter arc turns
+        // instead, until the first count arrives or the look ends with nothing to do.
+        var looking = _jobs.State == CloudJobState.Running && _jobs.Total == 0;
+        Turn(looking);
+
         // The ring is full only when the work is finished. A paused run keeps the arc at the fraction it
         // reached, because the user paused to see that fraction. A full ring over a queue that is still
         // mostly waiting would say the opposite of what happened.
-        FillRing(RingArc, done ? 1 : Math.Max(_jobs.Fraction, MinArc));
+        FillRing(RingArc, done ? 1 : looking ? LookingArc : Math.Max(_jobs.Fraction, MinArc));
 
         SummaryText.Text = _jobs.Summary;
         IconName.Set(ChipButton, _jobs.Summary);
@@ -168,6 +188,35 @@ public sealed partial class CloudChip : UserControl
         _flyoutOpen = false;
         if (_jobs.State == CloudJobState.Finished)
             StartLinger();
+    }
+
+    /// <summary>Starts or stops the looking arc going round. A stopped arc is put back at the top, where a
+    /// counted arc starts from.</summary>
+    private void Turn(bool on)
+    {
+        if (on == _turning is not null)
+            return;
+
+        if (!on)
+        {
+            _turning!.Stop();
+            _turning = null;
+            RingTurn.Angle = 0;
+            return;
+        }
+
+        var spin = new DoubleAnimation
+        {
+            From = 0,
+            To = 360,
+            Duration = new Duration(LookingTurn),
+            RepeatBehavior = RepeatBehavior.Forever,
+        };
+        Storyboard.SetTarget(spin, RingTurn);
+        Storyboard.SetTargetProperty(spin, "Angle");
+        _turning = new Storyboard();
+        _turning.Children.Add(spin);
+        _turning.Begin();
     }
 
     /// <summary>Sets the ring to a fraction of a full circle, as plain points from the top, going clockwise.

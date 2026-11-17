@@ -32,8 +32,14 @@
     <Grid Width="24" Height="24">
       <Canvas Width="24" Height="24">
         <Polyline x:Name="RingTrack" Stroke="#2EFFFFFF" StrokeThickness="2"/>
+        <!-- Turned only while the engine is still looking for what to do (see CloudChip.Looking): a quarter
+             arc going round says "busy" where a still sliver would read as stuck. -->
         <Polyline x:Name="RingArc" Stroke="#04C8FF" StrokeThickness="2"
-                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+          <Polyline.RenderTransform>
+            <RotateTransform x:Name="RingTurn" CenterX="12" CenterY="12"/>
+          </Polyline.RenderTransform>
+        </Polyline>
       </Canvas>
       <TextBlock x:Name="CloudGlyph" Text="&#xf0c2;" FontFamily="{StaticResource Fa}" FontSize="9"
                  Foreground="#F0FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
