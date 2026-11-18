@@ -65,7 +65,39 @@ public class ModelCapabilityTests
         var verdict = ModelCapability.Judge(Good with { AvailableMemoryBytes = Gb / 2 });
 
         Assert.False(verdict.CanRunLocally);
-        Assert.Equal(ModelBlock.TooLittleMemory, verdict.Block);
+
+        // Named apart from a small machine: it is a fact about the moment, which the sound pass reads
+        // differently (SoundModelPlace).
+        Assert.Equal(ModelBlock.TooLittleFreeMemory, verdict.Block);
+    }
+
+    /// <summary>
+    /// A machine short of free memory is never measured, so no session starts. That is not a runtime
+    /// that would not open the weights, which is what it used to be called: on 2026-11-18 a 16-core
+    /// computer with a browser open was reported that way.
+    /// </summary>
+    [Fact]
+    public void A_test_skipped_for_free_memory_says_so()
+    {
+        var skipped = Good with
+        {
+            AvailableMemoryBytes = Gb / 2,
+            SessionStarted = false,
+            WindowTime = TimeSpan.Zero,
+            WindowMemoryBytes = 0,
+        };
+
+        var verdict = ModelCapability.Judge(skipped);
+
+        Assert.False(verdict.CanRunLocally);
+        Assert.Equal(ModelBlock.TooLittleFreeMemory, verdict.Block);
+        Assert.Contains("not enough free memory", verdict.Line);
+        Assert.DoesNotContain("runtime", verdict.Line);
+
+        // With memory free, a session that did not start is still the runtime's fault.
+        Assert.Equal(
+            ModelBlock.RuntimeWouldNotStart,
+            ModelCapability.Judge(skipped with { AvailableMemoryBytes = 4 * Gb }).Block);
     }
 
     /// <summary>Free memory is compared with what a window really cost on this machine, not with a

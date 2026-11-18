@@ -16,7 +16,8 @@ namespace RPM.Desktop.Services.Audio;
 /// measured once per session. A computer that can run the beat model runs this one too: it needs about
 /// 250 MB against about 1 GB, and has no deadline. A computer that cannot sends each record's features
 /// to the store instead (<see cref="Cloud.CloudSoundModel"/>), and a signed-out one measures nothing until
-/// somebody signs in.</para>
+/// somebody signs in. A computer turned away only for free memory at startup is not one that cannot: it
+/// hears its own records and waits for room before each (<see cref="SoundModelPlace"/>).</para>
 ///
 /// <para><b>The pool first.</b> A page of tracks is looked up in the shared pool before any file is
 /// opened. A record somebody has already heard is stored without a decode. A record this machine hears is
@@ -146,13 +147,18 @@ public sealed partial class SoundService : IDisposable
                 verdict = await _models.VerdictAsync().WaitAsync(ct);
             }
 
-            ISoundModel model = verdict.CanRunLocally && _local.IsAvailable ? _local : _cloud;
+            // The verdict without its moment: a computer turned away only for free memory at startup hears
+            // its own records and waits for room before each one. See SoundModelPlace.
+            ISoundModel model = SoundModelPlace.For(verdict) == ModelPlace.Local && _local.IsAvailable ? _local : _cloud;
             if (!model.IsAvailable)
             {
                 Said.Line("sound", "this computer does not run the sound model and nobody is signed in; " +
                                    "no sound is measured until somebody signs in.");
                 return;
             }
+            if (ReferenceEquals(model, _local) && verdict.Block == ModelBlock.TooLittleFreeMemory)
+                Said.Line("sound", "the beat model test found too little free memory, which says nothing about this " +
+                                   "computer; the sound model runs here and waits for memory before each record.");
 
             // Tracks this run cannot reach, almost always a row whose file is gone or on a drive that is not
             // plugged in. Without this list the same track would come back in every batch.
@@ -179,6 +185,13 @@ public sealed partial class SoundService : IDisposable
                 foreach (var item in work)
                 {
                     if (ct.IsCancellationRequested)
+                        return;
+
+                    // Room for the model before the slot is asked for, so a pass that is waiting for memory
+                    // does not hold the processor lane meanwhile. A pool hit needs no model.
+                    if (ReferenceEquals(model, _local)
+                        && !known.ContainsKey(item.RelativePath)
+                        && !await RoomAsync(ct))
                         return;
 
                     // A slot per track, a pool hit included: the write takes the library's gate, and the
@@ -244,6 +257,63 @@ public sealed partial class SoundService : IDisposable
             // its memory. It is opened again by the next track.
             _local.Release();
         }
+    }
+
+    /// <summary>How often a pass that is waiting for memory looks again.</summary>
+    private static readonly TimeSpan RoomPoll = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Waits until this computer has room to hear a record (<see cref="SoundModelPlace.HasRoom"/>).
+    /// False when the pass was stopped meanwhile.
+    ///
+    /// <para>The model's session is closed while the pass waits: it holds about 140 MB of weights that
+    /// the rest of the computer can use, and opening it again takes a second.</para>
+    /// </summary>
+    private async Task<bool> RoomAsync(CancellationToken ct)
+    {
+        if (SoundModelPlace.HasRoom(FreeMemory(refresh: false)))
+            return true;
+
+        bool told = false;
+        while (true)
+        {
+            // Asked again with a fresh reading. The collector updates its figures only when it collects, and
+            // an idle app may not collect for minutes: a stale reading would keep the pass waiting after the
+            // memory came back, or let it start on a reading from before a browser filled the machine.
+            var free = FreeMemory(refresh: true);
+            if (SoundModelPlace.HasRoom(free))
+            {
+                if (told)
+                    Said.Line("sound", $"memory is free again ({free / (1024 * 1024)} MB); hearing goes on.");
+                return true;
+            }
+
+            if (!told)
+            {
+                _local.Release();
+                Said.Line("sound",
+                    $"waiting for memory: {free / (1024 * 1024)} MB free, about " +
+                    $"{(SoundModelPlace.ModelBytes + AnalysisThrottle.HeadroomBytes) / (1024 * 1024)} MB needed.");
+                told = true;
+            }
+
+            if (!await Cancellable.DelayAsync(RoomPoll, ct))
+                return false;
+        }
+    }
+
+    /// <summary>The memory the computer could still hand out, read as <c>TrackAnalysisService</c> reads it,
+    /// or zero when the runtime does not say.</summary>
+    /// <param name="refresh">Collect the youngest generation first, a few milliseconds, so the figure is
+    /// from now and not from the last collection.</param>
+    private static long FreeMemory(bool refresh)
+    {
+        if (refresh)
+            GC.Collect(0);
+        var info = GC.GetGCMemoryInfo();
+        return info.TotalAvailableMemoryBytes > 0
+            ? Math.Max(0, info.TotalAvailableMemoryBytes - info.MemoryLoadBytes)
+            : 0;
     }
 
     private enum MeasureStep { Stored, StoredNothing, Unreachable, ModelDidNotAnswer }

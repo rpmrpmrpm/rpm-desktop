@@ -373,6 +373,26 @@ public sealed partial class RpmCloudClient(
         return said.RecordingId;
     }
 
+    /// <summary>
+    /// Says what this machine heard in a record, the <c>sound</c> fact, at the address kept for it
+    /// (<c>recordings/facts/sound</c>). The store gives it its own daily limit, so the first hearing of a
+    /// large library does not use up the day's level and grid reports.
+    /// </summary>
+    /// <returns>The record the track was filed under, as for <see cref="ReportRecordingAsync"/>.</returns>
+    /// <exception cref="HttpRequestException">The store refused it. A 429 is the day's limit used up.</exception>
+    public async Task<string?> ReportSoundAsync(
+        IReadOnlyList<string> keys, RecordingFactBody sound, CancellationToken ct = default)
+    {
+        if (keys is not { Count: > 0 })
+            return null;
+
+        var said = await SendAsync<RecordingReportResponse>(HttpMethod.Post, "recordings/facts/sound",
+            JsonContent.Create(
+                new FactsReportRequest(keys, [sound]), RpmCloudJson.Default.FactsReportRequest), ct);
+
+        return said.RecordingId;
+    }
+
     /// <summary>Asks the store to work out these records, for the ones that nobody has analysed yet.
     ///
     /// <para>This is the look-ahead that a set makes on a machine that cannot analyse well for itself, or

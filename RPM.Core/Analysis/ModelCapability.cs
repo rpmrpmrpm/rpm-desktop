@@ -29,8 +29,19 @@ public enum ModelBlock
     RuntimeWouldNotStart,
 
     /// <summary>Not enough memory to hold a window without making the machine use its swap
-    /// file.</summary>
+    /// file: the machine is too small. A lasting fact about it.</summary>
     TooLittleMemory,
+
+    /// <summary>
+    /// Not enough FREE memory when the test was due, so the window could not be held then, or the test
+    /// was not run at all (<see cref="ModelCapability.WorthMeasuring"/>). A fact about that moment, not
+    /// about the machine: a large computer with a browser open looks like this.
+    ///
+    /// <para>The DJ treats it as <see cref="TooLittleMemory"/>, because a set cannot wait for memory to
+    /// come back. The sound pass does not (<see cref="SoundModelPlace"/>): it has no deadline, and waits
+    /// instead of sending a whole library to the cloud.</para>
+    /// </summary>
+    TooLittleFreeMemory,
 
     /// <summary>Not enough cores to read a record while also playing and mixing one.</summary>
     TooFewCores,
@@ -93,6 +104,7 @@ public readonly record struct ModelVerdict(ModelPlace Place, ModelBlock Block, M
                 "F2", CultureInfo.InvariantCulture);
 
             string model = !m.HasWeights ? "no weights"
+                : !m.SessionStarted && Block == ModelBlock.TooLittleFreeMemory ? "not measured"
                 : !m.SessionStarted ? "the runtime would not start"
                 : $"one window {window}s on the " +
                   (m.Runtime is ModelRuntime.DirectMl ? "graphics card" : "processor") +
@@ -111,6 +123,7 @@ public readonly record struct ModelVerdict(ModelPlace Place, ModelBlock Block, M
         ModelBlock.RuntimeWouldNotStart => "the runtime would not open the weights",
         ModelBlock.TooFewCores => $"fewer than {ModelCapability.LeastCores} cores",
         ModelBlock.TooLittleMemory => "not enough memory for a window",
+        ModelBlock.TooLittleFreeMemory => "not enough free memory for a window at startup",
         ModelBlock.TooSlow => $"slower than {ModelCapability.WindowBudget.TotalSeconds:F1}s a window",
         _ => "no reason",
     };
@@ -225,14 +238,20 @@ public static class ModelCapability
         if (!m.HasWeights)
             return ModelBlock.NoWeights;
 
-        if (!m.SessionStarted)
-            return ModelBlock.RuntimeWouldNotStart;
-
         // Zero means the runtime did not report the free memory. An unknown value is not a failure:
         // the machine has already passed the total memory check, and the window it ran did not fail.
         // So only a figure that is present and too small sends the machine to the cloud.
-        if (m.AvailableMemoryBytes > 0 && m.AvailableMemoryBytes < Needed(m.WindowMemoryBytes))
-            return ModelBlock.TooLittleMemory;
+        bool shortOfFree = m.AvailableMemoryBytes > 0 && m.AvailableMemoryBytes < Needed(m.WindowMemoryBytes);
+
+        // Asked before the runtime, because a test that was never run did not start a session either.
+        // WorthMeasuring skips the test on a machine short of free memory, and that machine used to be
+        // reported as one whose runtime would not open the weights, which is a different fault with a
+        // different fix.
+        if (!m.SessionStarted)
+            return shortOfFree ? ModelBlock.TooLittleFreeMemory : ModelBlock.RuntimeWouldNotStart;
+
+        if (shortOfFree)
+            return ModelBlock.TooLittleFreeMemory;
 
         return m.WindowTime > WindowBudget ? ModelBlock.TooSlow : ModelBlock.None;
     }

@@ -323,11 +323,19 @@ public sealed class RecordingPoolClient(
         return known;
     }
 
-    /// <summary>Tells the pool what this machine heard in a record. This is fire and forget, like <see
-    /// cref="PublishLevel"/>.</summary>
+    /// <summary>
+    /// Tells the pool what this machine heard in a record. This is fire and forget, like <see
+    /// cref="PublishLevel"/>, but to the address kept for it (<see cref="RpmCloudClient.ReportSoundAsync"/>),
+    /// whose daily limit is its own.
+    ///
+    /// <para><b>A refusal for the day ends the publishing for the session.</b> A store that has said 429
+    /// says it again to every later report that day, and the pass hears a record a second. The records are
+    /// stored here either way; the pool only misses them, and the next machine that holds one hears it for
+    /// itself.</para>
+    /// </summary>
     public void PublishSound(LibraryDatabase db, string relativePath, float[] embedding)
     {
-        if (!auth.IsLoggedIn || SoundFact.From(embedding) is not { } fact)
+        if (!auth.IsLoggedIn || _soundRefused || SoundFact.From(embedding) is not { } fact)
             return;
 
         var keys = Named(db, relativePath);
@@ -336,10 +344,29 @@ public sealed class RecordingPoolClient(
 
         _ = Task.Run(async () =>
         {
-            try { await cloud.ReportRecordingAsync(keys, [fact]).ConfigureAwait(false); }
-            catch (Exception ex) { log.LogDebug(ex, "[pool] Could not tell the pool about {Path}", relativePath); }
+            try
+            {
+                await cloud.ReportSoundAsync(keys, fact).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                if (!_soundRefused)
+                {
+                    _soundRefused = true;
+                    RPM.Core.Diagnostics.Said.Line("sound",
+                        "the pool's daily limit for sound reports is used up; this session reports no more.");
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogDebug(ex, "[pool] Could not tell the pool about {Path}", relativePath);
+            }
         });
     }
+
+    /// <summary>Set once the store has refused a sound report for the day. See <see cref="PublishSound"/>.
+    /// Read and written from pool threads; a report or two sent after it is set by a race is harmless.</summary>
+    private volatile bool _soundRefused;
 
     /// <summary>Every name at once: the three exact names and the fingerprint's name. They are sent
     /// together to state that they all refer to one record. A bundle is a claim about identity. The song id
