@@ -102,7 +102,9 @@
             </ctl:RpmLink>
 
             <!-- The tracks being worked on now, each with its stage and its own bar. Waiting and finished
-                 tracks are not listed. The count above says how many are done. -->
+                 tracks are not listed. The count above says how many are done. While a run is going, the
+                 list keeps the tallest height it has had, so the flyout does not move when a track
+                 finishes (CloudChip.ListRoom sets MinHeight on JobList). -->
             <StackPanel x:Name="WorkingPanel" Spacing="2" Margin="0,4,0,0" Visibility="Collapsed">
               <TextBlock Text="{loc:Str Key=CloudChip_InProgress}" FontSize="11" Foreground="#99FFFFFF"/>
               <ListView x:Name="JobList" SelectionMode="None" Background="Transparent"

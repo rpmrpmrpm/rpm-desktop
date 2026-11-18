@@ -50,6 +50,10 @@ public sealed partial class CloudChip : UserControl
 
     private DispatcherTimer? _linger;
 
+    /// <summary>The height the in-progress list keeps until the run stops: the tallest it has been in this
+    /// run. See <see cref="ListRoom"/>.</summary>
+    private double _listRoom;
+
     /// <summary>How much of the ring the turning arc covers while the engine is still looking.</summary>
     private const double LookingArc = 0.25;
 
@@ -67,6 +71,7 @@ public sealed partial class CloudChip : UserControl
         _jobs = App.Services.GetRequiredService<CloudJobService>();
         _cloud = App.Services.GetRequiredService<CloudSyncService>();
         JobList.ItemsSource = _jobs.Working;
+        JobList.SizeChanged += (_, e) => KeepListRoom(e.NewSize.Height);
 
         FillRing(RingTrack, 1);
 
@@ -144,8 +149,11 @@ public sealed partial class CloudChip : UserControl
             ErrorsText.Text = Loc.Format("CloudChip_FailedCount", _jobs.Failed.ToString("N0", CultureInfo.CurrentCulture));
 
         // Only a running batch has tracks in progress. The list is empty after a pause or at the end, and the
-        // check on the state keeps the heading off a list that has nothing in it.
-        WorkingPanel.Visibility = Show(_jobs.State == CloudJobState.Running && _jobs.Working.Count > 0);
+        // check on the state keeps the heading off a list that has nothing in it. The room is given back
+        // first, so a stopped run does not keep its list on screen.
+        KeepListRoom(0);
+        WorkingPanel.Visibility = Show(ShowsList(
+            _jobs.State == CloudJobState.Running, _jobs.Working.Count, _listRoom));
 
         // Pause is for work that is still moving. A paused run shows Resume. A finished run can only be
         // dismissed.
@@ -162,6 +170,35 @@ public sealed partial class CloudChip : UserControl
             CancelLinger();
 
         static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// The height the in-progress list keeps. While a run is going it is the tallest the list has been in
+    /// this run. When the run stops it is zero.
+    ///
+    /// <para>The list loses a row when a track finishes and gains one when the next track starts. The
+    /// engine works in waves, so between two waves the list is empty for a moment. The flyout opens
+    /// upwards from the chip: a shorter list moves its top edge down, and the page behind it shows through
+    /// until the next row arrives. A list that keeps its height keeps the flyout still.</para>
+    /// </summary>
+    internal static double ListRoom(double held, double measured, bool running) =>
+        running ? Math.Max(held, measured) : 0;
+
+    /// <summary>Whether the in-progress list and its heading are shown. A running list that is empty between
+    /// two waves stays, because it has room held (<see cref="ListRoom"/>). Before the first track starts
+    /// there is nothing to hold, and the heading would sit over an empty list.</summary>
+    internal static bool ShowsList(bool running, int rows, double room) =>
+        running && (rows > 0 || room > 0);
+
+    /// <summary>Applies <see cref="ListRoom"/> as the list's minimum height. It reads the state when it is
+    /// called, so a size report that arrives after the run stopped gives the room back too.</summary>
+    private void KeepListRoom(double measured)
+    {
+        var room = ListRoom(_listRoom, measured, _jobs.State == CloudJobState.Running);
+        if (room == _listRoom)
+            return;
+        _listRoom = room;
+        JobList.MinHeight = room;
     }
 
     /// <summary>
