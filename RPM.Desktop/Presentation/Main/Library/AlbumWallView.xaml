@@ -175,9 +175,10 @@
         <StackPanel>
         <Grid>
         <!-- The pointer triangle sits over the owning card, solid, in the colour the drawer shows where the
-             two meet (PointerBrush). Its base runs 2 px PAST the top of the drawer (into the Border with the
-             10 px margin, which draws over it). So the join has no sub-pixel gap. See BandPointer.Fill. -->
-        <Polygon x:Name="BandPoint" Points="0,12 10,0 20,12" Fill="{Binding PointerBrush}" Width="20" Height="12"
+             two meet (PointerBrush). The drawer's 10 px top margin is BandPointer.Join. With an opaque fill
+             the triangle runs 2 px past it, under the drawer. With a translucent fill it stops at it
+             (PointerOutline). See BandPointer.Corners. -->
+        <Polygon x:Name="BandPoint" Points="{Binding PointerOutline}" Fill="{Binding PointerBrush}" Width="20" Height="12"
                  HorizontalAlignment="Left" VerticalAlignment="Top"
                  Margin="{Binding PointerMargin}"/>
 

@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
+using Windows.Foundation;
 using Windows.UI;
 
 namespace RPM.Desktop.Presentation.Main.Library;
@@ -21,6 +23,14 @@ public static class BandPointer
     /// the triangle whole.</summary>
     public const double TriangleHalf = 10;
 
+    /// <summary>How far below the triangle's point the drawer's top edge is. Each drawer has this as its
+    /// top margin, in the same Grid as its triangle: <c>AlbumWallView.xaml</c>, <c>HomeView.xaml</c> and the
+    /// shelves in <c>ArtistDetailView.xaml</c>. Change them together.</summary>
+    public const double Join = 10;
+
+    /// <summary>The triangle's height when it runs past <see cref="Join"/>, under the drawer.</summary>
+    private const double Depth = 12;
+
     /// <summary>
     /// The fill of the pointer triangle: the drawer's own colour where the triangle meets it, solid from
     /// the base to the point.
@@ -29,13 +39,59 @@ public static class BandPointer
     /// greyish point over the dark row, which read as a second colour in the mark rather than as the drawer
     /// rising to a point.</para>
     ///
-    /// <para>The triangle's base runs two pixels past the drawer's top edge, and the drawer draws over it,
-    /// so the join has no sub-pixel gap. See the band templates.</para>
-    ///
     /// <para>The plate a drawer opens on is a thin white, not an opaque colour, and the triangle takes it
-    /// with its own alpha, so the mark is as faint as the drawer it belongs to.</para>
+    /// with its own alpha, so the mark is as faint as the drawer it belongs to. Where the triangle stops
+    /// depends on that alpha: see <see cref="Corners"/>.</para>
     /// </summary>
     public static SolidColorBrush Fill(Color colour) => new(colour);
+
+    /// <summary>
+    /// The triangle's three corners for a fill, in the triangle's own units: the point at the top, the
+    /// drawer's edge at <see cref="Join"/>.
+    ///
+    /// <para>An opaque fill runs 2 units past the edge, and the drawer draws over that strip. Then the
+    /// join has no seam when it falls between two device pixels (a scrolled row, a scale that is not a
+    /// whole number). Two shapes that meet inside one pixel each cover only part of it, and the row behind
+    /// shows through there.</para>
+    ///
+    /// <para>A translucent fill stops at the edge. Under the drawer the strip would be painted twice, the
+    /// triangle's alpha and then the drawer's, and would show as a bright line across the base. Where two
+    /// thin shapes meet inside one pixel the seam is too faint to see, so nothing needs to run past.</para>
+    ///
+    /// <para>Both are the same triangle above the edge: the translucent one is the opaque one cut at
+    /// <see cref="Join"/>. A fill that is not known to be opaque stops at the edge.</para>
+    /// </summary>
+    public static IReadOnlyList<Point> Corners(Color? fill)
+    {
+        if (fill is { A: 255 })
+            return [new(0, Depth), new(TriangleHalf, 0), new(2 * TriangleHalf, Depth)];
+
+        var half = TriangleHalf * Join / Depth;
+        return [new(TriangleHalf - half, Join), new(TriangleHalf, 0), new(TriangleHalf + half, Join)];
+    }
+
+    /// <summary>The triangle's outline for <paramref name="fill"/> (see <see cref="Corners"/>), as the
+    /// polygon takes it.</summary>
+    public static PointCollection Outline(Brush? fill)
+    {
+        var outline = new PointCollection();
+        foreach (var corner in Corners(ColourOf(fill)))
+            outline.Add(corner);
+        return outline;
+    }
+
+    /// <summary>
+    /// Paints a triangle placed from code: its fill, and the outline that fill needs. The two are set
+    /// together here, so a triangle cannot keep the outline of its last fill. The outline is replaced only
+    /// when it changes, because the fill is set on every frame of a cross.
+    /// </summary>
+    public static void Paint(Polygon point, Brush fill)
+    {
+        point.Fill = fill;
+        var corners = Corners(ColourOf(fill));
+        if (point.Points is not { } now || !now.SequenceEqual(corners))
+            point.Points = Outline(fill);
+    }
 
     /// <summary>The colour a triangle was filled with, which is the drawer's own colour. Null if the brush
     /// was not made by <see cref="Fill"/>, so the caller can use its own fallback.</summary>

@@ -2997,7 +2997,7 @@ public sealed partial class ArtistDetailView : UserControl
             || drawer.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) is not { } colour)
             return;
         band.PointerBrush = BandPointer.Fill(colour);
-        drawer.Point.Fill = band.PointerBrush;
+        BandPointer.Paint(drawer.Point, band.PointerBrush);
     }
 
     /// <summary>
@@ -3076,8 +3076,8 @@ public sealed partial class ArtistDetailView : UserControl
         // The drawer opens on the plate of the app, and so do both marks that it makes outside itself.
         // All three agree on the frame it opens as much as on every frame after it, and the background
         // of the cover crosses all three in together once it has been read (see CrossGround).
-        drawer.Point.Fill = BandPointer.Fill(BandPointer.Plate);
-        band.PointerBrush = drawer.Point.Fill;
+        band.PointerBrush = BandPointer.Fill(BandPointer.Plate);
+        BandPointer.Paint(drawer.Point, band.PointerBrush);
 
         // The ring moves to this record, off whichever record of the shelf had it. Its colour belongs to
         // the record and is left alone: each record keeps the background that its cover turned out to be,
@@ -3220,7 +3220,7 @@ public sealed partial class ArtistDetailView : UserControl
                 band.GroundOn = v;
                 band.PointerBrush = BandPointer.Fill(BandPointer.Blend(wasPoint, pointTo, v));
                 if (drawer is not null)
-                    drawer.Point.Fill = band.PointerBrush;
+                    BandPointer.Paint(drawer.Point, band.PointerBrush);
                 if (ring is not null)
                     ring.Color = BandPointer.Blend(wasRing, read.Ground.Flat, v);
                 if (v >= 1 && drawer is not null)

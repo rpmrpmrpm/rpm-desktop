@@ -146,8 +146,7 @@ public sealed partial class AlbumBandView : UserControl
         if (Band?.Sleeve is not { } sleeve || BandPlate.ActualWidth < 1 || BandPlate.ActualHeight < 1)
             return null;
         var width = BandPlate.ActualWidth;
-        // One unit down, inside the edge. The triangle's base runs two units past the edge, so this row
-        // is the one it is drawn against.
+        // One unit down, inside the edge: the first row of the drawer, which the triangle's base meets.
         return sleeve.FlatAt(Math.Clamp(x, 0, width), 1, width, BandPlate.ActualHeight);
     }
 

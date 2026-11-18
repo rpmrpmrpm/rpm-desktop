@@ -568,8 +568,8 @@ public sealed partial class HomeView
         // (the triangle and the ring). All three agree on the first frame as well as on every later
         // frame, and the cover's own background fades in on all three together once it has been read
         // (see CrossGround).
-        drawer.Point.Fill = BandPointer.Fill(BandPointer.Plate);
-        band.PointerBrush = drawer.Point.Fill;
+        band.PointerBrush = BandPointer.Fill(BandPointer.Plate);
+        BandPointer.Paint(drawer.Point, band.PointerBrush);
 
         _open = drawer;
         Ring(drawer, row, rail?.Tag as HomeRowModel, rail);
@@ -704,7 +704,7 @@ public sealed partial class HomeView
             || drawer.View.EdgeColourUnder(drawer.Root, drawer.Point.Margin.Left) is not { } colour)
             return;
         band.PointerBrush = BandPointer.Fill(colour);
-        drawer.Point.Fill = band.PointerBrush;
+        BandPointer.Paint(drawer.Point, band.PointerBrush);
     }
 
     /// <summary>Connects what a press inside the drawer does. It runs on every open, not once: the hooks
@@ -776,7 +776,7 @@ public sealed partial class HomeView
                 band.GroundOn = v;
                 band.PointerBrush = BandPointer.Fill(BandPointer.Blend(wasPoint, pointTo, v));
                 if (drawer is not null)
-                    drawer.Point.Fill = band.PointerBrush;
+                    BandPointer.Paint(drawer.Point, band.PointerBrush);
                 if (ring is not null)
                     ring.Color = BandPointer.Blend(wasRing, read.Ground.Flat, v);
                 if (v >= 1 && drawer is not null)

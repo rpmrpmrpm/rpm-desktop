@@ -620,8 +620,23 @@ public sealed partial class AlbumBand : INotifyPropertyChanged
     public Brush PointerBrush
     {
         get => _pointerBrush ??= new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x1A, 0x22, 0x2C));
-        set { _pointerBrush = value; OnChanged(); }
+        set
+        {
+            // Read through the property, not the field, so the first fill is compared with the default
+            // brush that the outline was first read from.
+            var was = BandPointer.Corners(BandPointer.ColourOf(PointerBrush));
+            _pointerBrush = value;
+            OnChanged();
+            if (!was.SequenceEqual(BandPointer.Corners(BandPointer.ColourOf(value))))
+                OnChanged(nameof(PointerOutline));
+        }
     }
+
+    /// <summary>The pointer triangle's outline, which depends on <see cref="PointerBrush"/>: past the
+    /// drawer's edge when the fill is opaque, cut at the edge when it is not. See
+    /// <see cref="BandPointer.Corners"/>. A new collection each read, because a polygon takes it as its
+    /// own.</summary>
+    public PointCollection PointerOutline => BandPointer.Outline(PointerBrush);
 
 
     // Their own list type, not IReadOnlyList. Both columns are bound to an ItemsSource. Under Native AOT
