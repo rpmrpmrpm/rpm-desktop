@@ -121,7 +121,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Calm, "Pop")] = "Soft Pop",
         [(SmartPlaylistKind.Calm, "Disco")] = "After the Party",
         [(SmartPlaylistKind.Calm, "Funk")] = "Soft Groove",
-        [(SmartPlaylistKind.Calm, "Soul")] = "Quiet Storm",
+        [(SmartPlaylistKind.Calm, "Soul")] = "Late Night Soul",   // was "Quiet Storm", now Date Night's
         [(SmartPlaylistKind.Calm, "R&B")] = "Soft Velvet",
         [(SmartPlaylistKind.Calm, "Rap")] = "Low End",
         [(SmartPlaylistKind.Calm, "Trap")] = "Night Drive",
@@ -217,7 +217,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Danceable, "Techno")] = "Steady Pulse",
         [(SmartPlaylistKind.Danceable, "Club")] = "Guest List",
         [(SmartPlaylistKind.Danceable, "Electronic / Dance")] = "Four to the Floor",
-        [(SmartPlaylistKind.Danceable, "Jazz")] = "A Moment for the Lovers",
+        [(SmartPlaylistKind.Danceable, "Jazz")] = "Swing Shift",   // was "A Moment for the Lovers", now Date Night's
         [(SmartPlaylistKind.Danceable, "Blues")] = "Shuffle",
         [(SmartPlaylistKind.Danceable, "Country")] = "Line Dance",
         [(SmartPlaylistKind.Danceable, "Folk")] = "Barn Dance",
@@ -278,6 +278,147 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Focus, "Video Game")] = "Overworld",
         [(SmartPlaylistKind.Focus, "Musical")] = "Between Numbers",
         [(SmartPlaylistKind.Focus, "Spoken Word")] = "Low Murmur",
+
+        // ── What the sound model hears (2026-11-18) ──
+        //
+        // The titles of the rows on the library they were made for were chosen by hand, and are kept exactly
+        // as written, lower case and full stops included. The rest are in the same spirit. Rap has no line under any of the
+        // four: its row is drawn into Hip-Hop / Rap (MoodSets). Nor do the genres a list never holds
+        // (MoodBands.NeverIn), which MoodSets drops.
+
+        // Melancholy: the saddest end of each kind of music
+        [(SmartPlaylistKind.Melancholy, "Rock")] = "Grey Skies",
+        [(SmartPlaylistKind.Melancholy, "Indie")] = "The Art of Losing You",
+        [(SmartPlaylistKind.Melancholy, "Pop")] = "Bittersweet",
+        [(SmartPlaylistKind.Melancholy, "Disco")] = "Tears on the Dancefloor",
+        [(SmartPlaylistKind.Melancholy, "Funk")] = "Slow Fade",
+        [(SmartPlaylistKind.Melancholy, "Soul")] = "Rainy Day Soul",
+        [(SmartPlaylistKind.Melancholy, "R&B")] = "Lonely Hours",
+        [(SmartPlaylistKind.Melancholy, "Trap")] = "Numb",
+        [(SmartPlaylistKind.Melancholy, "Old School Hip Hop")] = "Hard Times",
+        [(SmartPlaylistKind.Melancholy, "Hip-Hop / Rap")] = "feels.",
+        [(SmartPlaylistKind.Melancholy, "House")] = "Blue Hour",
+        [(SmartPlaylistKind.Melancholy, "Techno")] = "Cold Light",
+        [(SmartPlaylistKind.Melancholy, "Club")] = "Empty Floor",
+        [(SmartPlaylistKind.Melancholy, "Electronic / Dance")] = "Neon Rain",
+        [(SmartPlaylistKind.Melancholy, "Jazz")] = "Midnight Cafe",
+        [(SmartPlaylistKind.Melancholy, "Blues")] = "Low Down",
+        [(SmartPlaylistKind.Melancholy, "Country")] = "Whiskey Tears",
+        [(SmartPlaylistKind.Melancholy, "Folk")] = "Laments",
+        [(SmartPlaylistKind.Melancholy, "Classical")] = "Lacrimosa",
+        [(SmartPlaylistKind.Melancholy, "Neo-Classical")] = "Autumn Keys",
+        [(SmartPlaylistKind.Melancholy, "Opera")] = "Tragedia",
+        [(SmartPlaylistKind.Melancholy, "Metal")] = "Doom and Gloom",
+        [(SmartPlaylistKind.Melancholy, "Punk")] = "Wasted Youth",
+        [(SmartPlaylistKind.Melancholy, "Noise")] = "Static",
+        [(SmartPlaylistKind.Melancholy, "Avant-Garde")] = "Fading Signal",
+        [(SmartPlaylistKind.Melancholy, "Reggae")] = "Rainy Season",
+        [(SmartPlaylistKind.Melancholy, "Latin")] = "Saudade",
+        [(SmartPlaylistKind.Melancholy, "World")] = "Far From Home",
+        [(SmartPlaylistKind.Melancholy, "Religious")] = "Requiem",
+        [(SmartPlaylistKind.Melancholy, "Soundtrack")] = "Bittersweet End",
+        [(SmartPlaylistKind.Melancholy, "Video Game")] = "Game Over",
+        [(SmartPlaylistKind.Melancholy, "Musical")] = "Empty Stage",
+        [(SmartPlaylistKind.Melancholy, "Spoken Word")] = "Unsent Letters",
+
+        // Feel Good: the happiest end of each kind of music
+        [(SmartPlaylistKind.Happy, "Rock")] = "Sunshine rock",
+        [(SmartPlaylistKind.Happy, "Indie")] = "Sunny Side Up",
+        [(SmartPlaylistKind.Happy, "Pop")] = "Sugar Rush",
+        [(SmartPlaylistKind.Happy, "Disco")] = "Good Times",
+        [(SmartPlaylistKind.Happy, "Funk")] = "Easy Grooves",
+        [(SmartPlaylistKind.Happy, "Soul")] = "Sunshine",
+        [(SmartPlaylistKind.Happy, "R&B")] = "Golden",
+        [(SmartPlaylistKind.Happy, "Trap")] = "Big Mood",
+        [(SmartPlaylistKind.Happy, "Old School Hip Hop")] = "Summer Jam",
+        [(SmartPlaylistKind.Happy, "Hip-Hop / Rap")] = "Joyride",
+        [(SmartPlaylistKind.Happy, "House")] = "Dopamine",
+        [(SmartPlaylistKind.Happy, "Techno")] = "Sunrise Set",
+        [(SmartPlaylistKind.Happy, "Club")] = "Good Night Out",
+        [(SmartPlaylistKind.Happy, "Electronic / Dance")] = "Euphoria",
+        [(SmartPlaylistKind.Happy, "Jazz")] = "Swingin'",
+        [(SmartPlaylistKind.Happy, "Blues")] = "Sunny Blues",
+        [(SmartPlaylistKind.Happy, "Country")] = "Back Roads",
+        [(SmartPlaylistKind.Happy, "Folk")] = "Sunday Picnic",
+        [(SmartPlaylistKind.Happy, "Classical")] = "Allegro",
+        [(SmartPlaylistKind.Happy, "Neo-Classical")] = "Bright Keys",
+        [(SmartPlaylistKind.Happy, "Opera")] = "Brindisi",
+        [(SmartPlaylistKind.Happy, "Metal")] = "Heavy Sunshine",
+        [(SmartPlaylistKind.Happy, "Punk")] = "Pogo",
+        [(SmartPlaylistKind.Happy, "Noise")] = "Happy Noise",
+        [(SmartPlaylistKind.Happy, "Avant-Garde")] = "Odd Joy",
+        [(SmartPlaylistKind.Happy, "Reggae")] = "Sunsplash",
+        [(SmartPlaylistKind.Happy, "Latin")] = "Fiesta",
+        [(SmartPlaylistKind.Happy, "World")] = "Festival",
+        [(SmartPlaylistKind.Happy, "Religious")] = "Hallelujah",
+        [(SmartPlaylistKind.Happy, "Soundtrack")] = "Happy Ending",
+        [(SmartPlaylistKind.Happy, "Video Game")] = "Level Up",
+        [(SmartPlaylistKind.Happy, "Musical")] = "Jazz Hands",
+        [(SmartPlaylistKind.Happy, "Spoken Word")] = "Good News",
+
+        // Rage: the angriest end of each kind of music it holds
+        [(SmartPlaylistKind.Angry, "Rock")] = "Seeing Red",
+        [(SmartPlaylistKind.Angry, "Indie")] = "Burn.",
+        [(SmartPlaylistKind.Angry, "Pop")] = "burning bridges",
+        [(SmartPlaylistKind.Angry, "Trap")] = "Smoke",
+        [(SmartPlaylistKind.Angry, "Old School Hip Hop")] = "Fight the Power",
+        [(SmartPlaylistKind.Angry, "Hip-Hop / Rap")] = "No Mercy",
+        [(SmartPlaylistKind.Angry, "House")] = "I Hope You Explode",
+        [(SmartPlaylistKind.Angry, "Techno")] = "Hard Reset",
+        [(SmartPlaylistKind.Angry, "Club")] = "Rage at the Function",
+        [(SmartPlaylistKind.Angry, "Electronic / Dance")] = "Rage Mode",
+        [(SmartPlaylistKind.Angry, "Jazz")] = "Blowout",
+        [(SmartPlaylistKind.Angry, "Blues")] = "Mean Streak",
+        [(SmartPlaylistKind.Angry, "Country")] = "Outlaw",
+        [(SmartPlaylistKind.Angry, "Folk")] = "Protest Songs",
+        [(SmartPlaylistKind.Angry, "Classical")] = "Dies Irae",
+        [(SmartPlaylistKind.Angry, "Neo-Classical")] = "Tempest",
+        [(SmartPlaylistKind.Angry, "Opera")] = "Vendetta",
+        [(SmartPlaylistKind.Angry, "Metal")] = "Mosh Pit",
+        [(SmartPlaylistKind.Angry, "Punk")] = "No Future",
+        [(SmartPlaylistKind.Angry, "Noise")] = "Feedback",
+        [(SmartPlaylistKind.Angry, "Avant-Garde")] = "Scream Therapy",
+        [(SmartPlaylistKind.Angry, "Reggae")] = "Rebel Music",
+        [(SmartPlaylistKind.Angry, "Latin")] = "Furia",
+        [(SmartPlaylistKind.Angry, "World")] = "War Drums",
+        [(SmartPlaylistKind.Angry, "Religious")] = "Wrath",
+        [(SmartPlaylistKind.Angry, "Video Game")] = "Final Boss",
+        [(SmartPlaylistKind.Angry, "Spoken Word")] = "Rant",
+
+        // Date Night: the most romantic end of each kind of music it holds. Quiet Storm and A Moment for the
+        // Lovers came here from Chill and Dancefloor, which took Late Night Soul and Swing Shift instead.
+        [(SmartPlaylistKind.Romantic, "Rock")] = "Power Ballads",
+        [(SmartPlaylistKind.Romantic, "Indie")] = "Love Stories",
+        [(SmartPlaylistKind.Romantic, "Pop")] = "Crush",
+        [(SmartPlaylistKind.Romantic, "Disco")] = "final call",
+        [(SmartPlaylistKind.Romantic, "Funk")] = "Love Machine",
+        [(SmartPlaylistKind.Romantic, "Soul")] = "Quiet Storm",
+        [(SmartPlaylistKind.Romantic, "R&B")] = "Candlelight",
+        [(SmartPlaylistKind.Romantic, "Trap")] = "Late Night Texts",
+        [(SmartPlaylistKind.Romantic, "Old School Hip Hop")] = "Mixtape Love",
+        [(SmartPlaylistKind.Romantic, "Hip-Hop / Rap")] = "Love Letters",
+        [(SmartPlaylistKind.Romantic, "House")] = "Lovers' Groove",
+        [(SmartPlaylistKind.Romantic, "Techno")] = "Heartbeat",
+        [(SmartPlaylistKind.Romantic, "Electronic / Dance")] = "Neon Hearts",
+        [(SmartPlaylistKind.Romantic, "Jazz")] = "A Moment for the Lovers",
+        [(SmartPlaylistKind.Romantic, "Blues")] = "At Last",
+        [(SmartPlaylistKind.Romantic, "Country")] = "Two Hearts",
+        [(SmartPlaylistKind.Romantic, "Folk")] = "Sweetheart Songs",
+        [(SmartPlaylistKind.Romantic, "Classical")] = "Liebestraum",
+        [(SmartPlaylistKind.Romantic, "Neo-Classical")] = "Moonlit Keys",
+        [(SmartPlaylistKind.Romantic, "Opera")] = "Amore",
+        [(SmartPlaylistKind.Romantic, "Metal")] = "Black Roses",
+        [(SmartPlaylistKind.Romantic, "Punk")] = "Teenage Kicks",
+        [(SmartPlaylistKind.Romantic, "Noise")] = "Static Love",
+        [(SmartPlaylistKind.Romantic, "Avant-Garde")] = "Strange Love",
+        [(SmartPlaylistKind.Romantic, "Reggae")] = "Lovers Rock",
+        [(SmartPlaylistKind.Romantic, "Latin")] = "Bésame",
+        [(SmartPlaylistKind.Romantic, "World")] = "Serenade",
+        [(SmartPlaylistKind.Romantic, "Religious")] = "Wedding Song",
+        [(SmartPlaylistKind.Romantic, "Soundtrack")] = "Love Theme",
+        [(SmartPlaylistKind.Romantic, "Video Game")] = "Player Two",
+        [(SmartPlaylistKind.Romantic, "Musical")] = "Love Duet",
+        [(SmartPlaylistKind.Romantic, "Spoken Word")] = "Love Poems",
     };
 
     /// <summary>The label of a list that covers a whole shelf, in the app's language. It is not stored
@@ -301,6 +442,12 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Danceable => Loc.Get("Playlists_Danceable"),
         SmartPlaylistKind.Focus => Loc.Get("Playlists_Focus"),
         SmartPlaylistKind.Sleep => Loc.Get("Playlists_Sleep"),
+        SmartPlaylistKind.Melancholy => Loc.Get("Playlists_Melancholy"),
+        SmartPlaylistKind.Happy => Loc.Get("Playlists_Happy"),
+        SmartPlaylistKind.Angry => Loc.Get("Playlists_Angry"),
+        SmartPlaylistKind.Romantic => Loc.Get("Playlists_Romantic"),
+        SmartPlaylistKind.Zen => Loc.Get("Playlists_Zen"),
+        SmartPlaylistKind.NewYearsEve => Loc.Get("Playlists_NewYearsEve"),
         SmartPlaylistKind.RightNow => Loc.Get("Playlists_RightNow"),
 
         // Name(SmartPlaylistId) answers a decade by its number first, so this arm is not reached through
@@ -335,6 +482,14 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Danceable => "\uf70c",          // person-running
         SmartPlaylistKind.Focus => "",              // bullseye
         SmartPlaylistKind.Sleep => "\uf236",              // bed
+
+        // The six the sound model hears. Each glyph is the scene its list is for, as the five above are.
+        SmartPlaylistKind.Melancholy => "\uf73d",         // cloud-rain
+        SmartPlaylistKind.Happy => "\uf185",              // sun
+        SmartPlaylistKind.Angry => "\uf7e4",              // fire-flame-curved
+        SmartPlaylistKind.Romantic => "\uf5ce",           // wine-glass
+        SmartPlaylistKind.Zen => "\uf5bb",                // spa (a lotus)
+        SmartPlaylistKind.NewYearsEve => "\uf79f",        // champagne-glasses
 
         // A clock. This list is the only one that depends on the time of day.
         SmartPlaylistKind.RightNow => "\uf017",           // clock
@@ -450,6 +605,14 @@ internal static class SmartPlaylistFace
         // Indigo is night without being black. Orb is the one family that looks like a single round body seen
         // in the dark. Of the eight abstract forms it comes closest to a moon.
         SmartPlaylistKind.Sleep => (1, 6),          // Orb, Indigo
+
+        // The six the sound model hears, each in a pair no other list uses.
+        SmartPlaylistKind.Melancholy => (6, 6),     // Ripple, Indigo: rain on dark water
+        SmartPlaylistKind.Happy => (0, 2),          // Halo, Gold: the sun
+        SmartPlaylistKind.Angry => (2, 0),          // Mesh, Vermilion: a hot tangle
+        SmartPlaylistKind.Romantic => (5, 8),       // Bokeh, Crimson: candlelight out of focus
+        SmartPlaylistKind.Zen => (1, 4),            // Orb, Forest: a smooth stone
+        SmartPlaylistKind.NewYearsEve => (5, 2),    // Bokeh, Gold: sparklers and champagne
 
         // Amber, and a family of its own. A decade list is not one of the moods, so it should not share a
         // mood colour. People read a shelf by its colours first.

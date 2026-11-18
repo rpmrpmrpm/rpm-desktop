@@ -158,6 +158,32 @@ public static class MoodSets
             new(SmartPlaylistKind.Focus, "Rock"),
             new(SmartPlaylistKind.Focus, "Indie"),
         ],
+
+        // ── the feelings ──
+        //
+        // Hip-hop across both of its shelves, for each feeling, as Just the Bars is for Chill: a record
+        // tagged "Rap" and one tagged "Hip Hop" are the same music. This is how the blind check of
+        // 2026-11-18 heard these rows (10, 9, 10 and 10 of 10). Rap is absorbed: one row, not two.
+        [new(SmartPlaylistKind.Melancholy, "Hip-Hop / Rap")] =
+        [
+            new(SmartPlaylistKind.Melancholy, "Hip-Hop / Rap"),
+            new(SmartPlaylistKind.Melancholy, "Rap"),
+        ],
+        [new(SmartPlaylistKind.Happy, "Hip-Hop / Rap")] =
+        [
+            new(SmartPlaylistKind.Happy, "Hip-Hop / Rap"),
+            new(SmartPlaylistKind.Happy, "Rap"),
+        ],
+        [new(SmartPlaylistKind.Angry, "Hip-Hop / Rap")] =
+        [
+            new(SmartPlaylistKind.Angry, "Hip-Hop / Rap"),
+            new(SmartPlaylistKind.Angry, "Rap"),
+        ],
+        [new(SmartPlaylistKind.Romantic, "Hip-Hop / Rap")] =
+        [
+            new(SmartPlaylistKind.Romantic, "Hip-Hop / Rap"),
+            new(SmartPlaylistKind.Romantic, "Rap"),
+        ],
     };
 
     /// <summary>
@@ -191,6 +217,12 @@ public static class MoodSets
 
         // "Stomp and Holler" -> Barn Dance.
         [new(SmartPlaylistKind.Energetic, "Folk")] = new(SmartPlaylistKind.Danceable, "Folk"),
+
+        // Each feeling's rap row -> its hip-hop row. See the sets above.
+        [new(SmartPlaylistKind.Melancholy, "Rap")] = new(SmartPlaylistKind.Melancholy, "Hip-Hop / Rap"),
+        [new(SmartPlaylistKind.Happy, "Rap")] = new(SmartPlaylistKind.Happy, "Hip-Hop / Rap"),
+        [new(SmartPlaylistKind.Angry, "Rap")] = new(SmartPlaylistKind.Angry, "Hip-Hop / Rap"),
+        [new(SmartPlaylistKind.Romantic, "Rap")] = new(SmartPlaylistKind.Romantic, "Hip-Hop / Rap"),
     };
 
     /// <summary>
@@ -203,6 +235,16 @@ public static class MoodSets
         new(SmartPlaylistKind.Calm, "House"),           // was "Sunrise Set"
         new(SmartPlaylistKind.Calm, "Soundtrack"),      // was "End Credits"
         new(SmartPlaylistKind.Energetic, "Classical"),  // was "Fortissimo"
+
+        // The genres a feeling list never holds (MoodBands.NeverIn, decided 2026-11-17): they never have a
+        // song in it, so they are never a row, and a genre's page does not offer them either.
+        new(SmartPlaylistKind.Angry, "Disco"),
+        new(SmartPlaylistKind.Angry, "R&B"),
+        new(SmartPlaylistKind.Angry, "Soul"),
+        new(SmartPlaylistKind.Angry, "Musical"),
+        new(SmartPlaylistKind.Angry, "Funk"),
+        new(SmartPlaylistKind.Angry, "Soundtrack"),
+        new(SmartPlaylistKind.Romantic, "Club"),
     ];
 
     /// <summary>

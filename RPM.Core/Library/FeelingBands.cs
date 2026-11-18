@@ -10,18 +10,24 @@ namespace RPM.Core.Library;
 /// (<see cref="LibraryDatabase.QuerySoundFeelings"/>). A track the sound pass has not reached is absent,
 /// and is in none of the four feeling lists. That is the normal state of a shelf the pass is still
 /// walking, and of a cloud-only track, which the pass cannot open.</param>
-/// <param name="HolidayPaths">The tracks that are holiday music (<see cref="HolidayMusic.IsHoliday"/>).</param>
+/// <param name="HolidayPaths">The tracks that are holiday music, Christmas or New Year
+/// (<see cref="HolidayMusic.IsHoliday"/>).</param>
+/// <param name="NewYearPaths">The holiday tracks that are about the new year
+/// (<see cref="HolidayMusic.IsNewYear"/>). The New Year's Eve list opens with them.</param>
 /// <param name="ZenFolders">The records that are Zen records (<see cref="MoodBands.ZenFolders"/>).</param>
-/// <param name="FestiveSeason">Whether it is the holiday season now (<see cref="HolidayMusic.InSeason"/>).
-/// Out of season Festive is empty, and the holiday songs are kept out of every other list.</param>
+/// <param name="HolidaySeason">Whether it is the holiday season now (<see cref="HolidayMusic.InSeason"/>).
+/// Out of it, the holiday songs are kept out of every list.</param>
+/// <param name="NewYearsEveTime">Whether the New Year's Eve list is offered now
+/// (<see cref="HolidayMusic.IsNewYearsEveTime"/>). Out of those days it is empty.</param>
 /// <param name="MelancholyShown">Whether Melancholy is on screen. Only then does it take its songs out
-/// of Chill: a song must not leave Chill for a list nobody can open. The session states it from
-/// <see cref="SmartPlaylists.NotShownYet"/>.</param>
+/// of Chill: a song must not leave Chill for a list nobody can open.</param>
 public sealed record ShelfHearing(
     IReadOnlyDictionary<string, FeelingScores> FeelingsByPath,
     IReadOnlySet<string> HolidayPaths,
+    IReadOnlySet<string> NewYearPaths,
     IReadOnlySet<string> ZenFolders,
-    bool FestiveSeason,
+    bool HolidaySeason,
+    bool NewYearsEveTime,
     bool MelancholyShown)
 {
     /// <summary>A shelf nobody has heard, out of season: the six lists are empty and nothing else
@@ -30,12 +36,19 @@ public sealed record ShelfHearing(
         new Dictionary<string, FeelingScores>(),
         new HashSet<string>(),
         new HashSet<string>(),
-        FestiveSeason: false,
+        new HashSet<string>(),
+        HolidaySeason: false,
+        NewYearsEveTime: false,
         MelancholyShown: false);
 
     /// <summary>Whether this track is left out of every list because it is holiday music out of
     /// season.</summary>
-    public bool OutOfSeason(string relativePath) => !FestiveSeason && HolidayPaths.Contains(relativePath);
+    public bool OutOfSeason(string relativePath) => !HolidaySeason && HolidayPaths.Contains(relativePath);
+
+    /// <summary>Whether this track is Christmas music: holiday music that is not about the new year. The
+    /// New Year's Eve list holds none.</summary>
+    public bool IsChristmas(string relativePath) =>
+        HolidayPaths.Contains(relativePath) && !NewYearPaths.Contains(relativePath);
 }
 
 /// <summary>

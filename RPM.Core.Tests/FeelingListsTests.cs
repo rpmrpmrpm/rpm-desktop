@@ -60,11 +60,13 @@ public class FeelingListsTests
     private static ShelfHearing Heard(
         IReadOnlyDictionary<string, FeelingScores> feelings,
         IReadOnlySet<string>? holiday = null, IReadOnlySet<string>? zen = null, bool season = false,
-        bool melancholyShown = true) =>
+        bool melancholyShown = true, IReadOnlySet<string>? newYear = null, bool newYearsEve = false) =>
         new(feelings,
             holiday ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            newYear ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             zen ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             season,
+            newYearsEve,
             melancholyShown);
 
     // ── the four feelings ──
@@ -77,17 +79,23 @@ public class FeelingListsTests
     [Fact]
     public void A_feeling_is_cut_within_each_genre_and_ordered_by_its_score()
     {
+        // Two genres whose ends both sound angry over the whole collection, metal more so, and a large
+        // genre that is not angry at all, which keeps both ends near the top of everything.
         var metal = Ramp("metal", 50);
         var jazz = Ramp("jazz", 50);
+        var pop = Ramp("pop", 300);
         var feelings = new Dictionary<string, FeelingScores>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < 50; i++)
         {
-            feelings[metal[i].RelativePath] = Only(Feeling.Angry, 0.2 + i / 100.0);
-            feelings[jazz[i].RelativePath] = Only(Feeling.Angry, -0.3 + i / 1000.0);
+            feelings[metal[i].RelativePath] = Only(Feeling.Angry, 0.5 + i / 100.0);
+            feelings[jazz[i].RelativePath] = Only(Feeling.Angry, 0.42 + i / 100.0);
         }
+        for (int i = 0; i < pop.Count; i++)
+            feelings[pop[i].RelativePath] = Only(Feeling.Angry, -0.5 + i / 1000.0);
 
         var shelf = MoodShelf.Build(
-            [.. metal, .. jazz], Merged(FiledAs(metal, "Metal"), FiledAs(jazz, "Jazz")),
+            [.. metal, .. jazz, .. pop],
+            Merged(FiledAs(metal, "Metal"), FiledAs(jazz, "Jazz"), FiledAs(pop, "Pop")),
             NoCatalogue, Likes.None, Heard(feelings));
 
         var angry = shelf.Angry.WholeList.Songs;
@@ -103,6 +111,48 @@ public class FeelingListsTests
         var lastMetal = angry.ToList().FindLastIndex(p => p.StartsWith("metal", StringComparison.Ordinal));
         var firstJazz = angry.ToList().FindIndex(p => p.StartsWith("jazz", StringComparison.Ordinal));
         Assert.True(lastMetal < firstJazz);
+
+        // The angriest pop is not angry over the whole collection, so pop is not in the list at all.
+        Assert.DoesNotContain(angry, p => p.StartsWith("pop", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A genre whose end of a feeling does not sound like the feeling over the whole collection holds no
+    /// songs in it: no row, and nothing in the list over the whole collection. In the blind check of
+    /// 2026-11-18 the angriest jazz was 0 of 10 angry.
+    /// </summary>
+    [Fact]
+    public void A_genre_whose_end_is_not_the_feeling_is_not_in_the_list()
+    {
+        var metal = Ramp("metal", 100);
+        var jazz = Ramp("jazz", 50);
+        var feelings = new Dictionary<string, FeelingScores>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < metal.Count; i++)
+            feelings[metal[i].RelativePath] = Only(Feeling.Angry, 0.3 + i / 200.0);
+        for (int i = 0; i < jazz.Count; i++)
+            feelings[jazz[i].RelativePath] = Only(Feeling.Angry, -0.4 + i / 100.0);
+
+        var shelf = MoodShelf.Build(
+            [.. metal, .. jazz], Merged(FiledAs(metal, "Metal"), FiledAs(jazz, "Jazz")),
+            NoCatalogue, Likes.None, Heard(feelings));
+
+        Assert.DoesNotContain(shelf.Angry.WholeList.Songs, p => p.StartsWith("jazz", StringComparison.Ordinal));
+        Assert.Empty(shelf.Angry.Within(["Jazz"], []).Songs);
+        Assert.Empty(shelf.Angry.GenresWorthListing(1).Where(g => g == "Jazz"));
+        Assert.NotEmpty(shelf.Angry.Within(["Metal"], []).Songs);
+    }
+
+    /// <summary>Each feeling's hip-hop row draws both hip-hop shelves, as the blind check heard them, and
+    /// the rap shelf is not a row of its own.</summary>
+    [Fact]
+    public void Each_feelings_hip_hop_row_holds_both_shelves()
+    {
+        foreach (var kind in new[] { SmartPlaylistKind.Melancholy, SmartPlaylistKind.Happy, SmartPlaylistKind.Angry, SmartPlaylistKind.Romantic })
+        {
+            Assert.Contains(new MoodCell(kind, "Rap"), MoodSets.CellsFor(kind, "Hip-Hop / Rap"));
+            Assert.True(MoodSets.IsAbsorbed(kind, "Rap"));
+            Assert.True(MoodSets.IsOffered(kind, "Hip-Hop / Rap"));
+        }
     }
 
     /// <summary>A song the sound pass has not reached is in none of the four lists, whatever it
@@ -173,10 +223,11 @@ public class FeelingListsTests
         Assert.Contains(rows[0].RelativePath, hidden.Melancholy.WholeList.Songs);
     }
 
-    /// <summary>The session's cut says whether Melancholy is shown from the one list that decides it.</summary>
+    /// <summary>Melancholy is on screen, in the moods folder, so the session takes the saddest songs out of
+    /// Chill.</summary>
     [Fact]
-    public void Melancholy_is_not_shown_yet()
-        => Assert.Contains(SmartPlaylistKind.Melancholy, SmartPlaylists.NotShownYet);
+    public void Melancholy_is_shown()
+        => Assert.Contains(SmartPlaylistKind.Melancholy, SmartPlaylists.Moods);
 
     /// <summary>Angry never holds Soul, and Romantic never holds Club: not a row of their own, and not
     /// in the list over the whole collection either.</summary>
@@ -205,8 +256,8 @@ public class FeelingListsTests
 
     // ── holiday music ──
 
-    /// <summary>Out of season, a holiday song is in no list at all, the calm ones included, and Festive is
-    /// empty. In season it is in Festive and may be anywhere else too.</summary>
+    /// <summary>Out of season, a holiday song is in no list at all, the calm ones included. In season it
+    /// may be anywhere a song of its sound may be.</summary>
     [Fact]
     public void Holiday_music_waits_for_its_season()
     {
@@ -220,11 +271,74 @@ public class FeelingListsTests
         var inSeason = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, Heard(feelings, holiday, season: true));
 
         Assert.DoesNotContain(carol, outOfSeason.Calm.WholeList.Songs);
-        Assert.Empty(outOfSeason.Festive.WholeList.Songs);
-
         Assert.Contains(carol, inSeason.Calm.WholeList.Songs);
-        Assert.Equal(new[] { carol }, inSeason.Festive.WholeList.Songs);
     }
+
+    /// <summary>
+    /// New Year's Eve is the songs about the new year first, then a party: what Feel Good holds and the
+    /// meter calls danceable. No Christmas song, however happy, and nothing outside its days.
+    /// </summary>
+    [Fact]
+    public void New_years_eve_is_the_new_years_songs_and_a_party()
+    {
+        // A rock shelf whose busiest, evenest songs are danceable (MoodBandsTests: busy over a level that
+        // holds still), and whose happiest songs are the same ones.
+        var rows = new List<MeasuredMood>();
+        for (int i = 0; i < 100; i++)
+        {
+            double at = i / 99.0;
+            rows.Add(Track($"rock-{i / 2}", at, at, 1 - at, i, artist: $"act {i / 2}"));
+        }
+        var filed = FiledAs(rows, "Rock");
+        var feelings = new Dictionary<string, FeelingScores>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < rows.Count; i++)
+            feelings[rows[i].RelativePath] = Only(Feeling.Happy, i / 100.0);
+
+        var auldLangSyne = rows[10].RelativePath;      // a quiet song about the new year
+        var carol = rows[99].RelativePath;             // the happiest and most danceable, and a Christmas song
+        var holiday = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { auldLangSyne, carol };
+        var newYear = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { auldLangSyne };
+
+        var night = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None,
+            Heard(feelings, holiday, season: true, newYear: newYear, newYearsEve: true));
+        var july = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None,
+            Heard(feelings, holiday, season: false, newYear: newYear, newYearsEve: false));
+
+        var list = night.NewYearsEve.WholeList.Songs;
+        Assert.Equal(auldLangSyne, list[0]);
+        Assert.DoesNotContain(carol, list);
+        Assert.Contains(rows[97].RelativePath, list);
+        Assert.All(list.Skip(1), p => Assert.Contains(p, night.Happy.WholeList.Songs));
+
+        Assert.Empty(july.NewYearsEve.WholeList.Songs);
+    }
+
+    [Theory]
+    [InlineData("Happy New Year", "Arrival", true)]
+    [InlineData("Auld Lang Syne", "", true)]
+    [InlineData("Track 3", "New Year's Eve Party Hits", true)]
+    [InlineData("Oudejaarsavond", "", true)]
+    [InlineData("Silent Night", "", false)]
+    [InlineData("Last Christmas", "", false)]
+    [InlineData("Yesterday", "Help!", false)]
+    public void The_new_years_songs_are_found_by_their_words(string title, string album, bool newYear)
+    {
+        Assert.Equal(newYear, HolidayMusic.IsNewYear(title, album, null));
+
+        // Every New Year's song is holiday music too, so it keeps out of the other lists in July.
+        if (newYear)
+            Assert.True(HolidayMusic.IsHoliday(title, album, null));
+    }
+
+    [Theory]
+    [InlineData(12, 25, false)]
+    [InlineData(12, 26, true)]
+    [InlineData(12, 31, true)]
+    [InlineData(1, 1, true)]
+    [InlineData(1, 2, false)]
+    [InlineData(6, 30, false)]
+    public void New_years_eve_runs_from_boxing_day_to_new_years_day(int month, int day, bool offered)
+        => Assert.Equal(offered, HolidayMusic.IsNewYearsEveTime(new DateTime(2026, month, day, 20, 0, 0)));
 
     [Theory]
     [InlineData("Silent Night", "Greatest Hits", "Pop", true)]
@@ -324,14 +438,12 @@ public class FeelingListsTests
     // ── the record cap ──
 
     [Fact]
-    public void Zen_and_festive_take_five_songs_from_a_record_and_the_rest_take_one()
+    public void Zen_takes_five_songs_from_a_record_and_the_rest_take_one()
     {
-        foreach (var kind in SmartPlaylists.NotShownYet)
+        foreach (var kind in Enum.GetValues<SmartPlaylistKind>())
             Assert.Equal(
-                kind is SmartPlaylistKind.Zen or SmartPlaylistKind.Festive ? 5 : 1,
+                kind is SmartPlaylistKind.Zen ? 5 : SmartPlaylists.MostFromOneRecord,
                 SmartPlaylists.MostFromOneRecordFor(kind));
-
-        Assert.Equal(SmartPlaylists.MostFromOneRecord, SmartPlaylists.MostFromOneRecordFor(SmartPlaylistKind.Calm));
     }
 
     // ── the scores ──

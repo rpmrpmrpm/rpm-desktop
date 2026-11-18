@@ -320,6 +320,31 @@ public sealed class MoodBands
     public const double SadOutOfChillAt = 0.95;
 
     /// <summary>
+    /// How strongly a genre's end of a feeling has to sound like that feeling over the WHOLE collection
+    /// for the genre to be in the list at all: the median whole-collection rank of the genre's ten best
+    /// records (one song each). A genre under it holds no songs in that list, so it has no row and adds
+    /// nothing to the list over the whole collection.
+    ///
+    /// <para><b>Why a cut within the genre needs it.</b> Every genre has a top 15%, and in some genres
+    /// that top is not the feeling at all. The angriest jazz is the least gentle jazz. In the blind check
+    /// of 2026-11-18 (12 genre rows, 180 songs) Angry x Jazz was the one row that failed: 0 of its 10
+    /// songs fitted. Its ten measured 0.78 here. Every row that held (8 to 10 of 10) measured 0.95 or
+    /// more. 0.9 sits in that gap.</para>
+    ///
+    /// <para><b>Measured, not listed.</b> Whether a genre's end holds together is a fact about the
+    /// collection, as the era window is (<see cref="MoodList"/>): a library of angry folk punk has an
+    /// Angry x Folk row, and one of gentle singer-songwriters does not. On the library it was found on,
+    /// it also leaves out Angry x Latin, Classical and Folk; Happy x Classical, Metal and Club; Romantic x
+    /// Metal, Classical and Soundtrack; and Melancholy x House, Punk, Disco, Club and Funk. Only Angry x
+    /// Jazz was listened to.</para>
+    /// </summary>
+    public const double FeelingRowHoldsAt = 0.9;
+
+    /// <summary>How many of a genre's best records <see cref="FeelingRowHoldsAt"/> is measured over: a
+    /// row's first reading shows about this many.</summary>
+    public const int FeelingRowSample = 10;
+
+    /// <summary>
     /// The styles and genre tags that make a record Zen: the calm part of the Ambient subtree in
     /// <c>Subgenres.Data.cs</c>.
     ///

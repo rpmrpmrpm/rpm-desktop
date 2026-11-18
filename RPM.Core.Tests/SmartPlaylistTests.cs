@@ -79,49 +79,39 @@ public class SmartPlaylistTests : IDisposable
         // every kind: that is what catches a kind added to the enum and then listed nowhere. But a
         // decade belongs in the decades folder, and a row called "Decade" with no decade on it is not
         // a list anybody can open. See SmartPlaylists.InTheirOwnFolder.
-        //
-        // The feeling lists are built and not yet offered (SmartPlaylists.NotShownYet), so they are in
-        // neither list. They are counted here so that they cannot be forgotten either.
         Assert.Equal(
             Enum.GetValues<SmartPlaylistKind>().OrderBy(k => k),
-            SmartPlaylists.All
-                .Concat(SmartPlaylists.InTheirOwnFolder)
-                .Concat(SmartPlaylists.NotShownYet)
-                .OrderBy(k => k));
+            SmartPlaylists.All.Concat(SmartPlaylists.InTheirOwnFolder).OrderBy(k => k));
 
         Assert.Empty(SmartPlaylists.All.Intersect(SmartPlaylists.InTheirOwnFolder));
-        Assert.Empty(SmartPlaylists.All.Intersect(SmartPlaylists.NotShownYet));
     }
 
-    /// <summary>A kind that is not shown yet must not reach a surface through one of the other named
-    /// lists either: the moods folder, the home screen, what is sent to the phone, or a genre's page.</summary>
+    /// <summary>The six lists the sound model and the tags make are moods like the five the meter makes:
+    /// in the moods folder, on the home screen and sent to the phone. The four cut within a genre have
+    /// genre rows; Zen and New Year's Eve do not.</summary>
     [Fact]
-    public void A_kind_not_shown_yet_is_on_no_surface()
+    public void The_lists_the_sound_model_makes_are_moods()
     {
-        foreach (var kind in SmartPlaylists.NotShownYet)
+        SmartPlaylistKind[] six =
+        [
+            SmartPlaylistKind.Melancholy, SmartPlaylistKind.Happy, SmartPlaylistKind.Angry,
+            SmartPlaylistKind.Romantic, SmartPlaylistKind.Zen, SmartPlaylistKind.NewYearsEve,
+        ];
+        foreach (var kind in six)
         {
-            Assert.DoesNotContain(kind, SmartPlaylists.Moods);
-            Assert.DoesNotContain(kind, SmartPlaylists.OnTheHomeScreen);
-            Assert.DoesNotContain(kind, SmartPlaylists.SentOut);
-            Assert.DoesNotContain(kind, SmartPlaylists.EssentialForAGenre);
-            Assert.DoesNotContain(kind, SmartPlaylists.BrokenOutByGenre);
+            Assert.Contains(kind, SmartPlaylists.Moods);
+            Assert.Contains(kind, SmartPlaylists.OnTheHomeScreen);
+            Assert.Contains(kind, SmartPlaylists.SentOut);
+            Assert.True(SmartPlaylists.NeedsMeasuring(kind));
             Assert.DoesNotContain(kind, SmartPlaylists.BrokenOutByEra);
         }
-    }
 
-    /// <summary>The feeling lists answer on an empty library too, although no surface asks for them
-    /// yet: each has a rule, a floor, and an empty answer.</summary>
-    [Fact]
-    public void Every_kind_not_shown_yet_answers_on_an_empty_library()
-    {
-        foreach (var kind in SmartPlaylists.NotShownYet)
-        {
-            Assert.True(SmartPlaylists.LeastForWholeShelf(kind) >= 1);
-            Assert.True(
-                SmartPlaylists.LeastForNarrowedRow(kind) <= SmartPlaylists.LeastForWholeShelf(kind));
-            Assert.Empty(_db.QuerySmartPlaylist(SmartPlaylistId.WholeShelf(kind), Now.UtcTicks, advance: false));
-            Assert.Equal((0, 0d, false), _db.SmartPlaylistTotals(SmartPlaylistId.WholeShelf(kind), Now.UtcTicks));
-        }
+        Assert.Contains(SmartPlaylistKind.Melancholy, SmartPlaylists.BrokenOutByGenre);
+        Assert.Contains(SmartPlaylistKind.Happy, SmartPlaylists.BrokenOutByGenre);
+        Assert.Contains(SmartPlaylistKind.Angry, SmartPlaylists.BrokenOutByGenre);
+        Assert.Contains(SmartPlaylistKind.Romantic, SmartPlaylists.BrokenOutByGenre);
+        Assert.DoesNotContain(SmartPlaylistKind.Zen, SmartPlaylists.BrokenOutByGenre);
+        Assert.DoesNotContain(SmartPlaylistKind.NewYearsEve, SmartPlaylists.BrokenOutByGenre);
     }
 
     [Fact]

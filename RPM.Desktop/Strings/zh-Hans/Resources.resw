@@ -3515,6 +3515,22 @@
     <value>无法加载此个人主页。请检查网络连接后重试。</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>显示另外 {0} 条回复</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>显示另外 1 条回复</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
+  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
+    <value>无法发送。请检查网络连接后重试。</value>
+    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
+  </data>
+  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
+    <value>无法保存你的更改。请检查网络连接后重试。</value>
+    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
+  </data>
   <data name="Rpm_Profile_Menu" xml:space="preserve">
     <value>菜单</value>
     <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
@@ -6958,25 +6974,73 @@
     <value>古典</value>
     <comment>Generated playlist holding the collection's classical music, in album and track order.</comment>
   </data>
+  <data name="Playlists_Melancholy" xml:space="preserve">
+    <value>忧郁</value>
+    <comment>Name of the generated playlist of the saddest, most melancholy songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Happy" xml:space="preserve">
+    <value>好心情</value>
+    <comment>Name of the generated playlist of the happiest, most upbeat songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Angry" xml:space="preserve">
+    <value>怒火</value>
+    <comment>Name of the generated playlist of the angriest, most aggressive songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Romantic" xml:space="preserve">
+    <value>约会之夜</value>
+    <comment>Name of the generated playlist of tender, romantic love songs from each genre.</comment>
+  </data>
+  <data name="Playlists_Zen" xml:space="preserve">
+    <value>禅</value>
+    <comment>Name of the generated playlist of still ambient and new age music, for meditating or unwinding.</comment>
+  </data>
+  <data name="Playlists_NewYearsEve" xml:space="preserve">
+    <value>跨年夜</value>
+    <comment>Name of the generated playlist for New Year's Eve: songs about the new year, then party songs. Shown only around 31 December.</comment>
+  </data>
   <data name="Playlists_BlurbCalm" xml:space="preserve">
-    <value>你收藏中安静的一面：{0}。放松一下吧。</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+    <value>放松一下，听听你收藏中最柔和的{0}。不赶时间，没有喧闹，只有你和音乐。</value>
+    <comment>Description under the Chill playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbEnergetic" xml:space="preserve">
-    <value>让你热血沸腾的{0}！</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>调大音量！你收藏中最响亮、最有活力的{0}，在你需要一点额外动力的时候。</value>
+    <comment>Description under the Adrenaline playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbDanceable" xml:space="preserve">
-    <value>让派对继续下去的{0}。</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>来自你{0}的稳定节拍与律动。腾出点空间，这份歌单就是为舞动而生！</value>
+    <comment>Description under the Dancefloor playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbFocus" xml:space="preserve">
-    <value>需要专注时听的{0}。</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>平稳、从容的{0}，不会打扰你，让你专心把事情做完。</value>
+    <comment>Description under the Focus playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbSleep" xml:space="preserve">
-    <value>适合深夜时分的音乐。</value>
-    <comment>Description under the sleep playlist name. It names no genres because the list is not cut by genre.</comment>
+    <value>安静而温柔，献给一天的尾声。播放它，调暗灯光，慢慢入睡。</value>
+    <comment>Description under the Lights out playlist name. It names no genres because the list is not cut by genre.</comment>
+  </data>
+  <data name="Playlists_BlurbMelancholy" xml:space="preserve">
+    <value>你收藏中最忧郁的{0}，献给阴沉的日子。当你只想好好感受一下时，这些歌懂你。</value>
+    <comment>Description under the Melancholy playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbHappy" xml:space="preserve">
+    <value>来自你{0}的满满阳光。按下播放，看看你能不能忍住不笑！</value>
+    <comment>Description under the Feel Good playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbAngry" xml:space="preserve">
+    <value>你收藏中最愤怒的{0}。调大音量，尽情发泄，之后你会感觉好很多！</value>
+    <comment>Description under the Rage playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbRomantic" xml:space="preserve">
+    <value>来自你{0}的温柔与温暖，专属两个人。点上蜡烛，倒一杯酒，让音乐营造氛围。</value>
+    <comment>Description under the Date Night playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbZen" xml:space="preserve">
+    <value>适合深呼吸的氛围与新世纪音乐。放慢脚步，闭上眼睛，让平静将你包围。</value>
+    <comment>Description under the Zen playlist name. It names no genres: the list is ambient and new age records only.</comment>
+  </data>
+  <data name="Playlists_BlurbNewYearsEve" xml:space="preserve">
+    <value>倒计时开始啦！用这些歌送走旧年，狂欢迎接新年。</value>
+    <comment>Description under the New Year's Eve playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
   </data>
   <data name="Playlists_GenreAnd" xml:space="preserve">
     <value>{0}和{1}</value>
@@ -7465,22 +7529,6 @@
   <data name="Rpm_Profile_ArtCacheDetail" xml:space="preserve">
     <value>封面保存在这台手机上，因此会立即显示。需要时会重新下载。</value>
     <comment>Explains the artwork cache on the iPhone profile, under its size.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
-    <value>显示另外 {0} 条回复</value>
-    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
-    <value>显示另外 1 条回复</value>
-    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
-  </data>
-  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
-    <value>无法发送。请检查网络连接后重试。</value>
-    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
-  </data>
-  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
-    <value>无法保存你的更改。请检查网络连接后重试。</value>
-    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
   </data>
   <data name="Rpm_Queue_ToComeOne" xml:space="preserve">
     <value>还有 1 首</value>

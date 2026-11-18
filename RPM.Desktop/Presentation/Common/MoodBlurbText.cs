@@ -29,10 +29,15 @@ public static class MoodBlurbText
     /// electronic list, not two rare ones. Ignored for the sleep list, which names no genres.</param>
     public static string? For(SmartPlaylistId id, IEnumerable<string?> tags)
     {
-        // Sleep names no genres. It is the one mood that is cut across all of them. A list of three genres
-        // would describe the shelf, not the list.
-        if (id.Kind == SmartPlaylistKind.Sleep)
-            return Loc.Get("Playlists_BlurbSleep");
+        // Three moods name no genres. Sleep is cut across all of them, Zen is ambient and new age records
+        // only, and New Year's Eve is a night, not a cut by genre. A list of three genres would describe the
+        // shelf, not the list.
+        switch (id.Kind)
+        {
+            case SmartPlaylistKind.Sleep: return Loc.Get("Playlists_BlurbSleep");
+            case SmartPlaylistKind.Zen: return Loc.Get("Playlists_BlurbZen");
+            case SmartPlaylistKind.NewYearsEve: return Loc.Get("Playlists_BlurbNewYearsEve");
+        }
 
         var key = id.Kind switch
         {
@@ -40,6 +45,10 @@ public static class MoodBlurbText
             SmartPlaylistKind.Energetic => "Playlists_BlurbEnergetic",
             SmartPlaylistKind.Danceable => "Playlists_BlurbDanceable",
             SmartPlaylistKind.Focus => "Playlists_BlurbFocus",
+            SmartPlaylistKind.Melancholy => "Playlists_BlurbMelancholy",
+            SmartPlaylistKind.Happy => "Playlists_BlurbHappy",
+            SmartPlaylistKind.Angry => "Playlists_BlurbAngry",
+            SmartPlaylistKind.Romantic => "Playlists_BlurbRomantic",
             _ => null,
         };
 

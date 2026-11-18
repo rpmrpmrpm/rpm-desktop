@@ -183,11 +183,13 @@ public class LibraryDatabaseSoundTests : IDisposable
         _db.Upsert(Track("genre.flac") with { Title = "Track 2", Genre = "Christmas" });
         _db.Upsert(Track("summer.flac") with { Title = "Dreadlock Holiday" });
         _db.Upsert(Track("plain.flac") with { Title = "Yesterday" });
+        _db.Upsert(Track("abba.flac") with { Title = "Happy New Year" });
 
-        var holiday = _db.QueryHolidayTracks();
+        var (holiday, newYear) = _db.QueryHolidayTracks();
 
         Assert.Equal(
-            new[] { "album.flac", "carol.flac", "genre.flac" },
+            new[] { "abba.flac", "album.flac", "carol.flac", "genre.flac" },
             holiday.Order(StringComparer.Ordinal));
+        Assert.Equal(new[] { "abba.flac" }, newYear);
     }
 }

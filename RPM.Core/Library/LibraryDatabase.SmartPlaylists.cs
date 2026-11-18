@@ -292,15 +292,10 @@ public sealed partial class LibraryDatabase
                 // read is used once per kind, so no two lists disagree about what the listener has
                 // said while a verdict is being written on another thread.
                 LikedByKind(),
-                // What the sound pass heard, and the words and styles the other two lists are found
-                // by. The date is read once, here, so a session that runs past the last day of the
-                // season keeps its Festive list until the next launch, as every list keeps its cut.
-                new ShelfHearing(
-                    QuerySoundFeelings(),
-                    QueryHolidayTracks(),
-                    MoodBands.ZenFolders(counts, facts),
-                    HolidayMusic.InSeason(DateTime.Now),
-                    MelancholyShown: !SmartPlaylists.NotShownYet.Contains(SmartPlaylistKind.Melancholy)));
+                // What the sound pass heard, and the words and styles the other lists are found by. The
+                // date is read once, here, so a session that runs past New Year's Day keeps its New
+                // Year's Eve list until the next launch, as every list keeps its cut.
+                Hearing(counts, facts, DateTime.Now));
 
             using (_cuts.Take())
             {
@@ -312,15 +307,33 @@ public sealed partial class LibraryDatabase
         }
     }
 
+    /// <summary>What the session's cut is given beside the meter's readings. See <see cref="ShelfHearing"/>.</summary>
+    private ShelfHearing Hearing(
+        IReadOnlyList<(string Folder, string Genre, int Count)> counts,
+        IReadOnlyDictionary<string, CatalogueFacts> facts,
+        DateTime local)
+    {
+        var (holiday, newYear) = QueryHolidayTracks();
+        return new ShelfHearing(
+            QuerySoundFeelings(),
+            holiday,
+            newYear,
+            MoodBands.ZenFolders(counts, facts),
+            HolidaySeason: HolidayMusic.InSeason(local),
+            NewYearsEveTime: HolidayMusic.IsNewYearsEveTime(local),
+            MelancholyShown: SmartPlaylists.Moods.Contains(SmartPlaylistKind.Melancholy));
+    }
+
     /// <summary>
-    /// The tracks that are holiday music (<see cref="HolidayMusic.IsHoliday"/>), by relative path.
+    /// The tracks that are holiday music (<see cref="HolidayMusic.IsHoliday"/>), and the ones among them
+    /// about the new year (<see cref="HolidayMusic.IsNewYear"/>), by relative path.
     ///
     /// <para>The words are matched in code, not in SQL: the rule has word edges and exceptions ("holiday"
     /// on its own, "Santa Barbara"), which LIKE cannot state. SQL narrows first, to the tracks whose tags
     /// hold any of <see cref="HolidayMusic.Hints"/>, so a library of thirty thousand tracks sends back a
     /// few hundred rows and not every title it has.</para>
     /// </summary>
-    public IReadOnlySet<string> QueryHolidayTracks()
+    public (IReadOnlySet<string> Holiday, IReadOnlySet<string> NewYear) QueryHolidayTracks()
     {
         List<(string Path, string? Title, string? Album, string? Genre)> rows;
         using (_readGate.Take())
@@ -351,10 +364,15 @@ public sealed partial class LibraryDatabase
 
         // Matched after the gate is let go, as the feeling scores are.
         var holiday = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var newYear = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (path, title, album, genre) in rows)
+        {
             if (HolidayMusic.IsHoliday(title, album, genre))
                 holiday.Add(path);
-        return holiday;
+            if (HolidayMusic.IsNewYear(title, album, genre))
+                newYear.Add(path);
+        }
+        return (holiday, newYear);
     }
 
     private ListeningProfile? _profile;
@@ -1185,7 +1203,7 @@ public sealed partial class LibraryDatabase
 
             // One list each over the whole collection, like Sleep: neither takes a genre or a decade.
             SmartPlaylistKind.Zen => new Shelf(id.Kind, null, 0),
-            SmartPlaylistKind.Festive => new Shelf(id.Kind, null, 0),
+            SmartPlaylistKind.NewYearsEve => new Shelf(id.Kind, null, 0),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(id), id, "This generated playlist has no rule yet."),

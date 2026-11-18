@@ -62,8 +62,10 @@ public static class MoodFlavour
             ["Ballad", "Easy Listening", "Sophisti-Pop", "Adult Contemporary", "Traditional Pop"],
         [(SmartPlaylistKind.Calm, "Hip-Hop / Rap")] =
             ["Conscious Hip Hop", "Alternative Hip Hop"],
+        // Quiet Storm moved to Date Night x R&B on 2026-11-18, with its name: it is late-night love songs,
+        // which is what that list is.
         [(SmartPlaylistKind.Calm, "R&B")] =
-            ["Quiet Storm", "Alternative R&B"],
+            ["Alternative R&B"],
 
         // ── Adrenaline ──
         [(SmartPlaylistKind.Energetic, "Rock")] =
@@ -86,6 +88,10 @@ public static class MoodFlavour
             ["New Jack Swing", "Contemporary R&B"],
         [(SmartPlaylistKind.Danceable, "Electronic / Dance")] =
             ["Eurodance", "Italo Dance", "Alternative Dance", "UK Garage", "Speed Garage"],
+
+        // ── Date Night ──
+        [(SmartPlaylistKind.Romantic, "R&B")] =
+            ["Quiet Storm"],
 
         // There are no lines for the jazz, classical, folk, country, reggae, latin or world pairs. A line
         // with no catalogue data behind it would narrow on a style the collection may not hold.

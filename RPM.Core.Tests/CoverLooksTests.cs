@@ -122,9 +122,8 @@ public class CoverLooksTests
         var asked = new List<string>();
         var moods = new List<string>();
 
-        foreach (var kind in new[] { SmartPlaylistKind.Calm, SmartPlaylistKind.Energetic,
-                                     SmartPlaylistKind.Danceable, SmartPlaylistKind.Focus,
-                                     SmartPlaylistKind.Sleep })
+        // Every list in the moods folder, so a mood added there is checked without being named here.
+        foreach (var kind in SmartPlaylists.Moods)
         {
             var mood = CoverLooks.Look(SmartPlaylistId.WholeShelf(kind))!.Value.Query;
             moods.Add(mood);

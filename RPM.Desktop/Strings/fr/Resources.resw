@@ -3515,6 +3515,22 @@
     <value>Impossible de charger ce profil. Vérifiez votre connexion et réessayez.</value>
     <comment>Phone profile page: the page could not be read.</comment>
   </data>
+  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
+    <value>Afficher {0} réponses de plus</value>
+    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
+  </data>
+  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
+    <value>Afficher 1 réponse de plus</value>
+    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
+  </data>
+  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
+    <value>Impossible d'envoyer. Vérifiez votre connexion et réessayez.</value>
+    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
+  </data>
+  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
+    <value>Impossible d'enregistrer vos modifications. Vérifiez votre connexion et réessayez.</value>
+    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
+  </data>
   <data name="Rpm_Profile_Menu" xml:space="preserve">
     <value>Menu</value>
     <comment>Phone profile page: accessibility label of the round menu key at the top right.</comment>
@@ -6958,25 +6974,73 @@
     <value>Classique</value>
     <comment>Generated playlist holding the collection's classical music, in album and track order.</comment>
   </data>
+  <data name="Playlists_Melancholy" xml:space="preserve">
+    <value>Mélancolie</value>
+    <comment>Name of the generated playlist of the saddest, most melancholy songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Happy" xml:space="preserve">
+    <value>Bonne humeur</value>
+    <comment>Name of the generated playlist of the happiest, most upbeat songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Angry" xml:space="preserve">
+    <value>Rage</value>
+    <comment>Name of the generated playlist of the angriest, most aggressive songs of each genre.</comment>
+  </data>
+  <data name="Playlists_Romantic" xml:space="preserve">
+    <value>Soirée en amoureux</value>
+    <comment>Name of the generated playlist of tender, romantic love songs from each genre.</comment>
+  </data>
+  <data name="Playlists_Zen" xml:space="preserve">
+    <value>Zen</value>
+    <comment>Name of the generated playlist of still ambient and new age music, for meditating or unwinding.</comment>
+  </data>
+  <data name="Playlists_NewYearsEve" xml:space="preserve">
+    <value>Réveillon du Nouvel An</value>
+    <comment>Name of the generated playlist for New Year's Eve: songs about the new year, then party songs. Shown only around 31 December.</comment>
+  </data>
   <data name="Playlists_BlurbCalm" xml:space="preserve">
-    <value>Le côté tranquille de votre {0}. Prenez un moment pour souffler.</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+    <value>Détendez-vous avec le côté le plus doux de votre {0}. Pas de stress, pas de bruit, juste vous et la musique.</value>
+    <comment>Description under the Chill playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbEnergetic" xml:space="preserve">
-    <value>Votre {0}, à fond !</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>Montez le son ! Le plus fort et le plus vivant de votre {0}, pour quand il vous faut un coup de boost.</value>
+    <comment>Description under the Adrenaline playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbDanceable" xml:space="preserve">
-    <value>Votre {0} pour faire durer la fête.</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>Des rythmes réguliers et de gros grooves tirés de votre {0}. Faites de la place, ici on danse !</value>
+    <comment>Description under the Dancefloor playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbFocus" xml:space="preserve">
-    <value>Votre {0} pour rester concentré quand il le faut.</value>
-    <comment>Description under a mood playlist name. {0} is a list of genres.</comment>
+    <value>Le côté posé et régulier de votre {0}, qui reste discret pour que vous puissiez vous plonger dans ce que vous faites.</value>
+    <comment>Description under the Focus playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
   </data>
   <data name="Playlists_BlurbSleep" xml:space="preserve">
-    <value>La musique idéale pour le milieu de la nuit.</value>
-    <comment>Description under the sleep playlist name. It names no genres because the list is not cut by genre.</comment>
+    <value>Calme, douce et feutrée, pour la fin de la journée. Lancez-la, baissez la lumière et laissez-vous glisser dans le sommeil.</value>
+    <comment>Description under the Lights out playlist name. It names no genres because the list is not cut by genre.</comment>
+  </data>
+  <data name="Playlists_BlurbMelancholy" xml:space="preserve">
+    <value>Le côté le plus mélancolique de votre {0}, pour les jours gris. Quand vous avez juste besoin de ressentir les choses, ces chansons vous comprennent.</value>
+    <comment>Description under the Melancholy playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbHappy" xml:space="preserve">
+    <value>Une bonne dose de soleil tirée de votre {0}. Lancez la lecture et essayez de ne pas sourire !</value>
+    <comment>Description under the Feel Good playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbAngry" xml:space="preserve">
+    <value>Le plus rageur de votre {0}. Montez le son, lâchez tout, et vous vous sentirez bien mieux après !</value>
+    <comment>Description under the Rage playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbRomantic" xml:space="preserve">
+    <value>Le côté tendre et chaleureux de votre {0}, pour deux. Allumez une bougie, servez un verre et laissez la musique créer l'ambiance.</value>
+    <comment>Description under the Date Night playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
+  </data>
+  <data name="Playlists_BlurbZen" xml:space="preserve">
+    <value>De l'ambient et du new age pour souffler. Ralentissez, fermez les yeux et laissez le calme vous envahir.</value>
+    <comment>Description under the Zen playlist name. It names no genres: the list is ambient and new age records only.</comment>
+  </data>
+  <data name="Playlists_BlurbNewYearsEve" xml:space="preserve">
+    <value>Le compte à rebours a commencé ! Des chansons pour dire au revoir à l'année qui s'achève et fêter la nouvelle.</value>
+    <comment>Description under the New Year's Eve playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
   </data>
   <data name="Playlists_GenreAnd" xml:space="preserve">
     <value>{0} et {1}</value>
@@ -7465,22 +7529,6 @@
   <data name="Rpm_Profile_ArtCacheDetail" xml:space="preserve">
     <value>Pochettes conservées sur ce téléphone pour un affichage instantané. Elles sont retéléchargées au besoin.</value>
     <comment>Explains the artwork cache on the iPhone profile, under its size.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreReplies" xml:space="preserve">
-    <value>Afficher {0} réponses de plus</value>
-    <comment>Desktop post thread: a key under a reply six levels deep that opens the replies under it. {0} is how many.</comment>
-  </data>
-  <data name="Rpm_Profile_ShowMoreRepliesOne" xml:space="preserve">
-    <value>Afficher 1 réponse de plus</value>
-    <comment>Desktop post thread: the same key when one reply is hidden under it.</comment>
-  </data>
-  <data name="Rpm_Profile_SendFailed" xml:space="preserve">
-    <value>Impossible d'envoyer. Vérifiez votre connexion et réessayez.</value>
-    <comment>Desktop profile page and post thread: a post or reply could not be sent.</comment>
-  </data>
-  <data name="Rpm_Profile_SaveFailed" xml:space="preserve">
-    <value>Impossible d'enregistrer vos modifications. Vérifiez votre connexion et réessayez.</value>
-    <comment>Desktop profile edit page: Save failed on the server or the connection.</comment>
   </data>
   <data name="Rpm_Queue_ToComeOne" xml:space="preserve">
     <value>1 morceau à venir</value>

@@ -90,6 +90,15 @@ public static class CoverLooks
         SmartPlaylistKind.Focus => "still lake morning mist",
         SmartPlaylistKind.Sleep => "moonlight",
 
+        // What the sound model hears. A scene each, as above, and never a face: a cover of a sad face is a
+        // stranger's sadness on the listener's playlist.
+        SmartPlaylistKind.Melancholy => "rain on window",
+        SmartPlaylistKind.Happy => "sunflower field sunshine",
+        SmartPlaylistKind.Angry => "fire flames dark",
+        SmartPlaylistKind.Romantic => "candlelight table for two",
+        SmartPlaylistKind.Zen => "zen garden stones",
+        SmartPlaylistKind.NewYearsEve => "fireworks night sky",
+
         // A decade always carries its own number, and never reaches this. Look answers the decade case
         // first. The line exists so that a kind with no words is a decision, not a gap.
         SmartPlaylistKind.Decade => "record shop interior",
