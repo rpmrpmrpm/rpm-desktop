@@ -79,11 +79,49 @@ public class SmartPlaylistTests : IDisposable
         // every kind: that is what catches a kind added to the enum and then listed nowhere. But a
         // decade belongs in the decades folder, and a row called "Decade" with no decade on it is not
         // a list anybody can open. See SmartPlaylists.InTheirOwnFolder.
+        //
+        // The feeling lists are built and not yet offered (SmartPlaylists.NotShownYet), so they are in
+        // neither list. They are counted here so that they cannot be forgotten either.
         Assert.Equal(
             Enum.GetValues<SmartPlaylistKind>().OrderBy(k => k),
-            SmartPlaylists.All.Concat(SmartPlaylists.InTheirOwnFolder).OrderBy(k => k));
+            SmartPlaylists.All
+                .Concat(SmartPlaylists.InTheirOwnFolder)
+                .Concat(SmartPlaylists.NotShownYet)
+                .OrderBy(k => k));
 
         Assert.Empty(SmartPlaylists.All.Intersect(SmartPlaylists.InTheirOwnFolder));
+        Assert.Empty(SmartPlaylists.All.Intersect(SmartPlaylists.NotShownYet));
+    }
+
+    /// <summary>A kind that is not shown yet must not reach a surface through one of the other named
+    /// lists either: the moods folder, the home screen, what is sent to the phone, or a genre's page.</summary>
+    [Fact]
+    public void A_kind_not_shown_yet_is_on_no_surface()
+    {
+        foreach (var kind in SmartPlaylists.NotShownYet)
+        {
+            Assert.DoesNotContain(kind, SmartPlaylists.Moods);
+            Assert.DoesNotContain(kind, SmartPlaylists.OnTheHomeScreen);
+            Assert.DoesNotContain(kind, SmartPlaylists.SentOut);
+            Assert.DoesNotContain(kind, SmartPlaylists.EssentialForAGenre);
+            Assert.DoesNotContain(kind, SmartPlaylists.BrokenOutByGenre);
+            Assert.DoesNotContain(kind, SmartPlaylists.BrokenOutByEra);
+        }
+    }
+
+    /// <summary>The feeling lists answer on an empty library too, although no surface asks for them
+    /// yet: each has a rule, a floor, and an empty answer.</summary>
+    [Fact]
+    public void Every_kind_not_shown_yet_answers_on_an_empty_library()
+    {
+        foreach (var kind in SmartPlaylists.NotShownYet)
+        {
+            Assert.True(SmartPlaylists.LeastForWholeShelf(kind) >= 1);
+            Assert.True(
+                SmartPlaylists.LeastForNarrowedRow(kind) <= SmartPlaylists.LeastForWholeShelf(kind));
+            Assert.Empty(_db.QuerySmartPlaylist(SmartPlaylistId.WholeShelf(kind), Now.UtcTicks, advance: false));
+            Assert.Equal((0, 0d, false), _db.SmartPlaylistTotals(SmartPlaylistId.WholeShelf(kind), Now.UtcTicks));
+        }
     }
 
     [Fact]

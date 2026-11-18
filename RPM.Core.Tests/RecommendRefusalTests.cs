@@ -136,7 +136,7 @@ public class RecommendRefusalTests : IDisposable
         foreach (var row in rows)
             filed[row.Folder] = "Rock";
 
-        var whole = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None).Danceable.WholeList;
+        var whole = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing).Danceable.WholeList;
 
         var before = whole.Allowed(RecommendRefusals.None, SmartPlaylistKind.Danceable);
         var after = whole.Allowed(
@@ -162,7 +162,7 @@ public class RecommendRefusalTests : IDisposable
         };
         var filed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["rock/a"] = "Rock" };
 
-        var pool = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None).Danceable.WholeList;
+        var pool = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing).Danceable.WholeList;
 
         Assert.Same(pool, pool.Allowed(RecommendRefusals.None, SmartPlaylistKind.Danceable));
     }

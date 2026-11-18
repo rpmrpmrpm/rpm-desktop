@@ -1899,6 +1899,10 @@ public sealed partial class LibraryDatabase : IDisposable
         // a version step, for the same reason as release_type above.
         CreateIdAliasTable();
 
+        // Each track's CLAP embedding (see LibraryDatabase.Sound). Created on every open and not behind a
+        // version step, for the same reason as release_type above.
+        CreateSoundTable();
+
         // The one order it is read in: most played first. A small table (a row per list that a
         // listener has started), so this is cheap to keep and turns the quick selection's read into
         // a walk of the index.

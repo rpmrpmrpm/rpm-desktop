@@ -424,7 +424,12 @@
          written by scripts/export_wav2vec2_onnx.py and quantised by scripts/quantize_wav2vec2.py). It
          ships as its eight-bit copy with its vocabulary, which the aligner needs.
 
-         Not committed: the four files are 214 MB together. FetchRpmModels below downloads each one that
+         The audio half of CLAP (laion/larger_clap_music_and_speech, Apache 2.0) hears each record for the
+         feeling lists. It ships as its eight-bit copy, written by scripts/export_clap_onnx.py, which also
+         writes the prompts' text embeddings into RPM.Core/Analysis/SoundPrompts.Data.cs. The text half
+         does not ship.
+
+         Not committed: the five files are 291 MB together. FetchRpmModels below downloads each one that
          is missing from $(RpmModelHost)<Sha256>/<file name> and checks it against Sha256, so a clean
          checkout builds. Everything that ships comes from this one list, so a model cannot be shipped
          without being fetched, and every build of a commit ships the same bytes. -->
@@ -432,6 +437,7 @@
     <RpmModel Include="Assets\OnnxModels\skey.onnx" Sha256="be50b8b287ae654844286e4f0ba7603c268272c2a635340b1e54f15c402940b2" />
     <RpmModel Include="Assets\OnnxModels\wav2vec2.int8.onnx" Sha256="88b6ad0240f550756d0c82ec8eaad2a241c187f2238e165f5a20754189f2eca3" />
     <RpmModel Include="Assets\OnnxModels\wav2vec2.vocab.json" Sha256="4d70b35556db6d771a3d295d4e153399a79e253a17049f8c424ea597139dcab0" />
+    <RpmModel Include="Assets\OnnxModels\clap_audio.int8.onnx" Sha256="4f3d6f1766fde37f9662a7e7479153533e8e0409a31f0ccf47292abddfee8050" />
     <Content Include="@(RpmModel)" CopyToOutputDirectory="PreserveNewest" />
 
     <!-- The sound the app makes when it opens. Read by path off the sound device, so it is copied

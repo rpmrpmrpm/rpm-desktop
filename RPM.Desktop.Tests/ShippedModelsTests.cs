@@ -55,6 +55,16 @@ public sealed class ShippedModelsTests
         Assert.Contains("wav2vec2.vocab.json", fetched);
     }
 
+    /// <summary>The sound model, named for the same reason: dropping it from the list sends every
+    /// computer's feeling lists to the cloud, and nothing on screen would say why.</summary>
+    [Fact]
+    public void The_sound_model_ships()
+    {
+        var (_, fetched) = Models(Desktop);
+
+        Assert.Contains("clap_audio.int8.onnx", fetched);
+    }
+
     /// <summary>The file names under Assets/OnnxModels that the build copies as content, and the ones
     /// it fetches by hash.</summary>
     private static (SortedSet<string> Shipped, SortedSet<string> Fetched) Models(string targetFramework)

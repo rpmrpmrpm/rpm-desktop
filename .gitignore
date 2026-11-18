@@ -539,7 +539,7 @@ signing.local.props
 # Apple team and is kept on the release machine only.
 RPM.Desktop/RPM.Desktop.provisionprofile
 
-# The beat, key and lyric timing models. The four that ship are 214 MB together and can be rebuilt
+# The beat, key, lyric timing and sound models. The five that ship are 291 MB together and can be rebuilt
 # from upstream by scripts/export_*_onnx.py. The float32 wav2vec2 and the eight-bit beat model
 # exist only in a working copy and do not ship. None of them is committed: the build downloads the
 # ones that ship from updates.rpmrpmrpm.com and checks their hashes (FetchRpmModels in
@@ -552,6 +552,7 @@ RPM.Desktop/Assets/OnnxModels/wav2vec2.onnx
 RPM.Desktop/Assets/OnnxModels/wav2vec2.onnx.data
 RPM.Desktop/Assets/OnnxModels/wav2vec2.int8.onnx
 RPM.Desktop/Assets/OnnxModels/wav2vec2.vocab.json
+RPM.Desktop/Assets/OnnxModels/clap_audio.*.onnx
 
 # Benchmark corpora and their annotations, fetched by scripts/fetch-tempo-corpora.sh: 2.5 GB of
 # other people's audio and a tempo_eval checkout. The results a run produces are kept

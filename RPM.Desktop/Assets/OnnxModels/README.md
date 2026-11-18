@@ -1,7 +1,8 @@
 # ONNX models
 
 `u2netp.onnx` and `ultraface.onnx` are committed, a few megabytes each. `beat_this.onnx`,
-`skey.onnx`, `wav2vec2.int8.onnx` and `wav2vec2.vocab.json` are not: 214 megabytes the four. They are
+`skey.onnx`, `wav2vec2.int8.onnx`, `wav2vec2.vocab.json` and `clap_audio.int8.onnx` are not: 291
+megabytes the five. They are
 listed as `RpmModel` items in
 `RPM.Desktop.csproj`, each with its SHA-256, and the build's `FetchRpmModels` target downloads any
 that is missing from `https://updates.rpmrpmrpm.com/models/<sha256>/<name>` and checks the hash
@@ -250,3 +251,38 @@ open the app over.
   check on a PC when it matters.
 - **DirectML**: a win-x64 publish of LyricBench takes the DirectML build of ONNX Runtime unless given
   `-p:RpmOnnxDirectMl=false`. On the processor the two place words the same.
+
+## clap_audio.int8.onnx
+
+The audio half of CLAP, a model trained to put a sound and a sentence about it near each other. Given
+ten seconds of audio it returns 512 numbers. The app hears each record as three ten-second clips (at
+20%, 50% and 80% of its length, `SoundClips`), averages the three, and compares the result with fixed
+text prompts such as "sad melancholic music" (`SoundPrompts`). That comparison ranks the feeling lists:
+Melancholy, Happy, Angry and Romantic. It was chosen over RPM's own measurements by a blind listening
+test; see rpm-notes/docs/PLAN-VALENCE-MOODS.md.
+
+- **Upstream**: <https://huggingface.co/laion/larger_clap_music_and_speech> (LAION; Wu et al.,
+  "Large-scale Contrastive Language-Audio Pretraining", ICASSP 2023). `laion/larger_clap_music` is
+  broken as published: every text gives the same embedding. Do not switch to it.
+- **Licence**: Apache 2.0 for the weights. Part of the training data (Freesound clips in
+  LAION-Audio-630K) carries non-commercial licences; shipping it was decided with that known.
+- **Size**: 77 MB, eight-bit weights. Float32 is 281 MB. Half precision (143 MB) runs 40% slower on a
+  processor and uses more memory, so it does not ship.
+- **IO**: input `input_features [clips, 1, 1001, 64]`, CLAP's log-mel (`ClapFeatures`, tested against
+  the model's own feature extractor); output `embedding [clips, 512]`. The clip axis is free.
+- **The text half does not ship.** The prompts never change while the app runs, so their text
+  embeddings are worked out once and written into `RPM.Core/Analysis/SoundPrompts.Data.cs`.
+- **Rebuild**: `scripts/export_clap_onnx.py`. It exports with the TorchScript exporter at opset 17,
+  quantises the MatMul weights only (as `quantize_beat_this.py` does, and for the same ConvInteger
+  reason), checks the file against PyTorch, writes the prompts' data file, and prints the SHA-256 for
+  the `RpmModel` item. Take the PyTorch reference before exporting: tracing changes the model object.
+- **Eight-bit against float32**: over 1,320 tracks, Spearman 0.999 on every feeling's ranking; each
+  list's top ten keeps 9 or 10 of its songs, and the songs that change were judged as fitting in the
+  blind test. On a Ryzen 7 5700G (AVX2, no VNNI), the C# path gives the Python embeddings exactly.
+- **Cost**: about 1.1 s a record on two threads (Ryzen 7 5700G), of which 0.15 s is the three clip
+  decodes. About 240 MB while it runs, 140 MB of it the session, which `SoundService` closes when the
+  pass has nothing left to do.
+- **In the cloud**: `RPM.Lambda.Transcode` runs the same file (`SoundModelHost`, weights from
+  `RPM_SOUND_MODEL_S3`) for a computer that fails the beat model test. The file must be uploaded there
+  too when it changes.
+- **Not in the preflight manifest**, like wav2vec2: a computer without it asks the cloud instead.

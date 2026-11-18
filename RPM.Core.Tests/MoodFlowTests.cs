@@ -224,7 +224,8 @@ public class MoodFlowTests
     public void The_pool_orders_without_changing_what_it_picked()
     {
         var pool = new MoodPool(
-            [.. Enumerable.Range(0, 12).Select(i => Song($"{i}", (i * 5 % 12) / 12.0))]);
+            [.. Enumerable.Range(0, 12).Select(i => Song($"{i}", (i * 5 % 12) / 12.0))],
+            SmartPlaylists.MostFromOneRecord);
 
         var ranked = pool.Window(8, 0);
         var flowed = pool.InFlow(8, readings: 1, 0, _ => NoKeys);
@@ -254,7 +255,8 @@ public class MoodFlowTests
     {
         // Twelve records, one song each, whose brightness is in a different order from their rank.
         var pool = new MoodPool(
-            [.. Enumerable.Range(0, 12).Select(i => Song($"{i:00}", (i * 5 % 12) / 12.0))]);
+            [.. Enumerable.Range(0, 12).Select(i => Song($"{i:00}", (i * 5 % 12) / 12.0))],
+            SmartPlaylists.MostFromOneRecord);
 
         var oneList = pool.InFlow(4, readings: 1, 0, _ => NoKeys);
         var run = pool.InFlow(4, readings: 3, 0, _ => NoKeys);
@@ -278,7 +280,8 @@ public class MoodFlowTests
     [Fact]
     public void The_pool_asks_for_the_keys_of_exactly_the_songs_it_picked()
     {
-        var pool = new MoodPool([.. Enumerable.Range(0, 12).Select(i => Song($"{i}", i / 12.0))]);
+        var pool = new MoodPool(
+            [.. Enumerable.Range(0, 12).Select(i => Song($"{i}", i / 12.0))], SmartPlaylists.MostFromOneRecord);
 
         var asked = new List<IReadOnlyList<string>>();
         var flowed = pool.InFlow(5, readings: 1, 0, paths =>

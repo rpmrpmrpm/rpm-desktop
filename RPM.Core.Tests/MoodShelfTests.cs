@@ -67,7 +67,7 @@ public class MoodShelfTests
         var rows = Ramp("rock", 100);
         var filed = FiledAs(rows, "Rock");
 
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         // By RECORD, not by track: the cap keeps one song from any album, and which of a record's two
         // songs the ranking keeps is not what this test is about.
@@ -101,7 +101,7 @@ public class MoodShelfTests
         }
 
         var filed = Filed(("dance", "Electronic / Dance"), ("classical", "Classical"));
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.Contains(shelf.Calm.WholeList.Songs, p => p.StartsWith("dance/", StringComparison.Ordinal));
         Assert.Contains(shelf.Calm.WholeList.Songs, p => p.StartsWith("classical/", StringComparison.Ordinal));
@@ -117,7 +117,7 @@ public class MoodShelfTests
         var rows = Ramp("rock", 200);
         var filed = FiledAs(rows, "Rock");
 
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.Equal(rows[0].RelativePath, shelf.Calm.WholeList.Songs[0]);
         Assert.Equal(rows[^1].RelativePath, shelf.Energetic.WholeList.Songs[0]);
@@ -132,8 +132,8 @@ public class MoodShelfTests
         var filed = FiledAs(rows, "Rock");
 
         Assert.Equal(
-            MoodShelf.Build(rows, filed, NoCatalogue, Likes.None).Calm.WholeList.Songs,
-            MoodShelf.Build(rows, filed, NoCatalogue, Likes.None).Calm.WholeList.Songs);
+            MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList.Songs,
+            MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList.Songs);
     }
 
     /// <summary>Danceable is ordered by how far past both of its conditions a track is, because the
@@ -151,7 +151,7 @@ public class MoodShelfTests
         }
 
         var filed = Filed(("dance", "Electronic / Dance"));
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.NotEmpty(shelf.Danceable.WholeList.Songs);
         Assert.Equal(rows[^1].RelativePath, shelf.Danceable.WholeList.Songs[0]);
@@ -163,7 +163,7 @@ public class MoodShelfTests
     [Fact]
     public void A_collection_nobody_has_measured_is_empty_and_says_so()
     {
-        var shelf = MoodShelf.Build([], Filed(), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build([], Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.Empty(shelf.Calm.WholeList.Songs);
         Assert.Empty(shelf.Energetic.WholeList.Songs);
@@ -199,7 +199,7 @@ public class MoodShelfTests
         }
 
         var filed = Filed(("rock", "Rock"), ("jazz", "Jazz"));
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         // No flavour: this test is about the genre filter, and a sub-genre preference would be a
         // second narrowing over rows whose tags say nothing (see MoodFlavour).
@@ -232,7 +232,7 @@ public class MoodShelfTests
 
         var filed = FiledAs(rows, "Rock");
         filed["jazz"] = "Jazz";
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         var offered = shelf.Calm.GenresWorthListing(20);
 
@@ -273,7 +273,7 @@ public class MoodShelfTests
         }
 
         var filed = Filed(("dance", "Electronic / Dance"), ("ambient", "Electronic / Dance"));
-        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.NotEmpty(shelf.Sleep.WholeList.Songs);
         Assert.All(shelf.Sleep.WholeList.Songs,
@@ -306,7 +306,7 @@ public class MoodShelfTests
         rows.Add(Track("quiet", 0.012, 0.11, 4.1, 902));
         rows.Add(Track("quiet", 0.013, 0.12, 4.2, 903));
 
-        var shelf = MoodShelf.Build(rows, Filed(("shelf", "Classical"), ("quiet", "Classical")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("shelf", "Classical"), ("quiet", "Classical")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.Contains(soft.RelativePath, shelf.Sleep.WholeList.Songs);
         Assert.DoesNotContain(loud.RelativePath, shelf.Sleep.WholeList.Songs);
@@ -343,7 +343,7 @@ public class MoodShelfTests
         for (int i = 0; i < 8; i++)
             rows.Add(Track("still", 0.02, 0.06, 1.2, 700 + i));
 
-        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("still", "Classical")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("still", "Classical")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.All(interludes, t => Assert.DoesNotContain(t.RelativePath, shelf.Sleep.WholeList.Songs));
         Assert.Contains(shelf.Sleep.WholeList.Songs, p => p.StartsWith("still/", StringComparison.Ordinal));
@@ -366,7 +366,7 @@ public class MoodShelfTests
         for (int i = 0; i < 8; i++)
             rows.Add(Track("piano", 0.02, 0.06, 1.2, 800 + i));
 
-        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("rap", "Hip-Hop / Rap"), ("piano", "Classical")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("rap", "Hip-Hop / Rap"), ("piano", "Classical")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.DoesNotContain(shelf.Sleep.WholeList.Songs, p => p.StartsWith("rap/", StringComparison.Ordinal));
         Assert.Contains(shelf.Sleep.WholeList.Songs, p => p.StartsWith("piano/", StringComparison.Ordinal));
@@ -388,7 +388,7 @@ public class MoodShelfTests
         for (int i = 0; i < 8; i++)
             rows.Add(Track("quiet", 0.02, 0.06, 1.2, 700 + i, explicitLyrics: i < 3));
 
-        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("quiet", "Folk")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("loud", "Rock"), ("quiet", "Folk")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.DoesNotContain("quiet/700.flac", shelf.Sleep.WholeList.Songs);
         Assert.DoesNotContain("quiet/701.flac", shelf.Sleep.WholeList.Songs);
@@ -420,7 +420,7 @@ public class MoodShelfTests
         }
 
         var shelf = MoodShelf.Build(rows, Filed(
-            ("loud", "Rock"), ("stillest", "Classical"), ("middling", "Classical"), ("last", "Classical")), NoCatalogue, Likes.None);
+            ("loud", "Rock"), ("stillest", "Classical"), ("middling", "Classical"), ("last", "Classical")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         // The LIST the user gets, which is where the record cap applies.
         var sleep = shelf.Sleep.WholeList.Window(SmartPlaylists.MostSongs(SmartPlaylistKind.Sleep), 0);
@@ -473,7 +473,7 @@ public class MoodShelfTests
             rows.Add(Track($"other-{i}", 0.1 + at * 0.8, 1 + at * 9, 2 + at * 8, i, artist: $"Act {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(("one-album", "Rock")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("one-album", "Rock")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         // One LIST, which is where the cap applies. The pool keeps all twelve so a later reading can
         // offer a different one (see MoodPool).
@@ -502,7 +502,7 @@ public class MoodShelfTests
             rows.Add(Track($"other-{i}", 0.1 + at * 0.8, 1 + at * 9, 2 + at * 8, i, artist: $"Act {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing);
         var calm = shelf.Calm.WholeList.Window(SmartPlaylists.MostSongs(SmartPlaylistKind.Calm), 0);
 
         Assert.Equal(5, calm.Count(p => p.StartsWith("prolific-", StringComparison.Ordinal)));
@@ -522,7 +522,7 @@ public class MoodShelfTests
             rows.Add(Track($"other-{i}", 0.1 + at * 0.8, 1 + at * 9, 2 + at * 8, i, artist: $"Act {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.True(shelf.Calm.WholeList.Songs.Count(p => p.StartsWith("nameless-", StringComparison.Ordinal)) > 5);
     }
@@ -552,7 +552,7 @@ public class MoodShelfTests
             rows.Add(Track($"loud-{i}", 0.2 + at * 0.7, 2 + at * 8, 3 + at * 7, i, artist: $"Loud {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(("quiet-rap", "Hip-Hop / Rap"), ("quiet-rock", "Rock")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("quiet-rap", "Hip-Hop / Rap"), ("quiet-rock", "Rock")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.DoesNotContain(shelf.Calm.WholeList.Songs,
             p => p.StartsWith("quiet-rap/", StringComparison.Ordinal));
@@ -582,7 +582,7 @@ public class MoodShelfTests
             rows.Add(Track($"loud-{i}", 0.2 + at * 0.7, 2 + at * 8, 3 + at * 7, i, artist: $"Loud {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(("quiet-rap", genre)), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("quiet-rap", genre)), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.DoesNotContain(shelf.Calm.WholeList.Songs,
             p => p.StartsWith("quiet-rap/", StringComparison.Ordinal));
@@ -615,7 +615,7 @@ public class MoodShelfTests
             rows.Add(Track($"busy-{i}", 0.2 + at * 0.7, 2 + at * 8, 3 + at * 7, i, artist: $"Loud {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(("even-rap", genre), ("even-rock", "Rock")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("even-rap", genre), ("even-rock", "Rock")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.DoesNotContain(shelf.Focus.WholeList.Songs,
             p => p.StartsWith("even-rap/", StringComparison.Ordinal));
@@ -642,7 +642,7 @@ public class MoodShelfTests
             rows.Add(Track($"other-{i}", 0.05 + at * 0.7, 0.5 + at * 8, 1 + at * 7, i, artist: $"Act {i}"));
         }
 
-        var shelf = MoodShelf.Build(rows, Filed(("loud-rap", "Hip-Hop / Rap")), NoCatalogue, Likes.None);
+        var shelf = MoodShelf.Build(rows, Filed(("loud-rap", "Hip-Hop / Rap")), NoCatalogue, Likes.None, ShelfHearing.Nothing);
 
         Assert.Contains(shelf.Energetic.WholeList.Songs,
             p => p.StartsWith("loud-rap/", StringComparison.Ordinal));
@@ -666,7 +666,7 @@ public class MoodShelfTests
             rows.Add(Track($"loud-{i}", 0.2 + at * 0.7, 2 + at * 8, 3 + at * 7, i, artist: $"Loud {i}"));
         }
 
-        return MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None).Calm.WholeList;
+        return MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList;
     }
 
     [Fact]
@@ -711,7 +711,7 @@ public class MoodShelfTests
         // A list longer than the pool is the whole pool, wherever it starts.
         Assert.Equal(pool.Count, pool.Window(500, 1).Count);
         Assert.Equal(pool.Count, pool.Window(500, 4).Count);
-        Assert.Empty(MoodShelf.Build([], Filed(), NoCatalogue, Likes.None).Calm.WholeList.Window(50, 3));
+        Assert.Empty(MoodShelf.Build([], Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList.Window(50, 3));
     }
 
     /// <summary>
@@ -736,7 +736,7 @@ public class MoodShelfTests
             rows.Add(Track($"loud-{i}", 0.2 + at * 0.7, 2 + at * 8, 3 + at * 7, i, artist: $"Loud {i}"));
         }
 
-        var pool = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None).Calm.WholeList;
+        var pool = MoodShelf.Build(rows, Filed(), NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList;
 
         // All four are still eligible: the pool keeps them.
         Assert.Equal(4, pool.Songs.Count(p => p.StartsWith("one-album/", StringComparison.Ordinal)));

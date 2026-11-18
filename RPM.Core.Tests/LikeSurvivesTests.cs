@@ -79,7 +79,7 @@ public class LikeSurvivesTests : IDisposable
 
         var shelf = MoodShelf.Build(
             rows, Rock([.. rows.Select(r => r.Folder)]), NoStyles(),
-            Likes(("one/1.flac", SmartPlaylistKind.Calm)));
+            Likes(("one/1.flac", SmartPlaylistKind.Calm)), ShelfHearing.Nothing);
 
         var list = shelf.Calm.WholeList.Window(50, 0);
 
@@ -103,7 +103,7 @@ public class LikeSurvivesTests : IDisposable
 
         var shelf = MoodShelf.Build(
             rows, Rock([.. rows.Select(r => r.Folder)]), NoStyles(),
-            Likes([.. Enumerable.Range(0, 5).Select(i => ($"band/{i}.flac", SmartPlaylistKind.Calm))]));
+            Likes([.. Enumerable.Range(0, 5).Select(i => ($"band/{i}.flac", SmartPlaylistKind.Calm))]), ShelfHearing.Nothing);
 
         var list = shelf.Calm.WholeList.Window(50, 0);
 
@@ -135,7 +135,7 @@ public class LikeSurvivesTests : IDisposable
 
         var shelf = MoodShelf.Build(
             rows, Rock([.. rows.Select(r => r.Folder)]), facts,
-            Likes(("odd/1.flac", SmartPlaylistKind.Calm)));
+            Likes(("odd/1.flac", SmartPlaylistKind.Calm)), ShelfHearing.Nothing);
 
         var narrowed = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock"));
 
@@ -155,7 +155,7 @@ public class LikeSurvivesTests : IDisposable
 
         var shelf = MoodShelf.Build(
             rows, Rock([.. rows.Select(r => r.Folder)]), NoStyles(),
-            Likes(("old/1.flac", SmartPlaylistKind.Calm)));
+            Likes(("old/1.flac", SmartPlaylistKind.Calm)), ShelfHearing.Nothing);
 
         Assert.Contains("old/1.flac", shelf.Calm.WholeList.Songs);
     }
@@ -176,7 +176,7 @@ public class LikeSurvivesTests : IDisposable
         // Liked on the DANCEFLOOR, while the list being read is Chill.
         var shelf = MoodShelf.Build(
             rows, Rock([.. rows.Select(r => r.Folder)]), NoStyles(),
-            Likes(("one/1.flac", SmartPlaylistKind.Danceable)));
+            Likes(("one/1.flac", SmartPlaylistKind.Danceable)), ShelfHearing.Nothing);
 
         var list = shelf.Calm.WholeList.Window(50, 0);
 

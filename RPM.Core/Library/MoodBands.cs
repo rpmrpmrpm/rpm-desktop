@@ -260,6 +260,141 @@ public sealed class MoodBands
     private static readonly IReadOnlySet<string> Nothing =
         new HashSet<string>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The genres a list never holds: no genre row, and not in the list over the whole collection either.
+    ///
+    /// <para><b>Angry never holds Disco, R&amp;B, Soul, Musical, Funk or Soundtrack, and Romantic never
+    /// holds Club</b> (decided 2026-11-17). Angry is cut within each genre, so every genre with enough
+    /// songs would otherwise get a row, and the angriest disco is the least happy disco, which is not what
+    /// anybody means by the word. A Club record that measures as romantic is a club record with a love
+    /// song's words over it.</para>
+    ///
+    /// <para>A veto in the shape of <see cref="NeverSleep"/>: it keeps songs out of one list and changes
+    /// no measurement. It is asked of the song's genre as the cut files it, the same genre that decides
+    /// its cohort.</para>
+    ///
+    /// <para>Rap is not on either list, and it is not left out of the pooled feeling lists the way it is
+    /// left out of Chill (<see cref="NotPooledInto"/>). That rule exists because the meter cannot hear a
+    /// voice. The sound model hears it: a sad rap record is sad, and is heard as sad.</para>
+    /// </summary>
+    public static IReadOnlySet<string> NeverIn(SmartPlaylistKind kind) => kind switch
+    {
+        SmartPlaylistKind.Angry => NeverAngry,
+        SmartPlaylistKind.Romantic => NeverRomantic,
+        _ => Nothing,
+    };
+
+    private static readonly IReadOnlySet<string> NeverAngry =
+        new HashSet<string>(StringComparer.Ordinal) { "Disco", "R&B", "Soul", "Musical", "Funk", "Soundtrack" };
+
+    private static readonly IReadOnlySet<string> NeverRomantic =
+        new HashSet<string>(StringComparer.Ordinal) { "Club" };
+
+    /// <summary>
+    /// The share of a genre's songs that each feeling list takes: the top 15% of that genre by the
+    /// feeling's score.
+    ///
+    /// <para>The same share as <see cref="CalmAt"/>, for the same reason: the word has to mean something.
+    /// "The saddest 15% of your rock" is a list; "the sadder quarter" is most of a half. On a real
+    /// collection of 19,802 heard songs it gives each list about 2,600 to 3,000 songs on 650 to 800
+    /// records, which is many lists' worth at one song a record.</para>
+    ///
+    /// <para><b>Within the genre, so every genre has an end.</b> The angriest 15% of jazz is the least
+    /// gentle jazz, not angry music. The list over the whole collection is ordered by the score itself,
+    /// not by the rank within the genre, so its top is what the listening test heard as angry (see
+    /// <see cref="MoodShelf"/>). A genre row whose end does not hold together is dropped through
+    /// <see cref="MoodSets"/>, as Adrenaline x Classical was.</para>
+    /// </summary>
+    public const double FeelingAt = 0.85;
+
+    /// <summary>
+    /// How sad a calm song has to be, as a rank within its genre, to leave Chill for Melancholy: the
+    /// saddest 5% of the genre, which is the saddest third of Melancholy's own cut.
+    ///
+    /// <para><b>Only the saddest part, not the whole cut</b> (decided 2026-11-18). Calm and sad go
+    /// together in what the sound model hears: a slow, quiet song scores high on "a sad, slow and
+    /// emotional song". So the whole cut took a third of Chill's records on a real collection (176 to
+    /// 118), and three of its genre rows fell under the floor. Chill keeps the calm songs that are only
+    /// a little sad, and gives up the ones that are plainly sad.</para>
+    /// </summary>
+    public const double SadOutOfChillAt = 0.95;
+
+    /// <summary>
+    /// The styles and genre tags that make a record Zen: the calm part of the Ambient subtree in
+    /// <c>Subgenres.Data.cs</c>.
+    ///
+    /// <para><b>Left out:</b> Dark Ambient and its children (Ambient Industrial, Dungeon Synth,
+    /// Isolationism), and Illbient. They are uneasy music, not calm music.</para>
+    /// </summary>
+    public static readonly IReadOnlySet<string> ZenStyles =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            GenreText.Fold("Ambient"), GenreText.Fold("Ambient Dub"), GenreText.Fold("Dreampunk"),
+            GenreText.Fold("New Age"), GenreText.Fold("Neoclassical New Age"), GenreText.Fold("Space Music"),
+        };
+
+    /// <summary>
+    /// How still a song on a Zen record has to be, as a rank over the WHOLE collection of its onsets and
+    /// brightness together: the calmer half of everything the listener owns.
+    ///
+    /// <para>This drops the loud outliers on a record that is filed as ambient: on a real collection,
+    /// Enigma's greatest hits is filed under New Age, and half of it is a dance record. The whole
+    /// collection and not the genre, for the reason <see cref="SleepAt"/> gives: calm for its genre is
+    /// not still.</para>
+    /// </summary>
+    public const double ZenStillAt = 0.5;
+
+    /// <summary>
+    /// The album folders that are Zen records: the tag most of the record's tracks carry, or the first
+    /// style the catalogues list for it, is one of <see cref="ZenStyles"/>.
+    ///
+    /// <para><b>The raw tag, not the shelf.</b> The shelves file Ambient and New Age under Electronic /
+    /// Dance (see <see cref="GenreByFolder"/>), so the shelf cannot say which records are ambient. The
+    /// tag text can, where a tagger wrote it.</para>
+    ///
+    /// <para><b>The first style, not any style.</b> The catalogues list Ambient on SOPHIE, Björk's Post,
+    /// Burial's Untrue and Pink Floyd's Wish You Were Here, among their other styles. None of them is an
+    /// ambient record, and their quiet songs would pass the stillness check. On the real ambient records
+    /// (Enya, Enigma, Elements) Ambient or New Age is the first style.</para>
+    /// </summary>
+    /// <param name="counts">How many tracks in each folder carry each genre tag
+    /// (<see cref="LibraryDatabase.QueryAlbumGenreCounts"/>).</param>
+    /// <param name="factsByFolder">What the catalogues say about each folder's release.</param>
+    public static IReadOnlySet<string> ZenFolders(
+        IReadOnlyList<(string Folder, string Genre, int Count)> counts,
+        IReadOnlyDictionary<string, CatalogueFacts> factsByFolder)
+    {
+        ArgumentNullException.ThrowIfNull(counts);
+        ArgumentNullException.ThrowIfNull(factsByFolder);
+
+        var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // The tag most of each folder's tracks carry. The name breaks a tie, so one record cannot be Zen
+        // on one read and not on the next.
+        var best = new Dictionary<string, (string Tag, int Count)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (folder, genre, count) in counts)
+        {
+            var tag = genre?.Trim() ?? "";
+            if (tag.Length == 0)
+                continue;
+            if (best.TryGetValue(folder, out var standing)
+                && (standing.Count > count
+                    || (standing.Count == count && string.CompareOrdinal(standing.Tag, tag) <= 0)))
+                continue;
+            best[folder] = (tag, count);
+        }
+
+        foreach (var (folder, standing) in best)
+            if (ZenStyles.Contains(GenreText.Fold(standing.Tag)))
+                folders.Add(folder);
+
+        foreach (var (folder, facts) in factsByFolder)
+            if (facts.Styles is [var main, ..] && ZenStyles.Contains(GenreText.Fold(main)))
+                folders.Add(folder);
+
+        return folders;
+    }
+
     /// <summary>How much of a record has to be sleep music before any of it counts.
     ///
     /// <para><b>A listener judges the record. The meter judges the track.</b> Blank Banshee is not sleep
@@ -452,6 +587,23 @@ public sealed class MoodBands
 
         // How far below the line it sits, so the stillest record on the shelf leads the list.
         return Math.Clamp((SleepAt - stillness) / SleepAt, 0, 1);
+    }
+
+    /// <summary>
+    /// How still a track is among EVERYTHING the listener owns, 0..1: one minus the rank of its onsets
+    /// and brightness together over the whole collection. Zen is ordered by it, and refuses a track whose
+    /// stillness is under <c>1 - </c><see cref="ZenStillAt"/>.
+    ///
+    /// <para>The same reading as <see cref="Sleepiness"/> without its two extra conditions. A Zen record
+    /// is chosen by its style first, so this only has to put its stillest songs first and leave out the
+    /// loud ones. In the listening test, this order (1 minus the intensity over the whole collection) had
+    /// 9 of its 10 suggestions judged as fitting.</para>
+    /// </summary>
+    public double StillOverEverything(MeasuredMood track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        var everything = _cohorts[Everything];
+        return 1 - ((everything.RankOfOnsets(track.Onsets) + everything.RankOfBrightness(track.Brightness)) / 2);
     }
 
     /// <summary>How much to believe a band: the weaker of the two reasons to doubt it, never their

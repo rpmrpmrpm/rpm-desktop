@@ -27,7 +27,7 @@ public class GenreTypicalityTests
     private static MoodShelf Build(List<MeasuredMood> rows, string genre = "Rock") =>
         MoodShelf.Build(
             rows, Filed(rows, genre), new Dictionary<string, CatalogueFacts>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, IReadOnlySet<SmartPlaylistKind>>(StringComparer.OrdinalIgnoreCase));
+            new Dictionary<string, IReadOnlySet<SmartPlaylistKind>>(StringComparer.OrdinalIgnoreCase), ShelfHearing.Nothing);
 
     /// <summary>
     /// A shelf of one genre where thirty songs are EQUALLY calm, and differ only in dynamics.

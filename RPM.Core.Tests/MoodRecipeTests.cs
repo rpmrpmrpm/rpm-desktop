@@ -16,7 +16,7 @@ public class MoodRecipeTests
         Song("b1", "Rock", "B", "Bob feat. Ann", 1991),
         Song("c1", "Rock", "C", "Cat", 0),
         Song("d1", null, "D", "Dee", 1985),
-    ], new HashSet<string>());
+    ], new HashSet<string>(), SmartPlaylists.MostFromOneRecord);
 
     private static readonly Func<IReadOnlyList<string>, IReadOnlyDictionary<string, MusicalKey>> NoKeys =
         _ => new Dictionary<string, MusicalKey>();

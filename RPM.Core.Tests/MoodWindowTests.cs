@@ -17,7 +17,8 @@ public class MoodWindowTests
         new($"{n:D3}.flac", "Rock", $"rec-{n:D3}", $"act {n:D3}", 1990, false, [],
             new MoodList.Sound(0.5, 0.5, 0.5), WithinGenreBy: 0);
 
-    private static MoodPool Pool(int songs) => new([.. Enumerable.Range(0, songs).Select(Song)]);
+    private static MoodPool Pool(int songs) =>
+        new([.. Enumerable.Range(0, songs).Select(Song)], SmartPlaylists.MostFromOneRecord);
 
     /// <summary>Pool sizes that divide fifty. A fixed fifty-song step would never move on these.
     /// </summary>
@@ -105,7 +106,7 @@ public class MoodWindowTests
                     $"act {record:D2}", 1990, false, [], new MoodList.Sound(0.5, 0.5, 0.5),
                     WithinGenreBy: 0));
 
-        return new MoodPool(songs);
+        return new MoodPool(songs, SmartPlaylists.MostFromOneRecord);
     }
 
     /// <summary>

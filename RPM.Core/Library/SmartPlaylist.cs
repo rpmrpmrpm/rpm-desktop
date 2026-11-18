@@ -152,6 +152,35 @@ public enum SmartPlaylistKind
     /// verdict already stored.</para>
     /// </summary>
     RightNow,
+
+    // ── what the sound model hears ──
+    //
+    // Appended after RightNow, for the reason given there: the values are stored as integers. These six
+    // are cut from the CLAP embedding of each record (see SoundPrompts) and from the record's tags, not
+    // from the meter's three numbers. They are not on any surface yet: see SmartPlaylists.NotShownYet.
+
+    /// <summary>Sad, slow and full of longing, ranked within each genre. Takes the songs of its cut out
+    /// of <see cref="Calm"/>, which keeps the calm songs that are not sad.</summary>
+    Melancholy,
+
+    /// <summary>Cheerful and feel-good, ranked within each genre.</summary>
+    Happy,
+
+    /// <summary>Furious and aggressive, ranked within each genre. Never holds the genres in
+    /// <see cref="MoodBands.NeverIn"/>.</summary>
+    Angry,
+
+    /// <summary>Tender love songs, ranked within each genre. Never holds the genres in
+    /// <see cref="MoodBands.NeverIn"/>.</summary>
+    Romantic,
+
+    /// <summary>Ambient and new age records, stillest first, over the whole collection. Up to five songs
+    /// from one record (<see cref="SmartPlaylists.MostFromOneRecordFor"/>).</summary>
+    Zen,
+
+    /// <summary>Christmas and New Year music, found by the words in its titles, and only in the season
+    /// (<see cref="HolidayMusic.InSeason"/>). Up to five songs from one record.</summary>
+    Festive,
 }
 
 /// <summary>
@@ -311,6 +340,32 @@ public static class SmartPlaylists
     ];
 
     /// <summary>
+    /// The kinds that are built but not offered anywhere yet: the six feeling lists.
+    ///
+    /// <para><b>Why they wait.</b> A kind in <see cref="All"/> or <see cref="Moods"/> is drawn in the
+    /// playlists tree, offered on the home screen and sent to the phone and the television. The six have
+    /// no names on screen yet, no glyphs and no covers, and the phone and the television do not know them.
+    /// They are named here so that the lists together still cover every kind, and a kind cannot be added
+    /// and then appear nowhere without anybody deciding it. Moving them into <see cref="Moods"/> is the
+    /// step that puts them on screen.</para>
+    ///
+    /// <para><b>Melancholy, Happy, Angry and Romantic join <see cref="BrokenOutByGenre"/> in the same
+    /// step.</b> They are cut within a genre, and the database already builds their genre rows
+    /// (<c>SmartPlaylistRule.For</c> passes the genre on). But that list is what the playlists tree
+    /// nests genre rows under and what <c>CoverLooks</c> has pictures for, so it is part of putting them
+    /// on screen. Zen and Festive have no genre reading and never join it.</para>
+    /// </summary>
+    public static IReadOnlyList<SmartPlaylistKind> NotShownYet { get; } =
+    [
+        SmartPlaylistKind.Melancholy,
+        SmartPlaylistKind.Happy,
+        SmartPlaylistKind.Angry,
+        SmartPlaylistKind.Romantic,
+        SmartPlaylistKind.Zen,
+        SmartPlaylistKind.Festive,
+    ];
+
+    /// <summary>
     /// The kinds the home screen offers, and why it is not all of them.
     ///
     /// <para>The home screen asks one question: what have you been listening to, and what should you put
@@ -378,6 +433,12 @@ public static class SmartPlaylists
         SmartPlaylistKind.Danceable,
         SmartPlaylistKind.Focus,
         SmartPlaylistKind.Sleep,
+        SmartPlaylistKind.Melancholy,
+        SmartPlaylistKind.Happy,
+        SmartPlaylistKind.Angry,
+        SmartPlaylistKind.Romantic,
+        SmartPlaylistKind.Zen,
+        SmartPlaylistKind.Festive,
     };
 
     /// <summary>
@@ -519,7 +580,15 @@ public static class SmartPlaylists
         or SmartPlaylistKind.Energetic
         or SmartPlaylistKind.Danceable
         or SmartPlaylistKind.Focus
-        or SmartPlaylistKind.Sleep;
+        or SmartPlaylistKind.Sleep
+        // The four feelings wait for the sound pass, and Zen for the meter, which orders it. Festive is
+        // found by its words, but it is drawn from the measured songs like the rest of the shelf.
+        or SmartPlaylistKind.Melancholy
+        or SmartPlaylistKind.Happy
+        or SmartPlaylistKind.Angry
+        or SmartPlaylistKind.Romantic
+        or SmartPlaylistKind.Zen
+        or SmartPlaylistKind.Festive;
 
     /// <summary>
     /// The decades a mood can be broken out by, oldest first.
@@ -705,6 +774,10 @@ public static class SmartPlaylists
             or SmartPlaylistKind.Danceable or SmartPlaylistKind.Focus
             or SmartPlaylistKind.Sleep => 50,
 
+        SmartPlaylistKind.Melancholy or SmartPlaylistKind.Happy
+            or SmartPlaylistKind.Angry or SmartPlaylistKind.Romantic
+            or SmartPlaylistKind.Zen or SmartPlaylistKind.Festive => 50,
+
         // Also fifty, for the same reason: it is put on, not read down. It runs for about three hours.
         SmartPlaylistKind.RightNow => 50,
         SmartPlaylistKind.Decade => SongsInADecade,
@@ -727,6 +800,19 @@ public static class SmartPlaylists
     /// songs. The second of these changed along with this cap. See its own note.</para>
     /// </summary>
     public const int MostFromOneRecord = 1;
+
+    /// <summary>
+    /// How much of one record THIS kind of list will hold: <see cref="MostFromOneRecord"/>, except five
+    /// for Zen and Festive.
+    ///
+    /// <para><b>Why those two take more.</b> Both are drawn from a handful of records. A collection holds
+    /// few ambient records, and on a real one Zen finds four, so one song each would be a list of four.
+    /// Holiday music comes as whole Christmas albums, and Festive found five of those and a few single
+    /// songs. Their records are also long and even, so five songs from one of them is not the album
+    /// twice in the way five songs of a pop record would be.</para>
+    /// </summary>
+    public static int MostFromOneRecordFor(SmartPlaylistKind kind) =>
+        kind is SmartPlaylistKind.Zen or SmartPlaylistKind.Festive ? 5 : MostFromOneRecord;
 
     /// <summary>
     /// How much of one ACT a mood list will hold.
@@ -878,6 +964,17 @@ public static class SmartPlaylists
         // four songs in it promises something it cannot yet do. It also takes one song per record
         // (MostFromOneRecord), so ten songs are ten records.
         SmartPlaylistKind.RightNow => 10,
+
+        // Ten, as for the other moods, and for the same reason: they fill in behind a pass.
+        SmartPlaylistKind.Melancholy => 10,
+        SmartPlaylistKind.Happy => 10,
+        SmartPlaylistKind.Angry => 10,
+        SmartPlaylistKind.Romantic => 10,
+
+        // Ten songs, not ten records: these two take up to five songs from a record. Ten songs from two
+        // ambient records is still a list. Fewer would be one record with a second name.
+        SmartPlaylistKind.Zen => 10,
+        SmartPlaylistKind.Festive => 10,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(kind), kind, "Nobody has said how much of this list is worth showing."),

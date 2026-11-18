@@ -83,7 +83,7 @@ public class MoodFlavourTests
     {
         // Enough described records to fill a list, so the narrowing is kept.
         var (rows, filed) = Ramp(described: 200, unknown: 200);
-        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Soft Rock"])), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Soft Rock"])), Likes.None, ShelfHearing.Nothing);
 
         var songs = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
 
@@ -95,7 +95,7 @@ public class MoodFlavourTests
     public void A_style_the_line_does_not_ask_for_is_not_preferred()
     {
         var (rows, filed) = Ramp(described: 200, unknown: 200);
-        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Death Metal"])), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Death Metal"])), Likes.None, ShelfHearing.Nothing);
 
         var narrowed = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
         var loose = shelf.Calm.Within(["Rock"], []).Songs;
@@ -109,7 +109,7 @@ public class MoodFlavourTests
         // A preference, never a filter: below MoodFlavour.LeastToPrefer the narrowed list would be
         // shorter than the one it replaces, which fits the name less well, not better.
         var (rows, filed) = Ramp(described: 4, unknown: 400);
-        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Soft Rock"])), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Soft Rock"])), Likes.None, ShelfHearing.Nothing);
 
         var narrowed = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
         var loose = shelf.Calm.Within(["Rock"], []).Songs;
@@ -123,7 +123,7 @@ public class MoodFlavourTests
         // The normal state of a library the sweep has not reached yet. It must fall back to the
         // wider list, not to an empty one.
         var (rows, filed) = Ramp(described: 0, unknown: 400);
-        var shelf = MoodShelf.Build(rows, filed, new Dictionary<string, CatalogueFacts>(), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, new Dictionary<string, CatalogueFacts>(), Likes.None, ShelfHearing.Nothing);
 
         var narrowed = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
 
@@ -136,7 +136,7 @@ public class MoodFlavourTests
     {
         // Both sides are folded, so a catalogue that writes "soft-rock" matches the line "Soft Rock".
         var (rows, filed) = Ramp(described: 200, unknown: 200);
-        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["soft-rock"])), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["soft-rock"])), Likes.None, ShelfHearing.Nothing);
 
         var songs = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
 
@@ -149,7 +149,7 @@ public class MoodFlavourTests
         // The style is matched from a known list, not searched as text, so "rock" does not match
         // "Soft Rock", and a record filed under Punk Rock is not a soft rock record.
         var (rows, filed) = Ramp(described: 200, unknown: 200);
-        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Punk Rock"])), Likes.None);
+        var shelf = MoodShelf.Build(rows, filed, Facts(("described", ["Punk Rock"])), Likes.None, ShelfHearing.Nothing);
 
         var narrowed = shelf.Calm.Within(["Rock"], MoodFlavour.Styles(SmartPlaylistKind.Calm, "Rock")).Songs;
 

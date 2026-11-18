@@ -68,15 +68,20 @@ public sealed class MoodList
     /// <see cref="MoodBands.NotPooledInto"/>. They are held here and not removed from
     /// <paramref name="ranked"/>, because a genre row from the same list can be entirely about one of
     /// them. The exclusion applies to pooled readings only, not to the songs.</param>
-    internal MoodList(IReadOnlyList<Song> ranked, IReadOnlySet<string> notPooled)
+    /// <param name="mostFromOneRecord">How many songs of one record a list drawn from this one may hold,
+    /// see <see cref="SmartPlaylists.MostFromOneRecordFor"/>. Every pool taken from this list carries it.</param>
+    internal MoodList(IReadOnlyList<Song> ranked, IReadOnlySet<string> notPooled, int mostFromOneRecord)
     {
         _ranked = ranked;
         _notPooled = notPooled;
+        _perRecord = mostFromOneRecord;
     }
 
     private readonly IReadOnlySet<string> _notPooled;
+    private readonly int _perRecord;
 
-    internal static readonly MoodList Empty = new([], MoodBands.NotPooledInto(SmartPlaylistKind.Sleep));
+    internal static readonly MoodList Empty =
+        new([], MoodBands.NotPooledInto(SmartPlaylistKind.Sleep), SmartPlaylists.MostFromOneRecord);
 
     /// <summary>Every song in the list, before any narrowing or exclusion. For <see cref="MoodShelf.MoodsByPath"/>.</summary>
     internal IEnumerable<string> Paths => _ranked.Select(r => r.Path);
@@ -91,7 +96,7 @@ public sealed class MoodList
     /// <summary>Every song in the list, best first, whatever it is filed under. This property is the
     /// stated answer for "all of them", so no caller has to pass a genre argument that it might
     /// forget.</summary>
-    public MoodPool WholeList => new(InOneEra([.. Pooled]));
+    public MoodPool WholeList => new(InOneEra([.. Pooled]), _perRecord);
 
     /// <summary>
     /// The songs in it made in one decade, in the same order the whole list has them.
@@ -108,7 +113,7 @@ public sealed class MoodList
     /// <param name="decade">The first year of the decade, one of <see cref="SmartPlaylists.Decades"/>.</param>
     public MoodPool InDecade(int decade)
     {
-        return new([.. Pooled.Where(r => r.Year > 0 && r.Year - r.Year % 10 == decade)]);
+        return new([.. Pooled.Where(r => r.Year > 0 && r.Year - r.Year % 10 == decade)], _perRecord);
     }
 
     /// <summary>
@@ -153,7 +158,7 @@ public sealed class MoodList
             .ThenBy(r => r.Path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new(InOneEra(Preferring(inGenre, prefer)));
+        return new(InOneEra(Preferring(inGenre, prefer)), _perRecord);
     }
 
     /// <summary>
@@ -290,7 +295,7 @@ public sealed class MoodList
         var decades = recipe.Decades.ToHashSet();
         var from = genres.Count == 0 ? Pooled : _ranked.Where(r => r.Genre is not null && genres.Contains(r.Genre));
         return new([.. from.Where(r => decades.Count == 0 || (r.Year > 0 && decades.Contains(r.Year - r.Year % 10)))
-                           .Where(r => recipe.NamesActOf(r.Artist))]);
+                           .Where(r => recipe.NamesActOf(r.Artist))], _perRecord);
     }
 
     /// <summary>The genres this list holds songs of, most songs first, for the window's genre choices.</summary>
@@ -345,8 +350,16 @@ public sealed class MoodList
 public sealed class MoodPool
 {
     private readonly IReadOnlyList<MoodList.Song> _songs;
+    private readonly int _perRecord;
 
-    internal MoodPool(IReadOnlyList<MoodList.Song> songs) => _songs = songs;
+    /// <param name="mostFromOneRecord">How many songs of one record a list drawn from this pool may hold,
+    /// see <see cref="SmartPlaylists.MostFromOneRecordFor"/>. There is no default: the pool is taken from
+    /// a list, and the list knows its kind.</param>
+    internal MoodPool(IReadOnlyList<MoodList.Song> songs, int mostFromOneRecord)
+    {
+        _songs = songs;
+        _perRecord = Math.Max(1, mostFromOneRecord);
+    }
 
     /// <summary>How many songs are eligible: every song that the narrowings left, before any cap.
     ///
@@ -391,7 +404,21 @@ public sealed class MoodPool
                 if (round < pool._songs.Count && seen.Add(pool._songs[round].Path))
                     taken.Add(pool._songs[round]);
 
-        return new MoodPool(taken);
+        // The cap of the list the set is named after, which leads it. A set joins rows of one list or
+        // of lists that share a cap, so this is the cap of every part of it.
+        return new MoodPool(taken, pools.Count == 0 ? SmartPlaylists.MostFromOneRecord : pools[0]._perRecord);
+    }
+
+    /// <summary>
+    /// The same pool without <paramref name="paths"/>, in the same order.
+    ///
+    /// <para>For a list that must not show what another list is showing: Zen leaves out the songs of
+    /// Lights out's reading, because the two can hold the same ambient record.</para>
+    /// </summary>
+    public MoodPool Without(IReadOnlySet<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        return paths.Count == 0 ? this : new([.. _songs.Where(s => !paths.Contains(s.Path))], _perRecord);
     }
 
     /// <summary>
@@ -414,7 +441,7 @@ public sealed class MoodPool
     {
         ArgumentNullException.ThrowIfNull(refusals);
         return refusals.Any
-            ? new([.. _songs.Where(s => refusals.Allows(kind, s.Folder, s.Artist))])
+            ? new([.. _songs.Where(s => refusals.Allows(kind, s.Folder, s.Artist))], _perRecord)
             : this;
     }
 
@@ -448,24 +475,26 @@ public sealed class MoodPool
         private readonly int[] _place;   // where each song sits among its record's songs
         private readonly int[] _held;    // how many songs its record has in this pool
         private readonly int _reading;
+        private readonly int _perRecord; // how many songs of a record one reading takes
 
-        internal Turn(int[] place, int[] held, int reading)
+        internal Turn(int[] place, int[] held, int reading, int perRecord)
         {
             _place = place;
             _held = held;
             _reading = reading;
+            _perRecord = perRecord;
         }
 
         /// <summary>Whether this reading takes the song at <paramref name="index"/> in the pool.</summary>
         internal bool Takes(int index)
         {
             var held = _held[index];
-            if (held <= SmartPlaylists.MostFromOneRecord)
+            if (held <= _perRecord)
                 return true;
 
             // The places this reading takes, wrapping around the record's own songs.
-            var wanted = ((_place[index] - (_reading * SmartPlaylists.MostFromOneRecord)) % held + held) % held;
-            return wanted < SmartPlaylists.MostFromOneRecord;
+            var wanted = ((_place[index] - (_reading * _perRecord)) % held + held) % held;
+            return wanted < _perRecord;
         }
     }
 
@@ -488,7 +517,7 @@ public sealed class MoodPool
             held[i] = counted[folder];
         }
 
-        return new Turn(place, held, reading);
+        return new Turn(place, held, reading, _perRecord);
     }
 
     /// <summary>
@@ -682,7 +711,7 @@ public sealed class MoodPool
             // that was exempt and also not counted would let one record fill the rest of the list
             // behind it.
             if (!song.Liked
-                && perRecord.GetValueOrDefault(song.Folder) >= SmartPlaylists.MostFromOneRecord)
+                && perRecord.GetValueOrDefault(song.Folder) >= _perRecord)
                 continue;
 
             // An empty credit is not one act with a hundred songs: a shelf of untagged files would
@@ -720,6 +749,12 @@ public sealed class MoodPool
 /// quiet and still enough to fall asleep to? It has no genre reading at all. The calmest techno on
 /// the shelf is calm, and nobody sleeps through it. See <see cref="MoodBands.SleepAt"/>.</para>
 ///
+/// <para><b>Six more lists come from what the sound model heard and from the tags</b> (see
+/// <see cref="ShelfHearing"/>). Melancholy, Happy, Angry and Romantic are cut within a genre like Calm, from
+/// each record's CLAP scores (<see cref="Analysis.SoundPrompts"/>). Zen is the still songs of the ambient
+/// records, and Festive the holiday music, in its season. None of them is on screen yet
+/// (<see cref="SmartPlaylists.NotShownYet"/>).</para>
+///
 /// <para><b>Nothing here is stored.</b> The three columns stay the raw numbers that the meter
 /// produced. The bands are calculated from them, so the recipe can change without a migration or a
 /// stale row.</para>
@@ -745,12 +780,33 @@ public sealed class MoodShelf
     /// genre.</summary>
     public MoodList Sleep { get; }
 
+    /// <summary>The saddest end of every genre, by what the sound model heard, saddest first over the
+    /// whole collection.</summary>
+    public MoodList Melancholy { get; }
+
+    /// <summary>The happiest end of every genre, happiest first.</summary>
+    public MoodList Happy { get; }
+
+    /// <summary>The angriest end of every genre but the ones Angry never holds, angriest first.</summary>
+    public MoodList Angry { get; }
+
+    /// <summary>The most romantic end of every genre but Club, most romantic first.</summary>
+    public MoodList Romantic { get; }
+
+    /// <summary>The still songs of the ambient and new age records, stillest first, the records taking
+    /// turns.</summary>
+    public MoodList Zen { get; }
+
+    /// <summary>The holiday music, in season only, the records taking turns.</summary>
+    public MoodList Festive { get; }
+
     /// <summary>How many measured tracks the cut was taken from. Zero means the pass has not run,
     /// which is different from a collection with no calm music in it.</summary>
     public int MeasuredTracks { get; }
 
     private MoodShelf(
         MoodList calm, MoodList energetic, MoodList danceable, MoodList focus, MoodList sleep,
+        MoodList melancholy, MoodList happy, MoodList angry, MoodList romantic, MoodList zen, MoodList festive,
         int measured)
     {
         Calm = calm;
@@ -758,6 +814,12 @@ public sealed class MoodShelf
         Danceable = danceable;
         Focus = focus;
         Sleep = sleep;
+        Melancholy = melancholy;
+        Happy = happy;
+        Angry = angry;
+        Romantic = romantic;
+        Zen = zen;
+        Festive = festive;
         MeasuredTracks = measured;
     }
 
@@ -778,12 +840,28 @@ public sealed class MoodShelf
         SmartPlaylistKind.Danceable => Danceable,
         SmartPlaylistKind.Focus => Focus,
         SmartPlaylistKind.Sleep => Sleep,
+        SmartPlaylistKind.Melancholy => Melancholy,
+        SmartPlaylistKind.Happy => Happy,
+        SmartPlaylistKind.Angry => Angry,
+        SmartPlaylistKind.Romantic => Romantic,
+        SmartPlaylistKind.Zen => Zen,
+        SmartPlaylistKind.Festive => Festive,
         _ => throw new ArgumentOutOfRangeException(
             nameof(kind), kind, "This generated playlist is not one the mood shelf answers."),
     };
 
+    /// <summary>Every kind this shelf holds a list for, in the order <see cref="MoodsByPath"/> reads
+    /// them.</summary>
+    public static IReadOnlyList<SmartPlaylistKind> Kinds { get; } =
+    [
+        SmartPlaylistKind.Calm, SmartPlaylistKind.Energetic, SmartPlaylistKind.Danceable,
+        SmartPlaylistKind.Focus, SmartPlaylistKind.Sleep,
+        SmartPlaylistKind.Melancholy, SmartPlaylistKind.Happy, SmartPlaylistKind.Angry,
+        SmartPlaylistKind.Romantic, SmartPlaylistKind.Zen, SmartPlaylistKind.Festive,
+    ];
+
     /// <summary>
-    /// Which of the five lists each song is in, by relative path. A song in none of them is absent.
+    /// Which of the lists each song is in, by relative path. A song in none of them is absent.
     ///
     /// <para>Built on each call. It is read once when a song radio starts (<see cref="RadioCrate"/>),
     /// which treats two songs in the same list as closer in mood.</para>
@@ -791,9 +869,7 @@ public sealed class MoodShelf
     public IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> MoodsByPath()
     {
         var byPath = new Dictionary<string, HashSet<SmartPlaylistKind>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kind in (SmartPlaylistKind[])[
-                     SmartPlaylistKind.Calm, SmartPlaylistKind.Energetic, SmartPlaylistKind.Danceable,
-                     SmartPlaylistKind.Focus, SmartPlaylistKind.Sleep])
+        foreach (var kind in Kinds)
         {
             foreach (var path in ListFor(kind).Paths)
             {
@@ -807,10 +883,11 @@ public sealed class MoodShelf
             p => p.Key, p => (IReadOnlySet<SmartPlaylistKind>)p.Value, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>An unmeasured collection: five empty lists. This is a shelf before the pass has
+    /// <summary>An unmeasured collection: every list empty. This is a shelf before the pass has
     /// measured anything, and every caller gets it instead of a null to test for.</summary>
     public static readonly MoodShelf Unmeasured =
-        new(MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, 0);
+        new(MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty,
+            MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, 0);
 
     /// <summary>
     /// Cuts the bands and ranks each list in the order it is read.
@@ -823,22 +900,80 @@ public sealed class MoodShelf
     /// <see cref="LibraryDatabase.LikedByKind"/>. It is per kind, because a verdict is about one list.
     /// A song kept inside the Chill window by a like is not kept inside the Dancefloor window by it,
     /// and a shelf-wide reading would let one press speak for five lists.</param>
+    /// <param name="heard">What the sound model heard, and the facts the six feeling lists need. See
+    /// <see cref="ShelfHearing"/>. <see cref="ShelfHearing.Nothing"/> for a shelf nobody has heard, which
+    /// leaves those six empty and the other five as they were.</param>
     public static MoodShelf Build(
         IReadOnlyList<MeasuredMood> measured,
         IReadOnlyDictionary<string, string> genreByFolder,
         IReadOnlyDictionary<string, CatalogueFacts> factsByFolder,
-        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> likedByKind)
+        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> likedByKind,
+        ShelfHearing heard)
     {
         ArgumentNullException.ThrowIfNull(likedByKind);
         ArgumentNullException.ThrowIfNull(measured);
         ArgumentNullException.ThrowIfNull(genreByFolder);
         ArgumentNullException.ThrowIfNull(factsByFolder);
+        ArgumentNullException.ThrowIfNull(heard);
 
 
         if (measured.Count == 0)
             return Unmeasured;
 
         var bands = MoodBands.Cut(measured, genreByFolder);
+
+        // ── the four feelings, before the five lists ──
+        //
+        // Before, because one of them changes another. A song in the saddest part of Melancholy's cut is
+        // not in Chill (MoodBands.SadOutOfChillAt): once the sound model can say a calm song is plainly
+        // sad, Chill keeps the calm songs that are not. So that part is known before the calm band is
+        // collected below.
+        //
+        // Each feeling is a band within the song's genre, like Calm: the top FeelingAt of that genre by
+        // the feeling's score. The list over the whole collection is ordered by the SCORE, not by the
+        // rank within the genre. Only that order was heard in the listening test, where its top ten of
+        // each feeling were all judged as fitting. Ordered by rank, the angriest jazz would stand beside
+        // the angriest metal at the top of Angry. A genre row is one genre, so there the two orders agree.
+        //
+        // No intensity condition is added to the score. The plan asked for one (Melancholy in the lower
+        // half of intensity, Angry at its top), and the listening test's marks say it would only do harm:
+        // on the judged songs, each such condition dropped songs marked as fitting and kept every song
+        // marked as not fitting.
+        var heardRows = new List<(MeasuredMood Track, string? Genre, FeelingScores Scores)>();
+        foreach (var track in measured)
+            if (heard.FeelingsByPath.TryGetValue(track.RelativePath, out var scores))
+                heardRows.Add((track, GenreOf(track, genreByFolder), scores));
+
+        var feelingCut = FeelingBands.Cut([.. heardRows.Select(h => (h.Genre, h.Scores))]);
+        var felt = FeelingBands.WithinGenre.ToDictionary(
+            f => f.Kind, _ => new List<(string Path, string? Genre, double By, double WithinBy)>());
+        var sad = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (track, genre, scores) in heardRows)
+        {
+            foreach (var (feeling, kind) in FeelingBands.WithinGenre)
+            {
+                var score = scores.For(feeling);
+                var rank = feelingCut.RankWithin(genre, feeling, score);
+                if (rank < MoodBands.FeelingAt)
+                    continue;
+
+                // The saddest part of the cut is taken out of Chill, whatever happens to it below. A
+                // holiday song out of season is in no list at all, and Melancholy has no genre it refuses.
+                if (kind == SmartPlaylistKind.Melancholy && rank >= MoodBands.SadOutOfChillAt)
+                    sad.Add(track.RelativePath);
+
+                if (genre is not null && MoodBands.NeverIn(kind).Contains(genre))
+                    continue;
+                if (heard.OutOfSeason(track.RelativePath))
+                    continue;
+
+                felt[kind].Add((track.RelativePath, genre, score, score));
+            }
+        }
+
+        var zen = new List<(string Path, string? Genre, double By, double WithinBy)>();
+        var festive = new List<(string Path, string? Genre, double By, double WithinBy)>();
 
         // Read once for the whole cut, like the bands, so every Chill row drawn in this session is
         // placed against one reading of the collection. See LyricLift: only Chill uses it.
@@ -858,9 +993,36 @@ public sealed class MoodShelf
         {
             var label = bands.LabelFor(track, genreByFolder);
 
+            // Holiday music is offered in its season and kept out of every list outside it, Happy and
+            // Chill included. In season it may appear anywhere, as any other song may.
+            if (heard.OutOfSeason(track.RelativePath))
+                continue;
+
+            if (heard.FestiveSeason && heard.HolidayPaths.Contains(track.RelativePath))
+                // Ordered by how much it sounds like the holiday. The sound model could not find holiday
+                // music among other music, but among songs the words already found, its score only
+                // decides which come first. A song it has not heard goes after those it has.
+                festive.Add((track.RelativePath, label.Genre,
+                             heard.FeelingsByPath.TryGetValue(track.RelativePath, out var holiday)
+                                 ? holiday.Festive
+                                 : NotHeard,
+                             0));
+
+            // Zen: a record chosen by its style, and only the songs on it still enough for the list.
+            if (heard.ZenFolders.Contains(track.Folder)
+                && bands.StillOverEverything(track) is var still
+                && still >= 1 - MoodBands.ZenStillAt)
+                zen.Add((track.RelativePath, label.Genre, still, still));
+
             switch (label.Band)
             {
                 case MoodBand.Calm:
+                    // A plainly sad calm song is Melancholy's and not Chill's, once Melancholy is there to
+                    // hold it. See where the feelings are cut. A song must not leave Chill for a list
+                    // nobody can open, so this waits for Melancholy to be on screen.
+                    if (heard.MelancholyShown && sad.Contains(track.RelativePath))
+                        break;
+
                     // The only place where the words are read. Confidence is what the measurements
                     // said. The lift is what the words add to it. It is bounded so that it can only
                     // reorder songs that the measurements already put near each other, and it is 0
@@ -911,9 +1073,23 @@ public sealed class MoodShelf
             Ranked(danceable, measured, factsByFolder, SmartPlaylistKind.Danceable, likedByKind),
             Ranked(focus, measured, factsByFolder, SmartPlaylistKind.Focus, likedByKind),
             SpreadAcrossRecords(
-                OffSleepyRecords(sleep, measured), measured, factsByFolder, likedByKind),
+                OffSleepyRecords(sleep, measured), measured, factsByFolder, likedByKind, SmartPlaylistKind.Sleep),
+            Ranked(felt[SmartPlaylistKind.Melancholy], measured, factsByFolder, SmartPlaylistKind.Melancholy, likedByKind),
+            Ranked(felt[SmartPlaylistKind.Happy], measured, factsByFolder, SmartPlaylistKind.Happy, likedByKind),
+            Ranked(felt[SmartPlaylistKind.Angry], measured, factsByFolder, SmartPlaylistKind.Angry, likedByKind),
+            Ranked(felt[SmartPlaylistKind.Romantic], measured, factsByFolder, SmartPlaylistKind.Romantic, likedByKind),
+            SpreadAcrossRecords(zen, measured, factsByFolder, likedByKind, SmartPlaylistKind.Zen),
+            SpreadAcrossRecords(festive, measured, factsByFolder, likedByKind, SmartPlaylistKind.Festive),
             measured.Count);
     }
+
+    /// <summary>Where a holiday song the sound model has not heard is put among the ones it has: after
+    /// them. The scores are differences of cosines, well inside -1..1.</summary>
+    private const double NotHeard = -2;
+
+    /// <summary>The canonical genre of a track's record, or null, from the same table the bands read.</summary>
+    private static string? GenreOf(MeasuredMood track, IReadOnlyDictionary<string, string> genreByFolder)
+        => genreByFolder.TryGetValue(track.Folder, out var genre) ? genre : null;
 
     /// <summary>
     /// Keeps only the sleep candidates whose record is broadly sleep music too.
@@ -973,11 +1149,14 @@ public sealed class MoodShelf
     /// lists are read to find something, and putting the most clearly calm record behind a round of
     /// one song per album would make them worse at their job.</para>
     /// </summary>
+    /// <param name="kind">Which list this is: Sleep, Zen or Festive. All three are one list over the whole
+    /// collection, with no genre rows, and all three are put on and left rather than read.</param>
     private static MoodList SpreadAcrossRecords(
         List<(string Path, string? Genre, double By, double WithinBy)> rows,
         IReadOnlyList<MeasuredMood> measured,
         IReadOnlyDictionary<string, CatalogueFacts> factsByFolder,
-        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> likedByKind)
+        IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> likedByKind,
+        SmartPlaylistKind kind)
     {
         var folderOf = measured.ToDictionary(m => m.RelativePath, m => m.Folder, StringComparer.OrdinalIgnoreCase);
 
@@ -990,11 +1169,11 @@ public sealed class MoodShelf
         IReadOnlyList<string> StylesOf(string folder)
             => factsByFolder.TryGetValue(folder, out var facts) ? facts.Styles : [];
 
-        // Sleep is one list and has no genre rows, so a like on it can only have been said of sleep.
-        // It is still asked in the same way as for every other list and not read as a flag: one rule
-        // in one place.
+        // These lists have no genre rows, so a like on one can only have been said of that list. It is
+        // still asked in the same way as for every other list and not read as a flag: one rule in one
+        // place.
         bool LikedHere(string path)
-            => likedByKind.TryGetValue(path, out var kinds) && kinds.Contains(SmartPlaylistKind.Sleep);
+            => likedByKind.TryGetValue(path, out var kinds) && kinds.Contains(kind);
 
         // The turn-taking itself is RecordTurns, which the decade charts also read: one rule in one
         // place. A path that the folder map does not carry takes its own turn under its own name.
@@ -1009,8 +1188,9 @@ public sealed class MoodShelf
 
         // The sleep list needs no pooled exclusion: MoodBands.NeverSleep has already kept rapping and
         // spoken word out of it at the source. It can do that because sleep has no genre rows that
-        // need those songs.
-        return new MoodList(spread, MoodBands.NotPooledInto(SmartPlaylistKind.Sleep));
+        // need those songs. Zen and Festive are chosen by their records' style and words, so they have
+        // none either.
+        return new MoodList(spread, MoodBands.NotPooledInto(kind), SmartPlaylists.MostFromOneRecordFor(kind));
     }
 
     /// <summary>The three numbers of a measured row, as the song carries them. It is one line in one
@@ -1068,6 +1248,7 @@ public sealed class MoodShelf
                                // and no year, which reads as a song that cannot be placed in a decade
                                // and not as one from the year 0.
                                : new MoodList.Song(r.Path, r.Genre, r.Path, "", 0, false, [], MoodList.Sound.Nothing, r.WithinBy))],
-                    MoodBands.NotPooledInto(kind));
+                    MoodBands.NotPooledInto(kind),
+                    SmartPlaylists.MostFromOneRecordFor(kind));
     }
 }

@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <Content Include="Assets\mel-reference.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\clap-mel-reference-10s.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\clap-mel-reference-3s.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\beat-decoder-reference.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\bar-dbn-reference.txt" CopyToOutputDirectory="PreserveNewest" />

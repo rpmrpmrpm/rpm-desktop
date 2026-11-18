@@ -18,7 +18,29 @@ public static class PcmDecoder
     public static float[] DecodeMono(string path, int sampleRate, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(path);
+        return Run(path, sampleRate, clip: null, ct);
+    }
 
+    /// <summary>
+    /// Reads <paramref name="seconds"/> seconds of <paramref name="path"/> from
+    /// <paramref name="startSeconds"/> on, as mono float PCM at <paramref name="sampleRate"/>. Returns
+    /// fewer samples where the file ends sooner, and an empty array when it will not decode.
+    ///
+    /// <para>ffmpeg seeks before it opens the input, so a clip near the end of a long file costs about the
+    /// same as one near the start. A whole decode to cut out three short clips would cost ten times
+    /// more.</para>
+    /// </summary>
+    public static float[] DecodeMonoClip(
+        string path, int sampleRate, double startSeconds, double seconds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (!double.IsFinite(startSeconds) || startSeconds < 0 || !double.IsFinite(seconds) || seconds <= 0)
+            return [];
+        return Run(path, sampleRate, (startSeconds, seconds), ct);
+    }
+
+    private static float[] Run(string path, int sampleRate, (double Start, double Seconds)? clip, CancellationToken ct)
+    {
         var psi = new ProcessStartInfo(ToolPaths.Ffmpeg)
         {
             RedirectStandardOutput = true,
@@ -28,6 +50,14 @@ public static class PcmDecoder
         };
         psi.ArgumentList.Add("-hide_banner");
         psi.ArgumentList.Add("-loglevel"); psi.ArgumentList.Add("error");
+        if (clip is { } part)
+        {
+            // The start is written to a hundredth of a second, as the listening test that chose the
+            // sound clips wrote it. A finer start moves the clip by a few samples and the embedding
+            // with it, so the app and that test would not read the same audio.
+            psi.ArgumentList.Add("-ss"); psi.ArgumentList.Add(part.Start.ToString("0.00", CultureInfo.InvariantCulture));
+            psi.ArgumentList.Add("-t"); psi.ArgumentList.Add(part.Seconds.ToString("0.###", CultureInfo.InvariantCulture));
+        }
         psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(path);
         psi.ArgumentList.Add("-vn");
         psi.ArgumentList.Add("-ac"); psi.ArgumentList.Add("1");

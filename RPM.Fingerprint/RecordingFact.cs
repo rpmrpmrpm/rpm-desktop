@@ -59,10 +59,16 @@ public sealed record RecordingFact(
     /// where a changeover starts and ends.</summary>
     public const string Shape = "shape";
 
+    /// <summary>What the record sounds like to the CLAP audio model: one embedding, from three clips.
+    /// The feeling lists are read from it. Two machines reading the same recording get embeddings that
+    /// differ in the last digits, so a second reading usually counts as a dispute, and the first one
+    /// stays. That is expected for this field.</summary>
+    public const string Sound = "sound";
+
     /// <summary>Every field this build knows. Anything else is refused, not stored, so a client
     /// cannot fill the pool with names that no code reads.</summary>
     public static readonly IReadOnlySet<string> Fields =
-        new HashSet<string>(StringComparer.Ordinal) { Level, Grid, Key, Energy, Cues, Edges, Bands, Shape };
+        new HashSet<string>(StringComparer.Ordinal) { Level, Grid, Key, Energy, Cues, Edges, Bands, Shape, Sound };
 
     /// <summary>The maximum value length. Large enough for a beat grid (a few hundred numbers) and
     /// small enough to keep rows a manageable size.</summary>

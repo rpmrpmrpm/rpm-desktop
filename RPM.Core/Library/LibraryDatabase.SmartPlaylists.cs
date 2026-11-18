@@ -283,14 +283,24 @@ public sealed partial class LibraryDatabase
             // while the styles sweep is running. A cut whose ranges and narrowings come from two
             // different states cannot be reasoned about.
             var facts = CatalogueFactsByFolder();
+            var counts = QueryAlbumGenreCounts();
             var built = MoodShelf.Build(
                 QueryMeasuredMoods(),
-                MoodBands.GenreByFolder(QueryAlbumGenreCounts(), facts),
+                MoodBands.GenreByFolder(counts, facts),
                 facts,
                 // Read here, not inside the cut, for the same reason as the catalogues' answer. One
                 // read is used once per kind, so no two lists disagree about what the listener has
                 // said while a verdict is being written on another thread.
-                LikedByKind());
+                LikedByKind(),
+                // What the sound pass heard, and the words and styles the other two lists are found
+                // by. The date is read once, here, so a session that runs past the last day of the
+                // season keeps its Festive list until the next launch, as every list keeps its cut.
+                new ShelfHearing(
+                    QuerySoundFeelings(),
+                    QueryHolidayTracks(),
+                    MoodBands.ZenFolders(counts, facts),
+                    HolidayMusic.InSeason(DateTime.Now),
+                    MelancholyShown: !SmartPlaylists.NotShownYet.Contains(SmartPlaylistKind.Melancholy)));
 
             using (_cuts.Take())
             {
@@ -300,6 +310,51 @@ public sealed partial class LibraryDatabase
                 return _moods ??= built;
             }
         }
+    }
+
+    /// <summary>
+    /// The tracks that are holiday music (<see cref="HolidayMusic.IsHoliday"/>), by relative path.
+    ///
+    /// <para>The words are matched in code, not in SQL: the rule has word edges and exceptions ("holiday"
+    /// on its own, "Santa Barbara"), which LIKE cannot state. SQL narrows first, to the tracks whose tags
+    /// hold any of <see cref="HolidayMusic.Hints"/>, so a library of thirty thousand tracks sends back a
+    /// few hundred rows and not every title it has.</para>
+    /// </summary>
+    public IReadOnlySet<string> QueryHolidayTracks()
+    {
+        List<(string Path, string? Title, string? Album, string? Genre)> rows;
+        using (_readGate.Take())
+        {
+            using var cmd = _read.CreateCommand();
+            var hints = new List<string>(HolidayMusic.Hints.Count);
+            for (int i = 0; i < HolidayMusic.Hints.Count; i++)
+            {
+                hints.Add($"tags LIKE $hint{i}");
+                cmd.Parameters.AddWithValue($"$hint{i}", $"%{HolidayMusic.Hints[i]}%");
+            }
+            cmd.CommandText =
+                $"""
+                SELECT relative_path, title, album, genre
+                FROM (SELECT relative_path, title, album, genre,
+                             COALESCE(title, '') || ' | ' || COALESCE(album, '') || ' | ' || COALESCE(genre, '') AS tags
+                      FROM tracks)
+                WHERE {string.Join(" OR ", hints)}
+                """;
+            using var reader = cmd.ExecuteReader();
+            rows = [];
+            while (reader.Read())
+                rows.Add((reader.GetString(0),
+                          reader.IsDBNull(1) ? null : reader.GetString(1),
+                          reader.IsDBNull(2) ? null : reader.GetString(2),
+                          reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        // Matched after the gate is let go, as the feeling scores are.
+        var holiday = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, title, album, genre) in rows)
+            if (HolidayMusic.IsHoliday(title, album, genre))
+                holiday.Add(path);
+        return holiday;
     }
 
     private ListeningProfile? _profile;
@@ -733,6 +788,14 @@ public sealed partial class LibraryDatabase
 
                 var pool = Pool(db.SessionMoods, Kind, Genre, Decade, db.RecommendRefusalsSaid());
 
+                // Zen and Lights out can hold the same ambient record. Zen leaves out what Lights out is
+                // showing, so the two lists show different songs from it. Lights out takes one song from a
+                // record and Zen up to five, so a shared record still gives Zen four. A run for the phone
+                // leaves out the whole of Lights out's run, not only the matching reading: stricter than
+                // needed, and never two lists with one song in them.
+                if (Kind == SmartPlaylistKind.Zen)
+                    pool = pool.Without(SleepShowing(db, readings));
+
                 // Each reading takes a different window of the pool. The pool itself belongs to the session
                 // and does not move, so this changes WHICH of the eligible songs are shown, not which songs
                 // are eligible. How many come back is the same either way. The record and artist caps are
@@ -778,6 +841,18 @@ public sealed partial class LibraryDatabase
                     "1 = 1",
                     "shelf.key",
                     [("$paths", JsonList(songs))]);
+            }
+
+            /// <summary>The songs Lights out shows now, in as many readings as are asked: the same songs its
+            /// own rule picks, read without moving its window.</summary>
+            private static IReadOnlySet<string> SleepShowing(LibraryDatabase db, int readings)
+            {
+                var sleep = SmartPlaylistId.WholeShelf(SmartPlaylistKind.Sleep);
+                var shows = Pool(db.SessionMoods, SmartPlaylistKind.Sleep, null, 0, db.RecommendRefusalsSaid())
+                    .Window(
+                        SmartPlaylists.MostSongs(SmartPlaylistKind.Sleep) * readings,
+                        db.MoodWindow(sleep, advance: false) + MoodSets.Turn(SmartPlaylistKind.Sleep, null));
+                return new HashSet<string>(shows, StringComparer.OrdinalIgnoreCase);
             }
         }
 
@@ -1099,6 +1174,18 @@ public sealed partial class LibraryDatabase
             // Absolute, not cut within anything, so it takes neither a genre nor a decade, even if one is passed to
             // it. See SmartPlaylists.BrokenOutByGenre and BrokenOutByEra, which stop the pane offering either.
             SmartPlaylistKind.Sleep => new Shelf(id.Kind, null, 0),
+
+            // What the sound model hears. The four feelings are cut within a genre like Calm, and take a genre
+            // row. They are not broken out by decade (SmartPlaylists.BrokenOutByEra), so the decade is passed
+            // on only for a caller that names one, as for the other moods.
+            SmartPlaylistKind.Melancholy => new Shelf(id.Kind, id.Genre, id.Decade),
+            SmartPlaylistKind.Happy => new Shelf(id.Kind, id.Genre, id.Decade),
+            SmartPlaylistKind.Angry => new Shelf(id.Kind, id.Genre, id.Decade),
+            SmartPlaylistKind.Romantic => new Shelf(id.Kind, id.Genre, id.Decade),
+
+            // One list each over the whole collection, like Sleep: neither takes a genre or a decade.
+            SmartPlaylistKind.Zen => new Shelf(id.Kind, null, 0),
+            SmartPlaylistKind.Festive => new Shelf(id.Kind, null, 0),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(id), id, "This generated playlist has no rule yet."),

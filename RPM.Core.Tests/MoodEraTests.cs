@@ -54,7 +54,7 @@ public class MoodEraTests
     }
 
     private static IReadOnlyList<string> CalmOf(List<MeasuredMood> rows) =>
-        MoodShelf.Build(rows, FiledAs(rows, "Rock"), NoCatalogue, Likes.None).Calm.WholeList.Songs;
+        MoodShelf.Build(rows, FiledAs(rows, "Rock"), NoCatalogue, Likes.None, ShelfHearing.Nothing).Calm.WholeList.Songs;
 
     /// <summary>
     /// End to end: a pool that is mostly one decade with a few modern records in it, for example a

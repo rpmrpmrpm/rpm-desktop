@@ -261,6 +261,86 @@ public sealed class RecordingPoolClient(
         });
     }
 
+    // ── sound ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The CLAP embeddings already known for these tracks, keyed by the paths asked about.
+    ///
+    /// <para>Asked under the exact names first, then under the fingerprint's name for the tracks still
+    /// missing. Unlike a beat grid, an embedding needs no correction when it comes from another pressing or
+    /// master of the same song: three clips of the same music sound the same to the model. So a hit under
+    /// the fingerprint's name is used as it is.</para>
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, float[]>> KnownSoundsAsync(
+        LibraryDatabase db, IReadOnlyList<SoundWork> work, CancellationToken ct)
+    {
+        var known = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
+        if (!auth.IsLoggedIn || work.Count == 0)
+            return known;
+        if (!await RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct))
+            return known;
+
+        foreach (bool fuzzyOnly in (bool[])[false, true])
+        {
+            var asked = new List<string>(work.Count);
+            var bundles = new List<IReadOnlyList<string>>(work.Count);
+            foreach (var item in work)
+            {
+                if (known.ContainsKey(item.RelativePath)
+                    || KeysFor(db, item.RelativePath, fuzzyOnly: fuzzyOnly) is not { Count: > 0 } keys)
+                    continue;
+                asked.Add(item.RelativePath);
+                bundles.Add(keys);
+            }
+
+            if (bundles.Count == 0)
+                continue;
+
+            try
+            {
+                using var patience = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                patience.CancelAfter(LookUpPatience);
+
+                var answers = await cloud.LookUpRecordingsAsync(bundles, patience.Token).ConfigureAwait(false);
+                for (int i = 0; i < answers.Count && i < asked.Count; i++)
+                    if (SoundFact.Read(answers[i]?.Fact(RecordingFact.Sound)) is { } embedding)
+                        known[asked[i]] = embedding;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The lookup took too long. The pass reads the files, as it would have done anyway.
+                break;
+            }
+            catch (Exception ex)
+            {
+                log.LogDebug(ex, "[pool] Could not ask the pool about these records' sound");
+                break;
+            }
+        }
+
+        if (known.Count > 0)
+            log.LogDebug("[pool] Already knew the sound of {Known} of {Asked} tracks", known.Count, work.Count);
+        return known;
+    }
+
+    /// <summary>Tells the pool what this machine heard in a record. This is fire and forget, like <see
+    /// cref="PublishLevel"/>.</summary>
+    public void PublishSound(LibraryDatabase db, string relativePath, float[] embedding)
+    {
+        if (!auth.IsLoggedIn || SoundFact.From(embedding) is not { } fact)
+            return;
+
+        var keys = Named(db, relativePath);
+        if (keys.Count < 2)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try { await cloud.ReportRecordingAsync(keys, [fact]).ConfigureAwait(false); }
+            catch (Exception ex) { log.LogDebug(ex, "[pool] Could not tell the pool about {Path}", relativePath); }
+        });
+    }
+
     /// <summary>Every name at once: the three exact names and the fingerprint's name. They are sent
     /// together to state that they all refer to one record. A bundle is a claim about identity. The song id
     /// is the part of that claim that no other machine can make for itself.</summary>

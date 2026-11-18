@@ -450,6 +450,45 @@ public sealed partial class RpmCloudClient(
         [property: JsonPropertyName("beat")] string? Beat,
         [property: JsonPropertyName("downbeat")] string? Downbeat);
 
+    /// <summary>Runs a record's clips through the store's CLAP audio model, and returns what the model
+    /// said: one embedding per clip, packed by <see cref="GridWire"/> at single precision.
+    ///
+    /// <para>The same split as <see cref="ReadGridWindowAsync"/>, for a computer that cannot run the model.
+    /// It decodes its own clips and builds their features (<see cref="Analysis.ClapFeatures"/>); only the
+    /// features cross the wire. Single precision both ways, so the store reads exactly what this machine
+    /// would have fed its own model.</para>
+    ///
+    /// <para>Null when the store does not answer. The caller does not store anything then: a store that
+    /// did not answer says nothing about the record.</para>
+    /// </summary>
+    /// <param name="features">The clips' features, one after another, packed by <see cref="GridWire.Pack"/>
+    /// at single precision.</param>
+    /// <param name="clips">How many clips the features hold.</param>
+    public async Task<string?> ReadSoundAsync(string features, int clips, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(features) || clips <= 0)
+            return null;
+
+        try
+        {
+            var said = await SendAsync<SoundResponse>(HttpMethod.Post, "recordings/sound",
+                JsonContent.Create(
+                    new SoundRequest(clips, Analysis.ClapFeatures.Frames, Analysis.ClapFeatures.MelBands, features,
+                                     GridWire.Name(GridPrecision.Single)),
+                    RpmCloudJson.Default.SoundRequest), ct);
+
+            return said.Embeddings is { Length: > 0 } embeddings ? embeddings : null;
+        }
+        // Everything except a cancel, for the reason given at ReadGridWindowAsync.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record SoundResponse(
+        [property: JsonPropertyName("embeddings")] string? Embeddings);
+
     private sealed record RecordingLookUpResponse(
         [property: JsonPropertyName("results")] IReadOnlyList<KnownRecordingBody>? Results);
 
@@ -2045,6 +2084,8 @@ public sealed partial class RpmCloudClient(
 
     private sealed record GridWindowRequest(int Frames, int Bands, string Mel, string Precision);
 
+    private sealed record SoundRequest(int Clips, int Frames, int Bands, string Mel, string Precision);
+
     private sealed record UploadInitRequest(
         string RpmId,
         string Sha256,
@@ -2138,6 +2179,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(FactsReportRequest))]
     [JsonSerializable(typeof(RpmIdsRequest))]
     [JsonSerializable(typeof(GridWindowRequest))]
+    [JsonSerializable(typeof(SoundRequest))]
     [JsonSerializable(typeof(UploadInitRequest))]
     [JsonSerializable(typeof(ProveRequest))]
     [JsonSerializable(typeof(UploadCompleteRequest))]
@@ -2164,6 +2206,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(RecordingReportResponse))]
     [JsonSerializable(typeof(AnalyseResponse))]
     [JsonSerializable(typeof(GridWindowResponse))]
+    [JsonSerializable(typeof(SoundResponse))]
     [JsonSerializable(typeof(ErrorReportResponse))]
     [JsonSerializable(typeof(UploadInitResponse))]
     [JsonSerializable(typeof(ProveResponse))]

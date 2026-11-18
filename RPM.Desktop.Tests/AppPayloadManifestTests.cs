@@ -94,6 +94,15 @@ public class AppPayloadManifestTests
     }
 
     [Fact]
+    public void TheSoundModelIsNotInTheManifestAtAll()
+    {
+        // The CLAP model feeds the feeling lists, and SoundService is built to work without it: a
+        // computer with no file asks the cloud instead, as one that fails the beat model test does.
+        // Listing it here would make the app refuse to open because of four playlists.
+        Assert.DoesNotContain(AppPayload.Manifest, i => i.Name.StartsWith("clap_audio"));
+    }
+
+    [Fact]
     public void EveryEntryIsNamedOnce()
     {
         // Two entries with one name give a report that lists the same failure twice, and a manifest

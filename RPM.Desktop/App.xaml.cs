@@ -534,6 +534,11 @@ public partial class App : Application
                         // at startup. Everything that reads a record asks it first.
                         .AddSingleton<DjModelService>()
                         .AddSingleton<CloudBeatModel>()
+                        // Measures each track's sound with the CLAP model, for the feeling lists. It runs
+                        // where the beat model runs (DjModelService), in the cloud otherwise. Resolved
+                        // eagerly at startup (below): it has no callers, only a subscription.
+                        .AddSingleton<CloudSoundModel>()
+                        .AddSingleton<SoundService>()
                         .AddSingleton<TrackAnalysisService>()
                         // Puts what the analyser measured (the tempo and the key) into the files it
                         // measured. It is resolved eagerly at startup (below). Its whole job is a
@@ -1004,6 +1009,10 @@ public partial class App : Application
 
         // The loudness pass also waits for the library to open, and then works from there.
         Host.Services.GetRequiredService<LoudnessService>();
+
+        // The sound pass has the same shape. It waits for the library to open and for the governor, and
+        // asks DjModelService where the model runs before it measures anything.
+        Host.Services.GetRequiredService<SoundService>();
 
         // It is built here for the same reason as the loudness pass. It subscribes to the library opening
         // in its constructor. A service that nobody has asked for has not subscribed to anything.
