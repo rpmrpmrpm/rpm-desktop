@@ -56,6 +56,13 @@ public sealed partial class MainPage
         ShowAlbumDetail(true);
     }
 
+    /// <summary>Opens the playing record's album page for a press on the cover in the artwork header,
+    /// which is outside the library card. It opens over whatever the right side shows. Home is asked first,
+    /// because <see cref="WhereTheReaderIs"/> does not know it, and the page's back button must return
+    /// there.</summary>
+    public void OpenRecordFromHeader(string folder) =>
+        NavigateToAlbumPage(folder, Panes.AtHome ? AlbumFrom.HomeScreen : WhereTheReaderIs);
+
     /// <summary>The page the reader is looking at right now. A record opened from somewhere else (a menu,
     /// the info pane, a track row) is opened out of this page. It is asked at the call site, where it is
     /// still true. See NavigateToAlbumPage.</summary>

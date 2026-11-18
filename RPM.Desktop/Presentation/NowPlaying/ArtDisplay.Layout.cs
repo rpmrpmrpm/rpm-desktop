@@ -294,6 +294,17 @@ public sealed partial class ArtDisplay
             _seek.ShowRemaining = true;
         }
 
+        // The press on the cover lies over the cover: the ContentLayer's margin, the cover's foot on the
+        // band's foot. See AttachCover.
+        if (_cover is not null)
+        {
+            _cover.HorizontalAlignment = HorizontalAlignment.Left;
+            _cover.VerticalAlignment = VerticalAlignment.Top;
+            _cover.Width = side;
+            _cover.Height = side;
+            _cover.Margin = new Thickness(ContentInsetX, ContentInsetY + band - side, 0, 0);
+        }
+
         // PARKED: a short column on the right, shared with the lines above it. There is no cover beside it.
         // The bar works as a ruler and not as a control. There is no countdown. The clock and the parked
         // lines want the same row, and the lines take it. This is fixed for this bar, not switched per

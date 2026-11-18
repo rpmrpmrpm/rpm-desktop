@@ -57,6 +57,7 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         ShellBody.Visibility = rest;
         TopSeek.Visibility = rest;
         ParkSeek.Visibility = rest;
+        TopCover.Visibility = rest;
         _ampUp = on;
         SyncRecordShown();
 
@@ -197,6 +198,10 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         // sounding. There are two seek bars, one for the open drawer and one for the parked drawer (see
         // the XAML). Both use the same transport, so whichever is on screen shows the same playhead.
         ShellArt.AttachSeek(TopSeek, ParkSeek);
+
+        // The press on the now-playing cover is in this overlay too, for the same reason. ArtDisplay
+        // places it over the cover. What a press opens is decided here (see CoverRecord).
+        ShellArt.AttachCover(TopCover);
         var transport = App.Services.GetRequiredService<RPaMpService>().Transport;
         TopSeek.DataContext = transport;
         ParkSeek.DataContext = transport;
@@ -1119,6 +1124,35 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         if (!_dragging) return;
         _dragging = false;
         ((UIElement)sender).ReleasePointerCapture(e.Pointer);
+    }
+
+    /// <summary>
+    /// The folder of the record playing, when a press on the header's cover can open its album page: the
+    /// library page is up, and the record is in the collection on screen. Null for a radio station, a file
+    /// from outside the collection, and a record from another collection, the same rule as the Album button
+    /// in the track info pane. Asked at the moment of the press, because the track and the collection on
+    /// screen both change on their own.
+    /// </summary>
+    private string? CoverRecord()
+    {
+        if (RootFrame.Content is not MainPage)
+            return null;
+        var path = App.Services.GetRequiredService<PlaybackService>().PlayingRecord;
+        return TrackHome.For(path) is { OnScreen: true, Folder.Length: > 0 } home ? home.Folder : null;
+    }
+
+    /// <summary>The hand shows over the cover only when a press will open a page.</summary>
+    private void TopCover_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        => TopCover.SetActive(CoverRecord() is not null);
+
+    /// <summary>A press on the header's cover opens the playing record's album page.</summary>
+    private void TopCover_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (CoverRecord() is { } folder && RootFrame.Content is MainPage library)
+        {
+            library.OpenRecordFromHeader(folder);
+            e.Handled = true;
+        }
     }
 
     /// <summary>Right-click on the artwork header opens its flip and refresh menu. The art is behind this

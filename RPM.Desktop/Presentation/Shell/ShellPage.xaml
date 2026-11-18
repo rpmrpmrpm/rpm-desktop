@@ -216,6 +216,16 @@
          -->
     <ctl:SeekBar x:Name="ParkSeek" Opacity="0" IsHitTestVisible="False"/>
 
+    <!-- The press on the now-playing cover, which opens its record's album page. The cover is drawn by
+         ShellArt, behind the content, and gets no pointer input, so this transparent sheet is laid over
+         it, as the seek bar is. ArtDisplay places it in layout and takes hits on it only while the open
+         drawer is up. A right-click on it opens the artwork's menu, as it does on the rest of the header.
+         -->
+    <ctl:PressSheet x:Name="TopCover" IsHitTestVisible="False"
+                    Tapped="TopCover_Tapped" PointerEntered="TopCover_PointerEntered"
+                    RightTapped="ArtHeader_RightTapped"
+                    AutomationProperties.Name="{loc:Str Key=AlbumMenu_AlbumPage}"/>
+
     <!-- The spinning record, lifted ABOVE the content so its lower arc laps over the grids, on top of
          the frosted glass. ArtDisplay owns and drives it (attached in code). It fills the same window
          bounds, so the disc lands in the band. Double-click the disc to open the player popout. Only the

@@ -599,6 +599,7 @@ public sealed partial class ArtDisplay : UserControl, IArtStage
     /// </summary>
     private void SyncSeekBars(bool instant)
     {
+        SyncCover();
         if (_seek is null || _parkSeek is null)
             return;
 
@@ -810,6 +811,26 @@ public sealed partial class ArtDisplay : UserControl, IArtStage
         _seek = open;
         _parkSeek = parked;
         SyncSeekBars(instant: true);
+    }
+
+    /// <summary>The sheet in the shell's top overlay that takes a press on the cover. The cover is behind
+    /// the content and gets no pointer input. <see cref="Layout"/> places the sheet over the cover, and
+    /// <see cref="SyncCover"/> says when it takes hits. What a press does is the shell's.</summary>
+    private PressSheet? _cover;
+
+    public void AttachCover(PressSheet cover)
+    {
+        _cover = cover;
+        SyncCover();
+    }
+
+    /// <summary>The cover takes a press only while the open drawer is up, the same rule as the open seek
+    /// bar. Parked, the cover is faded out, and a press on the empty place where it was must not open a
+    /// page.</summary>
+    private void SyncCover()
+    {
+        if (_cover is not null)
+            _cover.IsHitTestVisible = !_idle;
     }
 
     /// <summary>The two ONNX models the crop runs on. The host passes them in. The manager owns everything
