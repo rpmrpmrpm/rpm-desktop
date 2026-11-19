@@ -59,6 +59,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => { asks++; return Task.FromResult(true); },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.False(await reach.AllowAsync(CancellationToken.None));
@@ -72,6 +73,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.False(await reach.AllowAsync(CancellationToken.None));
@@ -84,10 +86,95 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => Task.FromResult(true),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.True(await reach.AllowAsync(CancellationToken.None));
         Assert.Equal(Reach.Online, reach.Now);
+    }
+
+    /// <summary>A probe that got no answer while this process was late on its own work is not stored.
+    /// The answer may have come back and waited for a thread. A busy app that stored it would refuse
+    /// every request for the next seconds, on a line that was working.</summary>
+    [Fact]
+    public async Task NoAnswerWhileTheProcessWasLateLeavesTheReadingAsItWas()
+    {
+        var asks = 0;
+        var reach = new NetworkReach(
+            hasNetwork: () => true,
+            ask: _ => { asks++; return Task.FromResult(false); },
+            pace: StubPace.Late,
+            now: () => DateTimeOffset.UtcNow);
+
+        Assert.True(await reach.AllowAsync(CancellationToken.None));
+        Assert.Equal(Reach.Online, reach.Now);
+        Assert.False(reach.Settled);
+
+        // Nothing was stored, so the next caller measures again rather than reading a held answer.
+        await reach.AllowAsync(CancellationToken.None);
+        Assert.Equal(2, asks);
+    }
+
+    /// <summary>A reading of "not online" also stands through a late measurement. The excuse keeps the
+    /// last reading, whatever it was. It does not turn a failed probe into "online".</summary>
+    [Fact]
+    public async Task ALateMeasurementKeepsAnEarlierLocalOnlyReading()
+    {
+        var clock = new Clock();
+        var late = false;
+        var reach = new NetworkReach(
+            hasNetwork: () => true,
+            ask: _ => Task.FromResult(false),
+            pace: () => late ? StubPace.Late() : StubPace.Steady(),
+            now: () => clock.Now);
+
+        Assert.False(await reach.AllowAsync(CancellationToken.None));
+        Assert.Equal(Reach.LocalOnly, reach.Now);
+
+        late = true;
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.False(await reach.AllowAsync(CancellationToken.None));
+        Assert.Equal(Reach.LocalOnly, reach.Now);
+    }
+
+    /// <summary>An answer is believed however late the process was. Lateness can only hide an answer,
+    /// it cannot make one up.</summary>
+    [Fact]
+    public async Task AnAnswerCountsEvenWhenTheProcessWasLate()
+    {
+        var reach = new NetworkReach(
+            hasNetwork: () => true,
+            ask: _ => Task.FromResult(true),
+            pace: StubPace.Late,
+            now: () => DateTimeOffset.UtcNow);
+
+        Assert.True(await reach.AllowAsync(CancellationToken.None));
+        Assert.Equal(Reach.Online, reach.Now);
+        Assert.True(reach.Settled);
+    }
+
+    /// <summary>No interface up is not something a busy process can cause, so it is not excused.</summary>
+    [Fact]
+    public async Task NoNetworkIsBelievedEvenWhenTheProcessWasLate()
+    {
+        var reach = new NetworkReach(
+            hasNetwork: () => false,
+            ask: _ => Task.FromResult(false),
+            pace: StubPace.Late,
+            now: () => DateTimeOffset.UtcNow);
+
+        Assert.False(await reach.AllowAsync(CancellationToken.None));
+        Assert.Equal(Reach.Offline, reach.Now);
+    }
+
+    /// <summary>The thread pool's own watch, on a pool that is keeping up: the test run's pool is not
+    /// full, so the queued item runs at once and the process counts as keeping up.</summary>
+    [Fact]
+    public async Task APoolThatIsKeepingUpCountsAsKeepingUp()
+    {
+        var watch = Pace.OfThreadPool();
+        await Task.Delay(50);
+        Assert.True(watch.KeptUp);
     }
 
     /// <summary>Before anything has been measured the answer is "online". A window that has not
@@ -98,6 +185,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.Equal(Reach.Online, reach.Now);
@@ -113,6 +201,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => { asks++; return Task.FromResult(false); },
+            pace: StubPace.Steady,
             now: () => clock.Now);
 
         for (var i = 0; i < 400; i++)
@@ -131,6 +220,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => Task.FromResult(answers.Count > 0 ? answers.Dequeue() : true),
+            pace: StubPace.Steady,
             now: () => clock.Now);
 
         Assert.False(await reach.AllowAsync(CancellationToken.None));
@@ -150,6 +240,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { Interlocked.Increment(ref asks); await release.Task; return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var waiting = Enumerable.Range(0, 20)
@@ -171,6 +262,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { await release.Task; return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         using var giveUp = new CancellationTokenSource();
@@ -194,6 +286,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => { asks++; return Task.FromResult(true); },
+            pace: StubPace.Steady,
             now: () => clock.Now);
 
         Assert.True(await reach.AllowAsync(CancellationToken.None));
@@ -217,6 +310,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => Task.FromResult(online),
+            pace: StubPace.Steady,
             now: () => clock.Now);
         reach.Changed += seen.Add;
 
@@ -239,6 +333,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => throw new HttpRequestException("no route to host"),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.False(await reach.AllowAsync(CancellationToken.None));
@@ -263,6 +358,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { await release.Task; return false; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         reach.Changed += _ => throw new InvalidOperationException("the host is shutting down");
@@ -285,6 +381,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         reach.Changed += _ => told.Add("first");
@@ -318,6 +415,7 @@ public class NetworkReachTests
                     asked.TrySetResult();
                 return Task.FromResult(true);
             },
+            pace: StubPace.Steady,
             now: () => clock.Now);
 
         Assert.True(await reach.AllowAsync(CancellationToken.None));
@@ -351,6 +449,7 @@ public class NetworkReachTests
                     await held.Task;
                 return true;
             },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         Assert.True(await reach.AllowAsync(CancellationToken.None));
@@ -387,6 +486,7 @@ public class NetworkReachTests
                 await release.Task;
                 return true;
             },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var waiting = Enumerable.Range(0, 10)
@@ -432,6 +532,7 @@ public class NetworkReachTests
                 return false;
             },
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var measuring = Task.Run(() => reach.RefreshAsync());
@@ -479,6 +580,7 @@ public class NetworkReachTests
 
                 return false;
             },
+            pace: StubPace.Steady,
             now: () => clock.Now);
 
         var first = reach.RefreshAsync();
@@ -516,6 +618,7 @@ public class NetworkReachTests
                     await measuring.Task;
                 return false;
             },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var stale = reach.RefreshAsync();
@@ -547,6 +650,7 @@ public class NetworkReachTests
             hasNetwork: () => true,
             // Takes the token and ignores it, which is what a client with no timeout does.
             ask: _ => neverAnswers.Task,
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var waiting = Enumerable.Range(0, 10)
@@ -571,6 +675,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => late.Task,
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var faults = new List<Exception>();
@@ -609,6 +714,7 @@ public class NetworkReachTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { Interlocked.Increment(ref asks); await Task.Yield(); return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -681,7 +787,8 @@ public class OnlineGateHandlerTests
     }
 
     private static NetworkReach Reachable(bool online) =>
-        new(hasNetwork: () => true, ask: _ => Task.FromResult(online), now: () => DateTimeOffset.UtcNow);
+        new(hasNetwork: () => true, ask: _ => Task.FromResult(online), pace: StubPace.Steady,
+            now: () => DateTimeOffset.UtcNow);
 
     [Fact]
     public async Task WithNothingOutThereNoSocketIsOpened()
@@ -734,6 +841,7 @@ public class OnlineGateHandlerTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: _ => { Interlocked.Increment(ref asks); return Task.FromResult(true); },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         // Throws once (the line is down), and then the line comes back.
@@ -822,4 +930,19 @@ public class LocalNetworkTests
     {
         Assert.False(LocalNetwork.CarriesALan(isUp: true, NetworkInterfaceType.Ethernet, []));
     }
+}
+
+/// <summary>A pace watch with a fixed answer, so a test decides whether the process kept up.</summary>
+internal sealed class StubPace(bool keptUp) : IPaceWatch
+{
+    private static readonly StubPace OnTime = new(true);
+    private static readonly StubPace Behind = new(false);
+
+    public bool KeptUp => keptUp;
+
+    /// <summary>The process ran its own work on time.</summary>
+    public static IPaceWatch Steady() => OnTime;
+
+    /// <summary>The process was late on its own work for the whole measurement.</summary>
+    public static IPaceWatch Late() => Behind;
 }

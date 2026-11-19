@@ -60,6 +60,7 @@ public sealed class NetworkReach : IDisposable
 
     private readonly Func<bool> _hasNetwork;
     private readonly Func<CancellationToken, Task<bool>> _ask;
+    private readonly Func<IPaceWatch> _pace;
     private readonly Func<DateTimeOffset> _now;
     private readonly object _gate = new();
 
@@ -84,14 +85,19 @@ public sealed class NetworkReach : IDisposable
     /// measurement, so that a cable going in is noticed.</param>
     /// <param name="ask">The probe: true when something outside the LAN answered. Any answer counts, even a
     /// refusal. A 403 from the service means the internet is working.</param>
+    /// <param name="pace">Started when a probe starts. It says afterwards whether this process ran its own
+    /// work on time while the probe ran. A probe that got no answer while the process was late is not stored.
+    /// See <see cref="IPaceWatch"/>.</param>
     /// <param name="now">The clock, for tests.</param>
     public NetworkReach(
         Func<bool> hasNetwork,
         Func<CancellationToken, Task<bool>> ask,
+        Func<IPaceWatch> pace,
         Func<DateTimeOffset> now)
     {
         _hasNetwork = hasNetwork;
         _ask = ask;
+        _pace = pace;
         _now = now;
     }
 
@@ -292,8 +298,10 @@ public sealed class NetworkReach : IDisposable
         // class exists to stop. The check is cheap and repeated, so a cable plugged in is found on the next
         // measurement.
         bool answered = false;
+        IPaceWatch? pace = null;
         if (has)
         {
+            pace = _pace();
             using var budget = new CancellationTokenSource(ProbeBudget);
             using var giveUpOnTheClock = new CancellationTokenSource();
             try
@@ -329,9 +337,24 @@ public sealed class NetworkReach : IDisposable
 
         var reach = ReachReading.For(has, answered);
 
+        // No answer, while this process could not run its own work on time. The answer may have arrived and
+        // waited for a thread, so this says nothing about the line. The last reading stands, and nothing is
+        // stored, so the next caller measures again. Only a failed probe is excused: an answer is an answer
+        // however late it was read, and no interface at all is not something a busy process can cause.
+        if (!answered && pace is { KeptUp: false })
+        {
+            Reach held;
+            lock (_gate) held = _reach;
+            RPM.Core.Diagnostics.Scope.Said(
+                "net", $"line not measured: no answer while this process was late on its own work, {held} stands");
+            return held;
+        }
+
+        Reach was;
         bool changed;
         lock (_gate)
         {
+            was = _reach;
             // The addresses changed while this measurement was running. The reading still goes back to
             // whoever is waiting. It was true a moment ago, and it is the best answer available. But
             // nothing is stored, so the next caller measures the network as it now is, and does not reuse
@@ -345,7 +368,10 @@ public sealed class NetworkReach : IDisposable
         }
 
         if (changed)
+        {
+            RPM.Core.Diagnostics.Scope.Said("net", $"line {was} -> {reach}");
             Announce(reach);
+        }
 
         return reach;
     }
@@ -461,6 +487,7 @@ public sealed class NetworkReach : IDisposable
         var reach = new NetworkReach(
             hasNetwork: LocalNetwork.IsPresent,
             ask: ct => AnybodyAnswersAsync(probe, probeUrls, ct),
+            pace: Pace.OfThreadPool,
             now: () => DateTimeOffset.UtcNow);
 
         reach.Owns(probe);

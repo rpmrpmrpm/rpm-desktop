@@ -199,6 +199,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { Interlocked.Increment(ref probes); await release.Task; return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
@@ -233,6 +234,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => { Interlocked.Increment(ref probes); return Task.FromResult(false); },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
@@ -268,6 +270,7 @@ public class GateUnderLoadTests
             // each finds the answer already measured again and honestly retires it. The test would then pin
             // the scheduler instead of the coalescing.
             ask: async _ => { Interlocked.Increment(ref probes); await Task.Delay(60); return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         // The ten are held at the far end until all ten are there, so that they fail together the
@@ -332,6 +335,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
