@@ -13,8 +13,8 @@ namespace RPM.Desktop.Presentation.Main;
 /// line of their own, under the subtitle. The heading and the subtitle are what the panel says about
 /// itself, and neither shares its width with a row of buttons. That line spans the whole panel, so all
 /// the controls return to it. From there the controls leave one at a time, least useful first: the
-/// slider, the sort picker, grouping, the favourites heart, then the search field (narrowed once before
-/// it goes), and last the view switch again. Any control can leave. A control with no room is better
+/// slider, the sort picker, grouping, the favourites heart, and last the view switch again. Any control
+/// can leave. A control with no room is better
 /// left out than left hanging over the edge.</para>
 ///
 /// <para>Every width in the ladder is a fixed number from the markup, not a value measured after a
@@ -25,11 +25,6 @@ public sealed partial class MainPage
 {
     /// <summary>The gap between the header's controls (LibraryChrome's own spacing).</summary>
     private const double HeaderGap = 12;
-
-    /// <summary>The search field's resting width, and the one width it gives up at the last
-    /// stage.</summary>
-    private const double SearchSlotWidth = 150;
-    private const double SearchSlotNarrowWidth = 104;
 
     /// <summary>A single glyph button in its frame: 32 wide, filling it, and the hairline either
     /// side.</summary>
@@ -43,7 +38,7 @@ public sealed partial class MainPage
 
     /// <summary>The last rung of the ladder: the chrome on its own line, with nothing else left on
     /// it.</summary>
-    private const int HeaderStageFloor = 10;
+    private const int HeaderStageFloor = 8;
 
     /// <summary>The rung the header is on. Rungs 0 to 2 keep the chrome beside the heading. Rung 1
     /// drops the cover-size slider, and rung 2 also drops the view switch, so the header stays on one
@@ -68,9 +63,7 @@ public sealed partial class MainPage
     private static bool WantsSortSlot(int stage) => stage <= 4;
     private static bool WantsGroupSlot(int stage) => stage <= 5;
     private static bool WantsFavoritesSlot(int stage) => stage <= 6;
-    private static bool WantsSearchSlot(int stage) => stage <= 8;
-    private static bool WantsNarrowSearch(int stage) => stage == 8;
-    private static bool WantsViewToggle(int stage) => stage != 2 && stage <= 9;
+    private static bool WantsViewToggle(int stage) => stage != 2 && stage <= 7;
 
     /// <summary>Whether the wall's own slot (the sort picker and the cover-size slider) still holds
     /// anything. Read by <see cref="ShowSizeSlot"/>, which hands the slot its column.</summary>
@@ -121,8 +114,6 @@ public sealed partial class MainPage
         // the chrome under it, that gap belongs to the chrome, so the subtitle only needs its own line.
         LibrarySubheading.Margin = new Thickness(0, -4, 0, stacked ? 6 : 12);
 
-        SearchSlot.OpenWidth = WantsNarrowSearch(stage) ? SearchSlotNarrowWidth : SearchSlotWidth;
-        SearchSlot.Visibility = Shown(WantsSearchSlot(stage));
         ViewToggle.Visibility = Shown(WantsViewToggle(stage));
         SizeCluster.Visibility = Shown(WantsSizeCluster(stage));
         SortSlot.Visibility = Shown(WantsSortSlot(stage));
@@ -153,8 +144,6 @@ public sealed partial class MainPage
             parts++;
         }
 
-        if (WantsSearchSlot(stage))
-            Take(WantsNarrowSearch(stage) ? SearchSlotNarrowWidth : SearchSlotWidth);
         if (WantsFavoritesSlot(stage) && view is LibraryViewMode.Wall or LibraryViewMode.List)
             Take(GlyphSlotWidth);
         if (WantsGroupSlot(stage) && view == LibraryViewMode.List)

@@ -9,6 +9,7 @@
       xmlns:peg="using:RPM.Desktop.Presentation.Pegasus"
       xmlns:loc="using:RPM.Desktop.Strings"
       xmlns:transport="using:RPM.Desktop.Presentation.Main.Transport.Controls"
+      xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
       Background="#0e1520">
 
   <Page.Resources>
@@ -237,6 +238,11 @@
          Above the content and the record, over the deck, so it rises out of the bottom of the window and sinks
          back into it. It shows and hides itself with the offer (see DiscCard). -->
     <transport:DiscCard HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,104"/>
+
+    <!-- The library search over the whole window, which Cmd or Ctrl+F opens (SearchInFront). Over the content,
+         the seek bars, the record and the CD card, so it shades all of them. Under the problem screen, which
+         replaces a library it could not read, and under the window buttons, which must stay usable. -->
+    <search:SearchOverlay x:Name="SearchLayer"/>
 
     <!-- The problem screen. It sits over the running library, not in place of it, for a read of the
          open collection that failed. It is over the content, the seek bars and the record, and under the

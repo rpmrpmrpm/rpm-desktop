@@ -35,7 +35,8 @@ public sealed record LibrarySearchSources(
     Func<string, int, IReadOnlyList<SearchSong>> Songs);
 
 /// <summary>
-/// The library's search: one box for the whole collection, risen over the card's top right.
+/// The library's search: what the words typed in the search bar over the window (<see cref="SearchOverlay"/>)
+/// name, in a panel that drops down under the bar.
 /// </summary>
 /// <remarks>
 /// <para><b>Everything the collection holds that the words name, whichever view it lives in, each kind under
@@ -45,9 +46,11 @@ public sealed record LibrarySearchSources(
 /// (<see cref="ArtistWall.SearchKey"/>), so "beyonce" finds Beyoncé and "acdc" finds AC/DC. A group shows
 /// its first <see cref="FirstShown"/> and opens to the rest with View more.</para>
 ///
-/// <para><b>It does not narrow the views behind it.</b> It used to: the album header's field filtered the
-/// wall and the list as it was typed into. A search now answers in its own list, and the views stay
+/// <para><b>It does not narrow the views behind it.</b> A search answers in its own list, and the views stay
 /// whole, as on the phones. A record found is opened, a song is played.</para>
+///
+/// <para><b>The keyboard stays in the bar's box.</b> The first row is lit each time the panel is drawn; the
+/// bar moves the light with <see cref="MoveLight"/> and presses the lit row with <see cref="ChooseLit"/>.</para>
 ///
 /// <para><b>The recent searches</b> are shown while the box is empty. A search is remembered when the box
 /// has been left alone for <see cref="SearchHistory.Settled"/>, or when something it found is chosen. See
@@ -58,26 +61,18 @@ public sealed partial class LibrarySearchView : UserControl
     /// <summary>How many answers a group shows before View more.</summary>
     private const int FirstShown = 5;
 
-    /// <summary>The most songs one search returns. See the phones' <c>SongSearch.ceiling</c>.</summary>
-    private const int SongCeiling = 300;
-
-    /// <summary>The most records one search returns. See the phones' <c>SongSearch.recordCeiling</c>.</summary>
-    private const int RecordCeiling = 60;
-
     private readonly DispatcherTimer _typing = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly DispatcherTimer _settling = new() { Interval = SearchHistory.Settled };
 
     private CancellationTokenSource? _search;
     private LibrarySearchSources? _sources;
-    private Found? _found;
+    private LibrarySearchFound? _found;
     private string _asked = "";
     private string _shownFor = "";
     private readonly HashSet<string> _unfolded = new(StringComparer.Ordinal);
 
-    /// <summary>The heading's search box this search drops down from, and the heading's last control, whose
-    /// right edge is the panel's. See <see cref="Place"/>.</summary>
+    /// <summary>The search bar this search drops down from. See <see cref="Place"/>.</summary>
     private FrameworkElement? _anchor;
-    private FrameworkElement? _rightEdge;
 
     public LibrarySearchView()
     {
@@ -123,12 +118,10 @@ public sealed partial class LibrarySearchView : UserControl
     // ── opening and closing ──
 
     /// <summary>
-    /// Puts the search up under <paramref name="anchor"/>, the heading's search box, reaching to the right
-    /// edge of <paramref name="rightEdge"/>, the heading's last control, and looking through
-    /// <paramref name="sources"/>. A search that is already up is given the newest sources and moved to the
-    /// box it was opened from.
+    /// Puts the search up under <paramref name="anchor"/>, the search bar, looking through
+    /// <paramref name="sources"/>. A search that is already up is given the newest sources.
     /// </summary>
-    public void Open(LibrarySearchSources sources, FrameworkElement anchor, FrameworkElement rightEdge)
+    public void Open(LibrarySearchSources sources, FrameworkElement anchor)
     {
         _sources = sources;
 
@@ -139,7 +132,6 @@ public sealed partial class LibrarySearchView : UserControl
             _anchor = anchor;
             _anchor.SizeChanged += Anchor_SizeChanged;
         }
-        _rightEdge = rightEdge;
 
         if (!IsOpen)
         {
@@ -147,6 +139,12 @@ public sealed partial class LibrarySearchView : UserControl
             _found = null;
             _shownFor = "";
             _unfolded.Clear();
+
+            // Drawn clear from its first frame (see Rise).
+            _rise?.Stop();
+            Panel.Opacity = 0;
+            PanelShift.Y = -6;
+
             Visibility = Visibility.Visible;
             UpdateLayout();
             Place();
@@ -165,6 +163,7 @@ public sealed partial class LibrarySearchView : UserControl
     public void Ask(string text)
     {
         _asked = text ?? "";
+        _chooseWhenAnswered = false;
         _typing.Stop();
         _settling.Stop();
 
@@ -182,13 +181,107 @@ public sealed partial class LibrarySearchView : UserControl
             _settling.Start();
     }
 
-    /// <summary>The keyboard to the first answer, where Enter opens or plays it. False where there is none.</summary>
-    public bool FocusFirstAnswer()
+    /// <summary>Lights the row <paramref name="step"/> rows down (up when negative), and keeps it in view. It
+    /// stops at the first and the last row.</summary>
+    public void MoveLight(int step)
     {
-        foreach (var child in Body.Children)
-            if (child is Button { Tag: Answer } answer)
-                return answer.Focus(FocusState.Keyboard);
-        return false;
+        var rows = Choices();
+        if (rows.Count == 0)
+            return;
+
+        var at = _lit is null ? -1 : rows.IndexOf(_lit);
+        var to = Math.Clamp(at + step, 0, rows.Count - 1);
+        Light(rows[to]);
+
+        // The first row shows the heading over it too.
+        if (to == 0)
+            Scroller.ChangeView(null, 0, null, disableAnimation: true);
+        else
+            Reveal(rows[to]);
+    }
+
+    /// <summary>
+    /// Does what a press on the lit row does. False where no row is lit.
+    /// </summary>
+    /// <remarks>
+    /// The lit row counts only while the panel answers the words in the box now (<see cref="AnswersTheBox"/>).
+    /// Enter pressed right after a letter comes before the typing timer, and the panel still shows the answer
+    /// to the words before it, or the recent searches; choosing a row there would open the wrong thing, or
+    /// put a recent search over what was typed. So the search runs at once, and the first answer to these
+    /// words is chosen when it lands (<see cref="Run"/>). Another letter typed first cancels that.
+    /// </remarks>
+    public bool ChooseLit()
+    {
+        if (!AnswersTheBox)
+        {
+            _chooseWhenAnswered = true;
+            _typing.Stop();
+            Run();
+            return true;
+        }
+
+        switch (_lit?.Tag)
+        {
+            case Answer answer:
+                Choose(answer.Thing);
+                return true;
+            case Recent recent:
+                RecentPicked?.Invoke(recent.Asked);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>Enter was pressed before the answer to the words in the box had come. See
+    /// <see cref="ChooseLit"/>. Cleared by a letter typed and by closing.</summary>
+    private bool _chooseWhenAnswered;
+
+    /// <summary>Whether the panel shows what belongs to the words in the box now: the recent searches for an
+    /// empty box, or the answer that was found for these words.</summary>
+    private bool AnswersTheBox =>
+        _asked.Trim().Length == 0
+        || (_found is not null && string.Equals(_shownFor, _asked.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The row lit for the keyboard, or null. Every redraw makes new rows and sets this to null
+    /// first (see <see cref="Fill"/>), so it never names a row that is not on the panel.</summary>
+    private Button? _lit;
+
+    /// <summary>The rows the keyboard can light, top to bottom: the answers, or the recent searches.</summary>
+    private List<Button> Choices() =>
+        Body.Children.OfType<Button>().Where(row => row.Tag is Answer or Recent).ToList();
+
+    private void Light(Button? row)
+    {
+        if (_lit is not null)
+            _lit.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        _lit = row;
+        if (row is not null)
+            row.Background = Ink(0x1C);
+    }
+
+    /// <summary>Scrolls the panel just far enough to show <paramref name="row"/>.</summary>
+    private void Reveal(FrameworkElement row)
+    {
+        if (row.ActualHeight <= 0)
+            return;   // not laid out yet
+
+        Windows.Foundation.Rect at;
+        try
+        {
+            at = row.TransformToVisual(Scroller)
+                .TransformBounds(new Windows.Foundation.Rect(0, 0, row.ActualWidth, row.ActualHeight));
+        }
+        catch (ArgumentException)
+        {
+            return;   // the row left the panel after this frame started
+        }
+
+        const double air = 8;
+        if (at.Top < 0)
+            Scroller.ChangeView(null, Math.Max(0, Scroller.VerticalOffset + at.Top - air), null, disableAnimation: true);
+        else if (at.Bottom > Scroller.ViewportHeight)
+            Scroller.ChangeView(null, Scroller.VerticalOffset + at.Bottom - Scroller.ViewportHeight + air, null, disableAnimation: true);
     }
 
     /// <summary>Puts the search away. What was typed goes with it: opening it again starts a new search, as
@@ -203,19 +296,25 @@ public sealed partial class LibrarySearchView : UserControl
         _search?.Cancel();
         _search = null;
         _asked = "";
+        _chooseWhenAnswered = false;
         Visibility = Visibility.Collapsed;
         Body.Children.Clear();
+        _lit = null;
         _covers.Clear();
+        _portraits.Clear();
         if (_anchor is not null)
             _anchor.SizeChanged -= Anchor_SizeChanged;
         _anchor = null;
         Closed?.Invoke();
     }
 
-    /// <summary>The panel comes down a few points and up from clear, in the time a menu takes.</summary>
+    /// <summary>The panel comes down a few points and up from clear, in the time a menu takes. A storyboard
+    /// sets its From value only when it next ticks, so Open sets the panel clear before it is shown, and the
+    /// landed storyboard lets go of the values, so the next Open can set them again.</summary>
     private void Rise()
     {
         var board = new Storyboard();
+        _rise = board;
 
         var fade = new DoubleAnimation
         {
@@ -235,47 +334,50 @@ public sealed partial class LibrarySearchView : UserControl
         Storyboard.SetTargetProperty(drop, "Y");
         board.Children.Add(drop);
 
+        board.Completed += (_, _) =>
+        {
+            if (!ReferenceEquals(_rise, board))
+                return;
+            board.Stop();
+            Panel.Opacity = 1;
+            PanelShift.Y = 0;
+            _rise = null;
+        };
+
         board.Begin();
     }
 
-    /// <summary>The narrowest the panel is drawn. Where the box is the heading's only control (artists,
-    /// genres) the panel reaches further left than the box to be this wide.</summary>
-    private const double LeastWidth = 420;
+    /// <summary>The panel's fade in, while it runs.</summary>
+    private Storyboard? _rise;
 
-    /// <summary>The gap between the heading's row and the panel.</summary>
-    private const double UnderHeading = 10;
+    /// <summary>The gap between the bar and the panel.</summary>
+    private const double UnderBar = 10;
 
-    /// <summary>The box slides out, and the panel's left edge goes with it.</summary>
+    /// <summary>The bar follows the window's width, and the panel goes with it.</summary>
     private void Anchor_SizeChanged(object sender, SizeChangedEventArgs e) => Place();
 
     /// <summary>
-    /// Under the heading, from the search box's left edge to the right edge of the heading's last control,
-    /// and down to at most the card's foot. The catcher starts at the panel's top, so the heading above it
-    /// stays in reach.
+    /// Under the bar, as wide as the bar, and down to at most 12 points above the window's foot. The catcher
+    /// starts at the panel's top; above it the bar's own shade takes the press.
     /// </summary>
     private void Place()
     {
-        if (!IsOpen || _anchor is null || _rightEdge is null || ActualWidth <= 0 || _anchor.ActualWidth <= 0)
+        if (!IsOpen || _anchor is null || ActualWidth <= 0 || _anchor.ActualWidth <= 0)
             return;
 
         try
         {
-            var box = _anchor.TransformToVisual(this).TransformPoint(new Windows.Foundation.Point(0, 0));
-            var end = _rightEdge.TransformToVisual(this)
-                .TransformPoint(new Windows.Foundation.Point(_rightEdge.ActualWidth, 0)).X;
+            var bar = _anchor.TransformToVisual(this).TransformPoint(new Windows.Foundation.Point(0, 0));
+            var top = bar.Y + _anchor.ActualHeight + UnderBar;
 
-            var right = Math.Min(end, ActualWidth - 8);
-            var left = Math.Max(8, Math.Min(box.X, right - LeastWidth));
-            var top = box.Y + _anchor.ActualHeight + UnderHeading;
-
-            Panel.Margin = new Thickness(left, top, 0, 0);
-            Panel.Width = Math.Max(0, right - left);
+            Panel.Margin = new Thickness(bar.X, top, 0, 0);
+            Panel.Width = _anchor.ActualWidth;
             Panel.MaxHeight = Math.Max(160, ActualHeight - top - 12);
-            Catcher.Margin = new Thickness(0, top - UnderHeading / 2, 0, 0);
+            Catcher.Margin = new Thickness(0, top - UnderBar / 2, 0, 0);
         }
         catch (ArgumentException)
         {
-            // The box is not in this tree right now (its view is being swapped). The next size change places it.
+            // The bar is not in this tree right now. The next size change places the panel.
         }
     }
 
@@ -287,20 +389,13 @@ public sealed partial class LibrarySearchView : UserControl
 
     // ── searching ──
 
-    /// <summary>What one search found.</summary>
-    private sealed record Found(
-        IReadOnlyList<ArtistWallItem> Artists,
-        IReadOnlyList<SearchRecord> Records,
-        IReadOnlyList<SearchSong> Songs,
-        IReadOnlyList<SearchList> Playlists,
-        IReadOnlyList<GenreWallItem> Genres)
-    {
-        public bool Nothing =>
-            Artists.Count == 0 && Records.Count == 0 && Songs.Count == 0 && Playlists.Count == 0 && Genres.Count == 0;
-    }
-
-    /// <summary>Searches for what is in the box, off the UI thread. A new keystroke cancels a search that is
+    /// <summary>Searches for what is in the box, off the UI thread. A new keystroke stops a search that is
     /// still running, and its answer is thrown away.</summary>
+    /// <remarks>Nothing here throws on the UI thread. <see cref="LibrarySearchQuery.Run"/> returns null for a
+    /// search that was stopped or that failed, and the token is never given to <c>Task.Run</c>, whose await
+    /// would rethrow the cancellation on this thread. A throw on the UI thread stops the interface for
+    /// seconds while a debugger is attached, and a search that is still running is stopped by every new
+    /// one.</remarks>
     private async void Run()
     {
         var asked = _asked.Trim();
@@ -311,22 +406,10 @@ public sealed partial class LibrarySearchView : UserControl
         var mine = _search = new CancellationTokenSource();
         var ct = mine.Token;
 
-        Found found;
-        try
-        {
-            found = await Task.Run(() => Search(sources, asked, ct), ct);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            // A search that failed shows what it found before. The next keystroke asks again.
-            return;
-        }
-
-        if (ct.IsCancellationRequested || !ReferenceEquals(_search, mine) || !IsOpen)
+        // Null: stopped by a newer search, or failed. A search that failed shows what it found before, and
+        // the next keystroke asks again.
+        var found = await Task.Run(() => LibrarySearchQuery.Run(sources, asked, ct));
+        if (found is null || ct.IsCancellationRequested || !ReferenceEquals(_search, mine) || !IsOpen)
             return;
 
         _found = found;
@@ -334,32 +417,12 @@ public sealed partial class LibrarySearchView : UserControl
             _unfolded.Clear();   // a new search starts every group folded
         _shownFor = asked;
         Show();
-    }
 
-    private static Found Search(LibrarySearchSources sources, string asked, CancellationToken ct)
-    {
-        var folded = ArtistWall.SearchKey(asked);
-
-        bool Named(string name) => folded.Length > 0 && ArtistWall.SearchKey(name).Contains(folded, StringComparison.Ordinal);
-
-        bool Holds(string? field) => !string.IsNullOrEmpty(field) && field.Contains(asked, StringComparison.OrdinalIgnoreCase);
-
-        var artists = sources.Artists.Where(a => Named(a.Name)).ToList();
-        ct.ThrowIfCancellationRequested();
-
-        // A record is found by its own name or who made it, never by one of its songs: a record listed
-        // because one track matched looks like a wrong answer. The songs answer that.
-        var records = sources.Records.Where(r => Holds(r.Album) || Holds(r.Artist)).Take(RecordCeiling).ToList();
-        ct.ThrowIfCancellationRequested();
-
-        var lists = sources.Playlists.Where(p => Named(p.Name)).ToList();
-        var genres = sources.Genres.Where(g => Named(g.Name)).ToList();
-        ct.ThrowIfCancellationRequested();
-
-        var songs = sources.Songs(asked, SongCeiling);
-        ct.ThrowIfCancellationRequested();
-
-        return new Found(artists, records, songs, lists, genres);
+        if (_chooseWhenAnswered && AnswersTheBox)
+        {
+            _chooseWhenAnswered = false;
+            ChooseLit();
+        }
     }
 
     // ── drawing ──
@@ -367,18 +430,34 @@ public sealed partial class LibrarySearchView : UserControl
     /// <summary>What an answer row stands for, kept on its button.</summary>
     private sealed record Answer(object Thing);
 
-    /// <summary>The pictures being loaded for what is on the panel, cancelled when it is drawn again.</summary>
-    private CancellationTokenSource? _pictures;
+    /// <summary>The earlier search a recent row puts back in the box, kept on its button.</summary>
+    private sealed record Recent(string Asked);
 
     /// <summary>Covers already decoded during this search, by folder: ten songs off one record are one
     /// picture.</summary>
+    /// <remarks>
+    /// <para>The pictures are loaded once per search and are never stopped when the panel is drawn again.
+    /// The next keystroke usually shows the same record or artist again, and it takes the load that is
+    /// already running. A stopped load costs more than a finished one: each awaiting step rethrows the
+    /// cancellation on the UI thread, and a photograph stopped while it downloads closes its
+    /// connection.</para>
+    /// <para>A picture that arrives after its row has left the panel is set on a square that is no longer
+    /// shown. That does nothing, so there is no check for it.</para>
+    /// </remarks>
     private readonly Dictionary<string, Task<ImageSource?>> _covers = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Artists' photographs decoded during this search, by name. See <see cref="_covers"/>.</summary>
+    private readonly Dictionary<string, Task<ImageSource?>> _portraits = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Draws the panel's body: the recent searches while the box is empty, what was found once a
     /// search has answered, or that nothing was.</summary>
     private void Show()
     {
         Fill();
+
+        // New rows: the first one is lit. Where Fill kept the rows that were there, the lit row stays.
+        if (_lit is null)
+            Light(Choices().FirstOrDefault());
 
         // Nothing to show (an empty box and no recent searches): no panel, and nothing over the card either.
         var any = Body.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -393,9 +472,8 @@ public sealed partial class LibrarySearchView : UserControl
         if (_asked.Trim().Length > 0 && _found is null && Body.Children.Count > 0)
             return;
 
-        _pictures?.Cancel();
-        _pictures = new CancellationTokenSource();
         Body.Children.Clear();
+        _lit = null;
 
         if (_asked.Trim().Length == 0)
         {
@@ -422,23 +500,21 @@ public sealed partial class LibrarySearchView : UserControl
             return;
         }
 
-        var ct = _pictures.Token;
-
         Group("artists", Loc.Get("Artists_Title"), found.Artists, artist =>
-            Row(artist, artist.Name, Albums(artist.Own.Count()), null, Picture.Round, ArtistPicture(artist, ct)));
+            Row(artist, artist.Name, Albums(artist.Own.Count()), null, Picture.Round, ArtistPicture(artist)));
 
         Group("records", Loc.Get("Viz_BrowseAlbums"), found.Records, record =>
             Row(record, record.Album, record.Artist, record.Tracks == 1 ? Loc.Get("Rpm_Album_TracksOne") : Loc.Format("Rpm_Album_Tracks", record.Tracks),
-                Picture.Square, Cover(record.Folder, ct)));
+                Picture.Square, Cover(record.Folder)));
 
         Group("songs", Loc.Get("Album_Tracks"), found.Songs, song =>
             Row(song, SongTitle(song.Track), song.Track.Artist ?? song.Track.AlbumArtist ?? "", null,
-                Picture.Square, Cover(song.Folder, ct)));
+                Picture.Square, Cover(song.Folder)));
 
-        if (found.Songs.Count >= SongCeiling && _unfolded.Contains("songs"))
+        if (found.Songs.Count >= LibrarySearchQuery.SongCeiling && _unfolded.Contains("songs"))
             Body.Children.Add(new TextBlock
             {
-                Text = Loc.Format("Rpm_Library_SearchCeiling", SongCeiling),
+                Text = Loc.Format("Rpm_Library_SearchCeiling", LibrarySearchQuery.SongCeiling),
                 FontSize = 12,
                 Foreground = Ink(0x77),
                 TextWrapping = TextWrapping.Wrap,
@@ -725,6 +801,7 @@ public sealed partial class LibrarySearchView : UserControl
 
             var row = new Button
             {
+                Tag = new Recent(asked),
                 Content = line,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -765,9 +842,9 @@ public sealed partial class LibrarySearchView : UserControl
     /// <summary>The edge pictures are decoded at: the 40-point square at a high-density display's scale.</summary>
     private int PictureEdge => (int)Math.Ceiling(40 * Math.Max(1, XamlRoot?.RasterizationScale ?? 1));
 
-    /// <summary>A square that fills itself with <paramref name="load"/>'s picture when it arrives, and keeps the
+    /// <summary>A square that fills itself with <paramref name="picture"/> when it arrives, and keeps the
     /// plate's own colour where none does.</summary>
-    private static Border Filled(Func<Task<ImageSource?>> load, CancellationToken ct)
+    private static Border Filled(Task<ImageSource?> picture)
     {
         var square = new Border();
         _ = FillAsync();
@@ -777,8 +854,8 @@ public sealed partial class LibrarySearchView : UserControl
         {
             try
             {
-                if (await load() is { } picture && !ct.IsCancellationRequested)
-                    square.Background = new ImageBrush { ImageSource = picture, Stretch = Stretch.UniformToFill };
+                if (await picture is { } shown)
+                    square.Background = new ImageBrush { ImageSource = shown, Stretch = Stretch.UniformToFill };
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -788,7 +865,7 @@ public sealed partial class LibrarySearchView : UserControl
     }
 
     /// <summary>A record's cover, once per folder per search.</summary>
-    private UIElement Cover(string folder, CancellationToken ct)
+    private UIElement Cover(string folder)
     {
         if (CoverLoader is not { } load || folder.Length == 0)
             return Glyph("", 0x55);
@@ -796,7 +873,7 @@ public sealed partial class LibrarySearchView : UserControl
         if (!_covers.TryGetValue(folder, out var task))
             _covers[folder] = task = LoadCoverAsync(load, folder);
 
-        return Filled(() => task, ct);
+        return Filled(task);
     }
 
     private async Task<ImageSource?> LoadCoverAsync(
@@ -815,20 +892,28 @@ public sealed partial class LibrarySearchView : UserControl
     /// <summary>The thumb kept on disk that covers the picture's edge, so a cover is a small read.</summary>
     private const int CoverThumbEdge = 128;
 
-    /// <summary>An artist's photograph, the one every other surface shows for them.</summary>
-    private UIElement ArtistPicture(ArtistWallItem artist, CancellationToken ct)
+    /// <summary>An artist's photograph, the one every other surface shows for them, once per name per
+    /// search.</summary>
+    private UIElement ArtistPicture(ArtistWallItem artist)
+    {
+        if (!_portraits.TryGetValue(artist.Name, out var task))
+            _portraits[artist.Name] = task = LoadPortraitAsync(artist.Name);
+
+        return Filled(task);
+    }
+
+    /// <summary>The photograph's box, asked with no token: see <see cref="_covers"/>. A photograph that could
+    /// not be had and an artist with none both leave the square empty, and the next search asks again.</summary>
+    private async Task<ImageSource?> LoadPortraitAsync(string artist)
     {
         var edge = PictureEdge;
-        return Filled(async () =>
-        {
-            if (!(await ArtistPortraits.ChooseAsync(artist.Name, null, ct)).Answers(out var url, out _)
-                || url is null)
-                return null;
 
-            return (await ArtistPortraits.BoxAsync(url, ct)).Answers(out var box, out _) && box is { Thumb.Length: > 0 }
-                ? await RemoteImage.DecodeAsync(box.Thumb, edge)
-                : null;
-        }, ct);
+        if (!(await ArtistPortraits.ChooseAsync(artist, null)).Answers(out var url, out _) || url is null)
+            return null;
+
+        return (await ArtistPortraits.BoxAsync(url)).Answers(out var box, out _) && box is { Thumb.Length: > 0 }
+            ? await RemoteImage.DecodeAsync(box.Thumb, edge)
+            : null;
     }
 
     /// <summary>A playlist's picture where the playlists view has drawn one, and its mark in its colour

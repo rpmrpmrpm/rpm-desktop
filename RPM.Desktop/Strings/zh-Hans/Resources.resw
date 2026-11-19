@@ -2208,10 +2208,6 @@
     <value>添加文件夹、抓取 CD 或录制唱片一面：文件会先出现在这里供你检查，然后再加入音乐收藏。</value>
     <comment>Import pane empty state, under Queue_EmptyTitle.</comment>
   </data>
-  <data name="Deck_PaneTip" xml:space="preserve">
-    <value>显示或隐藏侧栏</value>
-    <comment>Tooltip for the deck's pane pill.</comment>
-  </data>
   <data name="Playlists_NowPlaying" xml:space="preserve">
     <value>正在播放</value>
     <comment>The pinned playlist the player always plays.</comment>
@@ -3694,6 +3690,10 @@
   <data name="Rpm_Search_Forget" xml:space="preserve">
     <value>从最近搜索中移除</value>
     <comment>Phone collection search: accessibility label of the cross on one earlier search.</comment>
+  </data>
+  <data name="Rpm_Search_Library" xml:space="preserve">
+    <value>搜索你的音乐库</value>
+    <comment>Placeholder in the search bar that Cmd+F or Ctrl+F opens over the whole window, and the tooltip of the search key beside Home that opens it, on the desktop and in the web app.</comment>
   </data>
   <data name="Rpm_Profile_Post" xml:space="preserve">
     <value>发布</value>

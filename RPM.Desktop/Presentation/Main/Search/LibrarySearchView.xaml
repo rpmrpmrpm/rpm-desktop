@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The library search: everything the collection holds that the words name, whichever view it lives in,
      each kind under its own heading (artists, albums, tracks, playlists, genres), and the recent searches
-     while the box is empty. It drops down under the view's heading, from the heading's search box to the
-     heading's last control; the words are typed in that box (LibrarySearchBox), not here. -->
+     while the box is empty. It drops down under the search bar that Cmd or Ctrl+F and the deck's search key
+     open over the whole window (SearchOverlay); the words are typed in the bar, not here. -->
 <UserControl
     x:Class="RPM.Desktop.Presentation.Main.Search.LibrarySearchView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -14,9 +14,9 @@
   </UserControl.Resources>
 
   <Grid>
-    <!-- A press anywhere on the card below the heading puts the search away, as a press beside a menu does.
-         It starts under the heading (see Place), so the box and the heading's other keys stay in reach. -->
-    <Border x:Name="Catcher" Background="#26000000" PointerPressed="Catcher_PointerPressed"/>
+    <!-- A press anywhere below the bar puts the search away, as a press beside a menu does. It starts under the
+         bar (see Place). Clear, because the bar's own shade darkens the window. -->
+    <Border x:Name="Catcher" Background="Transparent" PointerPressed="Catcher_PointerPressed"/>
 
     <!-- The surface of the app's flyouts (the deck's cast, view and share pickers): the framework's flyout
          fill and edge, read from the same theme resources the flyout presenter uses, with the 8 px corners

@@ -49,10 +49,6 @@ namespace RPM.Desktop.Presentation.Main.Artists;
 /// </summary>
 public sealed partial class ArtistDetailView : UserControl
 {
-    /// <summary>The search over the artist's songs. Cmd or Ctrl+F puts the keyboard focus in it (see
-    /// MainPage.FocusSearch).</summary>
-    internal TextBox TrackSearch => TrackSearchBox;
-
     private readonly ObservableCollection<ArtistRecord> _records = [];
     private readonly ObservableCollection<ArtistRecord> _guest = [];
 

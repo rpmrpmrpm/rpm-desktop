@@ -15,7 +15,6 @@
       xmlns:grids="using:RPM.Desktop.Presentation.Grids"
       xmlns:conv="using:RPM.Desktop.Converters"
       xmlns:loc="using:RPM.Desktop.Strings"
-      xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
       Background="Transparent">
 
   <Page.Resources>
@@ -386,26 +385,19 @@
                 <ColumnDefinition Width="Auto"/>   <!-- cover size (wall only) -->
               </Grid.ColumnDefinitions>
 
-              <!-- Search and the switch travel together on ViewToggleShift: leaving the wall slides the
-                   pair right into the size slider's place, so the gap the slider leaves closes instead of
-                   opening between the field and the switch. -->
+              <!-- The heart, grouping and the switch travel together on ViewToggleShift: leaving the wall
+                   slides them right into the size slider's place, so the gap the slider leaves closes
+                   instead of opening in front of the switch. -->
               <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <StackPanel.RenderTransform>
                   <TranslateTransform x:Name="ViewToggleShift"/>
                 </StackPanel.RenderTransform>
 
-                <!-- The library search: the magnifier, which slides out to the left into a box. What is typed is
-                     searched through the whole collection, every view, in a panel that drops down under this
-                     heading (LibrarySearchView). It no longer narrows the wall or the list; a search answers
-                     in its own list, as on the phones. The open width is the header's to set
-                     (ApplyHeaderDensity). -->
-                <search:LibrarySearchBox x:Name="SearchSlot" OpenWidth="150" VerticalAlignment="Center"/>
-
                 <!-- The favourites heart: it narrows both album views to the records the listener has
                      marked, and nothing else about them changes: the same shelf, fewer records on it.
                      A toggle rather than a menu entry, because it is switched on to look for something
-                     and straight off again, which is not a preference. Beside the grouping and the
-                     search because all three ask the same question: what is on this shelf. -->
+                     and straight off again, which is not a preference. Beside the grouping because both
+                     ask the same question: what is on this shelf. -->
                 <!-- No inset: the key fills its frame, the same as the view switch's three do, so the lit
                      state is the whole box rather than a smaller box inside it. -->
                 <Border x:Name="FavoritesSlot" CornerRadius="6" Padding="0" Visibility="Collapsed"
@@ -666,8 +658,7 @@
             <TextBlock x:Name="ArtistsSubheading" Grid.Row="1" Grid.ColumnSpan="2"
                        Style="{StaticResource RpmPaneSubheading}"/>
 
-            <!-- The heading's keys, in the album header's order and spacing: the library search (one search
-                 for the whole collection, whichever view it was opened from), the heart, and the box size.
+            <!-- The heading's keys, in the album header's order and spacing: the heart and the box size.
                  One group with one slide, ArtistChromeShift, which keeps it clear of the spinning record
                  as the album header's is (MainPage.UpdateChromeAvoidance). -->
             <StackPanel x:Name="ArtistChrome" Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
@@ -675,8 +666,6 @@
               <StackPanel.RenderTransform>
                 <TranslateTransform x:Name="ArtistChromeShift"/>
               </StackPanel.RenderTransform>
-
-              <search:LibrarySearchBox x:Name="ArtistSearchSlot" OpenWidth="180" VerticalAlignment="Center"/>
 
               <!-- The heart: the wall narrowed to the artists something of whom is hearted, a record or a
                    song (ArtistWall.Favorites). The album header's heart, asking the same of this wall. -->
@@ -750,15 +739,13 @@
             <Grid Grid.Row="0" Style="{StaticResource RpmPaneHeadingBox}">
               <TextBlock Text="{loc:Str Key=Genres_Title}" Style="{StaticResource RpmPaneHeading}"/>
             </Grid>
-            <!-- The library search and the card size, one group that dodges the record as the album
-                 header's does (GenreChromeShift, MainPage.UpdateChromeAvoidance). -->
+            <!-- The card size, in a group that dodges the record as the album header's does
+                 (GenreChromeShift, MainPage.UpdateChromeAvoidance). -->
             <StackPanel x:Name="GenreChrome" Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="12"
                         VerticalAlignment="Center">
               <StackPanel.RenderTransform>
                 <TranslateTransform x:Name="GenreChromeShift"/>
               </StackPanel.RenderTransform>
-
-              <search:LibrarySearchBox x:Name="GenreSearchSlot" OpenWidth="180" VerticalAlignment="Center"/>
 
               <!-- The card size: the width a card aims for (GenreWallView.SetCardTarget). -->
               <StackPanel x:Name="GenreSizeCluster" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center"
@@ -808,9 +795,6 @@
                        StationRequested="Home_StationRequested"
                        AddMusicRequested="Home_AddMusicRequested"/>
 
-        <!-- The library search, over whichever view is up. Last in the host, so it draws over all of
-             them. Collapsed until a heading's key, or Ctrl+F, asks for it. -->
-        <search:LibrarySearchView x:Name="LibrarySearch"/>
         </Grid>
 
         <!-- The rail: the four views, and the button that folds this pane away for the import

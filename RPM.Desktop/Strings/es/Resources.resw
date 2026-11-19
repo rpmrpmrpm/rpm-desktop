@@ -2208,10 +2208,6 @@
     <value>Añade una carpeta, extrae un CD o graba una cara: los archivos aparecen aquí para revisarlos antes de entrar en la colección.</value>
     <comment>Import pane empty state, under Queue_EmptyTitle.</comment>
   </data>
-  <data name="Deck_PaneTip" xml:space="preserve">
-    <value>Mostrar u ocultar el panel lateral</value>
-    <comment>Tooltip for the deck's pane pill.</comment>
-  </data>
   <data name="Playlists_NowPlaying" xml:space="preserve">
     <value>Reproduciendo</value>
     <comment>The pinned playlist the player always plays.</comment>
@@ -3694,6 +3690,10 @@
   <data name="Rpm_Search_Forget" xml:space="preserve">
     <value>Quitar de búsquedas recientes</value>
     <comment>Phone collection search: accessibility label of the cross on one earlier search.</comment>
+  </data>
+  <data name="Rpm_Search_Library" xml:space="preserve">
+    <value>Buscar en tu biblioteca</value>
+    <comment>Placeholder in the search bar that Cmd+F or Ctrl+F opens over the whole window, and the tooltip of the search key beside Home that opens it, on the desktop and in the web app.</comment>
   </data>
   <data name="Rpm_Profile_Post" xml:space="preserve">
     <value>Publicar</value>

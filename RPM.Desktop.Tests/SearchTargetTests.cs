@@ -5,8 +5,8 @@ using RPM.Desktop.Presentation.Main.RightPane;
 namespace RPM.Desktop.Tests;
 
 /// <summary>
-/// Which search field Cmd or Ctrl+F puts the keyboard in on the library window, read off the pane state
-/// with no window.
+/// Where Cmd or Ctrl+F puts the keyboard on the library window, read off the pane state with no window. Null
+/// is the library search over the whole window.
 /// </summary>
 public class SearchTargetTests
 {
@@ -14,68 +14,40 @@ public class SearchTargetTests
         RightTab reading, bool atHome = false, bool sideOpen = false, LeftTab tab = LeftTab.TrackInfo)
         => new(atHome, sideOpen, tab, reading);
 
-    [Fact]
-    public void The_collection_searches_the_collection()
-        => Assert.Equal(SearchField.Albums, SearchTarget.OnScreen(Stage(RightTab.Albums), true, false, false, false));
-
-    [Fact]
-    public void An_album_page_has_no_field_of_its_own()
-        => Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Albums), true, albumPageUp: true, false, false));
-
-    [Fact]
-    public void The_artists_wall_and_an_artists_page_have_their_own()
-    {
-        Assert.Equal(SearchField.Artists, SearchTarget.OnScreen(Stage(RightTab.Artists), true, false, false, false));
-        Assert.Equal(SearchField.ArtistTracks, SearchTarget.OnScreen(Stage(RightTab.Artists), true, false, artistPageUp: true, false));
-    }
-
+    /// <summary>Every view of the library, and home, opens the search over the window.</summary>
     [Theory]
-    [InlineData(RightTab.Genres)]
-    [InlineData(RightTab.Playlists)]
-    public void Genres_and_playlists_have_none(object reading)
-        => Assert.Null(SearchTarget.OnScreen(Stage((RightTab)reading), true, false, false, false));
+    [InlineData(RightTab.Albums, false)]
+    [InlineData(RightTab.Artists, false)]
+    [InlineData(RightTab.Genres, false)]
+    [InlineData(RightTab.Playlists, false)]
+    [InlineData(RightTab.Albums, true)]
+    public void The_library_opens_the_search_over_the_window(object reading, bool atHome)
+        => Assert.Null(SearchTarget.OnScreen(Stage((RightTab)reading, atHome), keyboardInSide: false));
 
-    /// <summary>Home covers the library card, so the collection's field under it is not on
-    /// screen.</summary>
+    /// <summary>The import workbench and the radio keep their own field while the keyboard is in them.</summary>
+    [Theory]
+    [InlineData(LeftTab.Import, SearchField.Import)]
+    [InlineData(LeftTab.Radio, SearchField.Radio)]
+    public void The_side_panes_field_while_the_keyboard_is_in_the_side_pane(object tab, object field)
+        => Assert.Equal((SearchField)field, SearchTarget.OnScreen(
+            Stage(RightTab.Albums, sideOpen: true, tab: (LeftTab)tab), keyboardInSide: true));
+
+    /// <summary>The same pane on screen with the keyboard elsewhere: the search over the window.</summary>
+    [Theory]
+    [InlineData(LeftTab.Import)]
+    [InlineData(LeftTab.Radio)]
+    public void The_side_pane_on_screen_without_the_keyboard_opens_the_search_over_the_window(object tab)
+        => Assert.Null(SearchTarget.OnScreen(
+            Stage(RightTab.Albums, sideOpen: true, tab: (LeftTab)tab), keyboardInSide: false));
+
+    /// <summary>A side pane folded by its chevron has no field on screen whatever its tab says.</summary>
     [Fact]
-    public void Home_covers_the_cards_field()
-        => Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Albums, atHome: true), true, false, false, false));
-
-    /// <summary>With the radio beside home, the radio's field is the one on screen.</summary>
-    [Fact]
-    public void The_side_panes_field_when_the_card_has_none()
-        => Assert.Equal(SearchField.Radio, SearchTarget.OnScreen(
-            Stage(RightTab.Albums, atHome: true, sideOpen: true, tab: LeftTab.Radio), true, false, false, false));
-
-    /// <summary>Both on screen: the card's, unless the keyboard is in the side pane.</summary>
-    [Fact]
-    public void The_card_first_unless_the_keyboard_is_in_the_side_pane()
-    {
-        var both = Stage(RightTab.Albums, sideOpen: true, tab: LeftTab.Radio);
-
-        Assert.Equal(SearchField.Albums, SearchTarget.OnScreen(both, true, false, false, keyboardInSide: false));
-        Assert.Equal(SearchField.Radio, SearchTarget.OnScreen(both, true, false, false, keyboardInSide: true));
-    }
-
-    /// <summary>The import workbench lies over the library card, so the card's field is not on screen and
-    /// the workbench's field is the one.</summary>
-    [Fact]
-    public void The_import_workbench_covers_the_cards_field()
-        => Assert.Equal(SearchField.Import, SearchTarget.OnScreen(
-            Stage(RightTab.Albums, sideOpen: true, tab: LeftTab.Import), true, false, false, keyboardInSide: false));
-
-    /// <summary>A side pane taken off the screen with the deck's pill, or folded by its chevron, has no
-    /// field on screen whatever its tab says.</summary>
-    [Fact]
-    public void A_hidden_or_folded_side_pane_has_none()
-    {
-        Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Genres, sideOpen: true, tab: LeftTab.Radio), sideShown: false, false, false, false));
-        Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Genres, sideOpen: false, tab: LeftTab.Radio), sideShown: true, false, false, false));
-    }
+    public void A_folded_side_pane_has_none()
+        => Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Genres, sideOpen: false, tab: LeftTab.Radio), keyboardInSide: true));
 
     [Theory]
     [InlineData(LeftTab.TrackInfo)]
     [InlineData(LeftTab.Visualization)]
     public void Side_panes_without_a_field(object tab)
-        => Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Genres, sideOpen: true, tab: (LeftTab)tab), true, false, false, true));
+        => Assert.Null(SearchTarget.OnScreen(Stage(RightTab.Genres, sideOpen: true, tab: (LeftTab)tab), keyboardInSide: true));
 }
