@@ -888,8 +888,8 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     internal static bool AppFolder(PlaylistRowKind kind, bool holdsGeneratedListsOnly) =>
         kind == PlaylistRowKind.SmartFolder || (kind == PlaylistRowKind.Folder && holdsGeneratedListsOnly);
 
-    /// <summary>The moods folder, on either shelf. It is the one row that wears a picture of its own in
-    /// place of the app folders' wand (see <see cref="MarkImage"/>).</summary>
+    /// <summary>The moods folder, on either shelf. It wears a picture of its own in place of the app
+    /// folders' wand (see <see cref="MarkImage"/>).</summary>
     public bool IsMoodsFolder =>
         MoodsFolder(Kind, HoldsGeneratedListsOnly, Parent is null, Name, SmartPlaylistFace.MoodsFolderName);
 
@@ -900,6 +900,18 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     internal static bool MoodsFolder(
         PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, string moodsName) =>
         AppFolder(kind, holdsGeneratedListsOnly) && topLevel && name == moodsName;
+
+    /// <summary>The decades folder, on either shelf. It wears the clock (<see
+    /// cref="SmartPlaylistFace.DecadesFolderGlyph"/>) in place of the app folders' wand. The iPhone and
+    /// Android apps draw the same clock on it.</summary>
+    public bool IsDecadesFolder =>
+        DecadesFolder(Kind, HoldsGeneratedListsOnly, Parent is null, Name, SmartPlaylistFace.DecadesFolderName);
+
+    /// <summary>The rule behind <see cref="IsDecadesFolder"/>, separate so that it can be tested. It goes by
+    /// the name, for the reason <see cref="MoodsFolder"/> gives.</summary>
+    internal static bool DecadesFolder(
+        PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, string decadesName) =>
+        AppFolder(kind, holdsGeneratedListsOnly) && topLevel && name == decadesName;
 
     /// <summary>
     /// The generated list that this row is drawn as, or null if it is drawn as itself.
@@ -1137,6 +1149,8 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     public string Glyph => Kind switch
     {
         PlaylistRowKind.NowPlaying => "\uf04b",   // play
+        PlaylistRowKind.Folder or PlaylistRowKind.SmartFolder when IsDecadesFolder =>
+            SmartPlaylistFace.DecadesFolderGlyph,
         PlaylistRowKind.Folder when HoldsGeneratedListsOnly => SmartPlaylistFace.FolderGlyph,
         PlaylistRowKind.Folder => "\uf07b",       // folder
         PlaylistRowKind.Playlist when Face is { } lent => SmartPlaylistFace.Glyph(lent.Kind),
