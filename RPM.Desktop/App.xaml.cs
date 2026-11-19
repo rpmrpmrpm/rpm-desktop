@@ -1472,8 +1472,8 @@ public partial class App : Application
         // Every audio upload is that kind of body.
         var http = RPM.Core.Net.TransientHttp.Client(api, TimeSpan.FromMinutes(30));
 
-        // The uploads and downloads themselves go to presigned storage addresses, on a client whose pool
-        // closes idle connections before the storage service does (see Wire.Storage).
+        // The uploads and downloads themselves go to presigned storage addresses, on a client that does not
+        // reuse connections (see Wire.Storage).
         var storage = RPM.Core.Net.Wire.Storage(TimeSpan.FromMinutes(30));
 
         return new RPM.Core.Cloud.RpmCloudClient(http, storage, _ => auth.GetAccessTokenAsync());

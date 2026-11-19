@@ -354,4 +354,25 @@ public class GateUnderLoadTests
         // request through a new HttpClient costs on a slow, busy test machine.
         Assert.True(started.ElapsedMilliseconds < 5000, $"the refusal took {started.ElapsedMilliseconds} ms");
     }
+
+    /// <summary>The storage client never reuses a connection. Reusing one races the storage service's own
+    /// idle close (an upload then fails), and a pool that closes connections early throws inside .NET for
+    /// each one, which stops the runtime under a debugger. See <see cref="Wire.Storage"/>.</summary>
+    [Fact]
+    public void The_storage_client_asks_for_every_connection_to_be_closed()
+    {
+        using var storage = Wire.Storage(TimeSpan.FromSeconds(30));
+
+        Assert.True(storage.DefaultRequestHeaders.ConnectionClose);
+    }
+
+    /// <summary>The API's client keeps its connections, which is what keeps the number of them down. Only
+    /// the storage client gives that up.</summary>
+    [Fact]
+    public void The_api_client_keeps_its_connections()
+    {
+        using var api = Wire.OutsideRetrying(Destination.Unaddressed, TimeSpan.FromSeconds(30));
+
+        Assert.NotEqual(true, api.DefaultRequestHeaders.ConnectionClose);
+    }
 }
