@@ -6998,6 +6998,10 @@
     <value>跨年夜</value>
     <comment>Name of the generated playlist for New Year's Eve: songs about the new year, then party songs. Shown only around 31 December.</comment>
   </data>
+  <data name="Playlists_Christmas" xml:space="preserve">
+    <value>圣诞快乐</value>
+    <comment>Name of the generated playlist of Christmas songs. Shown only from late November to 26 December.</comment>
+  </data>
   <data name="Playlists_BlurbCalm" xml:space="preserve">
     <value>放松一下，听听你收藏中最柔和的{0}。不赶时间，没有喧闹，只有你和音乐。</value>
     <comment>Description under the Chill playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
@@ -7041,6 +7045,10 @@
   <data name="Playlists_BlurbNewYearsEve" xml:space="preserve">
     <value>倒计时开始啦！用这些歌送走旧年，狂欢迎接新年。</value>
     <comment>Description under the New Year's Eve playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
+  </data>
+  <data name="Playlists_BlurbChristmas" xml:space="preserve">
+    <value>你的圣诞歌曲全在这里。点亮圣诞树，倒杯热饮，一起唱起来吧！</value>
+    <comment>Description under the Merry Christmas playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
   </data>
   <data name="Playlists_GenreAnd" xml:space="preserve">
     <value>{0}和{1}</value>

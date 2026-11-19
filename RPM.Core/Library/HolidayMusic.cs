@@ -15,7 +15,9 @@ namespace RPM.Core.Library;
 /// <para><b>Two uses.</b> Outside the holiday season (<see cref="InSeason"/>) every holiday song stays out
 /// of every list, so nobody gets Silent Night in a summer Chill list. The New Year's Eve list
 /// (<see cref="SmartPlaylistKind.NewYearsEve"/>) is built from the New Year's songs
-/// (<see cref="IsNewYear"/>) and a party, and holds no Christmas songs.</para>
+/// (<see cref="IsNewYear"/>) and a party, and holds no Christmas songs. The Merry Christmas list
+/// (<see cref="SmartPlaylistKind.Christmas"/>) holds only the Christmas songs, in its own days
+/// (<see cref="IsChristmasTime"/>).</para>
 ///
 /// <para>Pure, like <see cref="MoodBands"/>: the caller reads the tags and the clock.</para>
 /// </summary>
@@ -70,6 +72,18 @@ public static partial class HolidayMusic
     public static bool IsNewYearsEveTime(DateTime local) =>
         (local.Month == 12 && local.Day >= NewYearsEveFromDecember) || (local.Month == 1 && local.Day == 1);
 
+    /// <summary>
+    /// Whether <paramref name="local"/> is in the days the Merry Christmas list is offered: from the first
+    /// day of the season (<see cref="SeasonStartsOnNovember"/>) to Boxing Day, 26 December, both included.
+    ///
+    /// <para>Boxing Day is shared with New Year's Eve, which starts that day: Christmas is not over yet,
+    /// and the party is being planned.</para>
+    /// </summary>
+    /// <param name="local">The listener's own date. The time of day is not read.</param>
+    public static bool IsChristmasTime(DateTime local) =>
+        (local.Month == 11 && local.Day >= SeasonStartsOnNovember)
+        || (local.Month == 12 && local.Day <= ChristmasUntilDecember);
+
     /// <summary>The first day of the season, in November.</summary>
     public const int SeasonStartsOnNovember = 22;
 
@@ -78,6 +92,9 @@ public static partial class HolidayMusic
 
     /// <summary>The first day the New Year's Eve list is offered, in December.</summary>
     public const int NewYearsEveFromDecember = 26;
+
+    /// <summary>The last day the Merry Christmas list is offered, in December.</summary>
+    public const int ChristmasUntilDecember = 26;
 
     private static bool Names(Regex words, string? text, bool holidayAlone = false)
     {
@@ -113,12 +130,14 @@ public static partial class HolidayMusic
         @"new year'?s?|auld lang syne|nieuwjaar\w*|oudejaar\w*|oud en nieuw|silvester|nochevieja|año nuevo|bonne année";
 
     // "Santa" is the saint before a place's name far more often than it is Father Christmas: Santa Barbara,
-    // Santa Monica, Santa Fe. Those are left out by name, and so is a remixer called Santa ("Rush (Tom
-    // Santa Remix)"). "Santa Claus", "Santa Baby" and "Santa Tell Me" are not.
+    // Santa Monica, Santa Fe. Those are left out by name, and so are Santa Muerte, the Mexican folk saint,
+    // and a remixer called Santa ("Rush (Tom Santa Remix)"). "Santa Claus", "Santa Baby" and "Santa Tell
+    // Me" are not. A name is left out when no letter follows it, not at a word boundary, because file
+    // titles join words with "_" ("SANTA MUERTE_BLUFF") and "_" counts as part of a word.
     [GeneratedRegex(
         @"\b(christmas|xmas|x-mas|kerst|kerstmis|noel|noël|navidad|weihnacht\w*|holiday|holidays|jingle|" +
         @"santa(?!\s+(?:barbara|monica|fe|cruz|clara|maria|ana|rosa|cecilia|esmeralda|teresa|catalina|marta|lucia" +
-        @"|remix|mix|edit|dub|version)\b)|" +
+        @"|muerte|remix|mix|edit|dub|version)(?![a-z]))|" +
         @"sleigh|mistletoe|winter wonderland|silent night|stille nacht|" + NewYear + @")\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Words();

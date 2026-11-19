@@ -603,5 +603,10 @@ internal static partial class PlaylistPhotos
             "romantic-latin.jpg",
             "Red rose bush climbing on a rustic white wall in Ferreirola, Spain.",
             "Paul Groom Photography Bristol"),
+        // ---- Christmas ----
+        new(new(SmartPlaylistKind.Christmas, null, 0),
+            "christmas-all.jpg",
+            "A beautifully decorated Christmas tree with vibrant lights and ornaments indoors.",
+            "Kostas Dimopoulos"),
     ];
 }

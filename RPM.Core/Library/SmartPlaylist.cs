@@ -183,6 +183,11 @@ public enum SmartPlaylistKind
     /// songs, and no Christmas songs. Offered from Boxing Day to New Year's Day only
     /// (<see cref="HolidayMusic.IsNewYearsEveTime"/>).</summary>
     NewYearsEve,
+
+    /// <summary>"Merry Christmas": the Christmas songs, happiest first, the records taking turns, up to five
+    /// songs from one record. Offered from the start of the holiday season to Boxing Day only
+    /// (<see cref="HolidayMusic.IsChristmasTime"/>).</summary>
+    Christmas,
 }
 
 /// <summary>
@@ -311,6 +316,7 @@ public static class SmartPlaylists
         SmartPlaylistKind.Romantic,
         SmartPlaylistKind.Zen,
         SmartPlaylistKind.NewYearsEve,
+        SmartPlaylistKind.Christmas,
 
         // Beside the moods rather than among them. It is a genre, not a feeling. It is listed here
         // because a shelf's classical music cannot be reached from this pane otherwise. Its mood band is
@@ -396,13 +402,15 @@ public static class SmartPlaylists
         SmartPlaylistKind.Sleep,
 
         // The same, from the sound model. They need its pass, not a history, and an empty one is not drawn.
-        // New Year's Eve is empty outside its days, so it is on this screen only around the night itself.
+        // New Year's Eve and Merry Christmas are empty outside their days, so each is on this screen only
+        // around its holiday.
         SmartPlaylistKind.Melancholy,
         SmartPlaylistKind.Happy,
         SmartPlaylistKind.Angry,
         SmartPlaylistKind.Romantic,
         SmartPlaylistKind.Zen,
         SmartPlaylistKind.NewYearsEve,
+        SmartPlaylistKind.Christmas,
     ];
 
     /// <summary>
@@ -433,6 +441,7 @@ public static class SmartPlaylists
         SmartPlaylistKind.Romantic,
         SmartPlaylistKind.Zen,
         SmartPlaylistKind.NewYearsEve,
+        SmartPlaylistKind.Christmas,
     };
 
     /// <summary>
@@ -481,6 +490,7 @@ public static class SmartPlaylists
         SmartPlaylistKind.Romantic,
         SmartPlaylistKind.Zen,
         SmartPlaylistKind.NewYearsEve,
+        SmartPlaylistKind.Christmas,
         SmartPlaylistKind.Classical,
     ];
 
@@ -589,13 +599,15 @@ public static class SmartPlaylists
         or SmartPlaylistKind.Focus
         or SmartPlaylistKind.Sleep
         // The four feelings wait for the sound pass, and Zen for the meter, which orders it. New Year's Eve
-        // needs both: its party is Feel Good's danceable songs.
+        // needs both: its party is Feel Good's danceable songs. Merry Christmas is drawn from the measured
+        // songs, happiest first.
         or SmartPlaylistKind.Melancholy
         or SmartPlaylistKind.Happy
         or SmartPlaylistKind.Angry
         or SmartPlaylistKind.Romantic
         or SmartPlaylistKind.Zen
-        or SmartPlaylistKind.NewYearsEve;
+        or SmartPlaylistKind.NewYearsEve
+        or SmartPlaylistKind.Christmas;
 
     /// <summary>
     /// The decades a mood can be broken out by, oldest first.
@@ -783,7 +795,8 @@ public static class SmartPlaylists
 
         SmartPlaylistKind.Melancholy or SmartPlaylistKind.Happy
             or SmartPlaylistKind.Angry or SmartPlaylistKind.Romantic
-            or SmartPlaylistKind.Zen or SmartPlaylistKind.NewYearsEve => 50,
+            or SmartPlaylistKind.Zen or SmartPlaylistKind.NewYearsEve
+            or SmartPlaylistKind.Christmas => 50,
 
         // Also fifty, for the same reason: it is put on, not read down. It runs for about three hours.
         SmartPlaylistKind.RightNow => 50,
@@ -810,16 +823,20 @@ public static class SmartPlaylists
 
     /// <summary>
     /// How much of one record THIS kind of list will hold: <see cref="MostFromOneRecord"/>, except five
-    /// for Zen.
+    /// for Zen and Merry Christmas.
     ///
     /// <para><b>Why Zen takes more.</b> It is drawn from a handful of records. A collection holds few
     /// ambient records, and on a real one Zen finds four, so one song each would be a list of four. Those
     /// records are also long and even, so five songs from one of them is not the album twice in the way
     /// five songs of a pop record would be. New Year's Eve takes one: its party is drawn from the whole
     /// collection, as the other moods are.</para>
+    ///
+    /// <para><b>Why Merry Christmas takes more.</b> Christmas music mostly comes as whole Christmas albums,
+    /// and a collection holds few of them. One song each would leave three Christmas albums a list of
+    /// three, which is not shown at all.</para>
     /// </summary>
     public static int MostFromOneRecordFor(SmartPlaylistKind kind) =>
-        kind is SmartPlaylistKind.Zen ? 5 : MostFromOneRecord;
+        kind is SmartPlaylistKind.Zen or SmartPlaylistKind.Christmas ? 5 : MostFromOneRecord;
 
     /// <summary>
     /// How much of one ACT a mood list will hold.
@@ -984,6 +1001,9 @@ public static class SmartPlaylists
 
         // Ten, and empty outside its days, so it is drawn only around the night itself.
         SmartPlaylistKind.NewYearsEve => 10,
+
+        // Ten songs, as for Zen, which also takes up to five from a record. Empty outside its days.
+        SmartPlaylistKind.Christmas => 10,
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(kind), kind, "Nobody has said how much of this list is worth showing."),

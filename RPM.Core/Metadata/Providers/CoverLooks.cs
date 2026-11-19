@@ -98,6 +98,7 @@ public static class CoverLooks
         SmartPlaylistKind.Romantic => "candlelight table for two",
         SmartPlaylistKind.Zen => "zen garden stones",
         SmartPlaylistKind.NewYearsEve => "fireworks night sky",
+        SmartPlaylistKind.Christmas => "christmas tree lights",
 
         // A decade always carries its own number, and never reaches this. Look answers the decade case
         // first. The line exists so that a kind with no words is a decision, not a gap.

@@ -797,8 +797,12 @@ public sealed class MoodShelf
     /// turns.</summary>
     public MoodList Zen { get; }
 
-    /// <summary>The holiday music, in season only, the records taking turns.</summary>
+    /// <summary>The New Year's songs, then the party, from Boxing Day to New Year's Day only.</summary>
     public MoodList NewYearsEve { get; }
+
+    /// <summary>The Christmas songs, happiest first, the records taking turns, from the start of the
+    /// season to Boxing Day only.</summary>
+    public MoodList Christmas { get; }
 
     /// <summary>How many measured tracks the cut was taken from. Zero means the pass has not run,
     /// which is different from a collection with no calm music in it.</summary>
@@ -807,7 +811,7 @@ public sealed class MoodShelf
     private MoodShelf(
         MoodList calm, MoodList energetic, MoodList danceable, MoodList focus, MoodList sleep,
         MoodList melancholy, MoodList happy, MoodList angry, MoodList romantic, MoodList zen, MoodList newYearsEve,
-        int measured)
+        MoodList christmas, int measured)
     {
         Calm = calm;
         Energetic = energetic;
@@ -820,6 +824,7 @@ public sealed class MoodShelf
         Romantic = romantic;
         Zen = zen;
         NewYearsEve = newYearsEve;
+        Christmas = christmas;
         MeasuredTracks = measured;
     }
 
@@ -846,6 +851,7 @@ public sealed class MoodShelf
         SmartPlaylistKind.Romantic => Romantic,
         SmartPlaylistKind.Zen => Zen,
         SmartPlaylistKind.NewYearsEve => NewYearsEve,
+        SmartPlaylistKind.Christmas => Christmas,
         _ => throw new ArgumentOutOfRangeException(
             nameof(kind), kind, "This generated playlist is not one the mood shelf answers."),
     };
@@ -858,6 +864,7 @@ public sealed class MoodShelf
         SmartPlaylistKind.Focus, SmartPlaylistKind.Sleep,
         SmartPlaylistKind.Melancholy, SmartPlaylistKind.Happy, SmartPlaylistKind.Angry,
         SmartPlaylistKind.Romantic, SmartPlaylistKind.Zen, SmartPlaylistKind.NewYearsEve,
+        SmartPlaylistKind.Christmas,
     ];
 
     /// <summary>
@@ -887,7 +894,8 @@ public sealed class MoodShelf
     /// measured anything, and every caller gets it instead of a null to test for.</summary>
     public static readonly MoodShelf Unmeasured =
         new(MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty,
-            MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, 0);
+            MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty, MoodList.Empty,
+            MoodList.Empty, 0);
 
     /// <summary>
     /// Cuts the bands and ranks each list in the order it is read.
@@ -1101,6 +1109,25 @@ public sealed class MoodShelf
             }
         }
 
+        // ── Merry Christmas, in its days only ──
+        //
+        // Every Christmas song the words found, whatever it sounds like: a carol is a Christmas song
+        // whether it is calm or loud. Happiest first, by the sound model's own score, so the joyful ones
+        // lead when there are more than the list holds. A song the pass has not heard yet scores zero and
+        // still belongs. The records take turns, as in Zen, because Christmas music comes as whole albums.
+        var christmas = new List<(string Path, string? Genre, double By, double WithinBy)>();
+        if (heard.ChristmasTime)
+        {
+            foreach (var track in measured)
+            {
+                var path = track.RelativePath;
+                if (!heard.IsChristmas(path))
+                    continue;
+                var happy = heard.FeelingsByPath.TryGetValue(path, out var scores) ? scores.Happy : 0;
+                christmas.Add((path, GenreOf(track, genreByFolder), happy, happy));
+            }
+        }
+
         return new MoodShelf(
             Ranked(calm, measured, factsByFolder, SmartPlaylistKind.Calm, likedByKind),
             Ranked(energetic, measured, factsByFolder, SmartPlaylistKind.Energetic, likedByKind),
@@ -1114,6 +1141,7 @@ public sealed class MoodShelf
             Ranked(felt[SmartPlaylistKind.Romantic], measured, factsByFolder, SmartPlaylistKind.Romantic, likedByKind),
             SpreadAcrossRecords(zen, measured, factsByFolder, likedByKind, SmartPlaylistKind.Zen),
             Ranked(newYearsEve, measured, factsByFolder, SmartPlaylistKind.NewYearsEve, likedByKind),
+            SpreadAcrossRecords(christmas, measured, factsByFolder, likedByKind, SmartPlaylistKind.Christmas),
             measured.Count);
     }
 
@@ -1218,8 +1246,8 @@ public sealed class MoodShelf
     /// lists are read to find something, and putting the most clearly calm record behind a round of
     /// one song per album would make them worse at their job.</para>
     /// </summary>
-    /// <param name="kind">Which list this is: Sleep or Zen. Both are one list over the whole collection,
-    /// with no genre rows, and both are put on and left rather than read.</param>
+    /// <param name="kind">Which list this is: Sleep, Zen or Merry Christmas. Each is one list over the whole
+    /// collection, with no genre rows, and each is put on and left rather than read.</param>
     private static MoodList SpreadAcrossRecords(
         List<(string Path, string? Genre, double By, double WithinBy)> rows,
         IReadOnlyList<MeasuredMood> measured,

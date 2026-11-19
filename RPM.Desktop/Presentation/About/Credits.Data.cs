@@ -252,6 +252,7 @@ public static partial class Credits
             new("Guillaume Meurice", null, "Low End (Rap)", null, "https://www.pexels.com/photo/monochrome-shot-of-a-bass-speaker-6587321/", null, null, null, ["Pexels"]),
             new("Isabella Mendes", null, "Main Floor (Electronic / Dance)", null, "https://www.pexels.com/photo/crowd-of-people-watching-a-concert-13146356/", null, null, null, ["Pexels"]),
             new("Sabeel Ahammed", null, "Melancholy", null, "https://www.pexels.com/photo/rainy-day-68357/", null, null, null, ["Pexels"]),
+            new("Kostas Dimopoulos", null, "Merry Christmas", null, "https://www.pexels.com/photo/illuminated-christmas-tree-in-close-up-shot-14578367/", null, null, null, ["Pexels"]),
             new("Jack Davis", null, "Metal", null, "https://www.pexels.com/photo/man-in-black-t-shirt-standing-on-stage-with-blue-lights-12995468/", null, null, null, ["Pexels"]),
             new("Crab Lens", null, "Midnight Cafe (Jazz)", null, "https://www.pexels.com/photo/empty-tables-in-a-restaurant-in-the-evening-20066690/", null, null, null, ["Pexels"]),
             new("Marcel Köhler", null, "Midnight Mood (Soul)", null, "https://www.pexels.com/photo/car-on-the-alleyway-near-concrete-building-10680623/", null, null, null, ["Pexels"]),

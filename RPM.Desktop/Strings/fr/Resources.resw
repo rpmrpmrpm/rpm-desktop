@@ -6998,6 +6998,10 @@
     <value>Réveillon du Nouvel An</value>
     <comment>Name of the generated playlist for New Year's Eve: songs about the new year, then party songs. Shown only around 31 December.</comment>
   </data>
+  <data name="Playlists_Christmas" xml:space="preserve">
+    <value>Joyeux Noël</value>
+    <comment>Name of the generated playlist of Christmas songs. Shown only from late November to 26 December.</comment>
+  </data>
   <data name="Playlists_BlurbCalm" xml:space="preserve">
     <value>Détendez-vous avec le côté le plus doux de votre {0}. Pas de stress, pas de bruit, juste vous et la musique.</value>
     <comment>Description under the Chill playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
@@ -7041,6 +7045,10 @@
   <data name="Playlists_BlurbNewYearsEve" xml:space="preserve">
     <value>Le compte à rebours a commencé ! Des chansons pour dire au revoir à l'année qui s'achève et fêter la nouvelle.</value>
     <comment>Description under the New Year's Eve playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
+  </data>
+  <data name="Playlists_BlurbChristmas" xml:space="preserve">
+    <value>Toutes vos chansons de Noël au même endroit. Allumez le sapin, servez-vous quelque chose de chaud et chantez à tue-tête !</value>
+    <comment>Description under the Merry Christmas playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
   </data>
   <data name="Playlists_GenreAnd" xml:space="preserve">
     <value>{0} et {1}</value>

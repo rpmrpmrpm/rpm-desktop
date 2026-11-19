@@ -60,14 +60,16 @@ public class FeelingListsTests
     private static ShelfHearing Heard(
         IReadOnlyDictionary<string, FeelingScores> feelings,
         IReadOnlySet<string>? holiday = null, IReadOnlySet<string>? zen = null, bool season = false,
-        bool melancholyShown = true, IReadOnlySet<string>? newYear = null, bool newYearsEve = false) =>
+        bool melancholyShown = true, IReadOnlySet<string>? newYear = null, bool newYearsEve = false,
+        bool christmas = false) =>
         new(feelings,
             holiday ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             newYear ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             zen ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             season,
             newYearsEve,
-            melancholyShown);
+            melancholyShown,
+            christmas);
 
     // ── the four feelings ──
 
@@ -313,6 +315,70 @@ public class FeelingListsTests
         Assert.Empty(july.NewYearsEve.WholeList.Songs);
     }
 
+    /// <summary>
+    /// Merry Christmas is every Christmas song and nothing else: no New Year's song, and no song that is not
+    /// holiday music, however happy. The records take turns, up to five songs from one, happiest first.
+    /// Nothing outside its days.
+    /// </summary>
+    [Fact]
+    public void Merry_christmas_is_the_christmas_songs_the_records_taking_turns()
+    {
+        var rows = Ramp("rock", 60);
+        var feelings = new Dictionary<string, FeelingScores>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < rows.Count; i++)
+            feelings[rows[i].RelativePath] = Only(Feeling.Happy, 0.9);
+
+        // Three Christmas albums of eight songs. The first album is the happiest.
+        var holiday = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var carols = new List<string>();
+        for (int album = 0; album < 3; album++)
+        {
+            for (int song = 0; song < 8; song++)
+            {
+                var track = Track($"xmas-{album}", 0.5, 0.5, 0.5, song, artist: $"choir {album}");
+                rows.Add(track);
+                holiday.Add(track.RelativePath);
+                carols.Add(track.RelativePath);
+                feelings[track.RelativePath] = Only(Feeling.Happy, 0.5 - album * 0.1 - song * 0.01);
+            }
+        }
+        var auldLangSyne = Track("party", 0.5, 0.5, 0.5, 0, artist: "band");
+        rows.Add(auldLangSyne);
+        holiday.Add(auldLangSyne.RelativePath);
+        var newYear = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { auldLangSyne.RelativePath };
+        var filed = FiledAs(rows, "Rock");
+
+        var december = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None,
+            Heard(feelings, holiday, season: true, newYear: newYear, christmas: true));
+        var july = MoodShelf.Build(rows, filed, NoCatalogue, Likes.None,
+            Heard(feelings, holiday, season: false, newYear: newYear, christmas: false));
+
+        var pool = december.Christmas.WholeList;
+        Assert.Equal(24, pool.Count);
+        Assert.All(pool.Songs, p => Assert.Contains(p, carols));
+        Assert.DoesNotContain(auldLangSyne.RelativePath, pool.Songs);
+
+        // Five songs of each album, not one and not eight; the happiest album's happiest song first.
+        var list = pool.Window(SmartPlaylists.MostSongs(SmartPlaylistKind.Christmas), 0);
+        Assert.Equal(15, list.Count);
+        Assert.Equal("xmas-0/0.flac", list[0]);
+        Assert.All(list.GroupBy(p => p.Split('/')[0]), album => Assert.Equal(5, album.Count()));
+
+        Assert.Empty(july.Christmas.WholeList.Songs);
+    }
+
+    [Theory]
+    [InlineData(11, 21, false)]
+    [InlineData(11, 22, true)]
+    [InlineData(12, 1, true)]
+    [InlineData(12, 25, true)]
+    [InlineData(12, 26, true)]
+    [InlineData(12, 27, false)]
+    [InlineData(1, 1, false)]
+    [InlineData(7, 1, false)]
+    public void Merry_christmas_runs_from_late_november_to_boxing_day(int month, int day, bool offered)
+        => Assert.Equal(offered, HolidayMusic.IsChristmasTime(new DateTime(2026, month, day, 20, 0, 0)));
+
     [Theory]
     [InlineData("Happy New Year", "Arrival", true)]
     [InlineData("Auld Lang Syne", "", true)]
@@ -357,6 +423,8 @@ public class FeelingListsTests
     [InlineData("Santa Barbara Improv", "", "", false)]
     [InlineData("Santa Monica Dream", "", "", false)]
     [InlineData("Rush (Tom Santa Remix)", "Rush (remixes)", "Pop", false)]
+    [InlineData("SANTA MUERTE_BLUFF_94 BPM", "", "Pop", false)]
+    [InlineData("Santa Muerte", "", "", false)]
     [InlineData("NOËL BLANC", "", "", true)]
     [InlineData(null, null, null, false)]
     public void Holiday_music_is_found_by_its_words(string? title, string? album, string? genre, bool holiday)
@@ -438,11 +506,11 @@ public class FeelingListsTests
     // ── the record cap ──
 
     [Fact]
-    public void Zen_takes_five_songs_from_a_record_and_the_rest_take_one()
+    public void Zen_and_christmas_take_five_songs_from_a_record_and_the_rest_take_one()
     {
         foreach (var kind in Enum.GetValues<SmartPlaylistKind>())
             Assert.Equal(
-                kind is SmartPlaylistKind.Zen ? 5 : SmartPlaylists.MostFromOneRecord,
+                kind is SmartPlaylistKind.Zen or SmartPlaylistKind.Christmas ? 5 : SmartPlaylists.MostFromOneRecord,
                 SmartPlaylists.MostFromOneRecordFor(kind));
     }
 

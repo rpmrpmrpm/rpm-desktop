@@ -321,7 +321,8 @@ public sealed partial class LibraryDatabase
             MoodBands.ZenFolders(counts, facts),
             HolidaySeason: HolidayMusic.InSeason(local),
             NewYearsEveTime: HolidayMusic.IsNewYearsEveTime(local),
-            MelancholyShown: SmartPlaylists.Moods.Contains(SmartPlaylistKind.Melancholy));
+            MelancholyShown: SmartPlaylists.Moods.Contains(SmartPlaylistKind.Melancholy),
+            ChristmasTime: HolidayMusic.IsChristmasTime(local));
     }
 
     /// <summary>
@@ -1201,9 +1202,10 @@ public sealed partial class LibraryDatabase
             SmartPlaylistKind.Angry => new Shelf(id.Kind, id.Genre, id.Decade),
             SmartPlaylistKind.Romantic => new Shelf(id.Kind, id.Genre, id.Decade),
 
-            // One list each over the whole collection, like Sleep: neither takes a genre or a decade.
+            // One list each over the whole collection, like Sleep: none takes a genre or a decade.
             SmartPlaylistKind.Zen => new Shelf(id.Kind, null, 0),
             SmartPlaylistKind.NewYearsEve => new Shelf(id.Kind, null, 0),
+            SmartPlaylistKind.Christmas => new Shelf(id.Kind, null, 0),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(id), id, "This generated playlist has no rule yet."),

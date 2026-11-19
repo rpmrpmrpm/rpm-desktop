@@ -6998,6 +6998,10 @@
     <value>New Year's Eve</value>
     <comment>Name of the generated playlist for New Year's Eve: songs about the new year, then party songs. Shown only around 31 December.</comment>
   </data>
+  <data name="Playlists_Christmas" xml:space="preserve">
+    <value>Merry Christmas</value>
+    <comment>Name of the generated playlist of Christmas songs. Shown only from late November to 26 December.</comment>
+  </data>
   <data name="Playlists_BlurbCalm" xml:space="preserve">
     <value>Kick back with the softest side of your {0}. No rush, no noise, just you and the music.</value>
     <comment>Description under the Chill playlist name. {0} is a list of genres, like 'rock, pop and jazz'.</comment>
@@ -7041,6 +7045,10 @@
   <data name="Playlists_BlurbNewYearsEve" xml:space="preserve">
     <value>The countdown is on! Songs to see out the old year and party into the new one.</value>
     <comment>Description under the New Year's Eve playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
+  </data>
+  <data name="Playlists_BlurbChristmas" xml:space="preserve">
+    <value>Your Christmas favourites, all in one place. Light up the tree, pour something warm and sing along!</value>
+    <comment>Description under the Merry Christmas playlist name. It names no genres: the list is an occasion, not a cut by genre.</comment>
   </data>
   <data name="Playlists_GenreAnd" xml:space="preserve">
     <value>{0} and {1}</value>

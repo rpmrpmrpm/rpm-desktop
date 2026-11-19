@@ -448,6 +448,7 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Romantic => Loc.Get("Playlists_Romantic"),
         SmartPlaylistKind.Zen => Loc.Get("Playlists_Zen"),
         SmartPlaylistKind.NewYearsEve => Loc.Get("Playlists_NewYearsEve"),
+        SmartPlaylistKind.Christmas => Loc.Get("Playlists_Christmas"),
         SmartPlaylistKind.RightNow => Loc.Get("Playlists_RightNow"),
 
         // Name(SmartPlaylistId) answers a decade by its number first, so this arm is not reached through
@@ -490,6 +491,9 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Romantic => "\uf5ce",           // wine-glass
         SmartPlaylistKind.Zen => "\uf5bb",                // spa (a lotus)
         SmartPlaylistKind.NewYearsEve => "\uf79f",        // champagne-glasses
+
+        // Merry Christmas: a Christmas tree.
+        SmartPlaylistKind.Christmas => "\uf1bb",          // tree
 
         // A clock. This list is the only one that depends on the time of day.
         SmartPlaylistKind.RightNow => "\uf017",           // clock
@@ -613,6 +617,7 @@ internal static class SmartPlaylistFace
         SmartPlaylistKind.Romantic => (5, 8),       // Bokeh, Crimson: candlelight out of focus
         SmartPlaylistKind.Zen => (1, 4),            // Orb, Forest: a smooth stone
         SmartPlaylistKind.NewYearsEve => (5, 2),    // Bokeh, Gold: sparklers and champagne
+        SmartPlaylistKind.Christmas => (5, 9),      // Bokeh, Red: tree lights out of focus
 
         // Amber, and a family of its own. A decade list is not one of the moods, so it should not share a
         // mood colour. People read a shelf by its colours first.
