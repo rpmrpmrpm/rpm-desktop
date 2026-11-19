@@ -456,12 +456,17 @@ public sealed partial class PeerClient : IDisposable
         $"?s={Uri.EscapeDataString(PeerSessions.Handle(token))}" +
         $"&t={Uri.EscapeDataString(PeerSessions.Ticket(token, route, id))}";
 
-    /// <summary>A picture from the peer, by whichever route names that kind of picture. Null when there is
-    /// none, or the peer cannot be reached.</summary>
-    public async Task<byte[]?> ImageAsync(string route, string key, CancellationToken cancellation = default)
+    /// <summary>A picture from the peer, by whichever route names that kind of picture.
+    ///
+    /// <para>Answered with null when the peer says it has none (404). Unanswered when the peer could not be
+    /// asked or did not answer: no session, no connection, a time-out, or any other status. A caller must
+    /// not show "no picture" for that, because the picture may be there.</para></summary>
+    public async Task<Asked<byte[]?>> ImageAsync(string route, string key, CancellationToken cancellation = default)
     {
-        if (string.IsNullOrWhiteSpace(key) || await TokenAsync(cancellation) is not { } token)
-            return null;
+        if (string.IsNullOrWhiteSpace(key))
+            return Asked.Answer<byte[]?>(null);
+        if (await TokenAsync(cancellation) is not { } token)
+            return Asked.Failed<byte[]?>("no session with this computer");
 
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{BaseUrl}{route}{Uri.EscapeDataString(key)}");
@@ -471,14 +476,16 @@ public sealed partial class PeerClient : IDisposable
         {
             using var deadline = Deadline(Quick, cancellation);
             using var response = await _http.SendAsync(request, deadline.Token);
-            return response.IsSuccessStatusCode
-                ? await response.Content.ReadAsByteArrayAsync(deadline.Token)
-                : null;
+            if (response.IsSuccessStatusCode)
+                return Asked.Answer<byte[]?>(await response.Content.ReadAsByteArrayAsync(deadline.Token));
+            return response.StatusCode == System.Net.HttpStatusCode.NotFound
+                ? Asked.Answer<byte[]?>(null)
+                : Asked.Failed<byte[]?>($"HTTP {(int)response.StatusCode}");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
                                  or ObjectDisposedException)
         {
-            return null;
+            return Asked.Failed<byte[]?>($"{ex.GetType().Name}: {ex.Message}");
         }
     }
 

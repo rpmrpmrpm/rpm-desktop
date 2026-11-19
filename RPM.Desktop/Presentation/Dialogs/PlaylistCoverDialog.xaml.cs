@@ -392,7 +392,13 @@ public sealed partial class PlaylistCoverDialog : ContentDialog
 
                 var row = rows[index];
                 byte[]? bytes;
-                try { bytes = await AlbumCovers.LoadAsync(row.Folder, ct, sleeve, ownCollection: true); }
+                // A sleeve that could not be read is shown as unavailable, as a missing one is. It is
+                // literally not available to pick just now.
+                try
+                {
+                    bytes = (await AlbumCovers.LoadAsync(row.Folder, ct, sleeve, ownCollection: true))
+                        .Answers(out var found, out string? notRead) ? found : null;
+                }
                 catch (OperationCanceledException) { return; }
                 catch { bytes = null; }
 
@@ -926,7 +932,13 @@ public sealed partial class PlaylistCoverDialog : ContentDialog
             }
 
             byte[]? bytes;
-            try { bytes = await AlbumCovers.LoadAsync(folder, ct, ArtScaler.RowEdge, ownCollection: true); }
+            // A sleeve that could not be read is left out of the draw, which the preview shows before it is
+            // saved. It is not kept in _recordSleeves, so the next draw asks again.
+            try
+            {
+                bytes = (await AlbumCovers.LoadAsync(folder, ct, ArtScaler.RowEdge, ownCollection: true))
+                    .Answers(out var found, out _) ? found : null;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException) { bytes = null; }
 
             if (bytes is { Length: > 0 })

@@ -97,7 +97,7 @@ public sealed partial class GenreDetailView : UserControl
 
     /// <summary>One record's sleeve. It comes from the same loader that the album wall and the artist page
     /// use.</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     /// <summary>One act's photograph. It comes from the artists wall's own loader, so a face already on
     /// screen there costs nothing to show here.</summary>
@@ -597,8 +597,9 @@ public sealed partial class GenreDetailView : UserControl
 
         try
         {
-            var cover = await load(song.Folder, Services.Art.ArtScaler.RowEdge, token);
-            if (cover is null or { Length: 0 })
+            // A row keeps nothing, so a cover that could not be read is asked for again when the row is.
+            if (!(await load(song.Folder, Services.Art.ArtScaler.RowEdge, token)).Answers(out var cover, out _)
+                || cover is null or { Length: 0 })
                 return;
 
             var decoded = await _pictures.Next(() => RemoteImage.DecodeAsync(
@@ -845,7 +846,16 @@ public sealed partial class GenreDetailView : UserControl
             // sleeve. See ArtistRecord.FigureSeed.
             await Services.Art.CoverFill.DressAsync(
                 () => CardsFor(record.Folder),
-                readToken => load(record.Folder, Services.Art.ArtScaler.TileEdge, readToken),
+                async readToken =>
+                {
+                    var asked = await load(record.Folder, Services.Art.ArtScaler.TileEdge, readToken);
+
+                    // A read that could not be answered gives the claim back, so the card asks again the next
+                    // time it is realised. It is not an answer, so CoverFill draws nothing for it.
+                    if (!asked.Answers(out _, out _))
+                        _coversAsked.Remove(record.Folder);
+                    return asked;
+                },
                 async cover => await _pictures.Next(() => RemoteImage.DecodeAsync(
                     cover,
                     Services.Art.ArtScaler.DecodeEdgeFor(ShelfMetrics.Art, XamlRoot?.RasterizationScale ?? 1))),
@@ -932,7 +942,8 @@ public sealed partial class GenreDetailView : UserControl
         {
             await Services.Art.CoverFill.DressAsync(
                 card,
-                readToken => load(card.Id, readToken),
+                // A generated list's picture is drawn on this machine, so it always answers.
+                async readToken => Asked.Answer(await load(card.Id, readToken)),
                 async cover => await _pictures.Next(() => RemoteImage.DecodeAsync(
                     cover,
                     Services.Art.ArtScaler.DecodeEdgeFor(ShelfMetrics.Art, XamlRoot?.RasterizationScale ?? 1))),

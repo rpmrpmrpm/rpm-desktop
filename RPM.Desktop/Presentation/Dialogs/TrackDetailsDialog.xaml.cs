@@ -1072,7 +1072,8 @@ public sealed partial class TrackDetailsDialog : ContentDialog
             // what the file would carry when it is downloaded. Showing it changes nothing: only a new or a
             // removed picture is written.
             else if (_mirror is { } mirror && !File.Exists(_row.FilePath)
-                     && await Services.Art.RemoteSleeve.ForAsync(mirror) is { Length: > 0 } remote)
+                     && (await Services.Art.RemoteSleeve.ForAsync(mirror)).Answers(out var remote, out _)
+                     && remote is { Length: > 0 })
             {
                 _artBytes = remote;
                 _artMime = RPM.Core.Cloud.AlbumArt.SniffMime(remote);

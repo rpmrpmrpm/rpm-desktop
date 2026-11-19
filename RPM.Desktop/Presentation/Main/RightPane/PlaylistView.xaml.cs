@@ -1110,11 +1110,13 @@ public sealed partial class PlaylistView : UserControl
 
                 // Drawn in the same place as every surface that shows a playlist, so the picture at the head of
                 // this list and the picture on an artist's shelf are the same picture.
+                // A picture that could not be drawn is shown as none. The page keeps nothing, so opening
+                // the list again asks again.
                 PlaylistRowKind.Playlist or PlaylistRowKind.Ref when NodeOf(kind) is { } node
-                    => await PlaylistCovers.MadeAsync(
+                    => (await PlaylistCovers.MadeAsync(
                         node, detail.Name, CoverOf(node, borrowed),
                         borrowed ? PlaylistShelf.Borrowed : PlaylistShelf.Own,
-                        CancellationToken.None),
+                        CancellationToken.None)).Answers(out var made, out _) ? made : PlaylistArt.Drawn.None,
 
                 _ => PlaylistArt.Drawn.None,
             };

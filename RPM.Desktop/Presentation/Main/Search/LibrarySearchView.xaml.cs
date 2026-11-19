@@ -101,7 +101,7 @@ public sealed partial class LibrarySearchView : UserControl
 
     /// <summary>What a record's cover is read from: the page's own door, as every shelf in the app reads
     /// one (<c>AlbumCovers</c>).</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     public event Action<ArtistWallItem>? ArtistChosen;
     public event Action<string>? RecordChosen;
@@ -800,10 +800,14 @@ public sealed partial class LibrarySearchView : UserControl
     }
 
     private async Task<ImageSource?> LoadCoverAsync(
-        Func<string, int, CancellationToken, Task<byte[]?>> load, string folder)
+        Func<string, int, CancellationToken, Task<Asked<byte[]?>>> load, string folder)
     {
         var edge = PictureEdge;
-        return await load(folder, CoverThumbEdge, CancellationToken.None) is { Length: > 0 } bytes
+
+        // A cover that could not be read and a cover that is not there both leave the square empty. Neither
+        // draws a made sleeve, and the next search reads again (see where _covers is cleared).
+        return (await load(folder, CoverThumbEdge, CancellationToken.None)).Answers(out var bytes, out _)
+               && bytes is { Length: > 0 }
             ? await RemoteImage.DecodeAsync(bytes, edge)
             : null;
     }

@@ -69,19 +69,25 @@ public sealed class CloudArtService
     }
 
     /// <summary>
-    /// The cover for an album that is only in the cloud. Null when neither the store nor the track's own
-    /// sidecar has one. That is ordinary, and for a tile it means the same thing: no picture.
+    /// The cover for an album that is only in the cloud.
+    ///
+    /// <para>Answered with null when neither the store nor the track's own sidecar has one. That is
+    /// ordinary: the record has no artwork. Unanswered when the store could not be asked or did not
+    /// answer: nobody signed in, the app's gate refused the request, a time-out, an error. A caller must
+    /// not show "no artwork" for that, and must not keep it. The record may well have a cover.</para>
     /// </summary>
     /// <param name="rpmId">Any track of the album. The sidecar fallback reads this. Without one, only the
     /// stored cover can answer.</param>
     /// <param name="owner">Whose storage to ask, when the record is not this account's. This is the account
     /// of somebody who has shared their collection. Their covers are the only ones there are for a record
     /// they have offloaded, because nobody else has the files it could be read from.</param>
-    public async Task<byte[]?> CoverAsync(
+    public async Task<Asked<byte[]?>> CoverAsync(
         string? albumArtist, string? artist, string? album, string? rpmId,
         CancellationToken ct = default, string? owner = null)
     {
-        if (!_auth.IsLoggedIn || string.IsNullOrWhiteSpace(album)) return null;
+        // An album with no name has no key to be stored under, so there is nothing to ask about.
+        if (string.IsNullOrWhiteSpace(album)) return Asked.Answer<byte[]?>(null);
+        if (!_auth.IsLoggedIn) return Asked.Failed<byte[]?>("nobody is signed in");
 
         // There are two spellings of the key. The store hashed the key from the file's own tags at upload
         // time. The catalogue this machine reads may not carry an album artist at all, because rows written
@@ -92,7 +98,7 @@ public sealed class CloudArtService
         var whose = owner ?? "";
 
         lock (_gate)
-            if (Known(whose).IsBlank(primary)) return null;
+            if (Known(whose).IsBlank(primary)) return Asked.Answer<byte[]?>(null);
 
         try
         {
@@ -100,7 +106,7 @@ public sealed class CloudArtService
             {
                 var path = PathFor(whose, stored.AlbumKey, stored.UpdatedAt);
                 if (File.Exists(path))
-                    return await File.ReadAllBytesAsync(path, ct);
+                    return Asked.Answer<byte[]?>(await File.ReadAllBytesAsync(path, ct));
 
                 if (await _cloud.GetAlbumArtUrlAsync(Shelf(whose), stored.AlbumKey, ct) is { Length: > 0 } url)
                 {
@@ -108,7 +114,7 @@ public sealed class CloudArtService
                     if (bytes.Length > 0)
                     {
                         Write(path, bytes);
-                        return bytes;
+                        return Asked.Answer<byte[]?>(bytes);
                     }
                 }
             }
@@ -117,19 +123,22 @@ public sealed class CloudArtService
             // but only in this account's own file. A sidecar in somebody else's storage cannot be read from
             // here, and their track id means nothing in this account's storage. So there is nothing to ask.
             if (owner is null && await FromSidecarAsync(primary, rpmId, ct) is { Length: > 0 } embedded)
-                return embedded;
+                return Asked.Answer<byte[]?>(embedded);
 
             lock (_gate) Known(whose).MarkBlank(primary);
-            return null;
+            return Asked.Answer<byte[]?>(null);
         }
         catch (OperationCanceledException)
         {
-            return null;   // The tile has scrolled away, so nobody is waiting for the answer.
+            // The tile has scrolled away, so nobody is waiting for the answer. It is still not "no cover".
+            return Asked.Failed<byte[]?>("cancelled");
         }
         catch (Exception ex)
         {
+            // Nothing is marked blank here. The listing, the address or the picture could not be read, and
+            // that says nothing about whether the album has a cover.
             _log.LogDebug(ex, "[Cloud] Could not fetch a stored cover for {Album}", album);
-            return null;
+            return Asked.Failed<byte[]?>($"{ex.GetType().Name}: {ex.Message}");
         }
     }
 

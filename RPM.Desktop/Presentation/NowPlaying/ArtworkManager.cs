@@ -525,10 +525,12 @@ internal sealed class ArtworkManager : IArtController
                 // The row read at the top says which computer holds the record, and carries the album
                 // artist its cover is keyed under. The stream itself only knows what the tags on the deck
                 // say. The two fallbacks cover that.
-                localBytes = cloudRow is { } sleeveRow
+                // A sleeve that could not be fetched goes on to the catalogue below, as a missing one does.
+                var remote = cloudRow is { } sleeveRow
                     ? await RemoteSleeve.ForAsync(sleeveRow, track.Artist, track.Album, ct)
                     : await App.Services.GetRequiredService<CloudArtService>()
                         .CoverAsync(null, track.Artist, track.Album, null, ct);
+                localBytes = remote.Answers(out var fetched, out _) ? fetched : null;
                 if (gen != _gen) return;
             }
 

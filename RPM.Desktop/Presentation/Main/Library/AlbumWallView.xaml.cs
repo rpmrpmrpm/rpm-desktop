@@ -234,7 +234,7 @@ public sealed partial class AlbumWallView : UserControl
     /// <summary>Folder and the pixel edge wanted → cover bytes (folder image, else first track's embedded
     /// art), or null. The bytes come back no larger than that edge, so what is handed over IS the thumb.
     /// The wall decodes it and does not shrink it again.</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     /// <summary>
     /// Where the collection on screen is rooted. This decides what its resident pack is named after.
@@ -578,7 +578,10 @@ public sealed partial class AlbumWallView : UserControl
         ResidentEdge: ResidentEdge,
         PackScope: () => PackScope,
         CollectionRoot: () => CollectionRoot?.Invoke(),
-        Read: (folder, edge, ct) => CoverLoader is { } load ? load(folder, edge, ct) : Task.FromResult<byte[]?>(null),
+        // With no loader handed over yet, nothing could be asked. That is not "no cover".
+        Read: (folder, edge, ct) => CoverLoader is { } load
+            ? load(folder, edge, ct)
+            : Task.FromResult(Asked.Failed<byte[]?>("no cover loader yet")),
         Tints: TintReading.OnFirstRead,
         Hold: CoverHold.SharpOverResident)
     {

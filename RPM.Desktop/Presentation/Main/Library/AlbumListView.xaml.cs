@@ -99,7 +99,7 @@ public sealed partial class AlbumListView : UserControl
     // ── what the page supplies (the list does not depend on the library) ──
 
     /// <summary>An album folder's cover bytes, no larger than the pixel edge asked for.</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     /// <summary>An album folder's tracks, in album order.</summary>
     public Func<string, CancellationToken, Task<IReadOnlyList<TrackInfo>>>? TracksLoader { get; set; }
@@ -858,8 +858,14 @@ public sealed partial class AlbumListView : UserControl
             var sleeve = ArtScaler.DecodeEdgeFor(188, XamlRoot?.RasterizationScale ?? 1);
             if (CoverLoader is { } loadCover)
             {
-                if (await ListDiag.TimeAsync("cover", () => loadCover(entry.Folder, sleeve, CancellationToken.None))
-                    is { Length: > 0 } thumb)
+                var asked = await ListDiag.TimeAsync("cover", () => loadCover(entry.Folder, sleeve, CancellationToken.None));
+                if (!asked.Answers(out var thumb, out _))
+                {
+                    // The cover could not be read just now (the cloud or the computer that holds the record did
+                    // not answer). That is not "no cover", so no placeholder is drawn. The block is read again
+                    // the next time the list builds it.
+                }
+                else if (thumb is { Length: > 0 })
                 {
                     var tint = await ListDiag.TimeAsync("tint", () => Task.Run(() => CoverColor.Tint(thumb)));
                     entry.Cover = await ListDiag.TimeAsync("decode", () => DecodeAsync(thumb, sleeve));

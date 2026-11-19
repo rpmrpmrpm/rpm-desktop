@@ -107,7 +107,7 @@ public sealed partial class ArtistDetailView : UserControl
 
     /// <summary>The album cover at the given edge size, or null. It is the page's own loader, so a cover
     /// already cut for the wall is not cut again here.</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     /// <summary>One record's tracks, in disc order.</summary>
     public Func<string, CancellationToken, Task<IReadOnlyList<TrackInfo>>>? TracksLoader { get; set; }
@@ -170,9 +170,10 @@ public sealed partial class ArtistDetailView : UserControl
 
     /// <summary>The drawn cover of one of those playlists: its records laid out as tiles on a
     /// background of their colours. It is the same picture that heads the track list of that playlist,
-    /// from the same source, so a playlist has one picture everywhere. Null for a playlist whose records
-    /// have no artwork. The card then keeps its generated figure.</summary>
-    public Func<ArtistPlaylist, CancellationToken, Task<byte[]?>>? PlaylistCoverLoader { get; set; }
+    /// from the same source, so a playlist has one picture everywhere. Answered with null for a playlist
+    /// whose records have no artwork: the card then draws its generated figure. Unanswered when a record's
+    /// sleeve could not be read: the card is left as it is.</summary>
+    public Func<ArtistPlaylist, CancellationToken, Task<Asked<byte[]?>>>? PlaylistCoverLoader { get; set; }
 
     /// <summary>Opens one of those playlists. This happens in another view, the Playlists view, where a
     /// playlist is played, reordered and edited. This page only links to it.</summary>

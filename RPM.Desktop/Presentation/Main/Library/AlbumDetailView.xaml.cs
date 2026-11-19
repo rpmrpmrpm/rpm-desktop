@@ -1201,42 +1201,46 @@ public sealed partial class AlbumDetailView : UserControl
     /// <summary>Where one suggestion's bytes come from, and nothing else. They come from the picture in the folder
     /// on this disk, then from whoever holds the record. In the harness, a drawn one is used. What an empty answer
     /// MEANS is not decided here. See <see cref="Services.Art.CoverFill"/>.</summary>
-    private static async Task<byte[]?> SimilarSleeveAsync(
+    private static async Task<Asked<byte[]?>> SimilarSleeveAsync(
         string folder, string artist, string title, string root, CancellationToken ct)
     {
         if (folder.Length > 0)
         {
             var full = Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar));
             if (FolderArtWriter.FindFolderImage(full) is { } image)
-                return await Task.Run(() => ThumbCache.Get(File.ReadAllBytes(image), ArtScaler.TileEdge));
+                return Asked.Answer<byte[]?>(
+                    await Task.Run(() => ThumbCache.Get(File.ReadAllBytes(image), ArtScaler.TileEdge)));
 
             // No sleeve is under the folder. A borrowed shelf is a mirror with no music beneath it, so this is EVERY
             // suggestion on a shared library, not the odd record. An offloaded album of one's own has none either.
             // The page's own cover takes the other route in that case (see FillRemoteCoverAsync). Without this
             // fallback, the row of suggestions would read only the disk and draw blank squares.
-            return await RemoteSleeveForAsync(folder, artist, title, ct) is { Length: > 0 } bytes
-                ? await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge))
-                : null;
+            var remote = await RemoteSleeveForAsync(folder, artist, title, ct);
+            return remote.Answers(out var bytes, out _) && bytes is { Length: > 0 }
+                ? Asked.Answer<byte[]?>(await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge)))
+                : remote;
         }
 
         // The harness has no disk under its shelf, so it draws the sleeve in bytes. Otherwise every card in the row
         // would be blank.
-        return Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(artist, title)) : null;
+        return Asked.Answer(Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(artist, title)) : null);
     }
 
     /// <summary>The sleeve of an album whose folder holds no picture. It comes from the computer that has the
     /// record, or from the store. One row of the shelf is enough to say which. See <see cref="RemoteSleeve"/>,
     /// which the page's own cover goes through for the same reason.</summary>
-    private static async Task<byte[]?> RemoteSleeveForAsync(
+    private static async Task<Asked<byte[]?>> RemoteSleeveForAsync(
         string folder, string artist, string title, CancellationToken ct)
     {
         var library = Library;
         if (!library.IsOpen)
-            return null;
+            return Asked.Failed<byte[]?>("no library is open");
 
-        if (await Cancellable.RunAsync(() => library.Shelf.FolderTracks(folder).FirstOrDefault(), ct)
-                is not { Ran: true, Value: { } row })
-            return null;
+        var read = await Cancellable.RunAsync(() => library.Shelf.FolderTracks(folder).FirstOrDefault(), ct);
+        if (!read.Ran)
+            return Asked.Failed<byte[]?>("cancelled");
+        if (read.Value is not { } row)
+            return Asked.Answer<byte[]?>(null);
 
         // Only for a record that is not on this disk. That means a borrowed one, or one of the reader's own that has
         // been offloaded. An album sitting here with no cover.jpg in its folder simply has no artwork. Asking the
@@ -1244,7 +1248,7 @@ public sealed partial class AlbumDetailView : UserControl
         // same test the page's own cover makes.
         var file = Path.Combine(library.ShelfRoot ?? "", row.RelativePath.Replace('/', Path.DirectorySeparatorChar));
         if (File.Exists(file))
-            return null;
+            return Asked.Answer<byte[]?>(null);
 
         return await RemoteSleeve.ForAsync(row, artist, title, ct);
     }
@@ -1556,8 +1560,10 @@ public sealed partial class AlbumDetailView : UserControl
             // TrackInfo carries, and it decides where the sleeve is asked for.
             if (!Library.IsOpen || Library.Shelf.FindByRpmId(track.RpmId!) is not { } row) return;
 
-            if (await RemoteSleeve.ForAsync(row, track.Artist, track.Album)
-                is not { Length: > 0 } bytes) return;
+            // A sleeve that could not be fetched leaves the page as it is, the same as a sleeve that is not
+            // there. Nothing is kept, so the next visit to the page asks again.
+            if (!(await RemoteSleeve.ForAsync(row, track.Artist, track.Album)).Answers(out var bytes, out _)
+                || bytes is not { Length: > 0 }) return;
 
             // The page may have moved to another record while this was in the air.
             if (_tracks.Count == 0 || !ReferenceEquals(_tracks[0], track)) return;

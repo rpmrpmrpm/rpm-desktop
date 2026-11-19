@@ -84,10 +84,12 @@ public class PeerClientClosedTests
         Assert.Null(await Closed().AccountAsync());
     }
 
+    /// <summary>A closed client cannot ask, so it gives no answer. That is not "no picture": the record may
+    /// have one, and a card must not draw a made sleeve for it.</summary>
     [Fact]
-    public async Task A_closed_client_has_no_picture()
+    public async Task A_closed_client_cannot_ask_for_a_picture()
     {
-        Assert.Null(await Closed().ImageAsync(SharingProtocol.CoverRoute, "rpm-id"));
+        Assert.False((await Closed().ImageAsync(SharingProtocol.CoverRoute, "rpm-id")).Answers(out _, out _));
     }
 
     [Fact]

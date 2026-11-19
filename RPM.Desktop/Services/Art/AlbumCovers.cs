@@ -38,27 +38,37 @@ public static class AlbumCovers
     /// <para>This is a second method, not a flag on the first one. Which side a surface needs depends
     /// on the surface, not on the record. Every caller that draws a square wants this method.</para>
     /// </summary>
-    public static async Task<byte[]?> LoadForSquareAsync(
+    public static async Task<Asked<byte[]?>> LoadForSquareAsync(
         string folder, CancellationToken ct, int edge, bool ownCollection = false)
     {
-        if (await LoadAsync(folder, ct, edge, ownCollection) is not { Length: > 0 } bytes)
-            return null;
+        var asked = await LoadAsync(folder, ct, edge, ownCollection);
+        if (!asked.Answers(out var bytes, out _) || bytes is not { Length: > 0 })
+            return asked;
 
         var (w, h) = ArtScaler.BoundsOf(bytes);
         if (Math.Min(w, h) >= edge || Math.Max(w, h) <= 0)
-            return bytes;
+            return asked;
 
+        // The wider read is only a sharper copy of a picture already in hand. If it fails, the first copy
+        // is still the answer.
         var wider = ArtScaler.LongEdgeForShortSide(w, h, edge);
-        return wider > edge && await LoadAsync(folder, ct, wider, ownCollection) is { Length: > 0 } fuller
-            ? fuller
-            : bytes;
+        return wider > edge
+               && (await LoadAsync(folder, ct, wider, ownCollection)).Answers(out var fuller, out _)
+               && fuller is { Length: > 0 }
+            ? Asked.Answer<byte[]?>(fuller)
+            : asked;
     }
 
     /// <summary>A cover that takes longer than this is said on the ring, with what it waited for.</summary>
     private const double SlowMs = 1000;
 
     /// <summary>
-    /// The cover for one album folder, or null if none of the four sources can answer.
+    /// The cover for one album folder.
+    ///
+    /// <para>Answered with null when every source that was asked says there is no picture. Unanswered when
+    /// a source that might have one could not be read: no library open, a picture in the folder that could
+    /// not be read, a tag that could not be read, or a computer or cloud that did not answer. A caller must
+    /// not draw a made sleeve, or keep "no cover", for an unanswered read.</para>
     /// </summary>
     /// <param name="maxEdge">The longest side the caller can use. Use 0 for the picture as it is.
     /// When this is above 0, a cover already on disk is taken from <see cref="ThumbCache"/> by its
@@ -69,16 +79,16 @@ public static class AlbumCovers
     /// shelf, which is a borrowed collection while one is open, and it reads covers from the mirror it
     /// listed. The visualizer's wall always lists the user's own collection, so it must read against
     /// the user's own root. A borrowed shelf does not know those folders.</param>
-    public static async Task<byte[]?> LoadAsync(
+    public static async Task<Asked<byte[]?>> LoadAsync(
         string folder, CancellationToken ct, int maxEdge = 0, bool ownCollection = false)
     {
         var library = App.Services.GetRequiredService<LibraryService>();
         if (!library.IsOpen)
-            return null;
+            return Asked.Failed<byte[]?>("no library is open");
 
         var mirror = ownCollection ? library.Db : library.Shelf;
         if ((ownCollection ? library.Root : library.ShelfRoot) is not { } root)
-            return null;
+            return Asked.Failed<byte[]?>("the collection has no folder");
 
         // What a slow cover spent its time on, said on the ring when it is slow. A cover that takes
         // seconds at startup holds up whatever the screen is waiting for, and from outside the four
@@ -87,7 +97,7 @@ public static class AlbumCovers
         double queuedMs = 0, folderMs = 0, mirrorMs = 0, tagMs = 0;
         var where = "folder";
 
-        var (bytes, cloudTrack) = await Task.Run<(byte[]? Bytes, LibraryTrack? Track)>(() =>
+        var (bytes, cloudTrack, failed) = await Task.Run<(byte[]? Bytes, LibraryTrack? Track, string? Failed)>(() =>
         {
             queuedMs = System.Diagnostics.Stopwatch.GetElapsedTime(asked).TotalMilliseconds;
             var step = System.Diagnostics.Stopwatch.StartNew();
@@ -108,12 +118,17 @@ public static class AlbumCovers
                 {
                     var found = maxEdge > 0 ? ThumbCache.GetFile(image, maxEdge) : File.ReadAllBytes(image);
                     folderMs = Lap();
-                    return (found, (LibraryTrack?)null);
+
+                    // The folder has a picture. One that could not be read (locked, half written, gone
+                    // between the two calls) is a failure, not a record with no cover.
+                    return found is { Length: > 0 }
+                        ? (found, (LibraryTrack?)null, (string?)null)
+                        : (null, null, "the folder's picture could not be read");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return (null, null);   // Optional source. A locked or half-written file gives a blank card.
+                return (null, null, $"the folder's picture could not be read: {ex.Message}");
             }
 
             folderMs = Lap();
@@ -123,9 +138,12 @@ public static class AlbumCovers
             // LibraryService.Read shows the problem screen over the app.
             if (!library.Read(mirror, "a record's first track for its cover",
                         m => m.QueryFolderPage(folder, 0, 1).FirstOrDefault())
-                    .Answers(out var first, out _)
-                || first is null)
-                return (null, null);
+                    .Answers(out var first, out var why))
+                return (null, null, why);
+
+            // A folder with no tracks in the library has no tag to read and nothing to ask anyone about.
+            if (first is null)
+                return (null, null, null);
 
             mirrorMs = Lap();
 
@@ -135,18 +153,19 @@ public static class AlbumCovers
                 {
                     var cut = Cut(embedded);
                     tagMs = Lap();
-                    return (cut, null);
+                    return (cut, null, null);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return (null, null);   // Optional source. A locked or half-written file gives a blank card.
+                // A locked or half-written file. Its tag may well hold a picture.
+                return (null, null, $"the track's tag could not be read: {ex.Message}");
             }
 
             // No picture on this disk. Two places can still answer for a record this machine does not
             // hold: the cloud, for a record that was offloaded or adopted from the catalogue, and the
             // computer that holds the files, for a record borrowed over the network.
-            return first.IsOffloaded || first.PeerAdopted ? (null, first) : (null, null);
+            return first.IsOffloaded || first.PeerAdopted ? (null, first, null) : (null, null, null);
         }, ct);
 
         var tookMs = System.Diagnostics.Stopwatch.GetElapsedTime(asked).TotalMilliseconds;
@@ -156,16 +175,17 @@ public static class AlbumCovers
                 $"slow cover {folder} ({where}, edge {maxEdge}): {tookMs:F0} ms, waiting for a thread "
                 + $"{queuedMs:F0}, folder {folderMs:F0}, library {mirrorMs:F0}, tag and cut {tagMs:F0}");
 
+        if (failed is not null)
+            return Asked.Failed<byte[]?>(failed);
         if (bytes is { Length: > 0 })
-            return bytes;
+            return Asked.Answer<byte[]?>(bytes);
         if (cloudTrack is null)
-            return null;
+            return Asked.Answer<byte[]?>(null);
 
         // Try the computer that holds the record first, then the cloud. The order is set in one place,
         // RemoteSleeve, so every surface uses the same order.
-        return await RemoteSleeve.ForAsync(cloudTrack, ct: ct) is { Length: > 0 } remote
-            ? Cut(remote)
-            : null;
+        return (await RemoteSleeve.ForAsync(cloudTrack, ct: ct))
+            .Then(remote => remote is { Length: > 0 } ? Cut(remote) : null);
 
         byte[] Cut(byte[] raw) => maxEdge > 0 ? ThumbCache.Get(raw, maxEdge) : raw;
     }

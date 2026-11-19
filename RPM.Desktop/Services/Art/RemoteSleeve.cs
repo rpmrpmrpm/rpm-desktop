@@ -23,12 +23,17 @@ namespace RPM.Desktop.Services.Art;
 /// </summary>
 public static class RemoteSleeve
 {
+    /// <summary>
+    /// The sleeve, answered with null only when every place that was asked answered "none". If the computer
+    /// that holds the record could not be reached, and the cloud has no copy, the record's cover is not
+    /// known to be missing. It is on a computer that is away, so the answer is unanswered.
+    /// </summary>
     /// <param name="row">The library row for the record. Which computer holds it, and the artist and album
     /// its cover is keyed under, both come from this row.</param>
     /// <param name="artist">Used when the row has no artist. This is the tags on the deck, for a track
     /// being played rather than one being drawn.</param>
     /// <param name="album">The same, for the album.</param>
-    public static async Task<byte[]?> ForAsync(
+    public static async Task<Asked<byte[]?>> ForAsync(
         LibraryTrack row, string? artist = null, string? album = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(row);
@@ -38,11 +43,23 @@ public static class RemoteSleeve
 
         var sharing = App.Services.GetService<SharingService>();
 
+        // Why the computer that holds the record gave no picture, when it could not be asked. Null when it
+        // was not asked, or when it answered that it has none.
+        string? peerWhy = null;
         if (sharing is not null
-            && row is { PeerDeviceId: { Length: > 0 } peer, RpmId: { Length: > 0 } rpmId }
-            && await sharing.CoverAsync(peer, rpmId, row.AlbumArtist, byArtist, byAlbum, ct)
-               is { Length: > 0 } borrowed)
-            return borrowed;
+            && row is { PeerDeviceId: { Length: > 0 } peer, RpmId: { Length: > 0 } rpmId })
+        {
+            var fromPeer = await sharing.CoverAsync(peer, rpmId, row.AlbumArtist, byArtist, byAlbum, ct);
+            if (fromPeer.Answers(out var borrowed, out var why))
+            {
+                if (borrowed is { Length: > 0 })
+                    return fromPeer;
+            }
+            else
+            {
+                peerWhy = why;
+            }
+        }
 
         // The owner's storage holds the sleeve. A friend's offloaded record has its cover there, and
         // nowhere this machine can reach. The cloud grant is the same as the music grant, so a shelf that
@@ -54,8 +71,14 @@ public static class RemoteSleeve
         // ask for one per borrowed album, and each of those requests returns 404.
         var cloudId = sharing is null ? row.RpmId : sharing.OwnCloudId(row.RpmId, row.PeerDeviceId);
 
-        return await App.Services.GetRequiredService<CloudArtService>()
+        var fromCloud = await App.Services.GetRequiredService<CloudArtService>()
             .CoverAsync(row.AlbumArtist, byArtist, byAlbum, cloudId, ct, owner);
+
+        // The cloud's "none" is the record's answer only when the computer that holds it answered too.
+        if (peerWhy is not null && fromCloud.Answers(out var stored, out _) && stored is not { Length: > 0 })
+            return Asked.Failed<byte[]?>(peerWhy);
+
+        return fromCloud;
     }
 
     /// <summary>

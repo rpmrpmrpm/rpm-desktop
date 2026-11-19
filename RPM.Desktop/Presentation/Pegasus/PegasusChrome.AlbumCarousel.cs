@@ -918,8 +918,10 @@ public sealed partial class PegasusChrome
         {
             image = await Task.Run(async () =>
             {
-                var bytes = await AlbumCovers.LoadForSquareAsync(folder, stop.Token, edge);
-                return bytes is { Length: > 0 } ? DecodeSquare(bytes, edge) : null;
+                return (await AlbumCovers.LoadForSquareAsync(folder, stop.Token, edge)).Answers(out var bytes, out _)
+                       && bytes is { Length: > 0 }
+                    ? DecodeSquare(bytes, edge)
+                    : null;
             }, stop.Token);
         }
         catch (OperationCanceledException)

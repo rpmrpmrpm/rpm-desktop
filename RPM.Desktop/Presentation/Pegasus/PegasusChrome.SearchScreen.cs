@@ -721,8 +721,8 @@ public sealed partial class PegasusChrome
             if (built != _searchBuilt)
                 return;
             var edge = CardDecodeEdgeFor(SearchPicture * _searchScale);
-            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
-            if (bytes is not { Length: > 0 } || built != _searchBuilt)
+            if (!(await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge)).Answers(out var bytes, out _)
+                || bytes is not { Length: > 0 } || built != _searchBuilt)
                 return;
             var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
             if (built == _searchBuilt)

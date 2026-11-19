@@ -53,7 +53,7 @@ public sealed class BandTracks
 /// <param name="RasterScale">The display's scale, used to decide how many pixels a sleeve is decoded
 /// at. It comes from the surface, because it depends on the window the drawer is in.</param>
 public sealed record AlbumBandSources(
-    Func<string, int, CancellationToken, Task<byte[]?>>? Cover,
+    Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? Cover,
     Func<AlbumBand, byte[], CancellationToken, Task>? Sleeve,
     Func<string, CancellationToken, Task<IReadOnlyList<TrackInfo>>>? Tracks,
     Func<string, bool>? Classical,
@@ -134,8 +134,11 @@ public static class AlbumBandLoader
             // so the sleeve is read again at the size the drawer draws it (BandArtMax). The seed is
             // never used in its place.
             var edge = ArtScaler.DecodeEdgeFor(AlbumBandView.BandArtMax, sources.RasterScale);
+            // A sleeve that could not be fetched is left off, as one that is not there is. The drawer keeps
+            // nothing, so the next time it opens it reads again.
             if (loadCover && sources.Cover is { } load
-                && await load(band.Card.Folder, edge, ct) is { Length: > 0 } bytes)
+                && (await load(band.Card.Folder, edge, ct)).Answers(out var bytes, out _)
+                && bytes is { Length: > 0 })
             {
                 if (ct.IsCancellationRequested)
                     return [];

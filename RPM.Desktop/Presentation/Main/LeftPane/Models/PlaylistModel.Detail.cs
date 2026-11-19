@@ -691,6 +691,18 @@ public sealed partial class PlaylistModel
         var borrowed = IsBorrowed;
         var shelf = borrowed ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
 
+        // Set when a playlist's picture could not be drawn because a sleeve could not be read. That is
+        // "not asked" and not an answer, as in ResetCoverRequest.
+        var unanswered = false;
+        async Task<byte[]?> Made(long list)
+        {
+            if ((await PlaylistCovers.MadeAsync(list, item.Name, item.Cover, shelf, CancellationToken.None))
+                .Answers(out var drawn, out _))
+                return drawn.Cover;
+            unanswered = true;
+            return null;
+        }
+
         byte[]? bytes;
         try
         {
@@ -704,14 +716,10 @@ public sealed partial class PlaylistModel
                 PlaylistRowKind.Smart
                     => await GeneratedCover.SquareAsync(item.SmartId, CancellationToken.None),
 
-                PlaylistRowKind.Playlist when item.NodeId is { } list
-                    => (await PlaylistCovers.MadeAsync(
-                            list, item.Name, item.Cover, shelf, CancellationToken.None)).Cover,
+                PlaylistRowKind.Playlist when item.NodeId is { } list => await Made(list),
 
                 // A nested reference is the list that it points to, so both have one picture.
-                PlaylistRowKind.Ref when item.RefPlaylistId is { } target
-                    => (await PlaylistCovers.MadeAsync(
-                            target, item.Name, item.Cover, shelf, CancellationToken.None)).Cover,
+                PlaylistRowKind.Ref when item.RefPlaylistId is { } target => await Made(target),
 
                 _ => null,
             };
@@ -719,6 +727,12 @@ public sealed partial class PlaylistModel
         catch
         {
             bytes = null;   // a picture that cannot be drawn means the tile keeps its glyph
+        }
+
+        if (unanswered)
+        {
+            item.ResetTileRequest();
+            return;
         }
 
         if (bytes is not { Length: > 0 })
@@ -1625,8 +1639,10 @@ public sealed partial class PlaylistTrackRow : INotifyPropertyChanged, RPM.Deskt
                 var row = await Task.Run(() => TrackHome.RowFor(path));
                 if (row is null)
                     return null;
-                var bytes = await RemoteSleeve.ForAsync(row, artist, album);
-                return bytes is { Length: > 0 }
+                // A sleeve that could not be fetched is drawn as none here. Nothing is kept, so the next
+                // draw asks again.
+                return (await RemoteSleeve.ForAsync(row, artist, album)).Answers(out var bytes, out _)
+                       && bytes is { Length: > 0 }
                     ? await Task.Run(() => ThumbCache.Get(bytes, maxEdge))
                     : null;
 

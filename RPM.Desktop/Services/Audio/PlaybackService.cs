@@ -595,8 +595,8 @@ public sealed partial class PlaybackService : IDisposable
             // If that fails, use this account's store. That is where the cover went when this machine's
             // files for the record left.
             if (CloudArt is { } art &&
-                await art.CoverAsync(track.Artist, track.Artist, track.Album, rpmId, ct)
-                    is { Length: > 0 } stored)
+                (await art.CoverAsync(track.Artist, track.Artist, track.Album, rpmId, ct)).Answers(out var stored, out _)
+                && stored is { Length: > 0 })
                 return new AlbumCover(stored, AlbumArt.SniffMime(stored), AlbumCover.SourceElsewhere);
         }
         catch

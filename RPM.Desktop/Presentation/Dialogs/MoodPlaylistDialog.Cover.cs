@@ -187,7 +187,13 @@ public sealed partial class MoodPlaylistDialog
                 var row = rows[index];
 
                 byte[]? bytes;
-                try { bytes = await AlbumCovers.LoadAsync(row.Folder, ct, ArtScaler.RowEdge, ownCollection: true); }
+                // A sleeve that could not be read is shown as unavailable, as a missing one is. It is
+                // literally not available to pick just now.
+                try
+                {
+                    bytes = (await AlbumCovers.LoadAsync(row.Folder, ct, ArtScaler.RowEdge, ownCollection: true))
+                        .Answers(out var found, out string? notRead) ? found : null;
+                }
                 catch (OperationCanceledException) { return; }
                 catch { bytes = null; }
 
@@ -373,7 +379,13 @@ public sealed partial class MoodPlaylistDialog
             if (!finalDraw)
                 continue;
             byte[]? bytes;
-            try { bytes = await AlbumCovers.LoadAsync(folder, _closing.Token, ArtScaler.RowEdge, ownCollection: true); }
+            // A sleeve that could not be read is left out of the draw, which the preview shows before it is
+            // saved. It is not kept in _recordSleeves, so the next draw asks again.
+            try
+            {
+                bytes = (await AlbumCovers.LoadAsync(folder, _closing.Token, ArtScaler.RowEdge, ownCollection: true))
+                    .Answers(out var found, out _) ? found : null;
+            }
             catch (Exception e) when (e is not OperationCanceledException) { bytes = null; }
             if (bytes is { Length: > 0 })
             {

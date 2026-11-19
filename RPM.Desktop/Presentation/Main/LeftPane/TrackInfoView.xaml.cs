@@ -1757,7 +1757,21 @@ public sealed partial class TrackInfoView : UserControl
             // computer. The machine holding it is asked first, then the cloud, which keeps a sleeve per
             // album keyed by the artist and album the row carries.
             if (bytes is null && row is not null && !File.Exists(path))
-                bytes = await RemoteSleeve.ForAsync(row);
+            {
+                if (!(await RemoteSleeve.ForAsync(row)).Answers(out bytes, out _))
+                {
+                    // Not an answer: the computer that holds the record or the cloud did not answer. As for
+                    // a read that throws (below), the build moves on, and the sleeve is not settled, so the
+                    // next track of this record asks again.
+                    if (ReferenceEquals(_build, build))
+                    {
+                        _sleeveAnswered = false;
+                        build.NoSleeve();
+                        Advance(build);
+                    }
+                    return;
+                }
+            }
 
             if (!ReferenceEquals(_build, build))
                 return;

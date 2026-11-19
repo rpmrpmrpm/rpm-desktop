@@ -85,7 +85,7 @@ public sealed partial class MainPage
             return (await PlaylistCovers.MadeAsync(
                 playlist.NodeId, playlist.Name, cover,
                 borrowed ? Common.PlaylistShelf.Borrowed : Common.PlaylistShelf.Own,
-                ct)).Cover;
+                ct)).Then(drawn => drawn.Cover);
         };
 
         // Pressing a playlist here leaves for where playlists live. The page is not closed on the way out.
@@ -536,7 +536,10 @@ public sealed partial class MainPage
         if (folder is null)
             return ArtistFace.Unknown;
 
-        var cover = await AlbumCovers.LoadAsync(folder, ct, ArtScaler.RowEdge);
+        // A cover that could not be read gives a stand-in, so the box asks again the next time it is shown.
+        // Only a cover that is known to be missing gives the final "unknown".
+        if (!(await AlbumCovers.LoadAsync(folder, ct, ArtScaler.RowEdge)).Answers(out var cover, out _))
+            return ArtistFace.Unknown.InsteadOfUnfetchedPhoto();
         if (cover is not { Length: > 0 })
             return ArtistFace.Unknown;
 
@@ -634,8 +637,13 @@ public sealed partial class MainPage
         if (ct.IsCancellationRequested)
             return null;
 
-        var sleeves = covers.Where(cover => cover is { Length: > 0 }).Select(cover => cover!)
-                            .Take(ShelfMosaic.Cells).ToList();
+        // A sleeve that could not be read leaves its cell to the next record. The mosaic is still drawn, but
+        // it is not remembered (below), because it is not the shelf's picture, only what could be read now.
+        var complete = covers.All(cover => cover.Answers(out _, out _));
+        var sleeves = covers
+            .Select(cover => cover.Answers(out var bytes, out _) ? bytes : null)
+            .Where(bytes => bytes is { Length: > 0 }).Select(bytes => bytes!)
+            .Take(ShelfMosaic.Cells).ToList();
         if (sleeves.Count < ShelfMosaic.Least)
             return null;
 
@@ -657,7 +665,7 @@ public sealed partial class MainPage
 
         // The reader may be on somebody else's page by now. A mosaic kept under this key would be handed
         // straight back the next time the shelf is opened. So only a finished answer is remembered.
-        if (face is not null && !ct.IsCancellationRequested)
+        if (face is not null && complete && !ct.IsCancellationRequested)
             _shelfFace = (key, face);
 
         return face;
