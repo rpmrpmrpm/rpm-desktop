@@ -300,11 +300,16 @@ public sealed partial class FingerprintService : IDisposable
 
         try
         {
-            // Fingerprint it now if none exists yet. fpcalc takes a second or two, which is far less than
-            // the ten or twenty seconds this is trying to save.
-            if (db.FingerprintReportFor(relativePath) is null)
+            // Fingerprint it now if none exists yet for these bytes. fpcalc takes a second or two, which is
+            // far less than the ten or twenty seconds this is trying to save. The stored row is read, not
+            // FingerprintReportFor: that one is also null for an empty fingerprint and for a track with
+            // no title, and both would run fpcalc again on every set.
+            var file = new FileInfo(path);
+            var stored = db.GetTrackFingerprint(relativePath, file.Length, file.LastWriteTimeUtc.Ticks);
+            if (stored is { Length: 0 })
+                return 0;                   // fpcalc has already read these bytes and found no fingerprint.
+            if (stored is null)
             {
-                var file = new FileInfo(path);
                 try
                 {
                     var made = await Task.Run(() => FpcalcRunner.Run(path, lowPriority: true));
