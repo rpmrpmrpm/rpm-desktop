@@ -21,10 +21,6 @@ public readonly record struct RoomPalette(Vector3 Ground, Vector3 Tint, Vector3 
     private static readonly Vector3 ShadeFallback = new(0.62f, 0.16f, 0.72f);
     private static readonly Vector3 GroundFallback = new(0.012f, 0.030f, 0.070f);
 
-    /// <summary>The shade for a sleeve with no third colour: a neutral grey. The second family stays apart
-    /// from the first without using a colour that is not on the record.</summary>
-    public static readonly Vector3 ShadeGrey = new(0.70f);
-
     /// <summary>The room with no record in it: the app's own blue, on its own near-black.</summary>
     public static readonly RoomPalette Fallback =
         new(GroundFallback, TintFallback, GlowFallback, ShadeFallback);
@@ -54,7 +50,9 @@ public readonly record struct RoomPalette(Vector3 Ground, Vector3 Tint, Vector3 
     /// <param name="tint">The cover's dominant tone.</param>
     /// <param name="glow">Its vivid accent.</param>
     /// <param name="shade">The next colour on it that is neither of those.</param>
-    public static RoomPalette From(Vector3? tint, Vector3? glow, Vector3? shade)
+    /// <param name="light">How strongly the room is lit. Pegasus and the library need different
+    /// strengths; see <see cref="RoomLight"/>.</param>
+    public static RoomPalette From(Vector3? tint, Vector3? glow, Vector3? shade, RoomLight light)
     {
         // The accent is the colour worth having. The dominant tone stands in for it. Each one stands in
         // for the other when only one came back.
@@ -62,12 +60,13 @@ public readonly record struct RoomPalette(Vector3 Ground, Vector3 Tint, Vector3 
         var g = glow ?? t;
 
         if (t is not { } baseTone || g is not { } accent)
-            return Fallback;
+            return light.Empty;
 
-        // Lift the colours well clear of black, and push them off their own grey. A cover's dominant tone
-        // is often a muddy mid-brown. A room painted in that exact tone is a brown room.
-        var outTint = Vivid(baseTone, saturate: 1.35f, lift: 0.62f);
-        var outGlow = Vivid(accent, saturate: 1.5f, lift: 0.90f);
+        // Lift the colours clear of black, and push them off their own grey, as far as the light says. A
+        // cover's dominant tone is often a muddy mid-brown. A room painted in that exact tone is a brown
+        // room.
+        var outTint = Vivid(baseTone, light.Tint);
+        var outGlow = Vivid(accent, light.Glow);
 
         // The sleeve's third colour, if it is a real third colour and not one of the two already in hand.
         // It is used below for whichever slot needs it more.
@@ -79,18 +78,16 @@ public readonly record struct RoomPalette(Vector3 Ground, Vector3 Tint, Vector3 
         // red hair: its red becomes the glow.
         if (Same(outTint, outGlow) && spare is { } instead)
         {
-            outGlow = Vivid(instead, saturate: 1.5f, lift: 0.90f);
+            outGlow = Vivid(instead, light.Glow);
             spare = null;   // used for the glow, so the shade does not repeat it
         }
 
         // The second and third families use the sleeve's third colour, or grey where it has none. No hue
         // is ever turned to make one up. Turning a hue puts colours on covers that do not have them. Most
         // covers are red, orange or brown, so a turned hue is usually a colour the record does not have.
-        var outShade = spare is { } left ? Vivid(left, saturate: 1.35f, lift: 0.76f) : ShadeGrey;
+        var outShade = spare is { } left ? Vivid(left, light.Shade) : light.Grey;
 
-        // The dark ground that the figures sit on is the same hue, taken almost to black. So the empty
-        // parts of the screen still belong to the record, without competing with it.
-        var outGround = Vivid(baseTone, saturate: 1.1f, lift: 0.16f) * 0.55f + GroundFallback * 0.45f;
+        var outGround = GroundOf(baseTone, light.Ground);
 
         return new RoomPalette(outGround, outTint, outGlow, outShade);
     }
@@ -105,6 +102,23 @@ public readonly record struct RoomPalette(Vector3 Ground, Vector3 Tint, Vector3 
         Tint + (target.Tint - Tint) * k,
         Glow + (target.Glow - Glow) * k,
         Shade + (target.Shade - Shade) * k);
+
+    /// <summary>
+    /// This palette lit again by other rules, with its ground made from its tint as
+    /// <see cref="From"/> makes it. <see cref="RoomLight"/> uses it to make its empty palette from
+    /// <see cref="Fallback"/>.
+    /// </summary>
+    internal RoomPalette Relit(
+        RoomLight.Family ground, RoomLight.Family tint, RoomLight.Family glow, RoomLight.Family shade)
+        => new(GroundOf(Tint, ground), Vivid(Tint, tint), Vivid(Glow, glow), Vivid(Shade, shade));
+
+    /// <summary>The dark ground that the figures sit on: the dominant tone's hue, taken toward black and
+    /// mixed with the app's near-black. So the empty parts of the screen still belong to the record,
+    /// without competing with it.</summary>
+    private static Vector3 GroundOf(Vector3 tone, RoomLight.Family ground)
+        => Vivid(tone, ground) * 0.55f + GroundFallback * 0.45f;
+
+    private static Vector3 Vivid(Vector3 c, RoomLight.Family family) => Vivid(c, family.Saturate, family.Lift);
 
     /// <summary>A colour pushed off its own grey and set to a working brightness, hue intact.</summary>
     private static Vector3 Vivid(Vector3 c, float saturate, float lift)

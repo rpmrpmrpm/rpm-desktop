@@ -356,10 +356,12 @@ internal static partial class CardRoomArt
         Still(palette) + (Spread * apart);
 
     /// <summary>The palette that a card's own colour paints. A generated list has only one colour, so the
-    /// tint and the accent are the same. <see cref="RoomPalette.From"/> then derives a hue for the second
-    /// family. See its own remarks for why that is a last resort, and why it suits this use.</summary>
-    internal static RoomPalette Palette(Windows.UI.Color ink) =>
-        RoomPalette.From(new Vector3(ink.R / 255f, ink.G / 255f, ink.B / 255f), null, null);
+    /// tint and the accent are the same, and the second family is grey. See
+    /// <see cref="RoomPalette.From"/>.</summary>
+    /// <param name="light"><see cref="RoomLight.Stage"/> for a room in Pegasus,
+    /// <see cref="RoomLight.Shelf"/> for one in the library.</param>
+    internal static RoomPalette Palette(Windows.UI.Color ink, RoomLight light) =>
+        RoomPalette.From(new Vector3(ink.R / 255f, ink.G / 255f, ink.B / 255f), null, null, light);
 
     /// <summary>A float as GLSL spells it. Interpolating a float straight into the source uses the current
     /// culture. On a Dutch machine <c>0.20</c> would be written <c>0,20</c>, and the shader would fail with

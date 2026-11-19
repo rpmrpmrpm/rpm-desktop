@@ -747,8 +747,8 @@ public sealed partial class HomeFeatureCard : INotifyPropertyChanged, Services.A
     /// lists whose cover IS a room (<see cref="CoverOverlay.Roomed"/>) that wash is the still room, so
     /// the plate moves what the square holds. Until the wash arrives, and permanently where nothing is
     /// composed, the mark's own colour in the tree stands in. One colour is all there is then, so
-    /// <see cref="RoomPalette.From"/> is given it as the tint, with nothing for the accent, and it
-    /// turns a hue for the second family.</para>
+    /// <see cref="RoomPalette.From"/> is given it as the tint, with nothing for the accent, and the
+    /// second family is grey.</para>
     ///
     /// <para>So this answers twice for most lists, and the room is recoloured while it is being
     /// watched. <see cref="CardRoom"/> keeps the movement going across the change.</para>
@@ -759,7 +759,7 @@ public sealed partial class HomeFeatureCard : INotifyPropertyChanged, Services.A
     /// <see cref="HomeView.LoadListFaceAsync"/>.</para>
     /// </remarks>
     public RoomPalette? Room =>
-        Door is null && Station is null ? null : _room ?? CardRoomArt.Palette(InkColor);
+        Door is null && Station is null ? null : _room ?? CardRoomArt.Palette(InkColor, RoomLight.Shelf);
 
     /// <summary>The colours read from the list's own cover, or from the station's own mark. It is
     /// called once, from the worker that fetched it, and only where a picture came back.</summary>
@@ -5764,7 +5764,7 @@ public sealed partial class HomeView : UserControl
                 return;
             }
 
-            if (await Cancellable.RunAsync(() => CoverRoom.Of(mark), ct)
+            if (await Cancellable.RunAsync(() => CoverRoom.Of(mark, RoomLight.Shelf), ct)
                     is { Ran: true, Value: { } painted }
                 && !ct.IsCancellationRequested)
                 card.ShowRoom(painted);
@@ -5903,7 +5903,7 @@ public sealed partial class HomeView : UserControl
             // other way round reads as it changing its mind. It runs on a worker, because the reading
             // decodes and resizes the picture.
             if (drawn.Wash is { Length: > 0 } wash
-                && await Cancellable.RunAsync(() => CoverRoom.Of(wash), ct)
+                && await Cancellable.RunAsync(() => CoverRoom.Of(wash, RoomLight.Shelf), ct)
                     is { Ran: true, Value: { } painted }
                 && !ct.IsCancellationRequested)
                 card.ShowRoom(painted);

@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using RPM.Core.Viz;
 using RPM.Desktop.Presentation.Common;
 using Windows.Foundation;
 
@@ -127,7 +128,7 @@ public sealed partial class PlaylistView
         // purpose: a place along the drift, added to where the colours alone would put it. Two lists in one
         // colourway are two rooms. CardRoom does the same for the five framed cards.
         DetailRoomArt.Apart = Math.Abs(string.GetHashCode(name, StringComparison.Ordinal)) % 4096;
-        DetailRoomArt.Palette = CoverRoom.Of(cover);
+        DetailRoomArt.Palette = CoverRoom.Of(cover, RoomLight.Shelf);
 
         DetailRoom.Visibility = Visibility.Visible;
         SettleRoom();
