@@ -66,6 +66,12 @@ public sealed partial class CloudSyncService
         if (_status.Space.IsFull)
             throw new CloudQuotaExceededException(_status.UsedBytes, _status.QuotaBytes);
 
+        // The gate is asked before any work is spent on the track, for the same reason. While it refuses,
+        // a transcode would end in a request that is never sent. The answer is held for some seconds, so
+        // asking per track costs nothing. The track has not been started, so it is still in the queue.
+        if (!await RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct))
+            throw new CloudOfflineException();
+
         var workingDir = Path.Combine(Path.GetTempPath(), "rpm-cloud");
         CanonicalFile? canonical = null;
 
@@ -163,6 +169,14 @@ public sealed partial class CloudSyncService
             db.SetCloudState(track.Id, CloudState.Queued);
             _jobs.Abandon(track.Id);
             throw;   // Stops the whole run, not just this track.
+        }
+        catch (CloudOfflineException)
+        {
+            // The gate refused a request, so the server saw nothing. This is not an attempt and not a
+            // failure: the track goes back in the line as it was, with no error and no report to send.
+            db.SetCloudState(track.Id, CloudState.Queued);
+            _jobs.Abandon(track.Id);
+            throw;   // Stops the run. The next kick, or the line coming back, starts it again.
         }
         catch (Exception ex)
         {

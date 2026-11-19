@@ -17,6 +17,19 @@ public sealed class CloudQuotaExceededException(long usedBytes, long quotaBytes)
     public long QuotaBytes { get; } = quotaBytes;
 }
 
+/// <summary>
+/// The app's own network gate refused the request, so nothing was sent. The gate does this while it
+/// believes there is no line out (see <see cref="RPM.Core.Net.OnlineGateHandler"/>).
+///
+/// <para><b>This is not a failure of the request.</b> The server never saw it, and the track, playlist or
+/// picture is exactly as it was. A caller puts the work back and waits for the line, and does not count an
+/// attempt or show an error. It is an <see cref="HttpRequestException"/> with status 503, which is what the
+/// gate's made-up response says, so a caller that only knows about HTTP errors handles it as it did
+/// before.</para>
+/// </summary>
+public sealed class CloudOfflineException()
+    : HttpRequestException("The app is offline, so the request was not sent.", null, HttpStatusCode.ServiceUnavailable);
+
 /// <summary>The server refused to link this file. Either the caller could not prove that they hold it,
 /// or the bytes were not what they said they were. Both mean that this track is not going up, and
 /// retrying will not change that.
@@ -1627,6 +1640,7 @@ public sealed partial class RpmCloudClient(
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         using var resp = await http.SendAsync(req, ct);
+        ThrowIfRefused(resp);
 
         if (resp.StatusCode == HttpStatusCode.Conflict)
         {
@@ -2017,10 +2031,22 @@ public sealed partial class RpmCloudClient(
     {
         if (resp.IsSuccessStatusCode) return;
 
+        // Before the rejection below. The gate's refusal is a 503 that S3 never sent, and reading it as S3
+        // refusing the bytes would mark a track that did nothing wrong as rejected.
+        ThrowIfRefused(resp);
+
         // S3 answers in XML. Its message is the only thing that tells a signature problem apart from a
         // checksum problem.
         var body = await resp.Content.ReadAsStringAsync(ct);
         throw new CloudRejectedException($"S3 refused the upload ({(int)resp.StatusCode}): {body}");
+    }
+
+    /// <summary>Throws <see cref="CloudOfflineException"/> when this response is the app's own gate
+    /// refusing the request, and not an answer from the server.</summary>
+    private static void ThrowIfRefused(HttpResponseMessage resp)
+    {
+        if (RPM.Core.Net.OnlineGateHandler.WasRefused(resp))
+            throw new CloudOfflineException();
     }
 
     /// <summary>One call to the API. The token is sent with it, the body is already written, and the
@@ -2041,6 +2067,7 @@ public sealed partial class RpmCloudClient(
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         using var resp = await http.SendAsync(req, ct);
+        ThrowIfRefused(resp);
 
         if (resp.StatusCode == HttpStatusCode.RequestEntityTooLarge)
         {
