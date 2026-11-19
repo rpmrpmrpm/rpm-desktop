@@ -368,6 +368,39 @@ public sealed class RecordingPoolClient(
     /// Read and written from pool threads; a report or two sent after it is set by a race is harmless.</summary>
     private volatile bool _soundRefused;
 
+    // ── the store's own copy ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Asks the store to measure its own copy of a track that is only in the cloud (see
+    /// <see cref="RpmCloudClient.MeasureStoredAsync"/>).
+    ///
+    /// <para>Unlike the lookups above, this is one request per track, and the store does real work for each
+    /// one. The pool is asked first, so this is only sent for a record that nobody has measured.</para>
+    /// </summary>
+    /// <param name="track">The track, and which readings it lacks. Those are what the store is asked for.</param>
+    /// <param name="sound">Ask for the sound. False when the pool already had it.</param>
+    public async Task<StoredAnswer> MeasureStoredAsync(CloudOnlyWork track, bool sound, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (!auth.IsLoggedIn)
+            return new StoredAnswer(StoredAsk.NoAnswer, null);
+        if (!await RPM.Core.Net.NetworkReach.Shared.AllowAsync(ct))
+            return new StoredAnswer(StoredAsk.NoAnswer, null);
+
+        try
+        {
+            var reading = await cloud.MeasureStoredAsync(
+                track.RpmId, track.NeedsLevel, track.NeedsMood, sound, track.NeedsFingerprint, ct).ConfigureAwait(false);
+            return reading is null
+                ? new StoredAnswer(StoredAsk.NoAnswer, null)
+                : new StoredAnswer(StoredAsk.Answered, reading);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            return new StoredAnswer(StoredAsk.RefusedForToday, null);
+        }
+    }
+
     /// <summary>Every name at once: the three exact names and the fingerprint's name. They are sent
     /// together to state that they all refer to one record. A bundle is a claim about identity. The song id
     /// is the part of that claim that no other machine can make for itself.</summary>
@@ -412,3 +445,21 @@ public sealed class RecordingPoolClient(
         return keys;
     }
 }
+
+/// <summary>What became of asking the store to measure its own copy of a track.</summary>
+public enum StoredAsk
+{
+    /// <summary>The store answered. The answer can still say that it holds no copy, or that it could not
+    /// read the record this time (see <see cref="StoredReading"/>).</summary>
+    Answered,
+
+    /// <summary>Nobody is signed in, the network may not be used, or the store did not answer.</summary>
+    NoAnswer,
+
+    /// <summary>The store refused: this account's limit for the day is used up.</summary>
+    RefusedForToday,
+}
+
+/// <summary>The outcome of <see cref="RecordingPoolClient.MeasureStoredAsync"/>, with the store's answer when
+/// there is one.</summary>
+public readonly record struct StoredAnswer(StoredAsk Outcome, StoredReading? Reading);

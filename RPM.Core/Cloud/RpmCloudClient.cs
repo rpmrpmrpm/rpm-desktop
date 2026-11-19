@@ -522,6 +522,42 @@ public sealed partial class RpmCloudClient(
     private sealed record SoundResponse(
         [property: JsonPropertyName("embeddings")] string? Embeddings);
 
+    /// <summary>
+    /// Asks the store to measure its own copy of one of this account's tracks: any of the level, the arousal
+    /// numbers, the sound and the fingerprint (see <see cref="StoredReading"/>).
+    ///
+    /// <para>This is for a track that is only in the cloud, whose file no computer holds. The store reads
+    /// the blob it keeps for the track, so nothing is sent but the track's id. The answer comes back in the
+    /// same request, after a few seconds of work in the store.</para>
+    /// </summary>
+    /// <returns>The store's answer, or null when it did not give one: offline, busy, or a store that does not
+    /// have this address yet.</returns>
+    /// <exception cref="HttpRequestException">A 429: the day's limit is used up.</exception>
+    public async Task<StoredReading?> MeasureStoredAsync(
+        string rpmId, bool level, bool mood, bool sound, bool fingerprint, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(rpmId) || !(level || mood || sound || fingerprint))
+            return null;
+
+        try
+        {
+            return await SendAsync<StoredReading>(HttpMethod.Post, "recordings/measure",
+                JsonContent.Create(new MeasureRequest(rpmId, level, mood, sound, fingerprint),
+                                   RpmCloudJson.Default.MeasureRequest), ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            throw;
+        }
+        // Everything else except a cancel, for the reason given at ReadGridWindowAsync.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record MeasureRequest(string RpmId, bool Level, bool Mood, bool Sound, bool Fingerprint);
+
     private sealed record RecordingLookUpResponse(
         [property: JsonPropertyName("results")] IReadOnlyList<KnownRecordingBody>? Results);
 
@@ -2227,6 +2263,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(RpmIdsRequest))]
     [JsonSerializable(typeof(GridWindowRequest))]
     [JsonSerializable(typeof(SoundRequest))]
+    [JsonSerializable(typeof(MeasureRequest))]
     [JsonSerializable(typeof(UploadInitRequest))]
     [JsonSerializable(typeof(ProveRequest))]
     [JsonSerializable(typeof(UploadCompleteRequest))]
@@ -2254,6 +2291,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(AnalyseResponse))]
     [JsonSerializable(typeof(GridWindowResponse))]
     [JsonSerializable(typeof(SoundResponse))]
+    [JsonSerializable(typeof(StoredReading))]
     [JsonSerializable(typeof(ErrorReportResponse))]
     [JsonSerializable(typeof(UploadInitResponse))]
     [JsonSerializable(typeof(ProveResponse))]

@@ -166,8 +166,12 @@ public sealed partial class FingerprintService : IDisposable
                         return;
                 }
 
-                var work = db.QueryTracksNeedingFingerprint(Lanes * 8)
+                // As many more rows as were skipped are asked for, and the skipped ones are then dropped.
+                // With only one batch of rows, a batch made up of skipped rows would end the pass, and the
+                // tracks after them would never be reached.
+                var work = db.QueryTracksNeedingFingerprint(Lanes * 8 + skipped.Count)
                     .Where(w => !skipped.Contains(w.RelativePath))
+                    .Take(Lanes * 8)
                     .ToList();
                 if (work.Count == 0)
                     break;

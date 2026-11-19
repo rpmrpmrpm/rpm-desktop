@@ -554,6 +554,10 @@ public partial class App : Application
                         // service. It is resolved eagerly at startup (below). Like the play counter, it has
                         // no callers, only subscriptions.
                         .AddSingleton<FingerprintService>()
+                        // Measures the tracks that are only in the cloud through the store: level, mood,
+                        // sound and fingerprint. Resolved eagerly at startup (below), like the passes it
+                        // stands in for.
+                        .AddSingleton<RPM.Desktop.Services.Cloud.CloudOnlyMeasureService>()
                         .AddSingleton<DjService>()
                         .AddSingleton<RadioService>()
                         // Watches the player and records how much of each station has been listened to. It
@@ -1013,6 +1017,9 @@ public partial class App : Application
         // The sound pass has the same shape. It waits for the library to open and for the governor, and
         // asks DjModelService where the model runs before it measures anything.
         Host.Services.GetRequiredService<SoundService>();
+
+        // The tracks only in the cloud have the same shape: the pass waits for the library and a sign-in.
+        Host.Services.GetRequiredService<RPM.Desktop.Services.Cloud.CloudOnlyMeasureService>();
 
         // It is built here for the same reason as the loudness pass. It subscribes to the library opening
         // in its constructor. A service that nobody has asked for has not subscribed to anything.
