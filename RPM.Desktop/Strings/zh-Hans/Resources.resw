@@ -8358,6 +8358,10 @@
     <value>将歌词中的每个词定位到时间轴上。</value>
     <comment>About screen: what the wav2vec 2.0 model is used for.</comment>
   </data>
+  <data name="Credits_Clap_Use" xml:space="preserve">
+    <value>聆听每首歌的情绪，把它放进合适的心情歌单。</value>
+    <comment>About screen: what the CLAP model is used for.</comment>
+  </data>
   <data name="Credits_U2Net_Use" xml:space="preserve">
     <value>找出封面的主体，使背景裁切时予以保留。</value>
     <comment>About screen: what the U^2-Net model is used for.</comment>

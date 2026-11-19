@@ -8358,6 +8358,10 @@
     <value>Positionne chaque mot des paroles sur la ligne de temps.</value>
     <comment>About screen: what the wav2vec 2.0 model is used for.</comment>
   </data>
+  <data name="Credits_Clap_Use" xml:space="preserve">
+    <value>Écoute l'humeur de chaque titre pour le ranger dans les bonnes listes d'ambiance.</value>
+    <comment>About screen: what the CLAP model is used for.</comment>
+  </data>
   <data name="Credits_U2Net_Use" xml:space="preserve">
     <value>Repère le sujet d'une pochette, pour que le recadrage du fond le conserve.</value>
     <comment>About screen: what the U^2-Net model is used for.</comment>

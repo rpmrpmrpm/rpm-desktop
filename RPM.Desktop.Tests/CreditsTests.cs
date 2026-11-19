@@ -317,6 +317,7 @@ public class CreditsTests
             ["skey.onnx"] = "S-KEY",
             ["wav2vec2.onnx"] = "wav2vec 2.0 (base, 960h)",
             ["wav2vec2.int8.onnx"] = "wav2vec 2.0 (base, 960h)",
+            ["clap_audio.int8.onnx"] = "CLAP (LAION, music and speech)",
         };
 
         var models = Path.Combine(Root, "RPM.Desktop", "Assets", "OnnxModels");

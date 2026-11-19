@@ -344,7 +344,7 @@ internal static class SmartPlaylistFace
         [(SmartPlaylistKind.Happy, "Neo-Classical")] = "Bright Keys",
         [(SmartPlaylistKind.Happy, "Opera")] = "Brindisi",
         [(SmartPlaylistKind.Happy, "Metal")] = "Heavy Sunshine",
-        [(SmartPlaylistKind.Happy, "Punk")] = "Pogo",
+        [(SmartPlaylistKind.Happy, "Punk")] = "Skate Park",
         [(SmartPlaylistKind.Happy, "Noise")] = "Happy Noise",
         [(SmartPlaylistKind.Happy, "Avant-Garde")] = "Odd Joy",
         [(SmartPlaylistKind.Happy, "Reggae")] = "Sunsplash",

@@ -25,7 +25,7 @@ public static class CoverLooks
     /// What one generated playlist searches for: its own words where the pair has them, and its mood's
     /// words where it does not.
     ///
-    /// <para>Only the four moods have a look at all. The lists about listening describe a shelf, not a
+    /// <para>Only the moods have a look at all. The lists about listening describe a shelf, not a
     /// feeling. There is no honest picture search for "songs you have not played".</para>
     /// </summary>
     public static CoverLook? Look(SmartPlaylistId id)
@@ -285,6 +285,65 @@ public static class CoverLooks
 
         // Lights out has no genre rows at all. It is the one mood cut absolutely rather than within a genre
         // (see SmartPlaylists.BrokenOutByGenre), so "sleep jazz" is never asked. Nothing here answers it,
-        // and it uses the mood's own words.
+        // and it uses the mood's own words. Zen and New Year's Eve have no genre rows either.
+
+        // ── Melancholy: rain, grey light and empty places ──
+        [(SmartPlaylistKind.Melancholy, "Rock")] = "grey sky empty road",
+        [(SmartPlaylistKind.Melancholy, "Indie")] = "unmade bed window light",
+        [(SmartPlaylistKind.Melancholy, "Pop")] = "wilted roses",
+        [(SmartPlaylistKind.Melancholy, "Soul")] = "rain puddle reflections street",
+        [(SmartPlaylistKind.Melancholy, "R&B")] = "street lamp night fog",
+        [(SmartPlaylistKind.Melancholy, "Hip-Hop / Rap")] = "rainy car window night",
+        [(SmartPlaylistKind.Melancholy, "Electronic / Dance")] = "neon reflections rain",
+        [(SmartPlaylistKind.Melancholy, "Jazz")] = "empty cafe night window",
+        [(SmartPlaylistKind.Melancholy, "Folk")] = "misty moor stone wall",
+        [(SmartPlaylistKind.Melancholy, "Classical")] = "cathedral candles dark",
+        [(SmartPlaylistKind.Melancholy, "Metal")] = "dark forest fog",
+        [(SmartPlaylistKind.Melancholy, "Latin")] = "empty harbour boats dusk",
+        [(SmartPlaylistKind.Melancholy, "Soundtrack")] = "empty pier sunset",
+
+        // ── Feel Good: sun, colour and a day out ──
+        [(SmartPlaylistKind.Happy, "Rock")] = "electric guitar sunlight",
+        [(SmartPlaylistKind.Happy, "Indie")] = "fried egg breakfast sunlight",
+        [(SmartPlaylistKind.Happy, "Pop")] = "colorful candy",
+        [(SmartPlaylistKind.Happy, "Disco")] = "1970s roller skates",
+        [(SmartPlaylistKind.Happy, "Funk")] = "1970s retro living room",
+        [(SmartPlaylistKind.Happy, "Soul")] = "vintage radio sunlight",
+        [(SmartPlaylistKind.Happy, "R&B")] = "golden hour city",
+        [(SmartPlaylistKind.Happy, "Hip-Hop / Rap")] = "convertible car open road",
+        [(SmartPlaylistKind.Happy, "House")] = "colorful balloons sky",
+        [(SmartPlaylistKind.Happy, "Electronic / Dance")] = "colorful smoke",
+        [(SmartPlaylistKind.Happy, "Jazz")] = "vintage saxophone",
+        [(SmartPlaylistKind.Happy, "Folk")] = "picnic basket meadow",
+        [(SmartPlaylistKind.Happy, "Latin")] = "papel picado",
+        [(SmartPlaylistKind.Happy, "Soundtrack")] = "hot air balloons sunrise",
+
+        // ── Rage: fire, red light and things that break ──
+        [(SmartPlaylistKind.Angry, "Rock")] = "red smoke dark",
+        [(SmartPlaylistKind.Angry, "Indie")] = "burning paper",
+        [(SmartPlaylistKind.Angry, "Pop")] = "burning match closeup",
+        [(SmartPlaylistKind.Angry, "Hip-Hop / Rap")] = "boxing gloves dark",
+        [(SmartPlaylistKind.Angry, "House")] = "pyrotechnics sparks burst",
+        [(SmartPlaylistKind.Angry, "Electronic / Dance")] = "red laser lights dark",
+        [(SmartPlaylistKind.Angry, "Metal")] = "smashed guitar",
+        [(SmartPlaylistKind.Angry, "Club")] = "red strobe lights smoke",
+
+        // ── Date Night: candles, flowers and warm low light ──
+        [(SmartPlaylistKind.Romantic, "Rock")] = "lighter flame dark",
+        [(SmartPlaylistKind.Romantic, "Indie")] = "old books roses",
+        [(SmartPlaylistKind.Romantic, "Pop")] = "pink heart balloons",
+        [(SmartPlaylistKind.Romantic, "Disco")] = "mirrorball pink light",
+        [(SmartPlaylistKind.Romantic, "Funk")] = "vintage red velvet sofa",
+        [(SmartPlaylistKind.Romantic, "Soul")] = "candle rain window",
+        [(SmartPlaylistKind.Romantic, "R&B")] = "candles dark room",
+        [(SmartPlaylistKind.Romantic, "Hip-Hop / Rap")] = "handwritten letter roses",
+        [(SmartPlaylistKind.Romantic, "House")] = "rooftop string lights dusk",
+        [(SmartPlaylistKind.Romantic, "Electronic / Dance")] = "neon heart sign",
+        [(SmartPlaylistKind.Romantic, "Jazz")] = "wine glasses dim bar",
+        [(SmartPlaylistKind.Romantic, "Folk")] = "wildflower bouquet wooden table",
+        [(SmartPlaylistKind.Romantic, "Latin")] = "spanish guitar red rose",
+        //
+        // A feeling's genre row with no line here asks for the feeling's own words, and its cover has no
+        // photograph. Every line written out here has one in scripts/playlist-photos.json.
     };
 }
