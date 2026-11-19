@@ -124,6 +124,16 @@
                         OffContent="" OnContent="" />
           <TextBlock Text="{loc:Str Key=Settings_HeaderArtistPhotoHint}"
                      FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+
+          <!-- What the record looks like for an album with no disc art of its own. It is a choice of two
+               looks, not on or off, so it is a list rather than a switch. The items are filled from code
+               (see FillDiscStandIn). -->
+          <ComboBox x:Name="DiscStandInBox"
+                    Header="{loc:Str Key=Settings_DiscStandIn}"
+                    MinWidth="200"
+                    SelectionChanged="OnDiscStandInChanged" />
+          <TextBlock Text="{loc:Str Key=Settings_DiscStandInHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
 

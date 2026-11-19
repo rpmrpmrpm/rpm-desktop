@@ -1674,6 +1674,10 @@ public sealed partial class PegasusChrome
             // must be too, or a shared shelf would draw the app's pressing for every record on it.
             bytes ??= await BorrowedDiscAsync(folder);
 
+            // No disc art anywhere. The plain CD stands in when the listener chose it (see BlankDisc).
+            if (bytes is not { Length: > 0 })
+                bytes = await BlankDisc.StandInAsync();
+
             if (bytes is not { Length: > 0 })
                 return;   // no disc art, and the drawn record wearing the cover is the right answer
 

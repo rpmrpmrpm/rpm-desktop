@@ -1362,6 +1362,15 @@ public sealed partial class AlbumDetailView : UserControl
                     return;
             }
 
+            // No disc art anywhere. The plain CD stands in when the listener chose it, cut the same way as a
+            // folder's disc.png (see BlankDisc).
+            if (scan is null && await BlankDisc.StandInAsync() is { } blank)
+            {
+                scan = await Task.Run(() => DiscStamp.Round(ThumbCache.Get(blank, ArtScaler.TileEdge), vinyl: false));
+                if (_folder != opened)
+                    return;
+            }
+
             if (scan is { Bytes.Length: > 0 } picture)
             {
                 // Cut to exactly the size the record is drawn at, the same way as the sleeve in front of it. See

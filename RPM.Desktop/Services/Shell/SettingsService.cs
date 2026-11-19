@@ -74,6 +74,21 @@ public enum ArtistTrackGrouping
     Year,
 }
 
+/// <summary>What the record looks like for an album that has no picture of its own disc (no disc.png in
+/// its folder, and none on the computer that holds a borrowed record).</summary>
+/// <remarks>Persisted by name, like <see cref="AlbumGrouping"/>.</remarks>
+[JsonConverter(typeof(JsonStringEnumConverter<DiscStandIn>))]
+public enum DiscStandIn
+{
+    /// <summary>The app's own drawn vinyl, tinted from the sleeve, with the cover on its label. This is the
+    /// default.</summary>
+    Vinyl,
+
+    /// <summary>A plain CD (Assets/cd-blank.png). It is drawn exactly as an album's own CD picture would be,
+    /// with the CD overlay on top. See <see cref="Art.BlankDisc"/>.</summary>
+    Cd,
+}
+
 /// <summary>How a multi-disc release (both CD rips and vinyl) is treated once it is identified.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<MultiDiscMode>))]
 public enum MultiDiscMode
@@ -135,6 +150,7 @@ public sealed partial class SettingsService
         bool ArtDrawerParked = false,
         bool HeaderRecord = true,
         bool HeaderArtistPhoto = true,
+        DiscStandIn DiscStandIn = DiscStandIn.Vinyl,
         bool? AlbumSimilarOpen = null,
         bool? AlbumGrooveOpen = null,
         bool ImportTagPanelOpen = false,
@@ -717,6 +733,17 @@ public sealed partial class SettingsService
     {
         get => _model.HeaderArtistPhoto;
         set => Update(_model with { HeaderArtistPhoto = value });
+    }
+
+    /// <summary>
+    /// What the record looks like for an album with no picture of its own disc: the app's vinyl, or a plain
+    /// CD. It is read each time a record's disc art is looked up (the header, Pegasus and the album page).
+    /// So a change shows on the next record that is put on or opened, not on the one already showing.
+    /// </summary>
+    public DiscStandIn DiscStandIn
+    {
+        get => _model.DiscStandIn;
+        set => Update(_model with { DiscStandIn = value });
     }
 
     /// <summary>

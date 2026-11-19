@@ -614,6 +614,19 @@ internal sealed class ArtworkManager : IArtController
                 if (gen != _gen) return;
             }
 
+            // Still nothing, and the listener wants a plain CD rather than the vinyl for a record like this.
+            // It goes in as this record's disc art, so the face is decided once, as for any other disc. Only
+            // for a record: a radio station's path is a stream URL, with no file and no library row, and a
+            // station keeps the vinyl with its logo on the label.
+            if (disc is not { Disc: not null }
+                && !string.IsNullOrEmpty(track.Path)
+                && (cloudRow is not null || File.Exists(track.Path))
+                && await Services.Art.BlankDisc.StandInAsync() is { } blank)
+            {
+                disc = await _stage.DecodeDiscBytesAsync(blank, ct);
+                if (gen != _gen) return;
+            }
+
             // Sleeve first, then the disc, and never the other way round. The sleeve tells the header that
             // the record has changed, so the disc must already be in hand by then.
             _stage.ShowCover(localCover);

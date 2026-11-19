@@ -31,6 +31,7 @@ public sealed partial class DisplaySettingsPage : Page
         // for no reason.
         RecordToggle.IsOn = _settings.HeaderRecord;
         ArtistPhotoToggle.IsOn = _settings.HeaderArtistPhoto;
+        FillDiscStandIn();
         FillRegion();
         FillRoomStyles();
         _loaded = true;
@@ -67,6 +68,32 @@ public sealed partial class DisplaySettingsPage : Page
             return;
 
         _settings.HeaderArtistPhoto = ArtistPhotoToggle.IsOn;
+    }
+
+    /// <summary>The two looks for an album with no disc art: the vinyl (the default) and the plain
+    /// CD.</summary>
+    private void FillDiscStandIn()
+    {
+        DiscStandInBox.Items.Add(new ComboBoxItem
+        {
+            Content = Loc.Get("Settings_DiscStandInVinyl"), Tag = DiscStandIn.Vinyl,
+        });
+        DiscStandInBox.Items.Add(new ComboBoxItem
+        {
+            Content = Loc.Get("Settings_DiscStandInCd"), Tag = DiscStandIn.Cd,
+        });
+        DiscStandInBox.SelectedIndex = _settings.DiscStandIn == DiscStandIn.Cd ? 1 : 0;
+    }
+
+    /// <summary>Saved at once. The record that is showing keeps its face. The next record that is put on or
+    /// opened is drawn with the new choice (see SettingsService.DiscStandIn).</summary>
+    private void OnDiscStandInChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loaded || DiscStandInBox.SelectedItem is not ComboBoxItem { Tag: DiscStandIn choice })
+            return;
+
+        if (choice != _settings.DiscStandIn)
+            _settings.DiscStandIn = choice;
     }
 
     // Language and country
