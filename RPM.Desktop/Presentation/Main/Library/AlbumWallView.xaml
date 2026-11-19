@@ -16,6 +16,9 @@
     <conv:TitleCensorConverter x:Key="Censor"/>
     <conv:SleeveFigureConverter x:Key="SleeveFigure"/>
 
+    <!-- One template, so one pool shared by every row. The constructor gives it an AlbumCardPool instead of
+         the framework's pool, because the rows' repeaters empty their Children when a row is dealt new cards.
+         See AlbumCardPool. -->
     <DataTemplate x:Key="CardTemplate" x:DataType="model:AlbumCard">
       <!-- No padding above the art. The space between rows comes from the wall layout's Spacing, so the top
            row sits flush under the heading. -->
