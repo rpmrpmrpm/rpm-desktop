@@ -774,6 +774,10 @@ public sealed partial class CloudSyncService
         // CloudSyncService.ListSayings.
         await SyncListSayingsAsync(db, ct);
 
+        // What the catalogues said about the albums here, so the lists the store cuts group records as this
+        // library does. See CloudSyncService.AlbumCatalogue.
+        await SyncAlbumCatalogueAsync(db, ct);
+
         // Song ratings, on a pass of their own beside the plays. See CloudSyncService.Ratings.
         await SyncRatingsAsync(db, cloud, ct);
 

@@ -1958,6 +1958,20 @@ public sealed partial class RpmCloudClient(
                             r.Scope.ToString(), r.Subject, r.Kind.ToString(), PlayClock.Seconds(r.SaidUtcTicks)))]),
                     RpmCloudJson.Default.ListSayingsRequest), ct);
 
+    /// <summary>Sends what the catalogues said about this library's albums, whole: which release each album is linked
+    /// to, and the catalogues' own words for each release. The store keeps one copy per library
+    /// (<paramref name="deviceId"/>), and its list builds take them in so their lists place each record as this
+    /// library does. See <see cref="Library.LibraryDatabase.AlbumCatalogueToSend"/>.</summary>
+    public async Task PutAlbumCatalogueAsync(string deviceId, Library.AlbumCatalogue catalogue, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/album-catalogue",
+                JsonContent.Create(
+                    new AlbumCatalogueRequest(
+                        deviceId,
+                        [.. catalogue.Albums.Select(a => new CatalogueAlbumEntry(a.Folder, a.Provider, a.ReleaseId, a.ReleaseGroupId))],
+                        [.. catalogue.Releases.Select(r => new CatalogueReleaseEntry(r.Provider, r.ReleaseId, r.Genres, r.Styles, r.Votes))]),
+                    RpmCloudJson.Default.AlbumCatalogueRequest), ct);
+
     // ── what this listener has heard on the radio ──
     //
     // The same shape as the play counts: one row per station per device. This machine writes only its own
@@ -2284,6 +2298,14 @@ public sealed partial class RpmCloudClient(
     private sealed record ListSayingsRequest(
         string DeviceId, IReadOnlyList<ListVerdictEntry> Verdicts, IReadOnlyList<ListRefusalEntry> Refusals);
 
+    private sealed record CatalogueAlbumEntry(string Folder, string? Provider, string? ReleaseId, string? GroupId);
+
+    private sealed record CatalogueReleaseEntry(
+        string Provider, string ReleaseId, IReadOnlyList<string> Genres, IReadOnlyList<string> Styles, IReadOnlyList<int>? Votes);
+
+    private sealed record AlbumCatalogueRequest(
+        string DeviceId, IReadOnlyList<CatalogueAlbumEntry> Albums, IReadOnlyList<CatalogueReleaseEntry> Releases);
+
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
@@ -2381,6 +2403,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(TrackPlaysListResponse))]
     [JsonSerializable(typeof(ListensRequest))]
     [JsonSerializable(typeof(ListSayingsRequest))]
+    [JsonSerializable(typeof(AlbumCatalogueRequest))]
     [JsonSerializable(typeof(ListensResponse))]
     [JsonSerializable(typeof(ListensListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]

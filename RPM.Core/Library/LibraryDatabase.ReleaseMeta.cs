@@ -209,17 +209,18 @@ public sealed partial class LibraryDatabase
         }
 
         return done;
+    }
 
-        static IReadOnlyList<int>? ParseVotes(string? joined)
-        {
-            if (string.IsNullOrWhiteSpace(joined))
-                return null;
-            var parts = SplitStyles(joined);
-            var votes = new List<int>(parts.Count);
-            foreach (var part in parts)
-                votes.Add(int.TryParse(part, out var n) ? n : 0);
-            return votes;
-        }
+    /// <summary>The vote counts as a list, or null where none were stored.</summary>
+    private static IReadOnlyList<int>? ParseVotes(string? joined)
+    {
+        if (string.IsNullOrWhiteSpace(joined))
+            return null;
+        var parts = SplitStyles(joined);
+        var votes = new List<int>(parts.Count);
+        foreach (var part in parts)
+            votes.Add(int.TryParse(part, out var n) ? n : 0);
+        return votes;
     }
 
     /// <summary>

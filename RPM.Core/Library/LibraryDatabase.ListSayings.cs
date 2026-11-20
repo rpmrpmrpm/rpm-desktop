@@ -45,7 +45,7 @@ public sealed record ListSayings(IReadOnlyList<ListVerdict> Verdicts, IReadOnlyL
 public sealed partial class LibraryDatabase
 {
     /// <summary>The fingerprint of the sayings the store last took (<see cref="ListSayings.Fingerprint"/>).</summary>
-    public const string ListSayingsSentKey = "list_sayings_sent";
+    public const string ListSayingsSentKey = "list_sayings_sent_per_device";
 
     /// <summary>
     /// What the listener has said in this library. A verdict on a song with no cloud id is left out: the store has

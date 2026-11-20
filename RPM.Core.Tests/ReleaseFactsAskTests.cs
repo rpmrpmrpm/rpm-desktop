@@ -79,7 +79,7 @@ public class ReleaseFactsAskTests : IDisposable
         Assert.Empty(_db.NextReleasesToAsk(RpmMetadataProvider.ProviderId, 10));
     }
 
-    private sealed class Catalogue(Asked<ReleaseDetail?> answer) : IMetadataProvider
+    internal class Catalogue(Asked<ReleaseDetail?> answer) : IMetadataProvider
     {
         public string Id => RpmMetadataProvider.ProviderId;
         public string DisplayName => "RPM";

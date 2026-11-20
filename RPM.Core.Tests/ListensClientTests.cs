@@ -97,4 +97,31 @@ public class ListensClientTests
         Assert.Equal("Nickelback", refusal.GetProperty("subject").GetString());
         Assert.Equal("Energetic", refusal.GetProperty("kind").GetString());
     }
+
+    [Fact]
+    public async Task The_album_catalogue_is_sent_whole_with_each_catalogues_own_words()
+    {
+        var (client, handler) = Client(_ => Json("{}"));
+
+        await client.PutAlbumCatalogueAsync("desk-1", new AlbumCatalogue(
+            [new CatalogueAlbum("Muse/Absolution", "discogs", "555", "group-1")],
+            [new CatalogueRelease("discogs", "555", ["Rock"], ["Alternative Rock", "Art Rock"], [4, 1])]), CancellationToken.None);
+
+        var (request, body) = Assert.Single(handler.Seen);
+        Assert.Equal(HttpMethod.Put, request.Method);
+        Assert.Equal("https://api.test/cloud/album-catalogue", request.RequestUri!.ToString());
+        using var json = JsonDocument.Parse(body!);
+        Assert.Equal("desk-1", json.RootElement.GetProperty("deviceId").GetString());
+        var album = json.RootElement.GetProperty("albums")[0];
+        Assert.Equal("Muse/Absolution", album.GetProperty("folder").GetString());
+        Assert.Equal("discogs", album.GetProperty("provider").GetString());
+        Assert.Equal("555", album.GetProperty("releaseId").GetString());
+        Assert.Equal("group-1", album.GetProperty("groupId").GetString());
+        var release = json.RootElement.GetProperty("releases")[0];
+        Assert.Equal("discogs", release.GetProperty("provider").GetString());
+        Assert.Equal("555", release.GetProperty("releaseId").GetString());
+        Assert.Equal(["Rock"], release.GetProperty("genres").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal(["Alternative Rock", "Art Rock"], release.GetProperty("styles").EnumerateArray().Select(e => e.GetString()));
+        Assert.Equal([4, 1], release.GetProperty("votes").EnumerateArray().Select(e => e.GetInt32()));
+    }
 }
