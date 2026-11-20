@@ -1908,6 +1908,40 @@ public sealed partial class RpmCloudClient(
         => (await SendAsync<TrackPlaysListResponse>(
                 HttpMethod.Get, $"cloud/track-plays?since={since}", null, ct)).Tracks;
 
+    // ── the listening log ──
+    //
+    // One row per finished listen, keyed on the id the device that heard it made, so a re-send is harmless.
+    // See RPM.Lambda.Api.Services.ListenStore. The listens do not move any play total: those travel above.
+
+    /// <summary>Sends a batch of this machine's listens, at most 500. Answers with the stamp the store wrote them
+    /// under.</summary>
+    public async Task<long> PutListensAsync(
+        string deviceId, IReadOnlyList<Library.SharedListen> listens, CancellationToken ct = default)
+        => (await SendAsync<ListensResponse>(
+                HttpMethod.Put, "cloud/listens",
+                JsonContent.Create(
+                    new ListensRequest(
+                        deviceId,
+                        [.. listens.Select(l => new ListenEntry(
+                            l.ListenId, l.RpmId, PlayClock.Seconds(l.AtUtcTicks), l.HeardSeconds, l.LengthSeconds,
+                            l.Counted, l.LocalHour, l.LocalDayOfWeek))]),
+                    RpmCloudJson.Default.ListensRequest), ct)).ReceivedAt;
+
+    /// <summary>One page of every device's listens that the store received at or after <paramref name="since"/>,
+    /// the newest stamp on it, and the token for the next page (null at the end).</summary>
+    public async Task<ListensPage> ListListensAsync(long since, string? page, CancellationToken ct = default)
+    {
+        var path = $"cloud/listens?since={since}" + (page is { Length: > 0 } ? $"&page={Uri.EscapeDataString(page)}" : "");
+        var answer = await SendAsync<ListensListResponse>(HttpMethod.Get, path, null, ct);
+        var rows = answer.Listens ?? [];
+        return new ListensPage(
+            [.. rows.Select(r => new Library.SharedListen(
+                r.ListenId, r.DeviceId, r.RpmId, PlayClock.Ticks(r.At), r.HeardSeconds, r.LengthSeconds, r.Counted,
+                r.LocalHour, r.LocalDayOfWeek))],
+            rows.Count == 0 ? since : rows.Max(r => r.ReceivedAt),
+            answer.Page);
+    }
+
     // ── what this listener has heard on the radio ──
     //
     // The same shape as the play counts: one row per station per device. This machine writes only its own
@@ -2221,6 +2255,12 @@ public sealed partial class RpmCloudClient(
 
     private sealed record TrackPlaysRequest(string DeviceId, IReadOnlyList<TrackPlaysEntry> Tracks);
 
+    private sealed record ListenEntry(
+        string ListenId, string RpmId, long At, double HeardSeconds, double LengthSeconds, bool Counted,
+        int LocalHour, int LocalDayOfWeek);
+
+    private sealed record ListensRequest(string DeviceId, IReadOnlyList<ListenEntry> Listens);
+
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
@@ -2316,6 +2356,9 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(TrackAddedRequest))]
     [JsonSerializable(typeof(TrackPlaysResponse))]
     [JsonSerializable(typeof(TrackPlaysListResponse))]
+    [JsonSerializable(typeof(ListensRequest))]
+    [JsonSerializable(typeof(ListensResponse))]
+    [JsonSerializable(typeof(ListensListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]
     [JsonSerializable(typeof(StationListensRequest))]
     [JsonSerializable(typeof(StationListensResponse))]
@@ -2376,6 +2419,25 @@ public sealed partial class RpmCloudClient(
 
     private sealed record TrackPlaysListResponse(
         [property: JsonPropertyName("tracks")] IReadOnlyList<CloudTrackPlays> Tracks);
+
+    private sealed record ListensResponse(
+        [property: JsonPropertyName("receivedAt")] long ReceivedAt);
+
+    private sealed record ListenRow(
+        [property: JsonPropertyName("listenId")] string ListenId,
+        [property: JsonPropertyName("deviceId")] string DeviceId,
+        [property: JsonPropertyName("rpmId")] string RpmId,
+        [property: JsonPropertyName("at")] long At,
+        [property: JsonPropertyName("heardSeconds")] double HeardSeconds,
+        [property: JsonPropertyName("lengthSeconds")] double LengthSeconds,
+        [property: JsonPropertyName("counted")] bool Counted,
+        [property: JsonPropertyName("localHour")] int LocalHour,
+        [property: JsonPropertyName("localDayOfWeek")] int LocalDayOfWeek,
+        [property: JsonPropertyName("receivedAt")] long ReceivedAt);
+
+    private sealed record ListensListResponse(
+        [property: JsonPropertyName("listens")] IReadOnlyList<ListenRow>? Listens,
+        [property: JsonPropertyName("page")] string? Page);
 
     private sealed record StationListensResponse(
         [property: JsonPropertyName("updatedAt")] long UpdatedAt);
@@ -2500,6 +2562,12 @@ public sealed record CloudListenedStation(
                 IsHls = IsHls,
             };
 }
+
+/// <summary>One page of the listening log as the store hands it out.</summary>
+/// <param name="Newest">The newest <c>receivedAt</c> on the page, or the asked stamp for an empty page. A caller keeps
+/// the newest it has taken in and asks from it next time.</param>
+/// <param name="Next">The token for the next page, or null where this is the last.</param>
+public sealed record ListensPage(IReadOnlyList<Library.SharedListen> Listens, long Newest, string? Next);
 
 /// <summary>One device's play total for one track, as the store holds it.</summary>
 /// <param name="DeviceId">Which device played them. This machine's own rows also come back in the listing.

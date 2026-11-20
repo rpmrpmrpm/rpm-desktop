@@ -766,6 +766,10 @@ public sealed partial class CloudSyncService
         // they are kept in step between the listener's machines. See CloudSyncService.Plays.
         await SyncPlaysAsync(db, ct);
 
+        // The listening log, one row per listen, after the plays, which name this library's device. See
+        // CloudSyncService.Listens.
+        await SyncListensAsync(db, ct);
+
         // Song ratings, on a pass of their own beside the plays. See CloudSyncService.Ratings.
         await SyncRatingsAsync(db, cloud, ct);
 
