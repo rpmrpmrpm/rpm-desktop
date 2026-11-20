@@ -58,26 +58,33 @@ public class QueueTallyTests : IDisposable
             .GetField("_gate", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(_db)!;
 
+        // Threads of their own, not pool tasks: on a busy test machine the pool can take seconds to start
+        // a task, and that delay would read as a count that waited.
         using var holding = new ManualResetEventSlim();
         using var letGo = new ManualResetEventSlim();
-        var writer = Task.Run(() =>
+        var writer = new Thread(() =>
         {
             using (gate.Take())
             {
                 holding.Set();
-                letGo.Wait(TimeSpan.FromSeconds(10));
+                letGo.Wait(TimeSpan.FromSeconds(30));
             }
         });
-        Assert.True(holding.Wait(TimeSpan.FromSeconds(5)), "the writer never took the gate");
+        writer.Start();
+        Assert.True(holding.Wait(TimeSpan.FromSeconds(30)), "the writer never took the gate");
 
-        // Asked of the database, this would wait for the writer above.
-        var asked = Task.Run(() => (_db.QueueCount(), _db.QueueCheckedCount()));
-        var answered = asked.Wait(TimeSpan.FromSeconds(2));
+        // Asked of the database, this would wait for the writer above, which lets go only after the
+        // asker has finished or the wait below has run out.
+        (int, int) counts = default;
+        var asker = new Thread(() => counts = (_db.QueueCount(), _db.QueueCheckedCount()));
+        asker.Start();
+        var answered = asker.Join(TimeSpan.FromSeconds(10));
         letGo.Set();
-        writer.Wait(TimeSpan.FromSeconds(10));
+        writer.Join(TimeSpan.FromSeconds(30));
+        asker.Join(TimeSpan.FromSeconds(30));
 
         Assert.True(answered, "a count waited for the write gate");
-        Assert.Equal((2, 1), asked.Result);
+        Assert.Equal((2, 1), counts);
     }
 
     [Fact]
