@@ -371,18 +371,19 @@ internal sealed class PaneGlide
         return 1 - left * left * left;
     }
 
-#if RPM_WINUI
     /// <summary>Cubic ease-out, the curve that everything in the app that MOVES uses. It has the same shape
     /// as the tween's 1 - (1 - t) cubed, written as the bezier that the compositor uses.
     ///
     /// <para>It is internal because it is the app's curve, not this class's. The album page's groove uses
-    /// it too (see GrooveGlide). A second set of control points would be a second answer to a question that
-    /// already has one. A sharper ease-out is not a matter of taste. It puts nine tenths of the distance
-    /// into the first three frames and leaves the rest to crawl, which users see as choppy.
+    /// it too (see GrooveGlide), and so do the tiles' slides on both heads (see Common.TileGlide). A second
+    /// set of control points would be a second answer to a question that already has one. A sharper ease-out
+    /// is not a matter of taste. It puts nine tenths of the distance into the first three frames and leaves
+    /// the rest to crawl, which users see as choppy.
     /// </para></summary>
     internal static CompositionEasingFunction Ease(Compositor compositor) =>
         compositor.CreateCubicBezierEasingFunction(new Vector2(0.215f, 0.61f), new Vector2(0.355f, 1f));
 
+#if RPM_WINUI
     /// <summary>The moving column's width over time. It is held at its start for the length of the
     /// fade-out, then eased to its target. It is one animation, so the wait is on the same clock. It is not
     /// a second animation that has to be started later.</summary>
