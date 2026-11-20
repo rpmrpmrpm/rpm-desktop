@@ -40,7 +40,7 @@ public sealed partial class LibraryDatabase
     /// <remarks>
     /// The track's cloud id is read from the track row now, not from the log row. A track uploaded after it
     /// was played gets its id later, and its listens are sent then. A listen of a track that has no cloud id
-    /// stays here unsent until it has one.
+    /// (null or empty) stays here unsent until it has one.
     /// </remarks>
     public IReadOnlyList<SharedListen> ListensToSend(string mine, int limit)
     {
@@ -55,13 +55,13 @@ public sealed partial class LibraryDatabase
             // Driven from the partial index of unsent own rows, so a pass costs what is unsent, not the log.
             cmd.CommandText =
                 """
-                SELECT listen.uid, COALESCE(tracks.rpm_id, listen.rpm_id), listen.at_utc_ticks,
+                SELECT listen.uid, COALESCE(NULLIF(tracks.rpm_id, ''), NULLIF(listen.rpm_id, '')), listen.at_utc_ticks,
                        listen.heard_seconds, listen.length_seconds, listen.counted, listen.local_hour,
                        listen.local_dow
                 FROM listen INDEXED BY idx_listen_unsent
                 LEFT JOIN tracks ON tracks.relative_path = listen.relative_path
                 WHERE listen.sent = 0 AND listen.device IS NULL AND listen.uid IS NOT NULL
-                  AND COALESCE(tracks.rpm_id, listen.rpm_id) IS NOT NULL
+                  AND COALESCE(NULLIF(tracks.rpm_id, ''), NULLIF(listen.rpm_id, '')) IS NOT NULL
                 ORDER BY listen.id
                 LIMIT $limit
                 """;

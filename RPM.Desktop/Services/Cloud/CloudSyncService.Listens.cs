@@ -1,4 +1,4 @@
-using System.Globalization;
+using RPM.Core.Cloud;
 using RPM.Core.Library;
 
 namespace RPM.Desktop.Services.Cloud;
@@ -30,37 +30,18 @@ public sealed partial class CloudSyncService
         var mine = db.PlaysDevice;
 
         // ── in ──
-        var cursor = long.TryParse(
-            db.GetMeta(LibraryDatabase.ListensCursorKey), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out var seen) ? seen : 0;
-
         try
         {
-            string? page = null;
-            var newest = cursor;
-            var taken = 0;
-            for (int request = 0; request < ListenRequestsPerPass; request++)
-            {
-                var found = await _cloud.ListListensAsync(cursor, page, ct);
-                taken += db.AcceptListens(mine, found.Listens);
-                newest = Math.Max(newest, found.Newest);
-                page = found.Next;
-                if (page is null)
-                    break;
-            }
-
-            // Moved only when the listing reached its end. A pass that stopped part way asks from the same
-            // stamp next time, and the listens it already took are skipped by their ids.
-            if (page is null && newest > cursor)
-                db.SetMeta(LibraryDatabase.ListensCursorKey, newest.ToString(CultureInfo.InvariantCulture));
-
+            // See ListensPull for why the cursor moves after every page and each pass asks from a margin before it.
+            var taken = await ListensPull.RunAsync(
+                db, mine, (since, page, token) => _cloud.ListListensAsync(since, page, token), ListenRequestsPerPass, ct);
             if (taken > 0)
                 _log.LogInformation("[Cloud] {Count} listens arrived from other devices", taken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // The push still runs: this library's own listens do not wait on reading the others'.
             _log.LogDebug(ex, "[Cloud] Could not read the listening log");
-            return;
         }
 
         // ── out ──

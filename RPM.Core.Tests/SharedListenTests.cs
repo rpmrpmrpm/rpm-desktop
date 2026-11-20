@@ -102,6 +102,18 @@ public class SharedListenTests : IDisposable
         Assert.Equal("rpm-a1", Assert.Single(_db.ListensToSend(Mine, 100)).RpmId);
     }
 
+    /// <summary>An empty cloud id is no id. Sent, it would make the store refuse the batch, and every batch after it.</summary>
+    [Fact]
+    public void A_listen_of_a_track_with_an_empty_cloud_id_is_not_offered()
+    {
+        Add("a/01.flac", rpmId: "");
+        Add("b/01.flac", "rpm-b1");
+        _db.NoteListen(Heard(Evening, "a/01.flac"));
+        _db.NoteListen(Heard(Evening.AddMinutes(10), "b/01.flac"));
+
+        Assert.Equal("rpm-b1", Assert.Single(_db.ListensToSend(Mine, 100)).RpmId);
+    }
+
     [Fact]
     public void Sending_stops_at_the_limit_and_the_rest_go_next_time()
     {

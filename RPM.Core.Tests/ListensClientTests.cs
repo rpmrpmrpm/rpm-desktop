@@ -78,7 +78,7 @@ public class ListensClientTests
     {
         var (client, handler) = Client(_ => Json("{}"));
 
-        await client.PutListSayingsAsync(new ListSayings(
+        await client.PutListSayingsAsync("desk-1", new ListSayings(
             [new ListVerdict("t1", SmartPlaylistKind.Calm, TrackVerdict.Disliked, Ended.UtcTicks)],
             [new ListRefusal(RecommendScope.Artist, "Nickelback", SmartPlaylistKind.Energetic, Ended.UtcTicks)]), CancellationToken.None);
 
@@ -86,6 +86,7 @@ public class ListensClientTests
         Assert.Equal(HttpMethod.Put, request.Method);
         Assert.Equal("https://api.test/cloud/list-sayings", request.RequestUri!.ToString());
         using var json = JsonDocument.Parse(body!);
+        Assert.Equal("desk-1", json.RootElement.GetProperty("deviceId").GetString());
         var verdict = json.RootElement.GetProperty("verdicts")[0];
         Assert.Equal("t1", verdict.GetProperty("rpmId").GetString());
         Assert.Equal("Calm", verdict.GetProperty("kind").GetString());

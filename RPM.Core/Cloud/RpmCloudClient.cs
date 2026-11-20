@@ -1939,17 +1939,19 @@ public sealed partial class RpmCloudClient(
                 r.ListenId, r.DeviceId, r.RpmId, PlayClock.Ticks(r.At), r.HeardSeconds, r.LengthSeconds, r.Counted,
                 r.LocalHour, r.LocalDayOfWeek))],
             rows.Count == 0 ? since : rows.Max(r => r.ReceivedAt),
-            answer.Page);
+            answer.Page,
+            answer.SafeUntil);
     }
 
     /// <summary>Sends what the listener said about the generated lists in this library, whole: the verdicts on songs and
-    /// the refusals of acts and records. The store's list builds keep to it. See
-    /// <see cref="Library.LibraryDatabase.ListSayingsToSend"/>.</summary>
-    public async Task PutListSayingsAsync(Library.ListSayings said, CancellationToken ct = default)
+    /// the refusals of acts and records. The store keeps one copy per library (<paramref name="deviceId"/>) and its list
+    /// builds keep to all of them. See <see cref="Library.LibraryDatabase.ListSayingsToSend"/>.</summary>
+    public async Task PutListSayingsAsync(string deviceId, Library.ListSayings said, CancellationToken ct = default)
         => await SendAsync<object>(
                 HttpMethod.Put, "cloud/list-sayings",
                 JsonContent.Create(
                     new ListSayingsRequest(
+                        deviceId,
                         [.. said.Verdicts.Select(v => new ListVerdictEntry(
                             v.RpmId, v.Kind.ToString(), v.Verdict.ToString(), PlayClock.Seconds(v.SaidUtcTicks)))],
                         [.. said.Refusals.Select(r => new ListRefusalEntry(
@@ -2279,7 +2281,8 @@ public sealed partial class RpmCloudClient(
 
     private sealed record ListRefusalEntry(string Scope, string Subject, string Kind, long At);
 
-    private sealed record ListSayingsRequest(IReadOnlyList<ListVerdictEntry> Verdicts, IReadOnlyList<ListRefusalEntry> Refusals);
+    private sealed record ListSayingsRequest(
+        string DeviceId, IReadOnlyList<ListVerdictEntry> Verdicts, IReadOnlyList<ListRefusalEntry> Refusals);
 
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
@@ -2458,7 +2461,8 @@ public sealed partial class RpmCloudClient(
 
     private sealed record ListensListResponse(
         [property: JsonPropertyName("listens")] IReadOnlyList<ListenRow>? Listens,
-        [property: JsonPropertyName("page")] string? Page);
+        [property: JsonPropertyName("page")] string? Page,
+        [property: JsonPropertyName("safeUntil")] long SafeUntil = 0);
 
     private sealed record StationListensResponse(
         [property: JsonPropertyName("updatedAt")] long UpdatedAt);
@@ -2588,7 +2592,9 @@ public sealed record CloudListenedStation(
 /// <param name="Newest">The newest <c>receivedAt</c> on the page, or the asked stamp for an empty page. A caller keeps
 /// the newest it has taken in and asks from it next time.</param>
 /// <param name="Next">The token for the next page, or null where this is the last.</param>
-public sealed record ListensPage(IReadOnlyList<Library.SharedListen> Listens, long Newest, string? Next);
+/// <param name="SafeUntil">The stamp up to which every row was readable when the store answered: its own clock less a
+/// margin. Zero from a store that does not say. See <see cref="ListensPull"/>.</param>
+public sealed record ListensPage(IReadOnlyList<Library.SharedListen> Listens, long Newest, string? Next, long SafeUntil = 0);
 
 /// <summary>One device's play total for one track, as the store holds it.</summary>
 /// <param name="DeviceId">Which device played them. This machine's own rows also come back in the listing.
