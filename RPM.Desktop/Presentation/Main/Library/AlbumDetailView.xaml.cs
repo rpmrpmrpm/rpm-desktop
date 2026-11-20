@@ -141,8 +141,14 @@ public sealed partial class AlbumDetailView : UserControl
     ///
     /// <para>It reads straight from the mirror, not through a loader. The page reads its own record from the
     /// library anyway, and one folder's rows is the same query that it already runs to draw the list.</para>
+    ///
+    /// <para><b>The read runs on a worker.</b> Every library read takes the one reading gate. On this same
+    /// signal the wall and the list read the cloud state of every record on the shelf, and that read holds
+    /// the gate for a few hundred milliseconds on a large shelf. A read on the UI thread would wait for all
+    /// of it, and the window would stop for that long on every cloud change while an album page has been
+    /// opened.</para>
     /// </summary>
-    public void RefreshTrackBadges()
+    public async void RefreshTrackBadges()
     {
         if (_folder.Length == 0 || TrackList.ItemsSource is not IReadOnlyList<AlbumTrackItem> lines)
             return;
@@ -151,9 +157,24 @@ public sealed partial class AlbumDetailView : UserControl
         if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
-        AlbumTrackItem.ApplyCloud(
-            lines, [.. library.Shelf.FolderTracks(_folder).Select(t => t.ToTrackInfo(root))],
-            Cloud.UploadsStopped, Shelf);
+        var folder = _folder;
+        var shelf = library.Shelf;
+        List<TrackInfo> tracks;
+        try
+        {
+            tracks = await Task.Run(() => shelf.FolderTracks(folder).Select(t => t.ToTrackInfo(root)).ToList());
+        }
+        catch
+        {
+            return;   // the marks stay as they are until the next cloud change
+        }
+
+        // The page can show another record by now, or the same record drawn again with new lines. The answer
+        // belongs to the lines it was read for, so it is applied only while those are still on the page.
+        if (!ReferenceEquals(TrackList.ItemsSource, lines) || !string.Equals(_folder, folder, StringComparison.Ordinal))
+            return;
+
+        AlbumTrackItem.ApplyCloud(lines, tracks, Cloud.UploadsStopped, Shelf);
         _lineBreath.Sync();
     }
 
