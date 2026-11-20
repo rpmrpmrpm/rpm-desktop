@@ -330,37 +330,32 @@ public sealed partial class LibraryDatabase
     /// about the new year (<see cref="HolidayMusic.IsNewYear"/>), by relative path.
     ///
     /// <para>The words are matched in code, not in SQL: the rule has word edges and exceptions ("holiday"
-    /// on its own, "Santa Barbara"), which LIKE cannot state. SQL narrows first, to the tracks whose tags
-    /// hold any of <see cref="HolidayMusic.Hints"/>, so a library of thirty thousand tracks sends back a
-    /// few hundred rows and not every title it has.</para>
+    /// on its own, "Santa Barbara"), which LIKE cannot state. The read narrows the rows as they arrive, to
+    /// the tracks whose tags hold any of <see cref="HolidayMusic.Hints"/>, so a library of forty thousand
+    /// tracks keeps a few hundred rows and not every title it has.</para>
+    ///
+    /// <para><b>Narrowed in code, not with LIKE.</b> The read gate is held for the whole read, and every
+    /// other read in the app waits for it. Twenty-eight <c>LIKE '%hint%'</c> tests over every track's tags
+    /// held it for about 155 ms on a library of 41,306 tracks. Reading the three columns and searching them
+    /// for all the hints at once (<see cref="HolidayHints"/>) is about the cost of the read alone. The search
+    /// ignores case in every script, which LIKE does only for ASCII, so it keeps every row LIKE kept.</para>
     /// </summary>
     public (IReadOnlySet<string> Holiday, IReadOnlySet<string> NewYear) QueryHolidayTracks()
     {
-        List<(string Path, string? Title, string? Album, string? Genre)> rows;
+        List<(string Path, string? Title, string? Album, string? Genre)> rows = [];
         using (_readGate.Take())
         {
             using var cmd = _read.CreateCommand();
-            var hints = new List<string>(HolidayMusic.Hints.Count);
-            for (int i = 0; i < HolidayMusic.Hints.Count; i++)
-            {
-                hints.Add($"tags LIKE $hint{i}");
-                cmd.Parameters.AddWithValue($"$hint{i}", $"%{HolidayMusic.Hints[i]}%");
-            }
-            cmd.CommandText =
-                $"""
-                SELECT relative_path, title, album, genre
-                FROM (SELECT relative_path, title, album, genre,
-                             COALESCE(title, '') || ' | ' || COALESCE(album, '') || ' | ' || COALESCE(genre, '') AS tags
-                      FROM tracks)
-                WHERE {string.Join(" OR ", hints)}
-                """;
+            cmd.CommandText = "SELECT title, album, genre, relative_path FROM tracks";
             using var reader = cmd.ExecuteReader();
-            rows = [];
             while (reader.Read())
-                rows.Add((reader.GetString(0),
-                          reader.IsDBNull(1) ? null : reader.GetString(1),
-                          reader.IsDBNull(2) ? null : reader.GetString(2),
-                          reader.IsDBNull(3) ? null : reader.GetString(3)));
+            {
+                var title = reader.IsDBNull(0) ? null : reader.GetString(0);
+                var album = reader.IsDBNull(1) ? null : reader.GetString(1);
+                var genre = reader.IsDBNull(2) ? null : reader.GetString(2);
+                if (Hinted(title) || Hinted(album) || Hinted(genre))
+                    rows.Add((reader.GetString(3), title, album, genre));
+            }
         }
 
         // Matched after the gate is let go, as the feeling scores are.
@@ -375,6 +370,14 @@ public sealed partial class LibraryDatabase
         }
         return (holiday, newYear);
     }
+
+    /// <summary>Every hint at once, ignoring case. One pass over a tag finds any of them.</summary>
+    private static readonly System.Buffers.SearchValues<string> HolidayHints = System.Buffers.SearchValues.Create(
+        [.. HolidayMusic.Hints.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether a tag holds any of the holiday hints. A hint is only a reason to look closer:
+    /// <see cref="HolidayMusic.IsHoliday"/> decides.</summary>
+    private static bool Hinted(string? tag) => tag is not null && tag.AsSpan().ContainsAny(HolidayHints);
 
     private ListeningProfile? _profile;
 

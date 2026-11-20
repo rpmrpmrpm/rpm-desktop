@@ -134,37 +134,6 @@ public sealed partial class TrackAnalysisService : IDisposable
         return new MachineState(Environment.ProcessorCount, available, playing, mixing);
     }
 
-    /// <summary>
-    /// Drops the current thread to the bottom of the queue for the length of one analysis, and puts it back
-    /// afterwards.
-    ///
-    /// <para>This is the cheapest throttle there is. The work still runs, but it gives way the moment
-    /// anything else needs the core. That is the arrangement wanted between a background sweep and the UI.
-    /// Windows honours thread priority. Linux and macOS ignore it for an unprivileged process. That is why
-    /// it is not the only throttle here. On those systems the slot count and the pause between tracks do
-    /// the work.</para>
-    ///
-    /// <para>Restoring matters: these are pool threads, and one left at the bottom of the queue would go
-    /// back to the pool that way and slow down whatever it was next given.</para>
-    /// </summary>
-    private readonly struct Yielding : IDisposable
-    {
-        private readonly ThreadPriority _was;
-
-        public Yielding()
-        {
-            _was = Thread.CurrentThread.Priority;
-            try { Thread.CurrentThread.Priority = ThreadPriority.Lowest; }
-            catch { /* not every host lets a thread say so */ }
-        }
-
-        public void Dispose()
-        {
-            try { Thread.CurrentThread.Priority = _was; }
-            catch { }
-        }
-    }
-
     /// <summary>Raised on a background thread each time a track finishes analysing. The DJ's crate listens
     /// to it, so a record analysed after the set started still gets beat-matched.</summary>
     public event Action<TrackAnalysis>? Analyzed;
@@ -341,7 +310,8 @@ public sealed partial class TrackAnalysisService : IDisposable
                         return;
                     try
                     {
-                        using var yielding = new Yielding();
+                        // Gives way to the interface for the length of one analysis, on every system (see GiveWay).
+                        using var givingWay = RPM.Core.Threading.GiveWay.Begin();
                         Analyze(path, token);
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
@@ -671,7 +641,8 @@ public sealed partial class TrackAnalysisService : IDisposable
                         return;
                     try
                     {
-                        using var yielding = new Yielding();
+                        // Gives way to the interface for the length of one analysis, on every system (see GiveWay).
+                        using var givingWay = RPM.Core.Threading.GiveWay.Begin();
                         Analyze(path, ct);
                     }
                     finally { _slots.Release(); }

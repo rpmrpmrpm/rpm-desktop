@@ -295,6 +295,15 @@ public sealed partial class LibraryDatabase
         // with prefix (word-start) queries.
         Execute("CREATE VIRTUAL TABLE IF NOT EXISTS temp.queue_fts USING fts5(text, tokenize = 'unicode61')");
 
+        // A number that every change to a queue row moves, so the write gate's last step can tell a hold
+        // that changed the queue from one that did not (see TallyQueue). Triggers, and not a note from each
+        // writer, because a writer that forgot would leave the counts behind and nothing would say so.
+        Execute("CREATE TEMP TABLE IF NOT EXISTS queue_epoch (n INTEGER NOT NULL)");
+        Execute("INSERT INTO queue_epoch (n) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM queue_epoch)");
+        Execute("CREATE TEMP TRIGGER IF NOT EXISTS queue_epoch_insert AFTER INSERT ON queue BEGIN UPDATE queue_epoch SET n = n + 1; END");
+        Execute("CREATE TEMP TRIGGER IF NOT EXISTS queue_epoch_update AFTER UPDATE ON queue BEGIN UPDATE queue_epoch SET n = n + 1; END");
+        Execute("CREATE TEMP TRIGGER IF NOT EXISTS queue_epoch_delete AFTER DELETE ON queue BEGIN UPDATE queue_epoch SET n = n + 1; END");
+
         _queueReady = true;
     }
 
@@ -861,12 +870,9 @@ public sealed partial class LibraryDatabase
     /// what the user is looking at, and the marks are refreshed on every rebuild of the tree. A count
     /// that quietly knew better than the grid would offer to remove rows that show no duplicate
     /// mark.</para></summary>
-    public int QueueDuplicateCount() => QueueScalar(
-        $"SELECT COUNT(*) FROM queue WHERE dup_state IN " +
-        $"({(int)QueueDuplicate.InQueue}, {(int)QueueDuplicate.InLibrary})");
+    public int QueueDuplicateCount() => Tally.Duplicates;
 
-    public int QueueUnreadableCount() => QueueScalar(
-        $"SELECT COUNT(*) FROM queue WHERE availability = {(int)Models.FileAvailability.Unreadable}");
+    public int QueueUnreadableCount() => Tally.Unreadable;
 
     /// <summary>Deletes the rows matching a predicate, and their FTS entries with them. A row whose
     /// search text outlives it would be a hit on a track that is no longer in the queue.</summary>
@@ -1316,21 +1322,90 @@ public sealed partial class LibraryDatabase
         }
     }
 
-    // ── aggregates (the queue's derived counts, in SQL instead of a LINQ pass over every row) ──────
+    // ── aggregates (the queue's derived counts) ─────────────────────────────────────────────────────
 
-    public int QueueCount() => QueueScalar("SELECT COUNT(*) FROM queue");
+    // These are read without a lock: see TallyQueue. The interface asks for them on its own thread, often
+    // during a pane move. Asked of the database, each one took the write gate and waited for whatever
+    // write was running, a cloud sync's batch included.
 
-    public int QueueCheckedCount() => QueueScalar("SELECT COUNT(*) FROM queue WHERE is_checked = 1");
+    public int QueueCount() => Tally.Total;
 
-    public int QueueNeedsRecognitionCount()
-        => QueueScalar($"SELECT COUNT(*) FROM queue WHERE {NeedsRecognitionSql} AND NOT {PreservedOriginalSql} AND NOT {UnfilableSql}");
+    public int QueueCheckedCount() => Tally.Checked;
 
-    public int QueueImportableCount()
-        => QueueScalar(
-            $"SELECT COUNT(*) FROM queue WHERE is_checked = 1 AND NOT {UnnamedSql} AND NOT {PreservedOriginalSql} AND NOT {UnfilableSql}");
+    public int QueueNeedsRecognitionCount() => Tally.NeedsRecognition;
 
-    public int QueueSplitCandidateCount()
-        => QueueScalar("SELECT COUNT(*) FROM queue WHERE split_hint != 0");
+    public int QueueImportableCount() => Tally.Importable;
+
+    public int QueueSplitCandidateCount() => Tally.SplitCandidates;
+
+    /// <summary>The queue's counts, as the last hold that changed the queue left them.</summary>
+    private sealed record QueueTally(
+        int Total, int Checked, int NeedsRecognition, int Importable, int SplitCandidates, int Duplicates,
+        int Unreadable)
+    {
+        public static readonly QueueTally Empty = new(0, 0, 0, 0, 0, 0, 0);
+    }
+
+    private QueueTally _queueTally = QueueTally.Empty;
+
+    /// <summary>The queue's change number that <see cref="_queueTally"/> was counted at. Only the holder of
+    /// the write gate reads or writes it.</summary>
+    private long _queueTallyAt = -1;
+
+    private QueueTally Tally => Volatile.Read(ref _queueTally);
+
+    /// <summary>All seven counts in one pass over the queue. The predicates are the same ones the rest of
+    /// this file uses, so a count cannot disagree with what the rows show.</summary>
+    private static readonly string QueueTallySql =
+        "SELECT COUNT(*), " +
+        "SUM(CASE WHEN is_checked = 1 THEN 1 ELSE 0 END), " +
+        $"SUM(CASE WHEN {NeedsRecognitionSql} AND NOT {PreservedOriginalSql} AND NOT {UnfilableSql} THEN 1 ELSE 0 END), " +
+        $"SUM(CASE WHEN is_checked = 1 AND NOT {UnnamedSql} AND NOT {PreservedOriginalSql} AND NOT {UnfilableSql} THEN 1 ELSE 0 END), " +
+        "SUM(CASE WHEN split_hint != 0 THEN 1 ELSE 0 END), " +
+        $"SUM(CASE WHEN dup_state IN ({(int)QueueDuplicate.InQueue}, {(int)QueueDuplicate.InLibrary}) THEN 1 ELSE 0 END), " +
+        $"SUM(CASE WHEN availability = {(int)Models.FileAvailability.Unreadable} THEN 1 ELSE 0 END) " +
+        "FROM queue";
+
+    /// <summary>
+    /// Counts the queue again when the hold that is ending changed it. The write gate runs this as the last
+    /// step inside every hold (see <see cref="Gate"/>), so the counts are read in the same hold as the change
+    /// and are never older than the rows.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why not ask the database each time.</b> The queue is a temp table on the writing connection,
+    /// so no other connection can see it, and every question about it waits for the write gate. A count asked
+    /// on the interface's thread waited for the cloud mirror's batches, a quarter of a second at a time.</para>
+    ///
+    /// <para><b>Why the change number.</b> A hold that did not touch the queue (a track's sound, a mirror
+    /// batch) costs one read of one row. Counting every time would scan the whole queue after every write in
+    /// the app.</para>
+    /// </remarks>
+    private void TallyQueue()
+    {
+        if (!_queueReady)
+            return;
+
+        long at;
+        using (var cmd = _connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT n FROM queue_epoch";
+            at = Convert.ToInt64(cmd.ExecuteScalar() ?? 0L);
+        }
+        if (at == _queueTallyAt)
+            return;
+
+        using (var cmd = _connection.CreateCommand())
+        {
+            cmd.CommandText = QueueTallySql;
+            using var r = cmd.ExecuteReader();
+            if (!r.Read())
+                return;
+            int Count(int i) => r.IsDBNull(i) ? 0 : (int)r.GetInt64(i);
+            Volatile.Write(ref _queueTally,
+                new QueueTally(Count(0), Count(1), Count(2), Count(3), Count(4), Count(5), Count(6)));
+        }
+        _queueTallyAt = at;
+    }
 
     /// <summary>
     /// What the TICKED set is made of: the numbers that the toolbar's keys switch on.
@@ -1421,16 +1496,6 @@ public sealed partial class LibraryDatabase
         }
     }
 
-    private int QueueScalar(string sql)
-    {
-        using (_gate.Take())
-        {
-            EnsureQueueTableLocked();
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = sql;
-            return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
-        }
-    }
 
     // ── search ──────────────────────────────────────────────────────────────────────────────────
 

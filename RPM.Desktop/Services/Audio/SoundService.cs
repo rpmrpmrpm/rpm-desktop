@@ -173,7 +173,13 @@ public sealed partial class SoundService : IDisposable
                 {
                     if (!pick.Go)
                         return;
-                    work = db.QueryTracksNeedingSound(BatchSize).Where(w => !skipped.Contains(w.RelativePath)).ToList();
+                    // As many more rows as were skipped are asked for, and the skipped ones are then dropped.
+                    // With only BatchSize rows, a batch made up of skipped rows would end the pass, and the
+                    // tracks after them would never be reached.
+                    work = db.QueryTracksNeedingSound(BatchSize + skipped.Count)
+                             .Where(w => !skipped.Contains(w.RelativePath))
+                             .Take(BatchSize)
+                             .ToList();
                 }
 
                 if (work.Count == 0)
@@ -207,7 +213,13 @@ public sealed partial class SoundService : IDisposable
                         continue;
                     }
 
-                    switch (MeasureOne(db, model, item, ct))
+                    // The model run gives way to the interface, and the write inside it does not (see GiveWay).
+                    // The scope ends here, because it belongs to this thread and an await may follow.
+                    MeasureStep step;
+                    using (RPM.Core.Threading.GiveWay.Begin())
+                        step = MeasureOne(db, model, item, ct);
+
+                    switch (step)
                     {
                         case MeasureStep.Stored:
                             heard++;

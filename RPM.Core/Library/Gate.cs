@@ -69,7 +69,27 @@ public sealed class Gate
     private long _turns;
     private bool _closed;
 
-    public Gate(string name) => Name = name;
+    /// <summary>See the constructor that takes it.</summary>
+    private readonly Action? _lastInside;
+
+    public Gate(string name) : this(name, lastInside: null) { }
+
+    /// <param name="name">Which connection this guards. See <see cref="Name"/>.</param>
+    /// <param name="lastInside">
+    /// Runs at the end of every outermost hold, while the lock is still held. It is for a value that must
+    /// be read again after each hold, from what the hold left behind, before anybody else can get in. A
+    /// value kept that way can be read without the lock and is never older than the data it describes,
+    /// and no call site has to remember to keep it.
+    ///
+    /// <para>It runs on the holder's thread and its time counts as part of the hold, so it must be short.
+    /// What it throws is dropped: a hold must always be able to end. A take of this gate inside it is
+    /// allowed and does not run it again.</para>
+    /// </param>
+    public Gate(string name, Action? lastInside)
+    {
+        Name = name;
+        _lastInside = lastInside;
+    }
 
     /// <summary>Which connection this guards. A note then says <c>write</c> or <c>read</c>, and the reader
     /// does not have to work it out from the caller.
@@ -103,6 +123,22 @@ public sealed class Gate
     /// <param name="by">Filled in by the compiler with the name of the calling member. <b>Never pass this
     /// yourself.</b> The value of it is that no call site can get it wrong.</param>
     public Hold Take([CallerMemberName] string? by = null)
+    {
+        // A thread that gives way to the interface runs at its normal priority while it waits for a gate and
+        // while it holds one. See GiveWay. Paired with GateLetGo in Release, or below if the take is refused.
+        Threading.GiveWay.GateAsked();
+        try
+        {
+            return Enter(by);
+        }
+        catch
+        {
+            Threading.GiveWay.GateLetGo();
+            throw;
+        }
+    }
+
+    private Hold Enter(string? by)
     {
         var asked = Stopwatch.GetTimestamp();
 
@@ -221,6 +257,14 @@ public sealed class Gate
         double held = 0;
         double cpu = 0;
 
+        // Before the depth goes down, so that a take inside the step is a nested one and does not run the
+        // step again.
+        if (_depth == 1 && _lastInside is { } last)
+        {
+            try { last(); }
+            catch { /* the hold ends whatever the step did */ }
+        }
+
         if (--_depth == 0)
         {
             who = _holder;
@@ -234,6 +278,7 @@ public sealed class Gate
         }
 
         Monitor.Exit(_lock);
+        Threading.GiveWay.GateLetGo();
 
         // Everything below runs outside the lock. Describing a hold must never be part of holding it.
         if (waiter is not null)

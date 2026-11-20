@@ -247,7 +247,13 @@ public sealed partial class LoudnessService : IDisposable
                         continue;
                     }
 
-                    if (MeasureOne(db, item, ct))
+                    // The measuring gives way to the interface, and the write inside it does not (see GiveWay).
+                    // The scope ends before the await below, because it belongs to this thread.
+                    bool read;
+                    using (RPM.Core.Threading.GiveWay.Begin())
+                        read = MeasureOne(db, item, ct);
+
+                    if (read)
                         measured++;
                     else
                         skipped.Add(item.RelativePath);

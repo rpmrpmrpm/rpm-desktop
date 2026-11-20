@@ -192,4 +192,23 @@ public class LibraryDatabaseSoundTests : IDisposable
             holiday.Order(StringComparer.Ordinal));
         Assert.Equal(new[] { "abba.flac" }, newYear);
     }
+
+    /// <summary>A holiday word is found in any case, accented letters included, and a place named after a
+    /// saint is not a song about Father Christmas.</summary>
+    [Fact]
+    public void The_holiday_words_are_found_in_any_case()
+    {
+        _db.Upsert(Track("noel.flac") with { Title = "JOYEUX NOËL" });
+        _db.Upsert(Track("nuevo.flac") with { Title = "Feliz Año Nuevo" });
+        _db.Upsert(Track("nuevo-caps.flac") with { Title = "FELIZ AÑO NUEVO" });
+        _db.Upsert(Track("jingle.flac") with { Title = "jingle bell rock" });
+        _db.Upsert(Track("barbara.flac") with { Title = "Santa Barbara" });
+
+        var (holiday, newYear) = _db.QueryHolidayTracks();
+
+        Assert.Equal(
+            new[] { "jingle.flac", "noel.flac", "nuevo-caps.flac", "nuevo.flac" },
+            holiday.Order(StringComparer.Ordinal));
+        Assert.Equal(new[] { "nuevo-caps.flac", "nuevo.flac" }, newYear.Order(StringComparer.Ordinal));
+    }
 }

@@ -683,8 +683,12 @@ public sealed partial class LibraryDatabase : IDisposable
 
     /// <summary>Serialises the writing connection. It is a <see cref="Gate"/> and not a bare object, so
     /// that a hold long enough to be felt can say whose it was. See that class for what a bare
-    /// object cannot answer.</summary>
-    private readonly Gate _gate = new("write");
+    /// object cannot answer.
+    ///
+    /// <para>Its last step inside each hold counts the import queue again when the hold changed it (see
+    /// <see cref="TallyQueue"/>). Set in the constructor, because that step is an instance method.</para>
+    /// </summary>
+    private readonly Gate _gate;
 
     /// <summary>Serialises the reading connection. Never taken while <see cref="_gate"/> is held, and
     /// never the other way round: nothing here needs both, and taking both is how two locks become a
@@ -772,6 +776,7 @@ public sealed partial class LibraryDatabase : IDisposable
     /// <summary>Opens (creating if needed) the mirror at <paramref name="location"/>.</summary>
     public LibraryDatabase(MirrorLocation location)
     {
+        _gate = new Gate("write", lastInside: TallyQueue);
         Root = location.Root;
         DatabasePath = location.DatabasePath;
         var path = DatabasePath;
