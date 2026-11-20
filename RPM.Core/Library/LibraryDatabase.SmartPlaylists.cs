@@ -284,8 +284,9 @@ public sealed partial class LibraryDatabase
             LikedByKind(),
             // What the sound pass heard, and the words and styles the other lists are found by. The date
             // is read once, here, so a session that runs past New Year's Day keeps its New Year's Eve list
-            // until the next launch, as every list keeps its cut.
-            Hearing(counts, facts, DateTime.Now));
+            // until the next launch, as every list keeps its cut. It is the date on the listener's clock
+            // (see ListenFrom), which is not always this machine's.
+            Hearing(counts, facts, ListenerLocal(DateTime.UtcNow.Ticks)));
     }
 
     /// <summary>
@@ -986,10 +987,11 @@ public sealed partial class LibraryDatabase
             {
                 ArgumentNullException.ThrowIfNull(db);
 
-                // The local hour, taken from the clock this rule was given, not from DateTime.Now. A rule that
-                // answers differently on two calls in the same second cannot be tested, and QuerySmartPlaylist
-                // already follows this rule. The log's own hours are local too (listen.local_hour), so the two agree.
-                var hour = new DateTime(nowUtcTicks, DateTimeKind.Utc).ToLocalTime().Hour;
+                // The listener's hour, taken from the clock this rule was given, not from DateTime.Now. A rule
+                // that answers differently on two calls in the same second cannot be tested, and
+                // QuerySmartPlaylist already follows this rule. The zone is the listener's (see ListenFrom), and
+                // the log's own hours are on the listener's clock too (listen.local_hour), so the two agree.
+                var hour = db.ListenerLocal(nowUtcTicks).Hour;
 
                 // The same genre table the profile was built from. This and the weights then cannot disagree about
                 // what kind of music a record is.

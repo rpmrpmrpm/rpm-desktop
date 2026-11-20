@@ -30,6 +30,10 @@ internal sealed class SessionCut<T> where T : class
     /// <summary>The build under way, or null. It is set and cleared under the lock.</summary>
     private Flight? _flight;
 
+    /// <summary>Whether a build has finished or is under way. Read it under the same lock that is passed
+    /// to <see cref="Get"/>.</summary>
+    public bool Started => _value is not null || _flight is not null;
+
     /// <summary>The value, built by this thread if nobody has built it and nobody is building it.</summary>
     /// <param name="cuts">The lock that guards the fields. It is held only for a moment, never across
     /// <paramref name="build"/>.</param>
