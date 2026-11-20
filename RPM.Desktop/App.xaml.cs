@@ -1243,86 +1243,9 @@ public partial class App : Application
         // window. The player now lives in this window, so closing the window also ends the player.
         MainWindow.Closed += (_, _) =>
         {
-            // This run has begun to end normally. A crash after this point is still reported, except a
-            // Windows fail-fast. That is the known crash on close. See RPM.Core.Crashes.CrashHarvest.
-            RPM.Core.Diagnostics.Scope.Closing();
-
-            // The splash, if the app was closed during its own start-up. It is a window of its own.
-            // Otherwise it would be the last window left, with nothing behind it to close it.
-            try { Presentation.Startup.SplashWindow.Close(); } catch { }
-
-            // The opening sound is also stopped. It runs as a child process, and it would otherwise keep
-            // playing after the window has gone.
-            try { AppSound.Silence(); } catch { }
-            try { SetupLoop.Silence(); } catch { }
-
-#if DEBUG
-            try { Presentation.Gallery.GalleryWindow.Close(); } catch { }
-            try { Presentation.Dev.GenrePlacerWindow.Close(); } catch { }
-#endif
-#if DEBUG && RPM_SKIA
-            try { Presentation.MixLab.MixLabWindow.Close(); } catch { }
-#endif
-            // The window's own size and place are read while the window still exists. Then the whole
-            // session note is written down. Writes are combined while the app runs. So the last second of a
-            // session, which says where the window was left, would otherwise still be only in memory when
-            // the window goes.
-            try
-            {
-                var session = Host?.Services.GetRequiredService<SessionService>();
-                if (session is not null && MainWindow is { } window)
-                {
-                    WindowPlacement.Remember(window, session);
-                    session.Flush();
-                }
-            }
-            catch { }
-            // The last few plays of the session are sent on the way out. This is fire and forget. The
-            // window is going, and nothing may wait for it. So this is the batch that most often does not
-            // get sent. A counter that nobody waits on can afford that. See PlayReportService.
-            try { _ = Host?.Services.GetService<PlayReportService>()?.SendAsync(); } catch { }
-            // The radio station that is still on is closed before the player is stopped. A session of radio
-            // counts as one listen. The sampler that would settle it gets no more ticks after this point.
-            try { Host?.Services.GetRequiredService<RadioCounter>().Close(); } catch { }
-            // A version that was fetched but not installed is applied now, on the way out. The updater is
-            // started. It waits for this process to end, and then swaps the app over without starting it
-            // again. The user sees the new version the next time they open RPM, as the window that offered
-            // it said would happen. Nothing is downloaded here, because the update is already on disk. A
-            // copy with nothing staged does nothing at all.
-            try { Host?.Services.GetRequiredService<Services.Updates.AppUpdates>().Apply(restart: false); } catch { }
-            try { Host?.Services.GetRequiredService<RPaMpService>().Shutdown(); } catch { }
-            try { Host?.Services.GetRequiredService<PlaybackService>().Stop(); } catch { }
-            // This stops the passes that hold the library (the cloud sync run and the cloud mirror) and waits
-            // for them, for a few seconds at most, before it closes the library. See LibraryService.StopBeforeClose.
-            try { Host?.Services.GetRequiredService<LibraryService>().Dispose(); } catch { }
-
-            // The services are disposed here, which is what shuts down the native libraries that they hold.
-            //
-            // Four of them cache an ONNX InferenceSession for the life of the process: the saliency net,
-            // the face detector, the key model and the beat model. Each one already implements IDisposable
-            // and disposes its session. But nothing called them. They are container singletons. The
-            // container only disposes them when the host is disposed, and nothing did that. So
-            // onnxruntime.dll reached DLL_PROCESS_DETACH with live sessions still in it.
-            //
-            // Without the calls below, every close of the app ended in abort(): 0xc0000409,
-            // FAST_FAIL_FATAL_APP_EXIT, raised inside ucrtbase on the MAIN thread, with no managed frames.
-            // This happened after "process exit" had already been marked.
-            //
-            // The services are disposed ONE AT A TIME, and not by disposing the container that holds them.
-            // Disposing the whole host does stop the abort. But it replaces it with a different crash: a
-            // stowed exception with 0xc000027b, which is what this app fails with when something fails
-            // inside XAML. See the note on Platforms/Windows/Program.cs. The container also holds services
-            // that are part of the interface. Disposing those while the window is still closing would add a
-            // second fault. The three services named below hold a native model, and nothing else that XAML
-            // can be in the middle of.
-            try { Host?.Services.GetRequiredService<Services.Art.SaliencyService>().Dispose(); } catch { }
-            try { Host?.Services.GetRequiredService<Services.Art.FaceService>().Dispose(); } catch { }
-            try { Host?.Services.GetRequiredService<Services.Audio.TrackAnalysisService>().Dispose(); } catch { }
-
-            // The player is the other native library in this process. Its engine holds an OpenAL device and
-            // a context (soft_oal.dll, through OpenAlSink). Stop above only stops the audio.
-            // PlaybackService.Dispose is what closes them.
-            try { Host?.Services.GetRequiredService<PlaybackService>().Dispose(); } catch { }
+            // Everything that has to happen before the process ends. A quit on the Mac runs it too (see
+            // EndRun), so nothing here may depend on the window still being shown.
+            EndRun();
 
             // Then the app is asked to exit, because closing the window does not always end the process.
             //
@@ -1336,8 +1259,8 @@ public partial class App : Application
             // keeps running the housekeeping sweeps against the same library file. So restarts stack up,
             // and each new launch is slower than the last.
             //
-            // This is logged after the cleanup above, and not instead of it. The session, the placement and
-            // the player have already been written down by the time this runs.
+            // This runs after EndRun, and not instead of it. The session, the placement and the player have
+            // already been written down by the time this runs.
             //
             // A restart starts the next copy here, after the library is closed, so the new one never finds
             // the database held by the old one. See Restart.
@@ -1345,6 +1268,119 @@ public partial class App : Application
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(self) { UseShellExecute = false }); } catch { }
             try { Exit(); } catch { }
         };
+
+        // Cmd+Q and the Dock menu's Quit on the Mac, which never raise Closed. See EndRun.
+        RPM.Desktop.Services.Platform.MacQuit.Then(EndRun);
+    }
+
+    /// <summary>Whether <see cref="EndRun"/> has run. It runs once, whichever way out asks first.</summary>
+    private static int _runEnded;
+
+    /// <summary>
+    /// The work that has to be done before the process ends: the session written down, the player stopped,
+    /// a staged update handed over, and the library closed after the passes that hold it have stopped.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Two ways in.</b> The main window's <c>Closed</c> event, which is the close button on every
+    /// system. And on macOS, Cmd+Q and the Dock menu's Quit, which go through AppKit's terminate and never
+    /// close the window. <c>AppDomain.ProcessExit</c> does not run on the macOS Skia head either, so without
+    /// the second way in none of this ran when a Mac user quit the usual way: a downloaded update was not
+    /// installed, the last second of the session and of the equaliser was lost, and the library was left
+    /// open. <see cref="Services.Platform.MacQuit"/> calls this from AppKit's terminate notification, on the
+    /// main thread, before the process ends.</para>
+    ///
+    /// <para><b>Once.</b> The close button reaches both ways in: <c>Closed</c> runs this and then asks the
+    /// app to exit, which terminates through AppKit on the Mac. The second call returns at once.</para>
+    /// </remarks>
+    private void EndRun()
+    {
+        if (Interlocked.Exchange(ref _runEnded, 1) == 1)
+            return;
+
+        // This run has begun to end normally. A crash after this point is still reported, except a
+        // Windows fail-fast. That is the known crash on close. See RPM.Core.Crashes.CrashHarvest.
+        RPM.Core.Diagnostics.Scope.Closing();
+
+        // The splash, if the app was closed during its own start-up. It is a window of its own.
+        // Otherwise it would be the last window left, with nothing behind it to close it.
+        try { Presentation.Startup.SplashWindow.Close(); } catch { }
+
+        // The opening sound is also stopped. It runs as a child process, and it would otherwise keep
+        // playing after the window has gone.
+        try { AppSound.Silence(); } catch { }
+        try { SetupLoop.Silence(); } catch { }
+
+#if DEBUG
+        try { Presentation.Gallery.GalleryWindow.Close(); } catch { }
+        try { Presentation.Dev.GenrePlacerWindow.Close(); } catch { }
+#endif
+#if DEBUG && RPM_SKIA
+        try { Presentation.MixLab.MixLabWindow.Close(); } catch { }
+#endif
+        // The window's own size and place are read while the window still exists. Then the whole
+        // session note is written down. Writes are combined while the app runs. So the last second of a
+        // session, which says where the window was left, would otherwise still be only in memory when
+        // the window goes.
+        try
+        {
+            var session = Host?.Services.GetRequiredService<SessionService>();
+            if (session is not null && MainWindow is { } window)
+            {
+                WindowPlacement.Remember(window, session);
+                session.Flush();
+            }
+        }
+        catch { }
+        // The last few plays of the session are sent on the way out. This is fire and forget. The
+        // window is going, and nothing may wait for it. So this is the batch that most often does not
+        // get sent. A counter that nobody waits on can afford that. See PlayReportService.
+        try { _ = Host?.Services.GetService<PlayReportService>()?.SendAsync(); } catch { }
+        // The radio station that is still on is closed before the player is stopped. A session of radio
+        // counts as one listen. The sampler that would settle it gets no more ticks after this point.
+        try { Host?.Services.GetRequiredService<RadioCounter>().Close(); } catch { }
+        // A version that was fetched but not installed is applied now, on the way out. The updater is
+        // started. It waits for this process to end, and then swaps the app over without starting it
+        // again. The user sees the new version the next time they open RPM, as the window that offered
+        // it said would happen. Nothing is downloaded here, because the update is already on disk. A
+        // copy with nothing staged does nothing at all.
+        try { Host?.Services.GetRequiredService<Services.Updates.AppUpdates>().Apply(restart: false); } catch { }
+        try { Host?.Services.GetRequiredService<RPaMpService>().Shutdown(); } catch { }
+        try { Host?.Services.GetRequiredService<PlaybackService>().Stop(); } catch { }
+        // This stops the passes that hold the library (the cloud sync run and the cloud mirror) and waits
+        // for them, for a few seconds at most, before it closes the library. See LibraryService.StopBeforeClose.
+        try { Host?.Services.GetRequiredService<LibraryService>().Dispose(); } catch { }
+
+        // The services are disposed here, which is what shuts down the native libraries that they hold.
+        //
+        // Four of them cache an ONNX InferenceSession for the life of the process: the saliency net,
+        // the face detector, the key model and the beat model. Each one already implements IDisposable
+        // and disposes its session. But nothing called them. They are container singletons. The
+        // container only disposes them when the host is disposed, and nothing did that. So
+        // onnxruntime.dll reached DLL_PROCESS_DETACH with live sessions still in it.
+        //
+        // Without the calls below, every close of the app ended in abort(): 0xc0000409,
+        // FAST_FAIL_FATAL_APP_EXIT, raised inside ucrtbase on the MAIN thread, with no managed frames.
+        // This happened after "process exit" had already been marked.
+        //
+        // The services are disposed ONE AT A TIME, and not by disposing the container that holds them.
+        // Disposing the whole host does stop the abort. But it replaces it with a different crash: a
+        // stowed exception with 0xc000027b, which is what this app fails with when something fails
+        // inside XAML. See the note on Platforms/Windows/Program.cs. The container also holds services
+        // that are part of the interface. Disposing those while the window is still closing would add a
+        // second fault. The three services named below hold a native model, and nothing else that XAML
+        // can be in the middle of.
+        try { Host?.Services.GetRequiredService<Services.Art.SaliencyService>().Dispose(); } catch { }
+        try { Host?.Services.GetRequiredService<Services.Art.FaceService>().Dispose(); } catch { }
+        try { Host?.Services.GetRequiredService<Services.Audio.TrackAnalysisService>().Dispose(); } catch { }
+
+        // The player is the other native library in this process. Its engine holds an OpenAL device and
+        // a context (soft_oal.dll, through OpenAlSink). Stop above only stops the audio.
+        // PlaybackService.Dispose is what closes them.
+        try { Host?.Services.GetRequiredService<PlaybackService>().Dispose(); } catch { }
+
+        // The equaliser saves a curve 600 ms after the last change, on a timer. It listens for ProcessExit
+        // for a quit inside that time, which never comes on the Mac.
+        try { Host?.Services.GetService<EqService>()?.Flush(); } catch { }
     }
 
     private static bool _restartAfterClose;
