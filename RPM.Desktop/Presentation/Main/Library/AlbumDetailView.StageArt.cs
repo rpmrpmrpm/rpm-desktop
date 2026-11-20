@@ -8,9 +8,105 @@ namespace RPM.Desktop.Presentation.Main.Library;
 /// The three pictures on the sleeve stage: the sleeve, the disc scan, and the pressing behind them.
 /// Each one is cut to the exact size it is drawn at, using the smooth bicubic filter, and cut again
 /// when that size changes. See <see cref="RemoteImage.DecodeArtAsync"/> for how a cut is made.
+///
+/// <para>The stage comes in as two pieces, each faded as a whole: what the sleeve's box holds (the picture
+/// or the made sleeve, see <see cref="SleeveFade"/>) and the disc behind it (<see cref="DiscFade"/>). Each is
+/// written in full while it is out of sight, so the reader never sees a picture swapped, a black
+/// pressing turn to a colour, or a made sleeve stand in for a moment before the real one.</para>
 /// </summary>
 public sealed partial class AlbumDetailView
 {
+    private ChromeFade? _sleeveFade;
+
+    /// <summary>What the sleeve's box holds: the picture, or the made sleeve where there is none. The group
+    /// is faded and not the picture, so whichever of the two arrives comes in the same way. The dark square
+    /// under it is not in the group, and stands on the stage while the sleeve is read.</summary>
+    private ChromeFade SleeveFade => _sleeveFade ??= new ChromeFade(CoverFace);
+
+    private ChromeFade? _discFade;
+
+    /// <summary>The disc behind the sleeve, all of its layers together: the pressing, the scan and the
+    /// CD's rim. Their own opacities say which of them is the record. This fade says whether the record
+    /// is in.</summary>
+    private ChromeFade DiscFade => _discFade ??= new ChromeFade(CoverDiscClip);
+
+    /// <summary>
+    /// One opening of the stage, made by every <see cref="LoadCover"/>: what the sleeve read found, and
+    /// whether the sleeve is on the page yet. The disc waits on both, for two reasons. It is pressed in the
+    /// sleeve's colour, so it waits for the sleeve's bytes rather than showing black and turning colour
+    /// later. And it stands behind the sleeve, so it comes in after it rather than alone.
+    ///
+    /// <para><b>Every path completes it.</b> The sleeve fills call <see cref="SleeveLands"/> in a
+    /// <c>finally</c>, which completes both signals whatever happened: a picture, no picture, an error, or
+    /// a reader who has moved on. A disc can therefore never wait on an opening that is over. An opening
+    /// that is out of date completes too, and the disc then finds the stamp moved on and touches
+    /// nothing.</para>
+    /// </summary>
+    /// <param name="Paint">The <see cref="_paint"/> this opening was made with.</param>
+    /// <param name="Folder">The record it is for.</param>
+    /// <param name="Fresh">Whether this is a new record rather than a re-read of the one on the page. A
+    /// re-read that finds no picture leaves the sleeve that is up, because it is this record's.</param>
+    private sealed class StageOpening(int paint, string folder, bool fresh)
+    {
+        private readonly TaskCompletionSource<byte[]?> _sleeve =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly TaskCompletionSource _landed =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Paint { get; } = paint;
+
+        public string Folder { get; } = folder;
+
+        public bool Fresh { get; } = fresh;
+
+        /// <summary>Whether a picture was put in the sleeve's box by this opening.</summary>
+        public bool Pictured { get; set; }
+
+        /// <summary>The sleeve's bytes, or null where there is no sleeve or it could not be read.</summary>
+        public Task<byte[]?> Sleeve => _sleeve.Task;
+
+        /// <summary>Completes once the sleeve's box has been dressed and is coming in.</summary>
+        public Task Landed => _landed.Task;
+
+        public void Read(byte[]? bytes) => _sleeve.TrySetResult(bytes);
+
+        public void Land()
+        {
+            _sleeve.TrySetResult(null);
+            _landed.TrySetResult();
+        }
+    }
+
+    /// <summary>Whether <paramref name="opening"/> is still the one the page is on.</summary>
+    private bool Current(StageOpening opening) => opening.Paint == _paint;
+
+    /// <summary>
+    /// Brings in what the sleeve's box holds, dressed in whatever the opening found, and completes the
+    /// opening. Every sleeve path ends here, in a <c>finally</c>.
+    ///
+    /// <para>A fresh record with no picture loses the last record's picture here, and shows the made
+    /// sleeve where <paramref name="made"/> says the record has no artwork. A sleeve that could not be read
+    /// from this disk is not that, and leaves the dark square empty, as it always has. A re-read leaves the
+    /// box as it is.</para>
+    /// </summary>
+    private void SleeveLands(StageOpening opening, bool made)
+    {
+        if (Current(opening))
+        {
+            if (!opening.Pictured && opening.Fresh)
+            {
+                Cover.Source = null;
+                ForgetStage(StagePicture.Sleeve);
+                ShowMadeSleeve(made);
+            }
+
+            SleeveFade.To(1, Seen(GroundFadeMs));
+        }
+
+        opening.Land();
+    }
+
     /// <summary>One picture as it is on screen: the record it belongs to, the bytes it was cut from,
     /// and the pixel edge it was cut at. The bytes are kept so the picture can be cut again at a new
     /// size. The edge lets a cut that finishes late check whether it is still the picture on

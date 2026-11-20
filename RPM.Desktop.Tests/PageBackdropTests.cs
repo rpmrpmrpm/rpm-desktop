@@ -129,6 +129,49 @@ public class PageBackdropTests
         Assert.Null(PageBackdrop.Showing);
     }
 
+    /// <summary>
+    /// "On screen" needs both facts. The shell names the album page whenever the Albums tab is up, also
+    /// while the reader is on the wall with no record open. A page asked to open a record from there is
+    /// not on screen, so it clears the last record's layers at once instead of fading them out while it
+    /// comes up.
+    /// </summary>
+    [Fact]
+    public void A_page_named_by_its_tab_but_not_open_is_not_on_screen()
+    {
+        Bare();
+        PageBackdrop.Reading(AlbumPage);
+
+        Assert.False(PageBackdrop.IsShowing(AlbumPage));
+    }
+
+    /// <summary>An open page that the reader is looking at is on screen, also before it is dressed. A
+    /// record changed in place (a suggestion pressed on the page) fades the old record out.</summary>
+    [Fact]
+    public void An_open_page_being_read_is_on_screen_dressed_or_not()
+    {
+        Bare();
+        PageBackdrop.Opened(AlbumPage, null);
+        PageBackdrop.Reading(AlbumPage);
+        Assert.True(PageBackdrop.IsShowing(AlbumPage));
+
+        PageBackdrop.Opened(AlbumPage, Sleeve(0.3));
+        Assert.True(PageBackdrop.IsShowing(AlbumPage));
+    }
+
+    /// <summary>An artist with a record opened over them is open, but not on screen. Only the page being
+    /// read is.</summary>
+    [Fact]
+    public void A_page_under_another_page_is_not_on_screen()
+    {
+        Bare();
+        PageBackdrop.Opened(ArtistPage, Sleeve(0.0));
+        PageBackdrop.Opened(AlbumPage, Sleeve(0.4));
+        PageBackdrop.Reading(AlbumPage);
+
+        Assert.True(PageBackdrop.IsShowing(AlbumPage));
+        Assert.False(PageBackdrop.IsShowing(ArtistPage));
+    }
+
     [Fact]
     public void A_write_that_changes_nothing_tells_nobody()
     {

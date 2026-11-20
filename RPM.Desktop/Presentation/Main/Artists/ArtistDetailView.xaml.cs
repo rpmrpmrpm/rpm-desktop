@@ -261,6 +261,9 @@ public sealed partial class ArtistDetailView : UserControl
     {
         InitializeComponent();
 
+        // The band's still base, the colour the band has before anything is read. See HeroBase in the markup.
+        HeroBase.Fill = Unlit;
+
         _tracks = new ArtistSongListing(
             App.Services.GetRequiredService<SettingsService>().ArtistTrackGrouping,
             Loc.Get("AlbumGroup_NoYear"));
@@ -304,6 +307,10 @@ public sealed partial class ArtistDetailView : UserControl
             _groundFade?.Stop();
             foreach (var shelf in Shelves)
                 shelf.Unfold.Stop();
+            _heroFade?.Land();
+            _backFade?.Land();
+            _logoFade?.Land();
+            _nameFade?.Land();
         };
     }
 
@@ -324,8 +331,10 @@ public sealed partial class ArtistDetailView : UserControl
         // while the new one loads, the page would be titled with another artist's name.
         ArtistName.Text = artist.Name;
         ArtistName.Visibility = Visibility.Visible;
+        NameFade.Set(1);
         ArtistLogo.Visibility = Visibility.Collapsed;
         ArtistLogo.Source = null;
+        LogoFade.Set(0);
 
         // How much of the artist is in the collection. The card is hidden for an artist with nothing in
         // the collection (this cannot happen from the wall, but can happen from a link), because an
@@ -408,6 +417,11 @@ public sealed partial class ArtistDetailView : UserControl
         _aboutGrowth = null;
         AboutPage.Height = double.NaN;
 
+        // The band and the page's ground start out of sight, and come in together once the band has been read
+        // (see BandLands). They are set, not faded: the layers under them are emptied in this same turn, so a
+        // fade out would show nothing leaving.
+        HeroFade.Set(0);
+        BackFade.Set(0);
         Portrait.Visibility = Visibility.Collapsed;
         PutPortrait(picture: null, runOff: null);
         PortraitGround.Fill = Unlit;
@@ -607,17 +621,66 @@ public sealed partial class ArtistDetailView : UserControl
         if (ct.IsCancellationRequested)
             return;
 
-        // The colour of the page, from whichever of the two the artist has. The gradient is the one of
-        // the wall, generated from their name, so the page that a box opens into is that box made wider.
-        Dress(face.Sleeve ?? face.Tint, artist.Name);
-
         // With no photograph, the band has the colour of the first record of the artist, made in the
         // same way as their box on the wall. The same name gives the same result, so the box that the
-        // reader pressed opens into a wider version of itself.
+        // reader pressed opens into a wider version of itself. The page takes the same colour.
         if (face.Sleeve is { } sleeve)
         {
             PortraitGround.Fill = ArtistGround.From(sleeve, artist.Name) ?? Unlit;
+            Dress(sleeve, artist.Name);
+            BandLands();
             return;
+        }
+
+        // Everything is read before anything is shown: the blurred copy for the page and the photograph
+        // for the band. They are then put on in one turn and come in together. Shown as each one landed,
+        // the page would be seen being assembled: a colour, then a picture behind the text, then a
+        // photograph in the band, each in a frame of its own.
+        //
+        // Each read is only decoration. One that fails leaves its layer empty and the others still come
+        // in. A cancelled read is the reader on another artist, and nothing is written.
+        ImageSource? wash = null;
+        if (face.Wash is { Length: > 0 } blurred)
+        {
+            try
+            {
+                wash = await RemoteImage.DecodeAsync(blurred);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                wash = null;
+            }
+
+            if (ct.IsCancellationRequested)
+                return;
+        }
+
+        // Choice of picture: the banner first, which only a generated figure has, because it is drawn
+        // to the shape of this band and not to the shape of a box. Then the picture in its own colours.
+        // The grey copy of the wall is used only if nothing else exists. The conversion to grey can fail
+        // on a picture that decodes correctly, and a grey photograph is better than an empty band.
+        Microsoft.UI.Xaml.Media.Imaging.BitmapImage? photo = null;
+        double? runOff = null;
+        if ((face.Banner ?? face.Original ?? face.Picture) is { Length: > 0 } picture)
+        {
+            try
+            {
+                // A wide photo is drawn at the width of the band with its reflection under it (see RunOff).
+                // Only photos: a banner is a drawing made to the shape of the band.
+                var baked = face.Banner is null ? await RunOff.BakeAsync(picture, ct) : null;
+                if (ct.IsCancellationRequested)
+                    return;
+
+                photo = await RemoteImage.DecodeAsync(baked?.Canvas ?? picture);
+                runOff = baked?.Aspect;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                photo = null;
+            }
+
+            if (ct.IsCancellationRequested)
+                return;
         }
 
         // The artist's colour over the photograph, as on their box on the wall. It comes from the
@@ -625,36 +688,54 @@ public sealed partial class ArtistDetailView : UserControl
         // steps, so they cannot show two colours for one artist.
         PortraitVeil.Fill = face.Tint is { } colour ? ArtistVeil.Page(RpmPalette.Nearest(colour)) : null;
 
-        // The blurred copy behind the whole panel comes before the sharp one in the band. It is the
-        // background of the page, and drawing the background after the foreground would show the page
-        // being assembled.
-        if (face.Wash is { Length: > 0 } blurred)
+        PageWashArt.ImageSource = wash;
+        PageWash.Visibility = wash is null ? Visibility.Collapsed : Visibility.Visible;
+
+        // The colour of the page. The gradient is the one of the wall, generated from their name, so the
+        // page that a box opens into is that box made wider. Dress also lends the finished ground to the
+        // window, once, with the wash already in it.
+        Dress(face.Tint, artist.Name);
+
+        if (photo is not null)
+            Show(photo, runOff);
+
+        BandLands();
+    }
+
+    /// <summary>How long the band and the page's ground take to come in. It matches the window's own fade
+    /// (ShellGround.CrossFadeMs), so the page and the window behind it change together.</summary>
+    private const int BandFadeMs = 260;
+
+    private Common.Dissolve? _heroFade;
+
+    /// <summary>The band's group: the colour under the photograph, the photograph and the veil over it.
+    /// See HeroArrival in the markup.</summary>
+    private Common.Dissolve HeroFade => _heroFade ??= new Common.Dissolve(HeroArrival, "artist-band");
+
+    private Common.Dissolve? _backFade;
+
+    /// <summary>The page's ground: the colour, the blurred photograph and the weight over them. See PageBack
+    /// in the markup.</summary>
+    private Common.Dissolve BackFade => _backFade ??= new Common.Dissolve(PageBack, "artist-band");
+
+    /// <summary>
+    /// Brings the band and the page's ground in, together, with everything the band read already on them.
+    ///
+    /// <para>Faded where the reader is looking at the page. Set at once where they are not yet: the page
+    /// itself is fading in then, and that fade carries them. See <see cref="PageBackdrop.IsShowing"/>.</para>
+    /// </summary>
+    private void BandLands()
+    {
+        if (!PageBackdrop.IsShowing(this))
         {
-            PageWashArt.ImageSource = await RemoteImage.DecodeAsync(blurred);
-            if (ct.IsCancellationRequested)
-                return;
-            PageWash.Visibility = Visibility.Visible;
-            Weigh();
+            HeroFade.Set(1);
+            BackFade.Set(1);
+            return;
         }
 
-        // Choice of picture: the banner first, which only a generated figure has, because it is drawn
-        // to the shape of this band and not to the shape of a box. Then the picture in its own colours.
-        // The grey copy of the wall is used only if nothing else exists. The conversion to grey can fail
-        // on a picture that decodes correctly, and a grey photograph is better than an empty band.
-        if ((face.Banner ?? face.Original ?? face.Picture) is not { Length: > 0 } picture)
-            return;
-
-        // A wide photo is drawn at the width of the band with its reflection under it (see RunOff). Only
-        // photos: a banner is a drawing made to the shape of the band.
-        var baked = face.Banner is null ? await RunOff.BakeAsync(picture, ct) : null;
-        if (ct.IsCancellationRequested)
-            return;
-
-        var first = await RemoteImage.DecodeAsync(baked?.Canvas ?? picture);
-        if (ct.IsCancellationRequested)
-            return;
-
-        Show(first, baked?.Aspect);
+        var over = TimeSpan.FromMilliseconds(BandFadeMs);
+        HeroFade.To(1, over);
+        BackFade.To(1, over);
     }
 
     // ── the title over the band ──
@@ -668,6 +749,12 @@ public sealed partial class ArtistDetailView : UserControl
     /// value. A mark can be limited by either bound, and scaling both changes every mark by the same
     /// factor. The written name is not scaled with them.</para></summary>
     private const double LogoCap = 60;
+
+    private Common.Dissolve? _logoFade;
+    private Common.Dissolve LogoFade => _logoFade ??= new Common.Dissolve(ArtistLogo, "artist-band");
+
+    private Common.Dissolve? _nameFade;
+    private Common.Dissolve NameFade => _nameFade ??= new Common.Dissolve(ArtistName, "artist-band");
 
     /// <summary>
     /// The artist's own logo over the band, in place of their name, where a catalogue has one.
@@ -740,9 +827,29 @@ public sealed partial class ArtistDetailView : UserControl
             ArtistLogo.Source = mark;
             ArtistLogo.Visibility = Visibility.Visible;
 
-            // Exactly one of the two is shown. The name is not only covered: it is two lines of 28-point
-            // bold, and if it stayed under a mark it would set the height of the row.
-            ArtistName.Visibility = Visibility.Collapsed;
+            // Exactly one of the two is left. The name is not only covered: it is two lines of 28-point
+            // bold, and if it stayed under a mark it would set the height of the row. Where the reader is
+            // looking, the two cross over, and the name is collapsed once it has faded out. A logo usually
+            // arrives seconds after the page has opened, and swapped in one frame it is seen as a jump.
+            if (!PageBackdrop.IsShowing(this))
+            {
+                LogoFade.Set(1);
+                NameFade.Set(0);
+                ArtistName.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                var over = TimeSpan.FromMilliseconds(BandFadeMs);
+                LogoFade.To(1, over);
+
+                // Load sets the name back with Set, which drops this completion, and it cancels the token.
+                // Either one keeps a fade for the last artist from collapsing this artist's name.
+                NameFade.To(0, over, () =>
+                {
+                    if (!ct.IsCancellationRequested)
+                        ArtistName.Visibility = Visibility.Collapsed;
+                });
+            }
 
             // The page still gives the name to anything that cannot see a picture.
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ArtistLogo, artist.Name);
@@ -759,8 +866,9 @@ public sealed partial class ArtistDetailView : UserControl
 
     // ── the artist's photograph ──
 
-    /// <summary>Puts the picture in the band. It arrives without a fade: there is nothing under it to
-    /// fade from, and a page that faded in its own photograph would show itself being assembled.</summary>
+    /// <summary>Puts the picture in the band. The picture itself is not faded. The band's whole group
+    /// comes in with it (see <see cref="BandLands"/>), so the photograph, its veil and the page's ground
+    /// arrive as one.</summary>
     /// <param name="runOff">The aspect of the photo when <paramref name="picture"/> is a
     /// <see cref="RunOff"/> canvas, and null for a picture that fills the band. It is required, because
     /// the depth of the foot dissolve depends on it.</param>

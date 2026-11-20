@@ -65,14 +65,21 @@ public static class PageBackdrop
     /// second that its sleeve takes to come off the disk. In that case the backdrop must NOT come back.
     /// Otherwise a reader going from a record to an artist would see the wallpaper flash between them.</para>
     ///
-    /// <para>The page is handed back with its ground, because two changes that look alike here look nothing
-    /// alike to the code that paints. When one page fills itself in, for example a photograph lands a moment
-    /// after the colour it was read with, the same surface is becoming itself. That change is written
-    /// straight through, the same way the page writes its own layers. A different page is a different room.
-    /// The window must move to it, not cut to it.</para>
+    /// <para>The page is handed back with its ground. The window fades to every new ground, and it keeps the
+    /// page as the ground's owner (see <c>ShellGround.Show</c>).</para>
+    ///
+    /// <para>This is also the answer to "is this page on screen": a page is on screen when it is the one
+    /// handed back here. The shell names the detail page of the tab that is up even when that page is
+    /// closed, so <see cref="ReadingPage"/> alone cannot answer it.</para>
     /// </summary>
     public static (object Page, Ground? Ground)? Showing =>
         _reading is { } page && Open.TryGetValue(page, out var ground) ? (page, ground) : null;
+
+    /// <summary>Whether <paramref name="page"/> is open and is the page the reader is looking at. A page
+    /// asks this before it changes its own layers: a change the reader can see is faded, and a change to
+    /// a page that is not on screen is made at once. A fade there would still be running when the page
+    /// comes up, and the reader would see the last record or artist leave.</summary>
+    public static bool IsShowing(object page) => Showing is { } shown && ReferenceEquals(shown.Page, page);
 
     /// <summary>Raised when the answer above changes. Nothing is reported unless it changes the answer. For
     /// example, a page that redresses itself off screen is not news to the window.</summary>

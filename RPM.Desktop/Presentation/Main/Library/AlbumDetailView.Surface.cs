@@ -15,35 +15,45 @@ namespace RPM.Desktop.Presentation.Main.Library;
 /// record's colours only. Each hem is as deep as the scroll has left at its end. A record whose songs
 /// all fit shows neither.</para>
 ///
-/// <para><b>What arrives when.</b> Five things arrive here on their own schedules. The ground is the
-/// one they can collide over:</para>
+/// <para><b>What arrives when.</b> Six things arrive here on their own schedules. The ground and the
+/// stage in front of it are what they can collide over:</para>
 /// <list type="number">
-/// <item><b>Load</b> (the user, on the dispatcher) clears the ground and starts a cover read. It first
-/// increments <see cref="_paint"/>, which lets everything below drop out of date.</item>
-/// <item><b>The local sleeve</b> (worker: read, blur, average) arrives with a stamp. It is stale if the
-/// reader has opened another record since. The check uses the stamp, not the folder string, because the
-/// same folder opened twice is two paints, and the second paint's fade must not be cut short by the
-/// first.</item>
-/// <item><b>The borrowed sleeve</b> (network, <c>FillRemoteCoverAsync</c>) arrives the same way. It can
-/// arrive after the local read has already reported that there is no sleeve. Both use the stamp, so the
-/// last writer wins, and that is the record the reader asked for.</item>
-/// <item><b>The fades</b> (dispatcher timers inside <see cref="ChromeFade"/>) are the only code that
-/// writes opacity. So a peel and a rebuild cannot fight: the second call changes the target of the
-/// first.</item>
+/// <item><b>Load</b> (the user, on the dispatcher) starts a new <see cref="StageOpening"/> with a new
+/// <see cref="_paint"/>, which lets everything below drop out of date. A fresh record also takes the
+/// last record's sleeve, disc and ground down (<see cref="PeelStage"/>). A re-read of the same record
+/// leaves them up, and what it reads replaces them in place.</item>
+/// <item><b>The sleeve</b> (local: disk, then a cut and a blur on workers; borrowed: the network first)
+/// arrives with the opening's stamp. The cut and the ground are read side by side and put on the page
+/// in ONE turn, so the sleeve and the colours it gives the page come in together. The check uses the
+/// stamp, not the folder string, because the same folder opened twice is two paints.</item>
+/// <item><b>The disc</b> (disk scan, then the press in the sleeve's colour) waits for the sleeve's
+/// bytes, so it is pressed once in its final colour, and then for the sleeve to be on the page, so it
+/// never comes in before the sleeve it stands behind. See <see cref="StageOpening"/>.</item>
+/// <item><b>Close</b> moves the stamp on too, so a read still in the air lands nowhere.</item>
+/// <item><b>The fades</b> (<see cref="ChromeFade"/> on the render tick) are the only code that writes
+/// these layers' opacity. So a peel and an arrival cannot fight: the second call changes the target of
+/// the first.</item>
 /// <item><b>The tracklist's own scrolling and resizing</b> change nothing the above touches. They are
 /// listed because the hems and the ground share this file, not because they interact.</item>
 /// </list>
-/// <para>Verified by reading: (1) against (2) and (3) by the stamp, (2) against (3) by the stamp, (4)
-/// against everything by there being one writer. Not verified: what happens without a composition
-/// stack, under (5). <see cref="ScrollHem.Attach"/> returns null there, and the list keeps hard
-/// edges.</para>
+/// <para>Verified by reading: (1) against (2), (3) and (4) by the stamp, (2) against (3) by the
+/// opening's two signals, which every path completes (see <see cref="SleeveLands"/>), (5) against
+/// everything by there being one writer. Not verified: what happens without a composition stack, under
+/// (6). <see cref="ScrollHem.Attach"/> returns null there, and the list keeps hard edges.</para>
+///
+/// <para><b>Fade or set.</b> A change the reader can see is faded. A change to a page that is not on
+/// screen is made at once (see <see cref="PageBackdrop.IsShowing"/>). A page left behind keeps its layers
+/// while it fades out as a whole. If they were faded down on the next open, the reader would see the
+/// last record leave as the new one comes up.</para>
 /// </summary>
 public sealed partial class AlbumDetailView
 {
     // ══ The ground: the record's sleeve, blurred until it is only colour ══
 
-    /// <summary>The ground fades in with the sleeve it came from. It fades out faster when the page is
-    /// given another record, because the reader is not waiting on the exit.</summary>
+    /// <summary>How long the sleeve, the disc and the ground take to come in. It matches the window's own
+    /// fade (ShellGround.CrossFadeMs), so the page and the window behind it change together. They go out
+    /// faster when the page is given another record, because the reader is not waiting on the
+    /// exit.</summary>
     private const double GroundFadeMs = 260;
     private const double GroundPeelMs = 120;
 
@@ -57,16 +67,38 @@ public sealed partial class AlbumDetailView
     private ChromeFade? _washFade;
     private ChromeFade WashFade => _washFade ??= new ChromeFade(PageWash);
 
+    /// <summary>The fade for a change the reader can see, and none for a page that is not on screen. See
+    /// "Fade or set" in the map at the top of this file.</summary>
+    private double Seen(double ms) => PageBackdrop.IsShowing(this) ? ms : 0;
+
     /// <summary>
-    /// Takes the ground down and drops any sleeve still on its way to it. Called when a record is left,
-    /// so the colours of the album being closed are never the ground under the album being opened. On a
-    /// page opened fresh the layers are already at zero, so this does nothing visible.
+    /// Takes the last record's sleeve, disc and ground down, so the colours of the album being left are
+    /// never the ground under the album being opened. Called for a fresh record only. A re-read of the
+    /// same record keeps them up.
+    ///
+    /// <para>On a page that is not on screen, the layers are set to nothing at once and the pictures are
+    /// let go. On the page the reader is looking at, they fade out, and the next record's pictures
+    /// replace them when they land.</para>
     /// </summary>
-    private void PeelGround()
+    private void PeelStage()
     {
-        _paint++;
-        GroundFade.To(0, GroundPeelMs);
-        WashFade.To(0, GroundPeelMs);
+        var seen = PageBackdrop.IsShowing(this);
+        var ms = seen ? GroundPeelMs : 0;
+
+        GroundFade.To(0, ms);
+        WashFade.To(0, ms);
+        SleeveFade.To(0, ms);
+        DiscFade.To(0, ms);
+
+        if (!seen)
+        {
+            Cover.Source = null;
+            CoverDisc.Source = null;
+            CoverDiscScan.Source = null;
+            PageWashArt.ImageSource = null;
+            foreach (var which in StagePictures)
+                ForgetStage(which);
+        }
 
         // The window is also showing this record's colours (see PageBackdrop), and they are not the
         // next record's. Open it with nothing on, not closed: the page is still on screen, and saying
@@ -74,65 +106,75 @@ public sealed partial class AlbumDetailView
         PageBackdrop.Opened(this, null);
     }
 
+    /// <summary>The ground read from one sleeve, ready to put on the page: the three layers of
+    /// <see cref="SleeveGround"/>, with the colour as a brush and the blur decoded.</summary>
+    private sealed record GroundDress(Brush Colour, BitmapImage? Wash, double Veil);
+
     /// <summary>
-    /// Dresses the page in the record's sleeve: its mean colour as the ground, the sleeve blurred over
-    /// that, and a black veil over the blur that lowers the brightness.
+    /// Reads the record's ground from its sleeve: its mean colour as the ground, the sleeve blurred over
+    /// that, and a black veil over the blur that lowers the brightness. Null where the sleeve cannot be
+    /// decoded.
     ///
     /// <para>The three layers are read by <see cref="SleeveGround"/>, which is also what the wall's
     /// flip-down drawer stands on. The two surfaces show the same ground because they ask the same
     /// question in the same place.</para>
     ///
-    /// <para>If the sleeve cannot be decoded, the page keeps the card's own glass. That is a complete
-    /// surface, and it is what every record without a cover looks like.</para>
+    /// <para>Nothing is written to the page here. The caller puts the ground on together with the
+    /// sleeve (see <see cref="PutGround"/>), so the two come in on one beat.</para>
     /// </summary>
-    private async void ShowSleeveGroundAsync(byte[] sleeve)
+    private static async Task<GroundDress?> ReadGroundAsync(byte[] sleeve)
     {
-        var mine = ++_paint;
-
         try
         {
-            var read = await Task.Run(() => SleeveGround.Read(sleeve));
-
-            // The reader opened another record while this one was read from disk.
-            if (mine != _paint)
-                return;
-
-            if (read is null)
-                return;
-
-            var ground = new SolidColorBrush(read.Ground);
-            PageGround.Background = ground;
-            PageVeil.Opacity = read.Veil;
+            if (await Task.Run(() => SleeveGround.Read(sleeve)) is not { } read)
+                return null;
 
             BitmapImage? wash = null;
             if (read.Wash is { Length: > 0 } blurred)
             {
                 wash = new BitmapImage();
-                var stream = Presentation.Common.BitmapBytes.Stream(blurred);
-                await wash.SetSourceAsync(stream);
-
-                // Checked again after the decode: SetSourceAsync is a second dispatcher turn, and the
-                // reader can open another record during it.
-                if (mine != _paint)
-                    return;
-
-                PageWashArt.ImageSource = wash;
-                WashFade.To(SleeveGround.WashStrength, GroundFadeMs);
+                await wash.SetSourceAsync(Presentation.Common.BitmapBytes.Stream(blurred));
             }
 
-            GroundFade.To(1, GroundFadeMs);
-
-            // The same three layers, lent to the whole window. While this record's page is open and no
-            // artwork covers the app, the app stands on the page's sleeve. The brush and the decoded
-            // picture are passed on as they are, not read again, so there is one sleeve and two
-            // surfaces that show it.
-            PageBackdrop.Opened(this, new PageBackdrop.Ground(
-                ground, wash, wash is null ? 0 : SleeveGround.WashStrength, read.Veil, Weight: null));
+            return new GroundDress(new SolidColorBrush(read.Ground), wash, read.Veil);
         }
         catch
         {
-            // Only decoration here. The page keeps the card's own glass, and the record is not failed.
+            // Only decoration. The page keeps the card's own glass, and the record is not failed.
+            return null;
         }
+    }
+
+    /// <summary>
+    /// Puts a ground on the page and lends it to the window, or takes the ground down where the sleeve
+    /// gave none. Called in the same turn as the sleeve is put on the stage.
+    ///
+    /// <para>If the sleeve cannot be decoded, the page keeps the card's own glass. That is a complete
+    /// surface, and it is what every record without a cover looks like.</para>
+    /// </summary>
+    private void PutGround(GroundDress? ground)
+    {
+        if (ground is null)
+        {
+            GroundFade.To(0, Seen(GroundPeelMs));
+            WashFade.To(0, Seen(GroundPeelMs));
+            PageBackdrop.Opened(this, null);
+            return;
+        }
+
+        PageGround.Background = ground.Colour;
+        PageVeil.Opacity = ground.Veil;
+        PageWashArt.ImageSource = ground.Wash;
+
+        var strength = ground.Wash is null ? 0 : SleeveGround.WashStrength;
+        GroundFade.To(1, Seen(GroundFadeMs));
+        WashFade.To(strength, Seen(GroundFadeMs));
+
+        // The same three layers, lent to the whole window. While this record's page is open and no
+        // artwork covers the app, the app stands on the page's sleeve. The brush and the decoded picture
+        // are passed on as they are, not read again, so there is one sleeve and two surfaces that show it.
+        PageBackdrop.Opened(this, new PageBackdrop.Ground(
+            ground.Colour, ground.Wash, strength, ground.Veil, Weight: null));
     }
 
     // ══ the corner the page shares with the pane beside it ══

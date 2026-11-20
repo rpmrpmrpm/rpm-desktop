@@ -294,37 +294,43 @@
          It is not shown until the answer about the artist arrives, and never for an artist with no
          photograph and no sleeve to take a colour from. It stands in for the panel's surface and does not
          cover it. -->
-    <Rectangle x:Name="PageGround" Visibility="Collapsed"/>
+    <!-- The three layers of the page's ground, in one group so they come in together. The group is
+         faded in code (`BandLands`) once everything the band needs has been read, and set to nothing on
+         every `Load`. Each layer's own opacity is left alone: `Lend` reads the wash's strength off
+         `PageWash.Opacity`, and a value from the middle of a fade would be lent to the window. -->
+    <Grid x:Name="PageBack" Opacity="0">
+      <Rectangle x:Name="PageGround" Visibility="Collapsed"/>
 
-    <!-- The photograph as the page background. The artist's picture, blurred until it is no longer a
-         picture, fills the panel behind everything. What remains is the light and dark of the picture in
-         the artist's colour, which stops the area under the text from being a flat gradient.
+      <!-- The photograph as the page background. The artist's picture, blurred until it is no longer a
+           picture, fills the panel behind everything. What remains is the light and dark of the picture in
+           the artist's colour, which stops the area under the text from being a flat gradient.
 
-         It is a `Border` that uses the picture as its `Background`, and not an `Image`. A background is
-         painted inside the element's own bounds, so a wide photograph is cropped by the panel and cannot
-         paint outside it. An `Image` would rely on the control to clip its overflow. (Uno's Skia renderer
-         draws an `ImageBrush` as a background, but draws nothing for one used as a `Shape` fill. The
-         track pane's wash is built in the same way, see `PaneWash`.)
+           It is a `Border` that uses the picture as its `Background`, and not an `Image`. A background is
+           painted inside the element's own bounds, so a wide photograph is cropped by the panel and cannot
+           paint outside it. An `Image` would rely on the control to clip its overflow. (Uno's Skia renderer
+           draws an `ImageBrush` as a background, but draws nothing for one used as a `Shape` fill. The
+           track pane's wash is built in the same way, see `PaneWash`.)
 
-         The blur is done once, off the UI thread, when the picture is first fetched, and never here. A
-         composition blur runs on every frame while the page is shown and needs an effect pipeline that
-         some machines do not have. What is drawn here is an ordinary picture. See `ArtScaler.Wash`.
+           The blur is done once, off the UI thread, when the picture is first fetched, and never here. A
+           composition blur runs on every frame while the page is shown and needs an effect pipeline that
+           some machines do not have. What is drawn here is an ordinary picture. See `ArtScaler.Wash`.
 
-         This layer is under the weight layer. The black layer above it lowers the bright parts of the
-         picture, and the same guarantee that keeps the text white for every artist lets the picture be
-         strong enough to be seen. If it were over the weight, it would have to carry its own readability
-         and could only be used at very low opacity. -->
-    <Border x:Name="PageWash" Opacity="0.55" Visibility="Collapsed" IsHitTestVisible="False">
-      <Border.Background>
-        <ImageBrush x:Name="PageWashArt" Stretch="UniformToFill"/>
-      </Border.Background>
-    </Border>
+           This layer is under the weight layer. The black layer above it lowers the bright parts of the
+           picture, and the same guarantee that keeps the text white for every artist lets the picture be
+           strong enough to be seen. If it were over the weight, it would have to carry its own readability
+           and could only be used at very low opacity. -->
+      <Border x:Name="PageWash" Opacity="0.55" Visibility="Collapsed" IsHitTestVisible="False">
+        <Border.Background>
+          <ImageBrush x:Name="PageWashArt" Stretch="UniformToFill"/>
+        </Border.Background>
+      </Border>
 
-    <!-- The weight over both layers. A palette accent at full strength has the colour of the largest area
-         of a photograph at its original exposure, and a blurred photograph keeps that exposure.
-         Paragraphs and track listings on either would be unreadable. Under this layer the page is lit by
-         the picture, which is what the four inks above assume: white text for every artist. -->
-    <Rectangle x:Name="PageWeight" Fill="#6B000000" Visibility="Collapsed"/>
+      <!-- The weight over both layers. A palette accent at full strength has the colour of the largest area
+           of a photograph at its original exposure, and a blurred photograph keeps that exposure.
+           Paragraphs and track listings on either would be unreadable. Under this layer the page is lit by
+           the picture, which is what the four inks above assume: white text for every artist. -->
+      <Rectangle x:Name="PageWeight" Fill="#6B000000" Visibility="Collapsed"/>
+    </Grid>
 
 
     <Grid>
@@ -382,40 +388,48 @@
               <!-- The layers that are copied. Everything that the foot fade should carry is inside.
                    Everything that must stay solid (the name, the back button) is outside. -->
               <Grid x:Name="HeroLayers" SizeChanged="HeroLayers_SizeChanged">
-                <!-- The app's dark colour under a photograph, or the colour of their first record when
-                     there is no photograph. -->
-                <Rectangle x:Name="PortraitGround"/>
+                <!-- The band before anything has been read: the app's dark colour, the same as `Unlit` in
+                     code, which fills it. It stays still while the group above it comes in. -->
+                <Rectangle x:Name="HeroBase"/>
 
-                <!-- Their photograph as it was taken. This is the difference from their box on the wall.
-                     The wall removes the colour of a picture and lays the artist's colour over it,
-                     because many press photographs in different lighting only look like one wall when
-                     they share a palette. This page shows one artist, so there is no wall to match, and
-                     that treatment would only be a colour cast on the one photograph. -->
-                <!-- Used as a `Background` and not shown as an `Image`, for the reason given at
-                     `PageWash`. A background is painted inside the element's bounds. A picture of another
-                     shape is scaled to cover the band and is centred in it. (An `Image` on Skia draws its
-                     scaled copy from the top left corner, so a wide photograph would lose its right side
-                     and not an even part of each end.)
+                <!-- Everything the band reads, in one group so it comes in together (see `BandLands`). It
+                     is inside the copied layers, so the foot dissolve fades with it. -->
+                <Grid x:Name="HeroArrival" Opacity="0">
+                  <!-- The app's dark colour under a photograph, or the colour of their first record when
+                       there is no photograph. -->
+                  <Rectangle x:Name="PortraitGround"/>
 
-                     The picture is anchored to the top, so a picture taller than the band loses its
-                     bottom and not an even part of both ends. A square picture in this 4:3 band loses a
-                     quarter of its height. If it were centred, an eighth would be cut from the top, where
-                     the heads are, and heads in group photographs would be cut off. A wide photograph,
-                     shown only for an artist with no square one, is a `RunOff` canvas (the photo with its
-                     reflection under it) and also needs the top anchor. The generated figure and the
-                     shelf mosaic are drawn at 4:3, so the anchor does not move them. -->
-                <Border x:Name="Portrait" Visibility="Collapsed">
-                  <Border.Background>
-                    <ImageBrush x:Name="PortraitArt" Stretch="UniformToFill"
-                                AlignmentX="Center" AlignmentY="Top"/>
-                  </Border.Background>
-                </Border>
+                  <!-- Their photograph as it was taken. This is the difference from their box on the wall.
+                       The wall removes the colour of a picture and lays the artist's colour over it,
+                       because many press photographs in different lighting only look like one wall when
+                       they share a palette. This page shows one artist, so there is no wall to match, and
+                       that treatment would only be a colour cast on the one photograph. -->
+                  <!-- Used as a `Background` and not shown as an `Image`, for the reason given at
+                       `PageWash`. A background is painted inside the element's bounds. A picture of another
+                       shape is scaled to cover the band and is centred in it. (An `Image` on Skia draws its
+                       scaled copy from the top left corner, so a wide photograph would lose its right side
+                       and not an even part of each end.)
 
-                <!-- Their colour over the photograph, in the same arrangement as their box but at a third
-                     of its strength (see `ArtistVeil.Page`). The strength of the box suits a postcard
-                     with a name across it. On a photograph 400 points tall it looks like a picture
-                     printed in one ink. -->
-                <Rectangle x:Name="PortraitVeil"/>
+                       The picture is anchored to the top, so a picture taller than the band loses its
+                       bottom and not an even part of both ends. A square picture in this 4:3 band loses a
+                       quarter of its height. If it were centred, an eighth would be cut from the top, where
+                       the heads are, and heads in group photographs would be cut off. A wide photograph,
+                       shown only for an artist with no square one, is a `RunOff` canvas (the photo with its
+                       reflection under it) and also needs the top anchor. The generated figure and the
+                       shelf mosaic are drawn at 4:3, so the anchor does not move them. -->
+                  <Border x:Name="Portrait" Visibility="Collapsed">
+                    <Border.Background>
+                      <ImageBrush x:Name="PortraitArt" Stretch="UniformToFill"
+                                  AlignmentX="Center" AlignmentY="Top"/>
+                    </Border.Background>
+                  </Border>
+
+                  <!-- Their colour over the photograph, in the same arrangement as their box but at a third
+                       of its strength (see `ArtistVeil.Page`). The strength of the box suits a postcard
+                       with a name across it. On a photograph 400 points tall it looks like a picture
+                       printed in one ink. -->
+                  <Rectangle x:Name="PortraitVeil"/>
+                </Grid>
               </Grid>
             </Grid>
 
