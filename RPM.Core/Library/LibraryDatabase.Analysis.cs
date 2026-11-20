@@ -145,9 +145,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT size_bytes, modified_utc_ticks, analyzer_version, duration_seconds, bpm, bpm_confidence,
@@ -203,9 +203,9 @@ public sealed partial class LibraryDatabase
         if (string.IsNullOrEmpty(sampleHash))
             return null;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT size_bytes, modified_utc_ticks, analyzer_version, duration_seconds, bpm, bpm_confidence,
@@ -251,9 +251,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.rpm_id, t.content_hash, a.sample_hash, COALESCE(f.song_id, 0)
@@ -289,9 +289,9 @@ public sealed partial class LibraryDatabase
     public IReadOnlyList<(string RelativePath, string? RpmId, string? CanonicalSha, string? SampleHash, long SongId)>
         TracksWithSeveralNames(string? after, int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.relative_path, t.rpm_id, t.content_hash, a.sample_hash, COALESCE(f.song_id, 0)
@@ -390,9 +390,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT bpm_octave FROM tracks WHERE relative_path = $path";
             cmd.Parameters.AddWithValue("$path", relativePath);
             return Convert.ToDouble(cmd.ExecuteScalar() ?? 1.0, CultureInfo.InvariantCulture) is var o && o > 0
@@ -428,9 +428,9 @@ public sealed partial class LibraryDatabase
         if (paths.Count == 0)
             return keys;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             // Driven FROM json_each, and this is not a style choice. Written the other way round
             // (FROM track_analysis JOIN json_each(...)), SQLite scans the whole analysis table and
             // parses the path list again for every row: about 10.8 ms a call against 0.030 ms, on a
@@ -509,9 +509,9 @@ public sealed partial class LibraryDatabase
     /// written. This is what the overwrite option of the backfill asks for.</param>
     public IReadOnlyList<AnalysisTagWork> TracksNeedingAnalysisTags(int limit, bool overwrite = false)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT relative_path, size_bytes, modified_utc_ticks
@@ -541,9 +541,9 @@ public sealed partial class LibraryDatabase
     /// <see cref="TracksNeedingAnalysisTags"/>.</summary>
     public int CountTracksNeedingAnalysisTags(bool overwrite = false)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT COUNT(*) FROM track_analysis
@@ -618,9 +618,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<string> TracksAnalyzedWithoutModel()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT relative_path FROM track_analysis

@@ -18,9 +18,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(key);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT value FROM library_meta WHERE key = $key";
             cmd.Parameters.AddWithValue("$key", key);
             var value = cmd.ExecuteScalar();

@@ -13,9 +13,9 @@ public sealed partial class LibraryDatabase
     {
         var counted = new Dictionary<string, Dictionary<ReleaseType, int>>(StringComparer.OrdinalIgnoreCase);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT folder, release_type, COUNT(*)

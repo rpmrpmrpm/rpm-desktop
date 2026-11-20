@@ -236,9 +236,9 @@ public sealed partial class LibraryDatabase
     /// and tests count with it.</summary>
     public int ListenCount()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM listen";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
@@ -248,9 +248,9 @@ public sealed partial class LibraryDatabase
     /// longer than <see cref="Listen.SessionGapMinutes"/>.</summary>
     public int ListenSessions()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(DISTINCT session_id) FROM listen";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
@@ -262,9 +262,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT at_utc_ticks, heard_seconds, counted FROM listen
@@ -291,9 +291,9 @@ public sealed partial class LibraryDatabase
         if (count <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT relative_path FROM listen

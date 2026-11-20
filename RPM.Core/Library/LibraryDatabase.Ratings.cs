@@ -42,9 +42,9 @@ public sealed partial class LibraryDatabase
         if (limit <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT id, rpm_id, rating FROM tracks

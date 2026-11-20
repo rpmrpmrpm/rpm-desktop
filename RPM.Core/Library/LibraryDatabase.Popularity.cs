@@ -118,9 +118,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<ChartSong> QueryDecadeChart(int decade)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT relative_path, folder
@@ -164,9 +164,9 @@ public sealed partial class LibraryDatabase
         if (folders.Count == 0 || limit <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
 
             // The window function keeps the best row per folder. The outer query then ranks those rows
             // against each other. If it were done the other way round, SQLite would sort the whole genre
@@ -213,9 +213,9 @@ public sealed partial class LibraryDatabase
         if (folders.Count == 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT tracks.*
@@ -251,9 +251,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<RecordToAsk> NextRecordsWithoutWorldPlays(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.folder,
@@ -346,9 +346,9 @@ public sealed partial class LibraryDatabase
     /// drawing yet.</summary>
     public (int Asked, int Waiting) WorldPlaysProgress()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT COUNT(DISTINCT CASE WHEN world_plays IS NOT NULL THEN folder END),

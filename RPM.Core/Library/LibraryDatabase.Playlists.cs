@@ -121,7 +121,7 @@ public sealed partial class LibraryDatabase
             .Select(n => n.Id)
             .ToList();
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             // Nothing showing is written as a list that nothing can be in, rather than by leaving the
             // clause out. An empty IN () is not valid SQL everywhere, and "the whole tree" is the one
@@ -129,7 +129,7 @@ public sealed partial class LibraryDatabase
             // there is nothing here to parameterise.
             var ids = showing.Count > 0 ? string.Join(",", showing) : "-1";
 
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                  SELECT
@@ -170,9 +170,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public HashSet<long> QueryExplicitPlaylists()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                  SELECT DISTINCT i.playlist_id
@@ -202,10 +202,10 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<PlaylistNode> GetPlaylistNodes()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var nodes = new List<PlaylistNode>();
-            using (var cmd = _read.CreateCommand())
+            using (var cmd = Reader.CreateCommand())
             {
                 cmd.CommandText =
                     "SELECT id, parent_id, kind, name, sort, is_now_playing, cover FROM pl_node " +
@@ -268,12 +268,12 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<string> PlaylistFolderChain(long nodeId)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var chain = new List<string>();
             var seen = new HashSet<long> { nodeId };
 
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT parent_id, name FROM pl_node WHERE id = $id LIMIT 1";
             var id = cmd.Parameters.AddWithValue("$id", nodeId);
 
@@ -303,9 +303,9 @@ public sealed partial class LibraryDatabase
     /// <summary>The id of the pinned "Now playing" playlist (seeded at migration).</summary>
     public long NowPlayingNodeId()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT id FROM pl_node WHERE is_now_playing = 1 LIMIT 1";
             return Convert.ToInt64(cmd.ExecuteScalar());
         }
@@ -343,9 +343,9 @@ public sealed partial class LibraryDatabase
 
     private long? FindChildFolder(long? parentId, string name)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = parentId is null
                 ? "SELECT id FROM pl_node WHERE parent_id IS NULL AND kind = 'folder' " +
                   "AND name = $name COLLATE NOCASE ORDER BY sort LIMIT 1"
@@ -750,9 +750,9 @@ public sealed partial class LibraryDatabase
         var counts = new Dictionary<long, int>();
         var names = new Dictionary<long, string>();
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT i.playlist_id, n.name, i.rpm_id, i.rel_path
@@ -846,9 +846,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyDictionary<long, PlaylistCloud> PlaylistCloudByNode()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT id, cloud_id, cloud_selected, cloud_synced_utc_ticks FROM pl_node";
             using var reader = cmd.ExecuteReader();
             var byNode = new Dictionary<long, PlaylistCloud>();
@@ -866,9 +866,9 @@ public sealed partial class LibraryDatabase
     /// last pushed.</summary>
     public PlaylistCloud GetPlaylistCloud(long nodeId)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT cloud_id, cloud_selected, cloud_synced_utc_ticks FROM pl_node WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", nodeId);
@@ -908,9 +908,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyDictionary<string, PlaylistCloudState> PlaylistCloudStamps()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT cloud_id, id, cloud_updated_at, cloud_sent, cloud_sent_meta " +
                 "FROM pl_node WHERE cloud_id IS NOT NULL";
@@ -1091,9 +1091,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlySet<string> PlaylistCloudIds()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT cloud_id FROM pl_node WHERE cloud_id IS NOT NULL";
             using var reader = cmd.ExecuteReader();
 
@@ -1114,9 +1114,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlySet<string> CloudPlaylistsLetGo()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT cloud_id FROM pl_cloud_gone";
             using var reader = cmd.ExecuteReader();
 
@@ -1145,9 +1145,9 @@ public sealed partial class LibraryDatabase
     /// beneath them have arrived.</summary>
     public IReadOnlyList<PlaylistNode> CloudSelectedPlaylists()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT id, parent_id, kind, name, sort, is_now_playing, cover FROM pl_node " +
                 "WHERE cloud_selected = 1 AND kind = 'playlist' ORDER BY sort, name COLLATE NOCASE";

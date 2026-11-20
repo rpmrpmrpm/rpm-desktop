@@ -287,6 +287,10 @@ public partial class App : Application
         // exception can be traced to the line that threw it. It is off unless RPM_EXCEPTION_DIAG=1.
         RPM.Core.Diagnostics.Scope.Said("boot", "OnLaunched");
 
+        // Reads made on this thread go through a database connection of their own, so they never wait
+        // behind a long background question. Before anything opens the library.
+        RPM.Core.Library.LibraryDatabase.MarkInterfaceThread();
+
         RPM.Desktop.Services.Shell.ExceptionTrace.Install();
 
         // Counts every request that this app sends over the network, by host. The tally is printed on the

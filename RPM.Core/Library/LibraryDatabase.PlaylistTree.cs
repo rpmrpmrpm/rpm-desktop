@@ -52,10 +52,10 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<PlaylistTreeRow> PlaylistTree()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var nodes = new List<PlaylistNode>();
-            using (var cmd = _read.CreateCommand())
+            using (var cmd = Reader.CreateCommand())
             {
                 cmd.CommandText =
                     "SELECT id, parent_id, kind, name, sort, is_now_playing, cover FROM pl_node " +
@@ -66,7 +66,7 @@ public sealed partial class LibraryDatabase
             }
 
             var items = new Dictionary<long, List<PlaylistTreeEntry>>();
-            using (var cmd = _read.CreateCommand())
+            using (var cmd = Reader.CreateCommand())
             {
                 cmd.CommandText =
                     "SELECT playlist_id, item_kind, rpm_id, rel_path, ref_playlist_id FROM pl_item " +
@@ -346,7 +346,7 @@ public sealed partial class LibraryDatabase
         var songs = new Dictionary<long, (int All, int Cloud)>();
         var refs = new Dictionary<long, List<long>>();
 
-        using (var cmd = _read.CreateCommand())
+        using (var cmd = Reader.CreateCommand())
         {
             // LEFT JOIN, so a song whose track row is not in this mirror at all counts against the
             // playlist exactly as an unreachable one does. It is a line that will not play either.

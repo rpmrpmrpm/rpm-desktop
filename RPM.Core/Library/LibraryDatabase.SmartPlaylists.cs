@@ -183,7 +183,7 @@ public sealed partial class LibraryDatabase
     /// borrowed shelf. See LibraryDatabaseConcurrencyTests.</para>
     ///
     /// <para>Nothing under this lock touches either connection. So it never nests with <c>_gate</c> or
-    /// <c>_readGate</c>, and it cannot be half of a deadlock. <b>Do not use <c>_gate</c> here.</b> A
+    /// <c>ReadLock</c>, and it cannot be half of a deadlock. <b>Do not use <c>_gate</c> here.</b> A
     /// memoised value has nothing to do with the writer.</para>
     ///
     /// <para><see cref="Gate"/> is used here too, for the same reason as the connections. The cut this
@@ -256,7 +256,7 @@ public sealed partial class LibraryDatabase
     /// <para><b>What arrives out of order here, and why it is safe.</b> The pass writes readings from a
     /// worker thread through <c>SaveTrackMood</c> (under <c>_gate</c>) for as long as the app is open.
     /// This property is read on the UI thread whenever a list is drawn. The two sides never contend.
-    /// The two reads that build the cut take <c>_readGate</c> like every other read. After that, this
+    /// The two reads that build the cut take <c>ReadLock</c> like every other read. After that, this
     /// holds no connection and asks the database nothing. A write that lands during the build is simply
     /// not in the cut. That gives the same answer as a write that lands a second later, and both match
     /// the rule for this session: the cut is fixed until the next launch. The only ordering that would
@@ -337,9 +337,9 @@ public sealed partial class LibraryDatabase
     public (IReadOnlySet<string> Holiday, IReadOnlySet<string> NewYear) QueryHolidayTracks()
     {
         List<(string Path, string? Title, string? Album, string? Genre)> rows;
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var hints = new List<string>(HolidayMusic.Hints.Count);
             for (int i = 0; i < HolidayMusic.Hints.Count; i++)
             {
@@ -431,9 +431,9 @@ public sealed partial class LibraryDatabase
     /// </remarks>
     public IReadOnlyList<MixSong> QueryMixSongs()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT relative_path, folder, favorite, plays, last_played_utc_ticks
@@ -721,7 +721,7 @@ public sealed partial class LibraryDatabase
         /// serialising the paths. Composing a decade's chart means reading the chart and picking its
         /// records. Measured over 19,747 tracks, that is 66 to 135 ms a list, while the SQL that follows
         /// takes about 3 ms. If a rule wrote onto the command, all of that would run inside
-        /// <c>_readGate</c>. A pane that reads 84 subtitles would then hold the reading connection for
+        /// <c>ReadLock</c>. A pane that reads 84 subtitles would then hold the reading connection for
         /// about eleven seconds, and every other reader in the app would queue behind it. A rule that
         /// returns a value can be composed with no connection held, so the gate covers only the query.</para>
         ///
@@ -1310,9 +1310,9 @@ public sealed partial class LibraryDatabase
         // it costs when it is the other way round.
         var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance, readings);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             composed.BindTo(cmd);
             // tracks.* rather than *: a join brings its own columns, and ReadTrack reads by name.
             cmd.CommandText =
@@ -1442,9 +1442,9 @@ public sealed partial class LibraryDatabase
         // actual query time.
         var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance: false, readings: 1);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             composed.BindTo(cmd);
             // The explicit flag comes from the SAME pass. A generated list is a query, not songs somebody put
             // somewhere. So the only way to know whether it holds an explicit song is to look at what it would

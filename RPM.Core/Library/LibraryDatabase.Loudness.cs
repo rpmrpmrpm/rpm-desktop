@@ -235,9 +235,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<MeasuredMood> QueryMeasuredMoods()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT relative_path, folder, mood_brightness, mood_onsets, mood_dynamics,
@@ -315,9 +315,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<LoudnessWork> QueryTracksNeedingLoudness(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT relative_path, size_bytes, modified_utc_ticks,
@@ -355,7 +355,7 @@ public sealed partial class LibraryDatabase
         // count wait in front of every write the app wants to make. That happens at startup, when the pass
         // asks, which is when the most is going on. Measured on a library of 19,747 tracks, the mood half
         // alone held the gate for about 800 ms once warm.
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var where = $"cloud_state <> {(int)CloudState.CloudOnly} AND peer_adopted = 0";
             return (
@@ -368,7 +368,7 @@ public sealed partial class LibraryDatabase
 
     public int CountTracksNeedingLoudness()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
             return (int)(long)(ReadScalar(
                 $"SELECT COUNT(*) FROM tracks WHERE (loudness_lufs IS NULL " +
                 $"     OR (mood_brightness IS NULL AND duration_seconds >= {Moods.LeastSeconds})) " +
@@ -376,11 +376,11 @@ public sealed partial class LibraryDatabase
     }
 
     /// <summary>One value off the reading connection. <c>Scalar</c> uses the writing connection. A caller
-    /// holding <c>_readGate</c> must not use it, because it would read through a connection it does not
+    /// holding <c>ReadLock</c> must not use it, because it would read through a connection it does not
     /// hold the gate for.</summary>
     private object? ReadScalar(string sql)
     {
-        using var cmd = _read.CreateCommand();
+        using var cmd = Reader.CreateCommand();
         cmd.CommandText = sql;
         return cmd.ExecuteScalar();
     }
@@ -395,9 +395,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(folder);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT loudness_lufs, duration_seconds FROM tracks

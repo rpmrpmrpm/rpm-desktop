@@ -132,7 +132,7 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(rpmId);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
             return CurrentRpmIdLocked(rpmId);
     }
 
@@ -144,7 +144,7 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(rpmIds);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var now = new List<string>(rpmIds.Count);
             foreach (var id in rpmIds)
@@ -158,7 +158,7 @@ public sealed partial class LibraryDatabase
         var id = rpmId;
         for (var hop = 0; hop < AliasHopsAtMost; hop++)
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT new_id FROM rpm_id_alias WHERE old_id = $old";
             cmd.Parameters.AddWithValue("$old", id);
             if (cmd.ExecuteScalar() is not string next || next == id)

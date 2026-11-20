@@ -47,9 +47,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public bool UploadGivenUp(long trackId, long nowUtcTicks)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT 1 FROM tracks
@@ -66,9 +66,9 @@ public sealed partial class LibraryDatabase
     /// <summary>One track by its row id, or null when there is no such row.</summary>
     public LibraryTrack? FindById(long id)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT * FROM tracks WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", id);
             using var reader = cmd.ExecuteReader();
@@ -118,9 +118,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(library);
         var key = LibraryKeyOf(library);
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT id, destination FROM migration WHERE kind = $kind AND library_id = $key AND finished_utc_ticks = 0";
             cmd.Parameters.AddWithValue("$kind", library.Kind.ToString().ToLowerInvariant());
             cmd.Parameters.AddWithValue("$key", key);
@@ -137,9 +137,9 @@ public sealed partial class LibraryDatabase
     public IReadOnlyList<string> OtherImports(SourceLibrary library)
     {
         ArgumentNullException.ThrowIfNull(library);
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT m.name FROM migration m
@@ -189,9 +189,9 @@ public sealed partial class LibraryDatabase
     /// <summary>The imports that have not finished, newest first, so the app can offer to continue them.</summary>
     public IReadOnlyList<MigrationSummary> UnfinishedMigrations()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT kind, library_id, name, destination FROM migration WHERE finished_utc_ticks = 0 ORDER BY started_utc_ticks DESC, id DESC";
             using var reader = cmd.ExecuteReader();
@@ -345,9 +345,9 @@ public sealed partial class LibraryDatabase
         /// <summary>The library row of every source track that is in rpm (imported or matched), by source id.</summary>
         public IReadOnlyDictionary<string, long> TrackIds()
         {
-            using (_db._readGate.Take())
+            using (_db.ReadLock.Take())
             {
-                using var cmd = _db._read.CreateCommand();
+                using var cmd = _db.Reader.CreateCommand();
                 cmd.CommandText = "SELECT source_id, track_id FROM migration_track WHERE migration_id = $m AND state IN (2, 3) AND track_id IS NOT NULL";
                 cmd.Parameters.AddWithValue("$m", Id);
                 using var reader = cmd.ExecuteReader();
@@ -485,9 +485,9 @@ public sealed partial class LibraryDatabase
 
         public MigrationCounts Counts()
         {
-            using (_db._readGate.Take())
+            using (_db.ReadLock.Take())
             {
-                using var cmd = _db._read.CreateCommand();
+                using var cmd = _db.Reader.CreateCommand();
                 cmd.CommandText =
                     """
                     SELECT COUNT(*),
@@ -512,9 +512,9 @@ public sealed partial class LibraryDatabase
         /// into it; null when the playlist was not imported yet.</summary>
         public (long PlaylistId, IReadOnlyList<string> Entries)? Playlist(string sourceId)
         {
-            using (_db._readGate.Take())
+            using (_db.ReadLock.Take())
             {
-                using var cmd = _db._read.CreateCommand();
+                using var cmd = _db.Reader.CreateCommand();
                 cmd.CommandText = "SELECT playlist_id, entries FROM migration_playlist WHERE migration_id = $m AND source_id = $s";
                 cmd.Parameters.AddWithValue("$m", Id);
                 cmd.Parameters.AddWithValue("$s", sourceId);
@@ -560,9 +560,9 @@ public sealed partial class LibraryDatabase
 
         private IReadOnlyList<MigrationTrackRow> Read(string where, params (string Name, object Value)[] parameters)
         {
-            using (_db._readGate.Take())
+            using (_db.ReadLock.Take())
             {
-                using var cmd = _db._read.CreateCommand();
+                using var cmd = _db.Reader.CreateCommand();
                 cmd.CommandText =
                     "SELECT source_id, state, attempts, next_try_utc_ticks, reason, detail, track_id FROM migration_track " + where;
                 cmd.Parameters.AddWithValue("$m", Id);

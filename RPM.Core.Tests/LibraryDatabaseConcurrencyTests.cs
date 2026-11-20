@@ -210,4 +210,93 @@ public class LibraryDatabaseConcurrencyTests : IDisposable
         Assert.True(askedFinishedFirst,
                     "the total only came back after the write finished — it is queued behind it");
     }
+
+    /// <summary>
+    /// A background pass can hold the reading connection for a minute while it walks the tracks table on
+    /// a busy disk. The interface thread must not wait for it: it has a connection of its own. If it
+    /// shared the background one, the window would stop drawing for as long as the pass held it.
+    /// </summary>
+    [Fact]
+    public void The_interface_thread_reads_while_a_background_read_holds_its_connection()
+    {
+        using var db = new LibraryDatabase(MirrorLocation.InFolder(_root));
+        db.UpsertMany(Rows(100));
+
+        using var hold = HoldBackgroundReader(db);
+
+        var count = -1;
+        var ui = new Thread(() =>
+        {
+            LibraryDatabase.MarkInterfaceThread();
+            count = db.QueryFolderTrackCounts(null).Count;
+        });
+        ui.Start();
+        var finished = ui.Join(TimeSpan.FromSeconds(5));
+
+        hold.Dispose();
+        ui.Join();
+
+        Assert.True(finished, "the interface thread's read waited behind the background reader");
+        Assert.Equal(5, count);
+    }
+
+    /// <summary>A thread that is not the interface thread still reads through the background connection,
+    /// and waits for it. This proves the test above holds the connection that background reads use.</summary>
+    [Fact]
+    public void A_background_read_waits_for_the_background_reader()
+    {
+        using var db = new LibraryDatabase(MirrorLocation.InFolder(_root));
+        db.UpsertMany(Rows(100));
+
+        using var hold = HoldBackgroundReader(db);
+
+        var worker = new Thread(() => _ = db.QueryFolderTrackCounts(null));
+        worker.Start();
+        var finishedWhileHeld = worker.Join(TimeSpan.FromMilliseconds(300));
+
+        hold.Dispose();
+        Assert.True(worker.Join(TimeSpan.FromSeconds(5)), "the read did not finish after the reader was let go");
+        Assert.False(finishedWhileHeld, "a background read did not wait for the background reader");
+    }
+
+    /// <summary>Holds the background reading gate on a thread of its own until the result is disposed, as a
+    /// long background question does.</summary>
+    private static IDisposable HoldBackgroundReader(LibraryDatabase db)
+    {
+        var gate = (Gate)typeof(LibraryDatabase)
+            .GetField("_readGate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(db)!;
+
+        var taken = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var holder = new Thread(() =>
+        {
+            using (gate.Take())
+            {
+                taken.Set();
+                release.Wait();
+            }
+        });
+        holder.Start();
+        taken.Wait();
+
+        return new Release(() =>
+        {
+            release.Set();
+            holder.Join();
+        });
+    }
+
+    private sealed class Release(Action release) : IDisposable
+    {
+        private bool _done;
+
+        public void Dispose()
+        {
+            if (_done)
+                return;
+            _done = true;
+            release();
+        }
+    }
 }

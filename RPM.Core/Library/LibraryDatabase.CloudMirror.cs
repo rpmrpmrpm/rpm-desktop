@@ -537,9 +537,9 @@ public sealed partial class LibraryDatabase
     /// states it, and it tells "nothing adopted yet" from "nothing up there".</summary>
     public int CountAdopted()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM tracks WHERE cloud_adopted = 1";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
@@ -558,9 +558,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public int CountAdoptedWithoutFacts()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT COUNT(*) FROM tracks WHERE cloud_adopted = 1 AND duration_seconds <= 0";
             return Convert.ToInt32(cmd.ExecuteScalar());

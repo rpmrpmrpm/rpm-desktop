@@ -667,7 +667,7 @@ public sealed partial class LibraryDatabase : IDisposable
     private readonly SqliteConnection _connection;
 
     /// <summary>
-    /// The connection that every question goes through, held under <see cref="_readGate"/>.
+    /// The connection that background questions go through, held under <see cref="_readGate"/>.
     ///
     /// <para>It is separate from the writing connection, and that is its purpose. SQLite in WAL mode
     /// lets a reader read while a writer writes, but only a reader on ITS OWN connection: one
@@ -678,21 +678,86 @@ public sealed partial class LibraryDatabase : IDisposable
     ///
     /// <para>Reads still take a lock against each other, because a connection is one conversation
     /// and cannot hold two. What they do not take is the writer's lock.</para>
+    ///
+    /// <para>The interface thread does not use this connection. It has its own, see
+    /// <see cref="_interfaceRead"/>.</para>
     /// </summary>
     private readonly SqliteConnection _read;
+
+    /// <summary>
+    /// The connection that the interface thread reads through, held under <see cref="_interfaceReadGate"/>.
+    /// It is opened the first time the interface thread asks a question, so a tool or a server that
+    /// has no interface thread never opens it.
+    ///
+    /// <para><b>Why the interface thread has its own reader.</b> A connection answers one question at a
+    /// time. A background pass asks questions that read the whole tracks table. On a library kept on a
+    /// spinning disk that is busy, one of them can hold a connection for a minute while the thread waits
+    /// for the disk. If the interface thread shared that connection, a question that costs a
+    /// millisecond (the artist names of the shelf on screen) would wait for the whole minute, and the
+    /// window would stop drawing for that long. With its own connection, the interface thread waits
+    /// only for its own questions. SQLite in WAL mode lets any number of readers read at once.</para>
+    /// </summary>
+    private SqliteConnection? _interfaceRead;
 
     /// <summary>Serialises the writing connection. It is a <see cref="Gate"/> and not a bare object, so
     /// that a hold long enough to be felt can say whose it was. See that class for what a bare
     /// object cannot answer.</summary>
     private readonly Gate _gate = new("write");
 
-    /// <summary>Serialises the reading connection. Never taken while <see cref="_gate"/> is held, and
-    /// never the other way round: nothing here needs both, and taking both is how two locks become a
-    /// deadlock.</summary>
+    /// <summary>Serialises the background reading connection. Never taken while <see cref="_gate"/> is
+    /// held, and never the other way round: nothing here needs both, and taking both is how two locks
+    /// become a deadlock. The same rule applies to <see cref="_interfaceReadGate"/>. A thread takes only
+    /// one of the two reading gates, see <see cref="ReadLock"/>.</summary>
     private readonly Gate _readGate = new("read");
 
+    /// <summary>Serialises <see cref="_interfaceRead"/>. Only the interface thread takes it, so it waits
+    /// only when that thread re-enters, or while <see cref="Dispose"/> closes it.</summary>
+    private readonly Gate _interfaceReadGate = new("ui read");
+
+    /// <summary>Whether the calling thread is the interface thread. Set once by
+    /// <see cref="MarkInterfaceThread"/>.</summary>
+    [ThreadStatic]
+    private static bool t_interfaceThread;
+
     /// <summary>
-    /// What the reading connection is doing right now, and the same for the writing one.
+    /// Tells every library database that the calling thread is the interface thread, so its reads go
+    /// through a connection of their own. Call it once, on the interface thread, before the library
+    /// opens.
+    ///
+    /// <para>A thread that is not marked reads through the background connection. So a caller that
+    /// never calls this (a test, a tool, the server) reads as before.</para>
+    /// </summary>
+    public static void MarkInterfaceThread() => t_interfaceThread = true;
+
+    /// <summary>
+    /// The reading gate for the calling thread. Every read takes it, and then uses <see cref="Reader"/>
+    /// on the same thread. A read must not take the gate on one thread and use the connection on
+    /// another, because the two properties would then name different connections.
+    /// </summary>
+    private Gate ReadLock => t_interfaceThread ? _interfaceReadGate : _readGate;
+
+    /// <summary>The reading connection for the calling thread. Use it only while holding
+    /// <see cref="ReadLock"/>.</summary>
+    private SqliteConnection Reader => t_interfaceThread ? _interfaceRead ??= OpenReader(InterfaceCacheKib) : _read;
+
+    /// <summary>
+    /// How much of the file each connection keeps in memory, in KiB.
+    ///
+    /// <para>SQLite's default is 2 MB per connection. The database of a large library is several hundred
+    /// MB, and one background question walks the tracks table and an index of another table. With 2 MB,
+    /// the pages of that index are dropped and read again many times in one question, and on a spinning
+    /// disk each read is a seek. The value is a ceiling, not an allocation. A connection uses only what
+    /// it has read. A reader's pages are also dropped when another connection commits, so a large cache
+    /// helps the long questions most.</para>
+    /// </summary>
+    private const int BackgroundCacheKib = 64 * 1024;
+
+    /// <inheritdoc cref="BackgroundCacheKib"/>
+    /// <remarks>The interface thread asks short questions, mostly about what is on screen.</remarks>
+    private const int InterfaceCacheKib = 16 * 1024;
+
+    /// <summary>
+    /// What the background reading connection is doing right now, and the same for the writing one.
     ///
     /// <para>It is asked from OUTSIDE, by a watchdog on its own thread, because that is the only way
     /// to answer usefully. A reader holds the gate for as long as its query runs and every other
@@ -704,6 +769,10 @@ public sealed partial class LibraryDatabase : IDisposable
     /// there, not only a yes or no.</para>
     /// </summary>
     public Gate.Look ReadGate => _readGate.Now;
+
+    /// <summary>What the interface thread's reading connection is doing right now. See
+    /// <see cref="ReadGate"/>.</summary>
+    public Gate.Look InterfaceReadGate => _interfaceReadGate.Now;
 
     /// <inheritdoc cref="ReadGate"/>
     public Gate.Look WriteGate => _gate.Now;
@@ -790,6 +859,7 @@ public sealed partial class LibraryDatabase : IDisposable
         }.ToString(), ReportRefusal);
         _connection.Open();
         Execute("PRAGMA journal_mode=WAL");
+        Execute($"PRAGMA cache_size=-{BackgroundCacheKib}");
         try
         {
             Upgrade.Run(this);
@@ -802,24 +872,8 @@ public sealed partial class LibraryDatabase : IDisposable
         }
 
         // After the migration, not before: the reader opens a file that is already at this
-        // version, so it never sees a table that is half a step behind. Opened ReadWriteCreate like
-        // the writer, because a read-only SQLite connection cannot bring up the WAL shared-memory
-        // index on its own. It is then told to refuse writes, so "reads only" is a property of the
-        // connection and not a promise by the callers.
-        _read = new MirrorConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = path,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Pooling = false,
-        }.ToString(), ReportRefusal);
-        _read.Open();
-        using (var cmd = _read.CreateCommand())
-        {
-            // A reader that arrives during a commit waits for it and does not fail the query. In WAL
-            // mode this is a rare, brief overlap (the writer's own commit).
-            cmd.CommandText = "PRAGMA busy_timeout=5000; PRAGMA query_only=1";
-            cmd.ExecuteNonQuery();
-        }
+        // version, so it never sees a table that is half a step behind.
+        _read = OpenReader(BackgroundCacheKib);
 
         // Playlist entries that name a song by an id it no longer has. An older build left them when a song
         // took over another copy's cloud id. See LibraryDatabase.IdAliases. Outside the migration's
@@ -2053,9 +2107,9 @@ public sealed partial class LibraryDatabase : IDisposable
     {
         get
         {
-            using (_readGate.Take())
+            using (ReadLock.Take())
             {
-                using var cmd = _read.CreateCommand();
+                using var cmd = Reader.CreateCommand();
                 cmd.CommandText = "SELECT COUNT(*) FROM tracks";
                 return Convert.ToInt32(cmd.ExecuteScalar());
             }
@@ -2495,9 +2549,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<LibraryTrack> Query(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = $"SELECT * FROM tracks {SearchWhere(cmd, search)} ORDER BY relative_path";
 
             using var reader = cmd.ExecuteReader();
@@ -2512,9 +2566,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// when the file it would normally read is not on this disk (a track that lives in the cloud).</summary>
     public LibraryTrack? FindByRelativePath(string relativePath)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT * FROM tracks WHERE relative_path = $path LIMIT 1";
             cmd.Parameters.AddWithValue("$path", relativePath);
             using var reader = cmd.ExecuteReader();
@@ -2529,9 +2583,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public double QueryTotalDurationSeconds(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = $"SELECT COALESCE(SUM(duration_seconds), 0) FROM tracks {SearchWhere(cmd, search)}";
             var value = cmd.ExecuteScalar();
             return value is null or DBNull ? 0 : Convert.ToDouble(value);
@@ -2547,9 +2601,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<(string Folder, int TrackCount)> QueryFolderTrackCounts(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT folder, COUNT(*) FROM tracks
@@ -2574,9 +2628,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<(string Folder, double Seconds)> QueryFolderDurations(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT folder, COALESCE(SUM(duration_seconds), 0) FROM tracks
@@ -2656,9 +2710,9 @@ public sealed partial class LibraryDatabase : IDisposable
 
     public IReadOnlyList<AlbumFactsRow> QueryAlbumFacts(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT folder,
@@ -2701,9 +2755,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public int CountAlbumFolders(TrackScope place)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = $"SELECT COUNT(DISTINCT folder) FROM tracks{Where(place)}";
             return cmd.ExecuteScalar() is long n ? (int)n : 0;
         }
@@ -2715,9 +2769,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public int CountTracks(TrackScope place)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = $"SELECT COUNT(*) FROM tracks{Where(place)}";
             return cmd.ExecuteScalar() is long n ? (int)n : 0;
         }
@@ -2745,9 +2799,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </remarks>
     public MeasuringProgress MeasuredSoFar(TrackScope place)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT COUNT(*), COALESCE(SUM(mood_brightness IS NOT NULL), 0) FROM tracks"
                 + Where(place);
@@ -2780,9 +2834,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<string> QueryExplicitAlbums(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var where = SearchWhere(cmd, search);
             cmd.CommandText =
                 $"""
@@ -2804,9 +2858,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<(string Folder, int Year, int Count)> QueryAlbumYearCounts(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var where = SearchWhere(cmd, search);
             cmd.CommandText =
                 $"""
@@ -2829,9 +2883,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<(string Folder, string Genre, int Count)> QueryAlbumGenreCounts(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var where = SearchWhere(cmd, search);
             cmd.CommandText =
                 $"""
@@ -2862,9 +2916,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<ArtistCreditRow> QueryArtistCredits(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT folder,
@@ -2908,9 +2962,9 @@ public sealed partial class LibraryDatabase : IDisposable
 
     public IReadOnlyList<AlbumHeaderLinesRow> QueryAlbumHeaderLines(string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT t.folder,
@@ -2938,9 +2992,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<LibraryTrack> QueryFolderPage(string folder, int offset, int limit, string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var where = SearchWhere(cmd, search);
             cmd.CommandText =
                 $"""
@@ -2966,9 +3020,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<LibraryTrack> QueryUnderFolder(string folder, string? search = null)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             var where = SearchWhere(cmd, search);
             if (folder.Length == 0)
             {
@@ -3007,9 +3061,9 @@ public sealed partial class LibraryDatabase : IDisposable
             return null;
 
         var norm = Analysis.AlbumResolver.NormalizeAlbum(album);
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             // Narrow with SQL (exact, or "Album%" to catch "Album (Disc 1)"), then confirm the
             // normalised match in code, because SQLite cannot run NormalizeAlbum.
             cmd.CommandText =
@@ -3052,9 +3106,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<(string Name, int Tracks)> ArtistNames()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             // Both columns, because both name folders: a compilation is filed under its album artist
             // and its tracks still carry their own performers, and a misspelling in either is one
             // that the user sees.
@@ -3176,9 +3230,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// and the cloud state lets it tell an offloaded file from a deleted one.</summary>
     public Dictionary<string, SnapshotRow> Snapshot()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT relative_path, id, size_bytes, modified_utc_ticks, rpm_id, cloud_state,
@@ -3418,9 +3472,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// <summary>Tracks in a given cloud state, oldest row first. This is the upload worker's work list.</summary>
     public IReadOnlyList<LibraryTrack> QueryByCloudState(CloudState state, int limit = 500)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT * FROM tracks WHERE cloud_state = $s ORDER BY id LIMIT $limit";
             cmd.Parameters.AddWithValue("$s", (int)state);
             cmd.Parameters.AddWithValue("$limit", limit);
@@ -3435,9 +3489,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// <summary>How many tracks are in a given cloud state. These are the progress counters, without the rows.</summary>
     public int CountByCloudState(CloudState state)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM tracks WHERE cloud_state = $s";
             cmd.Parameters.AddWithValue("$s", (int)state);
             return Convert.ToInt32(cmd.ExecuteScalar());
@@ -3451,9 +3505,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public IReadOnlyList<LibraryTrack> QueryDueForUpload(long nowUtcTicks, int limit = 50)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT * FROM tracks
@@ -3578,9 +3632,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public long? NextCloudRetryTicks(long nowUtcTicks)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT MIN(cloud_next_attempt_utc_ticks) FROM tracks
@@ -3751,9 +3805,9 @@ public sealed partial class LibraryDatabase : IDisposable
     public IReadOnlyList<(long Id, string RpmId, string RelativePath, string? Title, string? Album,
         string? ContentHash)> CloudTracksWithLocalFiles(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
 
             // Oldest synced first, so a library that is caught up stays caught up in the order
             // it was uploaded and does not walk the same rows every run.
@@ -3831,9 +3885,9 @@ public sealed partial class LibraryDatabase : IDisposable
     private IReadOnlyList<(string? AlbumArtist, string? Artist, string? Album, string RelativePath)> CloudAlbumsIn(
         CloudState state)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT folder, album_artist, artist, album, MIN(relative_path), COUNT(*)
@@ -3899,9 +3953,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public long CloudBytesUsed()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT COALESCE(SUM(canonical_size_bytes), 0) FROM tracks
@@ -3918,9 +3972,9 @@ public sealed partial class LibraryDatabase : IDisposable
     /// </summary>
     public HashSet<string> DuplicateRpmIds()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT rpm_id FROM tracks
@@ -3953,10 +4007,10 @@ public sealed partial class LibraryDatabase : IDisposable
             return null;
 
         var key = ArtistKey(artist);
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             var backdrops = new List<ArtistBackdrop>();
-            using (var cmd = _read.CreateCommand())
+            using (var cmd = Reader.CreateCommand())
             {
                 cmd.CommandText =
                     "SELECT url, position, score, hidden FROM artist_art WHERE artist_key = $k ORDER BY position";
@@ -3973,7 +4027,7 @@ public sealed partial class LibraryDatabase : IDisposable
 
             var curated = false;
             var rankVersion = 0;
-            using (var cmd = _read.CreateCommand())
+            using (var cmd = Reader.CreateCommand())
             {
                 cmd.CommandText = "SELECT curated, rank_version FROM artist_art_pref WHERE artist_key = $k";
                 cmd.Parameters.AddWithValue("$k", key);
@@ -4075,9 +4129,9 @@ public sealed partial class LibraryDatabase : IDisposable
         if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(url))
             return null;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT centre_x, centre_y, height_frac, cover FROM artist_art_frame WHERE artist_key = $k AND url = $u";
             cmd.Parameters.AddWithValue("$k", ArtistKey(artist));
@@ -4097,9 +4151,9 @@ public sealed partial class LibraryDatabase : IDisposable
         if (string.IsNullOrWhiteSpace(artist))
             return framings;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT url, centre_x, centre_y, height_frac, cover FROM artist_art_frame WHERE artist_key = $k";
             cmd.Parameters.AddWithValue("$k", ArtistKey(artist));
@@ -4342,6 +4396,41 @@ public sealed partial class LibraryDatabase : IDisposable
     private static string EscapeLike(string s) =>
         s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
+    /// <summary>
+    /// Opens a reading connection to <see cref="DatabasePath"/>.
+    ///
+    /// <para>Opened ReadWriteCreate like the writer, because a read-only SQLite connection cannot bring up
+    /// the WAL shared-memory index on its own. It is then told to refuse writes, so "reads only" is a
+    /// property of the connection and not a promise by the callers.</para>
+    /// </summary>
+    /// <param name="cacheKib">How much of the file it keeps in memory. See <see cref="BackgroundCacheKib"/>.</param>
+    private SqliteConnection OpenReader(int cacheKib)
+    {
+        var reader = new MirrorConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false,
+        }.ToString(), ReportRefusal);
+        reader.Open();
+        try
+        {
+            using var cmd = reader.CreateCommand();
+
+            // A reader that arrives during a commit waits for it and does not fail the query. In WAL
+            // mode this is a rare, brief overlap (the writer's own commit).
+            cmd.CommandText = $"PRAGMA busy_timeout=5000; PRAGMA query_only=1; PRAGMA cache_size=-{cacheKib}";
+            cmd.ExecuteNonQuery();
+        }
+        catch
+        {
+            reader.Dispose();
+            throw;
+        }
+
+        return reader;
+    }
+
     private void Execute(string sql)
     {
         using var cmd = _connection.CreateCommand();
@@ -4372,10 +4461,13 @@ public sealed partial class LibraryDatabase : IDisposable
     public void Dispose()
     {
         var readIdle = _readGate.Close(CloseWait);
+        var interfaceReadIdle = _interfaceReadGate.Close(CloseWait);
         var writeIdle = _gate.Close(CloseWait);
 
         if (readIdle)
             _read.Dispose();
+        if (interfaceReadIdle)
+            _interfaceRead?.Dispose();
         if (writeIdle)
             _connection.Dispose();
     }

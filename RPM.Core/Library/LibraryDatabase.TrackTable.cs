@@ -86,9 +86,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<long> QueryTrackIds(TrackTableQuery query)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = $"SELECT id FROM tracks {Where(cmd, query)} {OrderBy(query)}";
             using var reader = cmd.ExecuteReader();
             var ids = new List<long>();
@@ -107,9 +107,9 @@ public sealed partial class LibraryDatabase
         if (ids.Count == 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             // Parameters rather than an interpolated id list: a page is a bounded few hundred ids, and
             // a bound integer cannot be anything but an integer.
             var names = new string[ids.Count];

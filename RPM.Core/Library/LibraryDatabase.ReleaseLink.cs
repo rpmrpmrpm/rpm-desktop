@@ -21,9 +21,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.folder,

@@ -134,9 +134,9 @@ public sealed partial class LibraryDatabase
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(releaseId);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT provider, release_id, raw_genres, raw_styles, votes,
@@ -159,9 +159,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<ReleaseMeta> ReleasesToRemap(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT provider, release_id, raw_genres, raw_styles, votes,
@@ -237,9 +237,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyDictionary<string, CatalogueFacts> CatalogueFactsByFolder()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT a.folder,
@@ -290,9 +290,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT MIN(a.folder), a.release_provider, a.release_id
@@ -321,9 +321,9 @@ public sealed partial class LibraryDatabase
     /// Lists built on this use it as their coverage: an album with no answer is simply not narrowed.</summary>
     public ReleaseCoverage CountReleaseCoverage()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT

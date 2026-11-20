@@ -89,9 +89,9 @@ public sealed partial class LibraryDatabase
         if (count <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT kind, key, plays, last_played_utc_ticks
@@ -130,9 +130,9 @@ public sealed partial class LibraryDatabase
         if (count <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT * FROM tracks WHERE plays > 0"
                 + (ReachTerm("cloud_state") is { Length: > 0 } reach ? $" AND {reach}" : "")

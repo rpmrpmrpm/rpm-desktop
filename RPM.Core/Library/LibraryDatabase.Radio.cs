@@ -31,9 +31,9 @@ public sealed partial class LibraryDatabase
             if (fact.Styles.Count > 0)
                 byFolder[folder] = fact.Styles;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT folder, styles FROM album_meta WHERE styles IS NOT NULL AND styles <> ''";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -54,9 +54,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     private IReadOnlyList<RadioRow> QueryRadioRows()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             // The tempo is the analyser's where it is confident enough to beat-match on, else the file's tag (which
             // the analyser also writes when it is). Joined on the analysis table's primary key, so one seek a row.
             cmd.CommandText =

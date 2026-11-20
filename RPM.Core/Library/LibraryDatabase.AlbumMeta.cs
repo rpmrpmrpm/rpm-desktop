@@ -275,9 +275,9 @@ public sealed partial class LibraryDatabase
     /// said anything about it yet.</summary>
     public AlbumMeta GetAlbumMeta(string folder)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT is_favorite, rating, review_md, review_updated_utc_ticks, release_id, " +
                 "catno, released, classical, normalize, release_provider, barcode, rpm_album_id, " +
@@ -299,9 +299,9 @@ public sealed partial class LibraryDatabase
         if (wanted.Count == 0)
             return map;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, is_favorite, rating, review_md, review_updated_utc_ticks, " +
                 "release_id, catno, released, classical, normalize, release_provider, barcode, " +
@@ -341,9 +341,9 @@ public sealed partial class LibraryDatabase
     /// zero for a record nobody has marked.</summary>
     public AlbumMarkSync GetAlbumMarkSync(string folder)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT is_favorite, favorite_edited_utc_ticks, favorite_synced_utc_ticks, " +
                 "favorite_cloud_updated_at FROM album_meta WHERE folder = $folder";
@@ -360,9 +360,9 @@ public sealed partial class LibraryDatabase
     /// One sync pass walks this list.</summary>
     public IReadOnlyList<AlbumMarkSync> AlbumMarkSyncStates()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, is_favorite, favorite_edited_utc_ticks, favorite_synced_utc_ticks, " +
                 "favorite_cloud_updated_at FROM album_meta";
@@ -610,9 +610,9 @@ public sealed partial class LibraryDatabase
     /// offers, so the forty-third volume is filed under the same name as the first.</summary>
     public IReadOnlyList<string> AlbumSeriesNames()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT series FROM album_meta
@@ -632,9 +632,9 @@ public sealed partial class LibraryDatabase
     /// a move holds no series, so only records still on the shelf answer.</summary>
     public IReadOnlyList<(string Folder, AlbumSeries Series)> AlbumsInSeries(string name)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, series, series_volume FROM album_meta WHERE series = $name COLLATE NOCASE";
             cmd.Parameters.AddWithValue("$name", name.Trim());
@@ -653,9 +653,9 @@ public sealed partial class LibraryDatabase
     /// sync pass walks this list.</summary>
     public IReadOnlyList<AlbumClassicalSync> AlbumClassicalSyncStates()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, classical, classical_edited_utc_ticks, classical_synced_utc_ticks, " +
                 "classical_cloud_updated_at FROM album_meta";
@@ -770,9 +770,9 @@ public sealed partial class LibraryDatabase
     /// sync pass walks this list.</summary>
     public IReadOnlyList<AlbumSettingsSync> AlbumSettingsSyncStates()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, normalize, series, series_volume, settings_edited_utc_ticks, " +
                 "settings_synced_utc_ticks, settings_cloud_updated_at FROM album_meta";
@@ -1094,9 +1094,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<AlbumToStyle> NextAlbumsWithoutStyles(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT folder, release_id
@@ -1123,9 +1123,9 @@ public sealed partial class LibraryDatabase
     /// <summary>Every track id in an album folder. "Add to cloud" selects them in one call.</summary>
     public IReadOnlyList<long> FolderTrackIds(string folder)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT id FROM tracks WHERE folder = $folder";
             cmd.Parameters.AddWithValue("$folder", folder);
             using var reader = cmd.ExecuteReader();
@@ -1140,9 +1140,9 @@ public sealed partial class LibraryDatabase
     /// the server copy of the tracks that are really up there and un-pick the rest.</summary>
     public IReadOnlyList<LibraryTrack> FolderTracks(string folder)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT * FROM tracks WHERE folder = $folder" +
                 (ReachTerm("cloud_state") is { Length: > 0 } reach ? $" AND {reach}" : "") +
@@ -1166,9 +1166,9 @@ public sealed partial class LibraryDatabase
     /// fully playable from the store look like a half-present one.</para></summary>
     public AlbumCloudRollup GetAlbumCloudRollup(string folder)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT
@@ -1221,12 +1221,12 @@ public sealed partial class LibraryDatabase
         if (folders.Count == 0)
             return rollups;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             for (var start = 0; start < folders.Count; start += 900)
             {
                 var batch = Math.Min(900, folders.Count - start);
-                using var cmd = _read.CreateCommand();
+                using var cmd = Reader.CreateCommand();
                 var names = string.Join(",", Enumerable.Range(0, batch).Select(i => $"$f{i}"));
                 cmd.CommandText =
                     $"""
@@ -1280,14 +1280,14 @@ public sealed partial class LibraryDatabase
 
         var anyLocal = false;
         var anyCloud = false;
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
             // SQLite's parameter limit is 999 by default, so the paths go in in batches. Both answers
             // are OR-ed across the batches, and a batch is skipped once both answers are settled.
             for (var start = 0; start < relativePaths.Count && !(anyLocal && anyCloud); start += 900)
             {
                 var batch = Math.Min(900, relativePaths.Count - start);
-                using var cmd = _read.CreateCommand();
+                using var cmd = Reader.CreateCommand();
                 var names = string.Join(",", Enumerable.Range(0, batch).Select(i => $"$p{i}"));
                 cmd.CommandText =
                     $"""

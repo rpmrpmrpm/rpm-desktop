@@ -122,9 +122,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public TrackVerdict TrackVerdictOf(string relativePath, SmartPlaylistKind kind)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT verdict FROM track_verdict WHERE relative_path = $path AND kind = $kind";
             cmd.Parameters.AddWithValue("$path", relativePath);
@@ -146,9 +146,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlySet<SmartPlaylistKind>> LikedByKind()
     {
-        lock (_readGate)
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"SELECT relative_path, kind FROM track_verdict WHERE verdict = {(int)TrackVerdict.Liked}";
 
@@ -268,9 +268,9 @@ public sealed partial class LibraryDatabase
     /// <inheritdoc cref="RecommendRefusalsSaid"/>
     private RecommendRefusals ReadRecommendRefusals()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT scope, subject, kind FROM recommend_refusal";
 
             var said = new List<(RecommendScope, string, SmartPlaylistKind)>();
@@ -313,9 +313,9 @@ public sealed partial class LibraryDatabase
     /// <summary>Whether one song is a favourite. False for a path the library does not hold.</summary>
     public bool IsTrackFavorite(string relativePath)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT favorite FROM tracks WHERE relative_path = $path LIMIT 1";
             cmd.Parameters.AddWithValue("$path", relativePath);
             var value = cmd.ExecuteScalar();
@@ -336,9 +336,9 @@ public sealed partial class LibraryDatabase
         if (wanted.Count == 0)
             return favorites;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT relative_path FROM tracks WHERE favorite = 1";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -363,9 +363,9 @@ public sealed partial class LibraryDatabase
     public IReadOnlySet<string> FavoriteAlbumFolders()
     {
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT folder FROM album_meta WHERE is_favorite = 1";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -381,9 +381,9 @@ public sealed partial class LibraryDatabase
     public IReadOnlyList<string> FavoriteSongCredits()
     {
         var credits = new List<string>();
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT DISTINCT artist FROM tracks WHERE favorite = 1 AND artist IS NOT NULL AND artist <> ''";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())

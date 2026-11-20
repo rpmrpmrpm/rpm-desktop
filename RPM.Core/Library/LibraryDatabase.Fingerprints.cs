@@ -81,9 +81,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT size_bytes, modified_utc_ticks, fp_version, fingerprint
@@ -110,9 +110,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<FingerprintWork> QueryTracksNeedingFingerprint(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.relative_path, t.size_bytes, t.modified_utc_ticks
@@ -145,9 +145,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<FingerprintReport> QueryFingerprintsNeedingSubmission(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT f.relative_path, t.title, t.artist, t.album, t.year, f.duration_seconds, f.fingerprint
@@ -192,9 +192,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(relativePath);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT f.relative_path, t.title, t.artist, t.album, t.year, f.duration_seconds, f.fingerprint

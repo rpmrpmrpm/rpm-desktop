@@ -254,9 +254,9 @@ public sealed partial class LibraryDatabase
         if (string.IsNullOrEmpty(rpmId))
             return null;
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT * FROM tracks WHERE rpm_id = $gid LIMIT 1";
             cmd.Parameters.AddWithValue("$gid", rpmId);
             using var reader = cmd.ExecuteReader();
@@ -268,9 +268,9 @@ public sealed partial class LibraryDatabase
     /// states this. It also tells "nothing shared yet" apart from "nothing over there".</summary>
     public int CountPeerAdopted()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM tracks WHERE peer_adopted = 1";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }

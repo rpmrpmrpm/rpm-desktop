@@ -49,9 +49,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public TrackTally FromElsewhereTally()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM tracks WHERE cloud_adopted = 1";
             using var reader = cmd.ExecuteReader();
@@ -61,9 +61,9 @@ public sealed partial class LibraryDatabase
 
     private IReadOnlyList<LibraryTrack> QueryOwn(CloudState state, int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT * FROM tracks
@@ -83,9 +83,9 @@ public sealed partial class LibraryDatabase
 
     private TrackTally TallyOwn(CloudState state)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM tracks

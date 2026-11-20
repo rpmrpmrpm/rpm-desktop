@@ -47,9 +47,9 @@ public sealed partial class LibraryDatabase
     /// <summary>The log, newest first.</summary>
     public IReadOnlyList<CloudActivityEntry> QueryCloudActivity(int limit = CloudActivityRetention.MaxRows)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT id, op, title, subtitle, outcome, detail, bytes, at_utc_ticks, full_error " +
                 "FROM cloud_activity ORDER BY at_utc_ticks DESC, id DESC LIMIT $limit";
@@ -76,9 +76,9 @@ public sealed partial class LibraryDatabase
     /// <see cref="CloudActivityFollower"/>, which decides from it whether the log must be read again.</summary>
     internal CloudActivityStamp StampCloudActivity()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM cloud_activity";
             using var reader = cmd.ExecuteReader();
             reader.Read();

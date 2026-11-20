@@ -57,9 +57,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<AlbumMetaEdit> AlbumMetaEdits()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 "SELECT folder, is_favorite, rating, review_md, review_updated_utc_ticks, " +
                 "release_id, catno, released, classical, normalize, release_provider, barcode, " +

@@ -119,9 +119,9 @@ public sealed partial class LibraryDatabase
     {
         ArgumentNullException.ThrowIfNull(rpmId);
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT rpm_id, device, plays, last_played_utc_ticks, sent_plays
@@ -203,9 +203,9 @@ public sealed partial class LibraryDatabase
         if (limit <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT rpm_id, device, plays, last_played_utc_ticks, sent_plays
@@ -434,9 +434,9 @@ public sealed partial class LibraryDatabase
         if (limit <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT rpm_id, device, plays, last_played_utc_ticks, sent_plays

@@ -21,9 +21,9 @@ public sealed partial class LibraryDatabase
         if (words.Length == 0 || most <= 0)
             return [];
 
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.Parameters.AddWithValue("$q", "%" + EscapeLike(words) + "%");
             cmd.Parameters.AddWithValue("$most", most);
 

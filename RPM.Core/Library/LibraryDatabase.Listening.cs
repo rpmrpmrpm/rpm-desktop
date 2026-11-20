@@ -69,9 +69,9 @@ public sealed partial class LibraryDatabase
     /// the WHERE clause is left out entirely and is not compared against a floor value.</param>
     private IReadOnlyList<ListenedRecord> ReadListenedRecords(long? sinceUtcTicks)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT tracks.folder,
@@ -124,9 +124,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     private IReadOnlyList<ListenedCredit> ReadListenedCredits(long? sinceUtcTicks)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT COALESCE(NULLIF(tracks.artist, ''), NULLIF(tracks.album_artist, '')) AS credit,

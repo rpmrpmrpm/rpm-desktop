@@ -49,9 +49,9 @@ public sealed partial class LibraryDatabase
     /// </summary>
     public IReadOnlyList<SoundWork> QueryTracksNeedingSound(int limit)
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT t.relative_path, t.size_bytes, t.modified_utc_ticks, t.duration_seconds
@@ -82,9 +82,9 @@ public sealed partial class LibraryDatabase
     /// <summary>How many tracks <see cref="QueryTracksNeedingSound"/> would still hand out.</summary>
     public int CountTracksNeedingSound()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 $"""
                 SELECT COUNT(*) FROM tracks t
@@ -174,9 +174,9 @@ public sealed partial class LibraryDatabase
 
     private List<(string Path, byte[] Packed)> ReadPackedSounds()
     {
-        using (_readGate.Take())
+        using (ReadLock.Take())
         {
-            using var cmd = _read.CreateCommand();
+            using var cmd = Reader.CreateCommand();
             cmd.CommandText =
                 """
                 SELECT t.relative_path, s.embedding
