@@ -3,7 +3,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using RPM.Core.Analysis;
 using RPM.Core.Diagnostics;
 
-namespace RPM.Desktop.Services.Audio;
+namespace RPM.Onnx;
 
 /// <summary>
 /// Names a record's key with S-KEY (Assets/OnnxModels/skey.onnx), Deezer's key detector.
@@ -16,9 +16,15 @@ namespace RPM.Desktop.Services.Audio;
 ///
 /// <para>The model computes its own constant-Q transform. So unlike the beat model, no spectrogram is
 /// built here. It takes the waveform as it is.</para>
+///
+/// <para>The desktop and the cloud's transcode function both use this class, so a record read on either
+/// one gets the same key. The pool keeps one reading per record for everybody.</para>
 /// </summary>
-public sealed partial class KeyModelService : IKeyModel, IDisposable
+public sealed class OnnxKeyModel : IKeyModel, IDisposable
 {
+    /// <summary>The weights' file name, in the app's model folder and in the deploy bucket.</summary>
+    public const string FileName = "skey.onnx";
+
     /// <summary>Samples per call. This is a 15 second excerpt, the length the model was trained on. The
     /// exported graph accepts only this length.</summary>
     private const int WindowSamples = MelSpectrogram.SampleRate * 15;
@@ -32,8 +38,15 @@ public sealed partial class KeyModelService : IKeyModel, IDisposable
     private InferenceSession? _session;
     private bool _failed;
 
-    private static string ModelPath =>
-        Path.Combine(AppContext.BaseDirectory, "Assets", "OnnxModels", "skey.onnx");
+    private readonly string _directory;
+
+    /// <param name="modelDirectory">Where the weights are. Null for the app's own model folder
+    /// (<see cref="OnnxBeatModel.ModelDirectory"/>); the transcode function passes the folder it fetched them
+    /// into.</param>
+    public OnnxKeyModel(string? modelDirectory = null) =>
+        _directory = modelDirectory ?? OnnxBeatModel.ModelDirectory;
+
+    private string ModelPath => Path.Combine(_directory, FileName);
 
     /// <summary>Whether the model file is present and can be read. This follows the same rule as
     /// <see cref="OnnxBeatModel.IsAvailable"/>.</summary>
@@ -78,7 +91,7 @@ public sealed partial class KeyModelService : IKeyModel, IDisposable
         var path = ModelPath;
         if (!File.Exists(path))
         {
-            Said.Line("analysis", $"no key model at {path} — falling back to the chromagram. " +
+            Said.Line("analysis", $"no key model at {path}; the chromagram is used instead. " +
                             "Run scripts/fetch-models.sh.");
             _failed = true;
             return null;

@@ -36,7 +36,7 @@ public sealed partial class TrackAnalysisService : IDisposable
     // instead of each loading a copy. Both are best-effort. If a model file is missing, the DSP passes do
     // the work instead.
     private readonly OnnxBeatModel _beats = new();
-    private readonly KeyModelService _keys = new();
+    private readonly OnnxKeyModel _keys = new();
 
     /// <summary>
     /// Which machine reads the beats: this one, or the cloud.
