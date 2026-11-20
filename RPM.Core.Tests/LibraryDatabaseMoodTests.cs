@@ -120,9 +120,9 @@ public class LibraryDatabaseMoodTests : IDisposable
         var calm = _db.QuerySmartPlaylist(SmartPlaylistId.WholeShelf(SmartPlaylistKind.Calm), nowUtcTicks: 0, advance: true);
         var got = calm.Select(t => t.RelativePath).ToList();
 
-        // The window the call above used. MoodWindow(advance: true) returns the value it moved to, so
-        // reading it again without advancing gives the same window the rule used.
-        var window = _db.MoodWindow(SmartPlaylistId.WholeShelf(SmartPlaylistKind.Calm), advance: false);
+        // The window the call above used. A press returns the value it moved to, so reading it again as it
+        // stands gives the same window the rule used.
+        var window = _db.MoodWindow(SmartPlaylistId.WholeShelf(SmartPlaylistKind.Calm), LibraryDatabase.MoodTurn.Stands);
         var expected = _db.SessionMoods.Calm.WholeList
             .Allowed(RecommendRefusals.None, SmartPlaylistKind.Calm)
             .InFlow(SmartPlaylists.MostSongs(SmartPlaylistKind.Calm), readings: 1, window, _db.MusicalKeysOf);

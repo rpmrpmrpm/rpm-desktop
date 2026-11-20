@@ -193,15 +193,20 @@ public sealed partial class LibraryDatabase
     /// </summary>
     private readonly Gate _cuts = new("cuts");
 
-    internal int MoodWindow(SmartPlaylistId id, bool advance)
+    internal int MoodWindow(SmartPlaylistId id, MoodTurn turn)
     {
         using (_cuts.Take())
         {
+            // Another device's press count. It is that device's, so it is used and not stored: this
+            // machine's own list stays where it is.
+            if (turn.Reading is { } theirs)
+                return _moodLaunch + theirs;
+
             var pressed = _moodWindows.TryGetValue(id, out var reading) ? reading : 0;
 
             // A list that has never been advanced is at zero. Asking where it is must not store an
             // entry for it, because the pane asks for every list it draws a subtitle for.
-            if (advance)
+            if (turn.Advance)
                 _moodWindows[id] = ++pressed;
 
             // The launch of this collection plus the presses this list has had. There are two numbers
@@ -209,6 +214,24 @@ public sealed partial class LibraryDatabase
             // a restart. The presses belong to this session only.
             return _moodLaunch + pressed;
         }
+    }
+
+    /// <summary>
+    /// How one read of a list treats the mood window: as it stands, moved on by one press here, or at another
+    /// device's press count.
+    /// </summary>
+    /// <param name="Advance">A press of "Generate new" on this machine.</param>
+    /// <param name="Reading">Another device's press count (see <see cref="QuerySmartPlaylistReading"/>).</param>
+    internal readonly record struct MoodTurn(bool Advance, int? Reading)
+    {
+        /// <summary>The list as it stands.</summary>
+        public static MoodTurn Stands => new(false, null);
+
+        /// <summary>A press on this machine, or the list as it stands.</summary>
+        public static MoodTurn Of(bool advance) => new(advance, null);
+
+        /// <summary>The list after <paramref name="reading"/> presses on another device.</summary>
+        public static MoodTurn At(int reading) => new(false, reading);
     }
 
     /// <summary>Which launch of this collection the app is on. Read once, when the library is opened.
@@ -719,16 +742,17 @@ public sealed partial class LibraryDatabase
         /// rule that needs the clock and a rule that needs two hundred paths are still the same object to
         /// everyone who reads one.</para>
         /// </summary>
-        /// <param name="advance">Whether this read is a request for a NEW list. The other reads want the
+        /// <param name="turn">Whether this read is a request for a NEW list. The other reads want the
         /// list as it stands: opening it, playing it, counting it for the pane's subtitle, or cutting it
-        /// for the phone. Only the first moves the mood window on.</param>
+        /// for the phone. Only the first moves the mood window on. A read for another device takes the
+        /// window at that device's press count and moves nothing here.</param>
         /// <param name="readings">How many lists' worth to take in one run. One for anything somebody is
         /// about to look at. More only for the cut sent to the phone, which is sent as a run and takes its
         /// own window of it (see <see cref="SmartPlaylists.ReadingsSent"/>). This is used by the rules that
         /// hold a POOL deeper than the list they show. The others give their whole answer at once, so there
         /// is nothing deeper for them to give.</param>
         public abstract Composed Compose(
-            long nowUtcTicks, LibraryDatabase db, bool advance, int readings);
+            long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings);
 
         /// <summary>
         /// A list the track rows can answer on their own.
@@ -760,7 +784,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings) =>
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings) =>
                 new($"tracks {Join}", Where, Order,
                     NeedsNow ? [("$now", nowUtcTicks)] : Composed.Nothing);
         }
@@ -791,7 +815,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => true;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
@@ -823,7 +847,7 @@ public sealed partial class LibraryDatabase
                 var songs = pool.InFlow(
                     SmartPlaylists.MostSongs(Kind),
                     readings,
-                    db.MoodWindow(new SmartPlaylistId(Kind, Genre, Decade), advance)
+                    db.MoodWindow(new SmartPlaylistId(Kind, Genre, Decade), turn)
                         + MoodSets.Turn(Kind, Genre),
                     db.MusicalKeysOf);
 
@@ -860,7 +884,7 @@ public sealed partial class LibraryDatabase
                 var shows = Pool(db.SessionMoods, SmartPlaylistKind.Sleep, null, 0, db.RecommendRefusalsSaid())
                     .Window(
                         SmartPlaylists.MostSongs(SmartPlaylistKind.Sleep) * readings,
-                        db.MoodWindow(sleep, advance: false) + MoodSets.Turn(SmartPlaylistKind.Sleep, null));
+                        db.MoodWindow(sleep, MoodTurn.Stands) + MoodSets.Turn(SmartPlaylistKind.Sleep, null));
                 return new HashSet<string>(shows, StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -892,11 +916,11 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => Asked.CanRegenerate;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
-                var asked = Asked.Compose(nowUtcTicks, db, advance, readings);
+                var asked = Asked.Compose(nowUtcTicks, db, turn, readings);
                 var folders = JsonList(db.FoldersOnGenre(Genre));
 
                 // Appended to whatever the question already joins, rather than folded into its WHERE. An inner
@@ -940,7 +964,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
@@ -983,7 +1007,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
@@ -1267,7 +1291,24 @@ public sealed partial class LibraryDatabase
     /// </param>
     public IReadOnlyList<LibraryTrack> QuerySmartPlaylist(
         SmartPlaylistId id, long nowUtcTicks, bool advance, int limit = SmartPlaylists.MaxTracks)
-        => QueryRun(id, nowUtcTicks, advance, readings: 1, limit);
+        => QueryRun(id, nowUtcTicks, MoodTurn.Of(advance), readings: 1, limit);
+
+    /// <summary>
+    /// The list as another device shows it after <paramref name="reading"/> presses of "Generate new" there.
+    ///
+    /// <para><b>What the store answers a phone's press with.</b> The phone keeps its own press count per list
+    /// and sends it. The answer is the window of the pool that this many presses reach from where this
+    /// session's lists started, so each press is a new list, as a press on a computer is. Nothing is stored:
+    /// this machine's own list does not move.</para>
+    ///
+    /// <para>A kind with no pool behind it returns its ordinary list, whatever the count.</para>
+    /// </summary>
+    public IReadOnlyList<LibraryTrack> QuerySmartPlaylistReading(SmartPlaylistId id, long nowUtcTicks, int reading)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(reading);
+
+        return QueryRun(id, nowUtcTicks, MoodTurn.At(reading), readings: 1, limit: SmartPlaylists.MaxTracks);
+    }
 
     /// <summary>
     /// The same list, several readings deep, in one run.
@@ -1290,16 +1331,16 @@ public sealed partial class LibraryDatabase
         ArgumentOutOfRangeException.ThrowIfLessThan(readings, 1);
 
         return QueryRun(
-            id, nowUtcTicks, advance: false, readings,
+            id, nowUtcTicks, MoodTurn.Stands, readings,
             limit: SmartPlaylists.MostSongs(id.Kind) * readings);
     }
 
     private IReadOnlyList<LibraryTrack> QueryRun(
-        SmartPlaylistId id, long nowUtcTicks, bool advance, int readings, int limit)
+        SmartPlaylistId id, long nowUtcTicks, MoodTurn turn, int readings, int limit)
     {
         // Composed before the gate is taken, never inside it. See SmartPlaylistRule.Compose for what
         // it costs when it is the other way round.
-        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance, readings);
+        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, turn, readings);
 
         using (_readGate.Take())
         {
@@ -1371,7 +1412,7 @@ public sealed partial class LibraryDatabase
         // move the reader on to the next one.
         var shown = pool.Window(
             SmartPlaylists.MostSongs(id.Kind),
-            MoodWindow(id, advance: false) + MoodSets.Turn(id.Kind, id.Genre)).Count;
+            MoodWindow(id, MoodTurn.Stands) + MoodSets.Turn(id.Kind, id.Genre)).Count;
         return pool.Count > shown;
     }
 
@@ -1431,7 +1472,7 @@ public sealed partial class LibraryDatabase
         // The playlist pane asks it once per offered list, 84 times on this collection. While composition ran
         // under the gate, the reading connection was held for about eleven seconds, against about 300 ms of
         // actual query time.
-        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance: false, readings: 1);
+        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, MoodTurn.Stands, readings: 1);
 
         using (_readGate.Take())
         {
