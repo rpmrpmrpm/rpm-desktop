@@ -734,7 +734,7 @@ public sealed partial class MigrationDialog : ContentDialog
     private void ShowReport(MigrationReport report)
     {
         Show(Face.Report);
-        _service.ReportSeen = true;
+        _service.MarkReportSeen();
         ReportTitle.Text = Loc.Format("Migration_ReportTitle", _service.CurrentLabel);
         ReportCounts.Text = Loc.Format("Migration_ReportCounts", Count(report.Counts.Found), Count(report.Counts.Imported), Count(report.Counts.AlreadyInRpm), Count(report.Counts.NotImported));
         ReportPlaylists.Text = report.Playlists.Count == 1

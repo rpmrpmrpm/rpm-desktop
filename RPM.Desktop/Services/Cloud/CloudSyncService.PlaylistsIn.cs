@@ -137,7 +137,7 @@ public sealed partial class CloudSyncService
             _log.LogInformation("[Cloud] Merged {Count} playlist(s) changed elsewhere", reordered);
 
         // The tree on screen is built from the database. Nothing else would tell it that a node arrived.
-        // This is the same call that AddPlaylistToCloudAsync makes, for the same reason. It is safe to call
+        // This is the same call that AddPlaylistsToCloudAsync makes, for the same reason. It is safe to call
         // from this thread. PlaylistModel.OnLibraryChanged puts its own reload on the dispatcher, wherever
         // the notice came from.
         _library.NotifyChanged();
@@ -431,7 +431,7 @@ public sealed partial class CloudSyncService
 
         // The tracks are already up there, or the playlist could not have named them. But this library may
         // not have been the one that put them there. They are marked wanted and unpinned, exactly as
-        // AddPlaylistToCloudAsync marks them. The playlist holds them in the cloud, the user did not pick
+        // AddPlaylistsToCloudAsync marks them. The playlist holds them in the cloud, the user did not pick
         // them one by one, and taking the playlist back out later releases them again.
         db.SetCloudSelected([.. songs.Select(t => t.Id)], selected: true, pinned: false);
 

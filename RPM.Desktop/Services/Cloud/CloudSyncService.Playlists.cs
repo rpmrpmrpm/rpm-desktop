@@ -11,34 +11,54 @@ namespace RPM.Desktop.Services.Cloud;
 /// </summary>
 public sealed partial class CloudSyncService
 {
-    public Task AddPlaylistToCloudAsync(long playlistNodeId) =>
-        ErrandAsync(_ => AddPlaylistToCloudCoreAsync(playlistNodeId), CancellationToken.None);
+    /// <summary>
+    /// Adds playlists to the cloud: their tracks are chosen for upload and their order is stored.
+    ///
+    /// <para>One errand for all of them, not one per playlist. Every playlist is marked before the first
+    /// one is pushed, so the tree shows them all as on their way at once, and one sync run is started for
+    /// all their tracks instead of one run per playlist.</para>
+    /// </summary>
+    public Task AddPlaylistsToCloudAsync(IReadOnlyList<long> playlistNodeIds) =>
+        ErrandAsync(_ => AddPlaylistsToCloudCoreAsync(playlistNodeIds), CancellationToken.None);
 
-    private async Task AddPlaylistToCloudCoreAsync(long playlistNodeId)
+    private async Task AddPlaylistsToCloudCoreAsync(IReadOnlyList<long> playlistNodeIds)
     {
-        if (!_library.IsOpen) return;
+        if (!_library.IsOpen || playlistNodeIds.Count == 0) return;
         var db = _library.Db;
 
-        var tracks = db.FlattenPlaylistTracks(playlistNodeId);
+        foreach (var playlistNodeId in playlistNodeIds)
+        {
+            var tracks = db.FlattenPlaylistTracks(playlistNodeId);
 
-        // The id the playlist is stored under. It is kept for the playlist's whole life, so re-syncing
-        // replaces what is up there instead of leaving a second copy behind.
-        var cloudId = db.GetPlaylistCloud(playlistNodeId).CloudId ?? Guid.NewGuid().ToString("D");
+            // The id the playlist is stored under. It is kept for the playlist's whole life, so re-syncing
+            // replaces what is up there instead of leaving a second copy behind.
+            var cloudId = db.GetPlaylistCloud(playlistNodeId).CloudId ?? Guid.NewGuid().ToString("D");
 
-        db.SetCloudSelected([.. tracks.Select(t => t.Id)], selected: true, pinned: false);
-        db.SetPlaylistInCloud(playlistNodeId, cloudId, DateTime.UtcNow.Ticks);
+            db.SetCloudSelected([.. tracks.Select(t => t.Id)], selected: true, pinned: false);
+            db.SetPlaylistInCloud(playlistNodeId, cloudId, DateTime.UtcNow.Ticks);
+        }
+
         _library.NotifyChanged();
 
-        await PushPlaylistAsync(playlistNodeId, CancellationToken.None);
+        foreach (var playlistNodeId in playlistNodeIds)
+            await PushPlaylistAsync(playlistNodeId, CancellationToken.None);
         await KickAsync();
     }
 
     /// <summary>
-    /// Takes a playlist out of the cloud, and with it every track that was only up there for its sake. A
-    /// track the user picked by hand, or one that another synced playlist still plays, stays.
+    /// Takes playlists out of the cloud, and with them every track that was only up there for their sake.
+    /// A track the user picked by hand, or one that another synced playlist still plays, stays.
+    ///
+    /// <para>The playlists are taken out one after another, in one errand. Each one works out which
+    /// tracks to keep from the playlists still in the cloud at that moment, so a track shared by two
+    /// playlists that both leave is removed with the second one.</para>
     /// </summary>
-    public Task RemovePlaylistFromCloudAsync(long playlistNodeId) =>
-        ErrandAsync(_ => RemovePlaylistFromCloudCoreAsync(playlistNodeId), CancellationToken.None);
+    public Task RemovePlaylistsFromCloudAsync(IReadOnlyList<long> playlistNodeIds) =>
+        ErrandAsync(async _ =>
+        {
+            foreach (var playlistNodeId in playlistNodeIds)
+                await RemovePlaylistFromCloudCoreAsync(playlistNodeId);
+        }, CancellationToken.None);
 
     private async Task RemovePlaylistFromCloudCoreAsync(long playlistNodeId)
     {
@@ -230,7 +250,7 @@ public sealed partial class CloudSyncService
         //
         // The read runs on a background thread, not inline. PushPlaylistAsync is reached in two ways. One
         // is the background sync loop, which is already on its own thread. The other is
-        // AddPlaylistToCloudAsync, which is called straight from a menu click with no Task.Run around it. A
+        // AddPlaylistsToCloudAsync, which is called straight from a menu click with no Task.Run around it. A
         // read that is only slow on the second path would still be a disk read on the UI thread there.
         var master = await Task.Run(() => PlaylistCoverStore.ReadForPush(playlistNodeId, segment));
 

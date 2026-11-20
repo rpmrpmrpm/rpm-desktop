@@ -205,9 +205,12 @@
            insets 6, so 10 here puts a top-level row's first mark on 16. That is the column the pane's
            heading stands in. The drop line is set to the same 16 from code (see MarkTreeDrop). A change to
            either one must be made to both. -->
+      <!-- Extended: Cmd-click (Ctrl-click on Windows) and Shift-click select several rows, and the menu then
+           acts on the selected playlists together (see PlaylistCloudPick). A click with one of those keys
+           held only changes the selection. It does not open the row (see DropTreeRow). -->
       <ListView x:Name="Tree" Grid.Row="2"
                 ItemsSource="{Binding Visible}"
-                SelectionMode="Single"
+                SelectionMode="Extended"
                 SelectionChanged="Tree_SelectionChanged"
                 Background="Transparent"
                 Padding="10,0,16,10"

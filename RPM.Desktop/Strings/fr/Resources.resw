@@ -2260,6 +2260,14 @@
     <value>Retirer du cloud</value>
     <comment>Playlist tree context menu: remove the playlist from the cloud, and the tracks that were only there for it.</comment>
   </data>
+  <data name="Playlists_AddManyToCloud" xml:space="preserve">
+    <value>Ajouter {0} playlists au cloud</value>
+    <comment>Playlist tree context menu when several playlists are selected: upload those playlists and every track they play to the cloud. {0} is the number of selected playlists that are not in the cloud yet (2 or more).</comment>
+  </data>
+  <data name="Playlists_RemoveManyFromCloud" xml:space="preserve">
+    <value>Retirer {0} playlists du cloud</value>
+    <comment>Playlist tree context menu when several playlists are selected: remove those playlists from the cloud, and the tracks that were only there for them. {0} is the number of selected playlists that are in the cloud (2 or more).</comment>
+  </data>
   <data name="Playlists_Play" xml:space="preserve">
     <value>Lire</value>
     <comment>Playlist tree context menu: play this playlist/folder/song.</comment>
