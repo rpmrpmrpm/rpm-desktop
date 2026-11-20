@@ -11335,4 +11335,132 @@
     <value>打开资料库时，rpm 会在后台读取你的音乐。大型收藏可能需要几分钟。</value>
     <comment>Setup, last step: shown instead of the album count when the library is a folder of music the person already had.</comment>
   </data>
+  <data name="Settings_BackgroundAero" xml:space="preserve">
+    <value>Aero</value>
+    <comment>Phone backdrop tile: folds of warm copper light on black, with a fine grain. A name, so untranslated.</comment>
+  </data>
+  <data name="Settings_StartupSound" xml:space="preserve">
+    <value>播放开场音效</value>
+    <comment>Phone settings, General: switch for the short sound rpm plays when it opens.</comment>
+  </data>
+  <data name="Settings_StartupSoundHint" xml:space="preserve">
+    <value>打开 rpm 时播放的简短音效。音乐一开始就会停止。</value>
+    <comment>Phone settings, General: the line under the opening sound switch.</comment>
+  </data>
+  <data name="Home_AddToQuick" xml:space="preserve">
+    <value>添加到快速选择</value>
+    <comment>Long-press menu on a song, record or playlist (phone): puts it in home's Quick selection, after the suggested mixtapes. 'Quick selection' is the Home_QuickPicks heading.</comment>
+  </data>
+  <data name="Home_RemoveFromQuick" xml:space="preserve">
+    <value>从快速选择中移除</value>
+    <comment>Long-press menu on something the user added to home's Quick selection (phone): takes it out again.</comment>
+  </data>
+  <data name="Playlists_Pin" xml:space="preserve">
+    <value>置顶</value>
+    <comment>Long-press menu and page menu on a playlist (phone): keeps it at the top of the Playlists view, under Recently played.</comment>
+  </data>
+  <data name="Playlists_Unpin" xml:space="preserve">
+    <value>取消置顶</value>
+    <comment>Long-press menu and page menu on a pinned playlist (phone): it goes back to its own place in the Playlists view.</comment>
+  </data>
+  <data name="Settings_ArticleLanguage" xml:space="preserve">
+    <value>艺人和专辑介绍</value>
+    <comment>Phone settings, General: heading over the choice of language for the Wikipedia texts on artist and record pages.</comment>
+  </data>
+  <data name="Settings_ArticleLanguageHint" xml:space="preserve">
+    <value>艺人和专辑介绍所用的语言。如果没有该语言的版本，就显示英文版。</value>
+    <comment>Phone settings, General: the line under the description language choice.</comment>
+  </data>
+  <data name="Settings_ArticleLanguagePhone" xml:space="preserve">
+    <value>与手机相同（{0}）</value>
+    <comment>Phone settings: the first choice of description language, the phone's own. {0} is that language's name in itself, e.g. 'Nederlands'.</comment>
+  </data>
+  <data name="Settings_PlayerBars" xml:space="preserve">
+    <value>播放器中的动态频谱条</value>
+    <comment>Phone settings, Appearance: switch for the spectrum bars that move with the music beside the cover in the player.</comment>
+  </data>
+  <data name="Settings_PlayerBarsHint" xml:space="preserve">
+    <value>封面两侧随音乐跳动的频谱条。</value>
+    <comment>Phone settings, Appearance: the line under the moving bars switch.</comment>
+  </data>
+  <data name="Coach_Phone_Home" xml:space="preserve">
+    <value>这里是主页！最近播放、接下来听什么和最新添加，全都在这里。长按歌曲、专辑或播放列表可查看更多。</value>
+    <comment>Phone first-run hint pointing at the Home tab.</comment>
+  </data>
+  <data name="Coach_Phone_Collection" xml:space="preserve">
+    <value>按你的方式浏览收藏！专辑、艺人、播放列表和流派都在这里，一点即达。</value>
+    <comment>Phone first-run hint pointing at the Collection tab. Starts like Coach_Views on the desktop.</comment>
+  </data>
+  <data name="Coach_Phone_Radio" xml:space="preserve">
+    <value>想听点新的？这里有来自世界各地的电台。</value>
+    <comment>Phone first-run hint pointing at the Radio tab (internet radio).</comment>
+  </data>
+  <data name="Coach_Phone_Feed" xml:space="preserve">
+    <value>看看其他收藏者在听什么、评什么，也分享你自己的发现。</value>
+    <comment>Phone first-run hint pointing at the Feed tab (posts and reviews by rpm users).</comment>
+  </data>
+  <data name="Coach_Phone_Settings" xml:space="preserve">
+    <value>让 rpm 成为你的专属！在设置中选择背景和音质，并管理下载。</value>
+    <comment>Phone first-run hint pointing at the Settings tab. Starts like Wizard_LookTitle.</comment>
+  </data>
+  <data name="Coach_Phone_MiniPlayer" xml:space="preserve">
+    <value>正在播放的内容就在这里。轻点即可打开播放器。</value>
+    <comment>Phone first-run hint pointing at the mini player above the tabs.</comment>
+  </data>
+  <data name="Coach_Phone_DoneBody" xml:space="preserve">
+    <value>现在你已经熟悉 rpm 了。尽情播放、探索，打造属于你的收藏。收藏愉快！</value>
+    <comment>Phone: the card that ends the first-run tour, under Coach_DoneTitle. The phone's Coach_DoneBody, without ripping and recording.</comment>
+  </data>
+  <data name="Settings_Phone_HintsHint" xml:space="preserve">
+    <value>带你熟悉应用和播放器的小提示。每条只出现一次，之后不再打扰。</value>
+    <comment>Phone settings: the line under the button that shows the first-run hints again. The phone's Settings_HintsHint.</comment>
+  </data>
+  <data name="Coach_Player_Cover" xml:space="preserve">
+    <value>这是你的唱片！左右滑动可切到下一首或返回上一首。</value>
+    <comment>Phone first-run hint in the player, pointing at the cover.</comment>
+  </data>
+  <data name="Coach_Player_Heart" xml:space="preserve">
+    <value>喜欢这首？点一下爱心，它就会进入你的收藏曲目。</value>
+    <comment>Phone first-run hint in the player, pointing at the heart beside the title.</comment>
+  </data>
+  <data name="Coach_Player_Lyrics" xml:space="preserve">
+    <value>想跟着唱？点这里，歌词会随演唱同步显示。</value>
+    <comment>Phone first-run hint in the player, pointing at the lyrics key.</comment>
+  </data>
+  <data name="Coach_Player_Queue" xml:space="preserve">
+    <value>这里是接下来要播放的内容，随时可以调整顺序。</value>
+    <comment>Phone first-run hint in the player, pointing at the queue key.</comment>
+  </data>
+  <data name="Coach_Player_Menu" xml:space="preserve">
+    <value>在这里设置睡眠定时、把歌曲加入播放列表，或跳转到专辑和艺人。</value>
+    <comment>Phone first-run hint in the player, pointing at the menu key in the row under the transport.</comment>
+  </data>
+  <data name="Coach_Player_Speakers" xml:space="preserve">
+    <value>直接在这里切换到其他扬声器播放，比如你的电视。</value>
+    <comment>Phone first-run hint in the player, pointing at the speaker key at the top right.</comment>
+  </data>
+  <data name="Coach_Player_Grip" xml:space="preserve">
+    <value>好了？向下拉这里即可收起播放器。把手机横过来还能看到可视化效果！</value>
+    <comment>Phone first-run hint in the player, pointing at the grip at the top. The last of the player's hints.</comment>
+  </data>
+  <data name="Wizard_Phone_LookHint" xml:space="preserve">
+    <value>选择整个应用的背景图片。之后可随时在设置中更改。</value>
+    <comment>Phone welcome, the look step: the line under Wizard_LookTitle, over the backdrop tiles. The phone's Wizard_LookBackgroundHint.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerTitle" xml:space="preserve">
+    <value>来试一试吧！</value>
+    <comment>Phone welcome, the player step: heading. A pun on a record spinning is welcome where the language has one.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerBody" xml:space="preserve">
+    <value>这是你收藏中的一首歌。点播放，我们会边放边带你熟悉播放器。</value>
+    <comment>Phone welcome, the player step: the line under the heading, over the chosen song.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerGo" xml:space="preserve">
+    <value>播放并带我看看</value>
+    <comment>Phone welcome, the player step: the button that plays the song and opens the player with its hints.</comment>
+  </data>
+  <data name="Wizard_Phone_LayoutBody" xml:space="preserve">
+    <value>选择专辑在收藏中的显示方式。随时可以在收藏页面顶部切换。</value>
+    <comment>Phone welcome, the layout step: the line under Wizard_LayoutTitle. The phone's Wizard_LayoutBody, with two choices.</comment>
+  </data>
 </root>

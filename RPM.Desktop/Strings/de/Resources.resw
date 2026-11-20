@@ -11335,4 +11335,132 @@
     <value>rpm liest deine Musik im Hintergrund, wenn die Bibliothek geöffnet wird. Eine große Sammlung kann ein paar Minuten dauern.</value>
     <comment>Setup, last step: shown instead of the album count when the library is a folder of music the person already had.</comment>
   </data>
+  <data name="Settings_BackgroundAero" xml:space="preserve">
+    <value>Aero</value>
+    <comment>Phone backdrop tile: folds of warm copper light on black, with a fine grain. A name, so untranslated.</comment>
+  </data>
+  <data name="Settings_StartupSound" xml:space="preserve">
+    <value>Eröffnungsklang abspielen</value>
+    <comment>Phone settings, General: switch for the short sound rpm plays when it opens.</comment>
+  </data>
+  <data name="Settings_StartupSoundHint" xml:space="preserve">
+    <value>Ein kurzer Klang, wenn rpm startet. Er verstummt, sobald deine Musik beginnt.</value>
+    <comment>Phone settings, General: the line under the opening sound switch.</comment>
+  </data>
+  <data name="Home_AddToQuick" xml:space="preserve">
+    <value>Zur Schnellauswahl hinzufügen</value>
+    <comment>Long-press menu on a song, record or playlist (phone): puts it in home's Quick selection, after the suggested mixtapes. 'Quick selection' is the Home_QuickPicks heading.</comment>
+  </data>
+  <data name="Home_RemoveFromQuick" xml:space="preserve">
+    <value>Aus der Schnellauswahl entfernen</value>
+    <comment>Long-press menu on something the user added to home's Quick selection (phone): takes it out again.</comment>
+  </data>
+  <data name="Playlists_Pin" xml:space="preserve">
+    <value>Oben anheften</value>
+    <comment>Long-press menu and page menu on a playlist (phone): keeps it at the top of the Playlists view, under Recently played.</comment>
+  </data>
+  <data name="Playlists_Unpin" xml:space="preserve">
+    <value>Lösen</value>
+    <comment>Long-press menu and page menu on a pinned playlist (phone): it goes back to its own place in the Playlists view.</comment>
+  </data>
+  <data name="Settings_ArticleLanguage" xml:space="preserve">
+    <value>Beschreibungen von Künstlern und Alben</value>
+    <comment>Phone settings, General: heading over the choice of language for the Wikipedia texts on artist and record pages.</comment>
+  </data>
+  <data name="Settings_ArticleLanguageHint" xml:space="preserve">
+    <value>Die Sprache der Texte über deine Künstler und Alben. Gibt es keinen in dieser Sprache, bekommst du den englischen.</value>
+    <comment>Phone settings, General: the line under the description language choice.</comment>
+  </data>
+  <data name="Settings_ArticleLanguagePhone" xml:space="preserve">
+    <value>Wie dein Telefon ({0})</value>
+    <comment>Phone settings: the first choice of description language, the phone's own. {0} is that language's name in itself, e.g. 'Nederlands'.</comment>
+  </data>
+  <data name="Settings_PlayerBars" xml:space="preserve">
+    <value>Animierte Balken im Player</value>
+    <comment>Phone settings, Appearance: switch for the spectrum bars that move with the music beside the cover in the player.</comment>
+  </data>
+  <data name="Settings_PlayerBarsHint" xml:space="preserve">
+    <value>Die Balken neben dem Cover, die sich mit der Musik bewegen.</value>
+    <comment>Phone settings, Appearance: the line under the moving bars switch.</comment>
+  </data>
+  <data name="Coach_Phone_Home" xml:space="preserve">
+    <value>Das ist dein Start! Was du zuletzt gehört hast, was du als Nächstes hören kannst und was neu dazugekommen ist, alles an einem Ort. Halte einen Song, ein Album oder eine Playlist gedrückt, um mehr zu sehen.</value>
+    <comment>Phone first-run hint pointing at the Home tab.</comment>
+  </data>
+  <data name="Coach_Phone_Collection" xml:space="preserve">
+    <value>Durchstöbere deine Sammlung, wie du willst! Alben, Künstler, Playlists und Genres sind alle hier, nur einen Tipp entfernt.</value>
+    <comment>Phone first-run hint pointing at the Collection tab. Starts like Coach_Views on the desktop.</comment>
+  </data>
+  <data name="Coach_Phone_Radio" xml:space="preserve">
+    <value>Lust auf etwas Neues? Hör Radio, mit Sendern aus aller Welt, genau hier.</value>
+    <comment>Phone first-run hint pointing at the Radio tab (internet radio).</comment>
+  </data>
+  <data name="Coach_Phone_Feed" xml:space="preserve">
+    <value>Sieh dir an, was andere Sammler hören und bewerten, und teile deine eigenen Funde.</value>
+    <comment>Phone first-run hint pointing at the Feed tab (posts and reviews by rpm users).</comment>
+  </data>
+  <data name="Coach_Phone_Settings" xml:space="preserve">
+    <value>Mach rpm zu deinem! Wähle einen Hintergrund und die Klangqualität und verwalte deine Downloads in den Einstellungen.</value>
+    <comment>Phone first-run hint pointing at the Settings tab. Starts like Wizard_LookTitle.</comment>
+  </data>
+  <data name="Coach_Phone_MiniPlayer" xml:space="preserve">
+    <value>Was gerade läuft, findest du genau hier. Tipp darauf, um den Player zu öffnen.</value>
+    <comment>Phone first-run hint pointing at the mini player above the tabs.</comment>
+  </data>
+  <data name="Coach_Phone_DoneBody" xml:space="preserve">
+    <value>Jetzt kennst du dich in rpm aus. Hör, entdecke und mach deine Sammlung zu deiner. Viel Spaß beim Sammeln!</value>
+    <comment>Phone: the card that ends the first-run tour, under Coach_DoneTitle. The phone's Coach_DoneBody, without ripping and recording.</comment>
+  </data>
+  <data name="Settings_Phone_HintsHint" xml:space="preserve">
+    <value>Die kleinen Hinweise, die dir die App und den Player zeigen. Jeder erscheint einmal und lässt dich dann in Ruhe.</value>
+    <comment>Phone settings: the line under the button that shows the first-run hints again. The phone's Settings_HintsHint.</comment>
+  </data>
+  <data name="Coach_Player_Cover" xml:space="preserve">
+    <value>Das ist deine Platte! Wisch nach links oder rechts, um zum nächsten Song zu springen oder zurückzugehen.</value>
+    <comment>Phone first-run hint in the player, pointing at the cover.</comment>
+  </data>
+  <data name="Coach_Player_Heart" xml:space="preserve">
+    <value>Du liebst den Song? Tipp aufs Herz, und er ist bei deinen Lieblingssongs.</value>
+    <comment>Phone first-run hint in the player, pointing at the heart beside the title.</comment>
+  </data>
+  <data name="Coach_Player_Lyrics" xml:space="preserve">
+    <value>Lust mitzusingen? Tipp hier, um den Text mitzulesen, während er gesungen wird.</value>
+    <comment>Phone first-run hint in the player, pointing at the lyrics key.</comment>
+  </data>
+  <data name="Coach_Player_Queue" xml:space="preserve">
+    <value>Hier siehst du, was als Nächstes kommt. Ordne es um, wann immer du willst.</value>
+    <comment>Phone first-run hint in the player, pointing at the queue key.</comment>
+  </data>
+  <data name="Coach_Player_Menu" xml:space="preserve">
+    <value>Stell einen Sleep-Timer, füge den Song einer Playlist hinzu oder spring von hier zum Album oder zum Künstler.</value>
+    <comment>Phone first-run hint in the player, pointing at the menu key in the row under the transport.</comment>
+  </data>
+  <data name="Coach_Player_Speakers" xml:space="preserve">
+    <value>Spiel auf einem anderen Lautsprecher, zum Beispiel deinem Fernseher, direkt von hier.</value>
+    <comment>Phone first-run hint in the player, pointing at the speaker key at the top right.</comment>
+  </data>
+  <data name="Coach_Player_Grip" xml:space="preserve">
+    <value>Fertig? Zieh das nach unten, um den Player wegzuräumen. Und dreh dein Telefon zur Seite für den Visualizer!</value>
+    <comment>Phone first-run hint in the player, pointing at the grip at the top. The last of the player's hints.</comment>
+  </data>
+  <data name="Wizard_Phone_LookHint" xml:space="preserve">
+    <value>Wähle das Bild hinter der ganzen App. Du kannst es jederzeit in den Einstellungen ändern.</value>
+    <comment>Phone welcome, the look step: the line under Wizard_LookTitle, over the backdrop tiles. The phone's Wizard_LookBackgroundHint.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerTitle" xml:space="preserve">
+    <value>Lass uns eine Runde drehen!</value>
+    <comment>Phone welcome, the player step: heading. A pun on a record spinning is welcome where the language has one.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerBody" xml:space="preserve">
+    <value>Hier ist ein Song aus deiner Sammlung. Drück auf Play, und wir zeigen dir den Player, während er läuft.</value>
+    <comment>Phone welcome, the player step: the line under the heading, over the chosen song.</comment>
+  </data>
+  <data name="Wizard_Phone_PlayerGo" xml:space="preserve">
+    <value>Abspielen und herumführen</value>
+    <comment>Phone welcome, the player step: the button that plays the song and opens the player with its hints.</comment>
+  </data>
+  <data name="Wizard_Phone_LayoutBody" xml:space="preserve">
+    <value>Wähle, wie deine Alben in der Sammlung erscheinen. Du kannst jederzeit oben in der Sammlung umschalten.</value>
+    <comment>Phone welcome, the layout step: the line under Wizard_LayoutTitle. The phone's Wizard_LayoutBody, with two choices.</comment>
+  </data>
 </root>
