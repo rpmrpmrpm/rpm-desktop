@@ -198,7 +198,10 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
                 _rpamp.PlayAlbumFrom(row.ToWantedTrackInfo());
         });
 
-        RebuildLibraryTree(Rebuilt.LibraryChanged);
+        // The library was opened before this model existed, so the change that Open raised was not heard
+        // here. The rebuild it would have started waits for the first screen, for the reason given on
+        // OnLibraryChanged.
+        Services.Shell.AfterFirstScreen.Run(() => RebuildLibraryTree(Rebuilt.LibraryChanged));
 
         // Reconcile the mirror with whatever changed on disk since the last run. Then pick up whatever is
         // waiting in the inbox. This runs in the background. The grid refreshes through Changed when the
@@ -511,7 +514,8 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     /// album views and one for the artists view. Neither is on screen at that point, because the app opens
     /// on home, and home covers both panes. The library's reads are serialised. So those two reads would
     /// take the gate that home's own reading needs. Measured, home's listening profile waited about a
-    /// second behind the artist credits query, and the reveal waits on home.
+    /// second behind the artist credits query, and the reveal waits on home. The constructor's own rebuild
+    /// waits in the same way.
     ///
     /// <para>Every later change (an import, a sync, or a folder swap) arrives with the screen long up. <see
     /// cref="Services.Shell.AfterFirstScreen"/> runs the work then. The only change this makes is to the

@@ -240,7 +240,7 @@ public sealed partial class LibraryDatabase
         SetMeta(MoodLaunchKey, _moodLaunch.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    private MoodShelf? _moods;
+    private readonly SessionCut<MoodShelf> _moods = new();
 
     /// <summary>
     /// The collection's moods as they stood when this session started. This is the cut that every mood
@@ -260,52 +260,52 @@ public sealed partial class LibraryDatabase
     /// holds no connection and asks the database nothing. A write that lands during the build is simply
     /// not in the cut. That gives the same answer as a write that lands a second later, and both match
     /// the rule for this session: the cut is fixed until the next launch. The only ordering that would
-    /// matter is two threads building it at once, and the lock below prevents that. Otherwise they
-    /// would get two different cuts, and the lists would disagree with each other for the rest of the
-    /// session.</para>
+    /// matter is two threads building it at once. <see cref="SessionCut{T}"/> prevents that: the second
+    /// thread waits for the first build and takes its answer. Otherwise they would get two different cuts,
+    /// and the lists would disagree with each other for the rest of the session.</para>
     /// </summary>
-    public MoodShelf SessionMoods
+    public MoodShelf SessionMoods => _moods.Get(_cuts, BuildSessionMoods);
+
+    private MoodShelf BuildSessionMoods()
     {
-        get
-        {
-            using (_cuts.Take())
-            {
-                // Read inside the lock so two threads cannot each decide it is missing and build one.
-                if (_moods is not null)
-                    return _moods;
-            }
-
-            // Built outside the lock: it is three whole-table reads and a sort, and holding the cut
-            // lock across it would make one reader wait out another's build for no gain.
-            //
-            // The catalogues' answer is read ONCE and used twice. It decides which cohort a record is
-            // cut against, and which records a list prefers. Two reads a moment apart could disagree
-            // while the styles sweep is running. A cut whose ranges and narrowings come from two
-            // different states cannot be reasoned about.
-            var facts = CatalogueFactsByFolder();
-            var counts = QueryAlbumGenreCounts();
-            var built = MoodShelf.Build(
-                QueryMeasuredMoods(),
-                MoodBands.GenreByFolder(counts, facts),
-                facts,
-                // Read here, not inside the cut, for the same reason as the catalogues' answer. One
-                // read is used once per kind, so no two lists disagree about what the listener has
-                // said while a verdict is being written on another thread.
-                LikedByKind(),
-                // What the sound pass heard, and the words and styles the other lists are found by. The
-                // date is read once, here, so a session that runs past New Year's Day keeps its New
-                // Year's Eve list until the next launch, as every list keeps its cut.
-                Hearing(counts, facts, DateTime.Now));
-
-            using (_cuts.Take())
-            {
-                // Whoever got here first wins. A second cut built in a race is thrown away rather than
-                // installed, because two lists drawn from two cuts is the exact disagreement this
-                // property exists to prevent.
-                return _moods ??= built;
-            }
-        }
+        // The catalogues' answer is read ONCE and used twice. It decides which cohort a record is cut
+        // against, and which records a list prefers. Two reads a moment apart could disagree while the
+        // styles sweep is running. A cut whose ranges and narrowings come from two different states
+        // cannot be reasoned about.
+        var facts = CatalogueFactsByFolder();
+        var counts = QueryAlbumGenreCounts();
+        return MoodShelf.Build(
+            QueryMeasuredMoods(),
+            MoodBands.GenreByFolder(counts, facts),
+            facts,
+            // Read here, not inside the cut, for the same reason as the catalogues' answer. One read is
+            // used once per kind, so no two lists disagree about what the listener has said while a
+            // verdict is being written on another thread.
+            LikedByKind(),
+            // What the sound pass heard, and the words and styles the other lists are found by. The date
+            // is read once, here, so a session that runs past New Year's Day keeps its New Year's Eve list
+            // until the next launch, as every list keeps its cut.
+            Hearing(counts, facts, DateTime.Now));
     }
+
+    /// <summary>
+    /// Builds <see cref="SessionProfile"/> and <see cref="SessionMoods"/> now, on the calling thread, if
+    /// no thread has built them yet.
+    ///
+    /// <para><b>Why the startup calls this.</b> Home asks for both before it can show anything, and
+    /// building them is most of its reading: about a second on a library of 41,306 tracks. The startup
+    /// calls this on a worker as soon as the library is open, while the drawing thread builds the main
+    /// page, which reads almost nothing from the library. When home asks, it gets the finished answers, or
+    /// waits for the build that is under way. See <see cref="SessionCut{T}"/>.</para>
+    ///
+    /// <para>The answers are the ones home would have built a moment later. Nothing else changes: they
+    /// are held for the session from whichever build finishes first, as they always were.</para>
+    ///
+    /// <para>The two are built side by side. Their reads still take the read gate one at a time, but the
+    /// work each does with what it read runs while the other reads.</para>
+    /// </summary>
+    public void BuildSessionCuts() =>
+        Parallel.Invoke(() => _ = SessionProfile, () => _ = SessionMoods);
 
     /// <summary>What the session's cut is given beside the meter's readings. See <see cref="ShelfHearing"/>.</summary>
     private ShelfHearing Hearing(
@@ -379,7 +379,7 @@ public sealed partial class LibraryDatabase
     /// <see cref="HolidayMusic.IsHoliday"/> decides.</summary>
     private static bool Hinted(string? tag) => tag is not null && tag.AsSpan().ContainsAny(HolidayHints);
 
-    private ListeningProfile? _profile;
+    private readonly SessionCut<ListeningProfile> _profile = new();
 
     /// <summary>
     /// What the listening log says about this listener, as it stood when this session first asked.
@@ -398,26 +398,12 @@ public sealed partial class LibraryDatabase
     ///
     /// <para>Three grouped reads over the log run for the playlist pane, and the pane composes a rule
     /// for each list it offers. Without this, opening the pane would roll up the whole log once for
-    /// every list. It is built outside the lock and installed under it, the same as the mood cut. Two
+    /// every list. It is built once, the same as the mood cut (see <see cref="SessionCut{T}"/>). Two
     /// threads building it at once would get two descriptions, and the lists would disagree with each
     /// other for the whole session.</para>
     /// </remarks>
-    public ListeningProfile SessionProfile
-    {
-        get
-        {
-            using (_cuts.Take())
-            {
-                if (_profile is not null)
-                    return _profile;
-            }
-
-            var built = ReadListeningProfile(ListeningWindow.Everything, DateTime.UtcNow.Ticks);
-
-            using (_cuts.Take())
-                return _profile ??= built;
-        }
-    }
+    public ListeningProfile SessionProfile =>
+        _profile.Get(_cuts, () => ReadListeningProfile(ListeningWindow.Everything, DateTime.UtcNow.Ticks));
 
     /// <summary>One song "Your mix" may draw on: loved or played, with the record it is on.</summary>
     /// <remarks>

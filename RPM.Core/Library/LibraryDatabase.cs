@@ -777,6 +777,11 @@ public sealed partial class LibraryDatabase : IDisposable
     public LibraryDatabase(MirrorLocation location)
     {
         _gate = new Gate("write", lastInside: TallyQueue);
+
+        // Before anything opens the file: a handle closed by the read-ahead after this would drop the locks
+        // SQLite takes below. See MirrorReadAhead.
+        MirrorReadAhead.Finish();
+
         Root = location.Root;
         DatabasePath = location.DatabasePath;
         var path = DatabasePath;
@@ -1958,6 +1963,10 @@ public sealed partial class LibraryDatabase : IDisposable
         // against 7 ms with this index. The 5.4 s hold was longer than the wait at the app's close.
         Execute("CREATE INDEX IF NOT EXISTS idx_track_fingerprint_unsubmitted ON track_fingerprint(submitted_utc_ticks, fingerprinted_utc_ticks)");
 
+        // Only the rows whose title holds the explicit mark, which is none once the titles are clean. See
+        // RemoveExplicitTitleMarks, which reads through it on every open.
+        Execute($"CREATE INDEX IF NOT EXISTS idx_tracks_title_marked ON tracks(id) WHERE {MarkedTitle}");
+
         RemoveExplicitTitleMarks();
 
         if (version != SchemaVersion)
@@ -1973,6 +1982,12 @@ public sealed partial class LibraryDatabase : IDisposable
     /// <para>Run on every open and not behind a version step, for the same reason as release_type above.
     /// It changes no shape, and once the titles are clean the query finds nothing. The cloud catalogue is
     /// corrected by the next catalogue pass, which pushes a title that differs from the store's.</para>
+    ///
+    /// <para><b>Read through the partial index, not by a scan.</b> The open runs on the drawing thread
+    /// during the startup. A scan reads every page of the tracks table, and on a startup where those pages
+    /// are not in the system's file cache that took about 230 ms on a library of 41,306 tracks, with the
+    /// splash waiting. The index <c>idx_tracks_title_marked</c> holds only the marked rows, so the read is
+    /// as long as the list of rows to clean. SQLite keeps the index whichever build writes a title.</para>
     /// </summary>
     private void RemoveExplicitTitleMarks()
     {
@@ -1981,8 +1996,11 @@ public sealed partial class LibraryDatabase : IDisposable
         {
             // Only a candidate list. The rule itself (a mark at the end, after a space) is decided by
             // ExplicitTitleMark.Split below, so it is written in one place.
-            find.CommandText = "SELECT id, title, advisory FROM tracks WHERE title LIKE $pattern";
-            find.Parameters.AddWithValue("$pattern", "%" + Metadata.ExplicitTitleMark.Mark + "%");
+            //
+            // The condition is written into the statement, not bound as a parameter. SQLite uses a partial
+            // index only for a WHERE that matches the index's own condition, and a parameter is not known
+            // when the statement is planned.
+            find.CommandText = $"SELECT id, title, advisory FROM tracks WHERE {MarkedTitle}";
             using var reader = find.ExecuteReader();
             while (reader.Read())
                 marked.Add((
@@ -2006,6 +2024,11 @@ public sealed partial class LibraryDatabase : IDisposable
             fix.ExecuteNonQuery();
         }
     }
+
+    /// <summary>A title that holds the explicit mark anywhere, as SQL. The index and the read that uses it
+    /// state the same condition, character for character, so it is written once here. The mark has no case,
+    /// so <c>instr</c> finds the same rows as a <c>LIKE</c> would.</summary>
+    internal const string MarkedTitle = $"instr(title, '{Metadata.ExplicitTitleMark.Mark}') > 0";
 
     /// <summary>
     /// Renames a column when the table still carries the old name and not the new one. Both halves
