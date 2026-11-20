@@ -29,7 +29,7 @@ namespace RPM.Desktop.Services.Cloud;
 /// write. There is no pause between tracks: a pause protects this computer, which does no work here. The
 /// store's daily limit sets the pace.</para>
 /// </summary>
-public sealed class CloudOnlyMeasureService : IDisposable
+public sealed partial class CloudOnlyMeasureService : IDisposable
 {
     /// <summary>How many tracks are read from the database, and asked about in the pool, at a time.</summary>
     private const int BatchSize = 16;
