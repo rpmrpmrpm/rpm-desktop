@@ -19,7 +19,7 @@ public class RefusedPlayTests
         engine.Stopped += () => stopped++;
         engine.Changed += () => changed++;
 
-        Assert.False(engine.Play("/library/song.flac", 200, 0));
+        Assert.False(engine.Play("/library/song.flac", 200, 0, gainDb: 0));
 
         Assert.Equal(1, stopped);
         Assert.True(changed >= 1, "nothing was told to look again");
@@ -34,7 +34,7 @@ public class RefusedPlayTests
         engine.Stopped += () => stopped++;
         var station = new Station();
 
-        Assert.False(engine.PlaySource(station, durationSeconds: 0));
+        Assert.False(engine.PlaySource(station, durationSeconds: 0, gainDb: 0));
 
         Assert.Equal(1, stopped);
         Assert.True(station.Disposed, "the engine took the source over and dropped it without disposing it");

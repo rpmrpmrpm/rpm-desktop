@@ -24,7 +24,7 @@ public class PlayingRecordTests
         using var engine = new AudioEngine(new SilentSink());
         var mix = new Multi("dj-set:whatever", null);
 
-        engine.PlaySource(mix, durationSeconds: 0);
+        engine.PlaySource(mix, durationSeconds: 0, gainDb: 0);
 
         Assert.Equal("dj-set:whatever", engine.PlayingPath);   // something IS playing
         Assert.Null(engine.PlayingRecord);                     // and it is not a record
@@ -37,7 +37,7 @@ public class PlayingRecordTests
         var mix = new Multi("dj-set:whatever",
                             new NowPlayingTrack("/library/a.flac", IsRecord: true, "A", "Someone", null, 12, 300));
 
-        engine.PlaySource(mix, durationSeconds: 0);
+        engine.PlaySource(mix, durationSeconds: 0, gainDb: 0);
 
         Assert.Equal("/library/a.flac", Settles(() => engine.PlayingRecord, "/library/a.flac"));
         Assert.Equal("/library/a.flac", engine.PlayingPath);
@@ -52,7 +52,7 @@ public class PlayingRecordTests
                                                     "Some Song", "Someone", "The Station", 30, 0,
                                                     ArtUrl: "http://example/logo.png"));
 
-        engine.PlaySource(station, durationSeconds: 0);
+        engine.PlaySource(station, durationSeconds: 0, gainDb: 0);
 
         // The address is what everything MATCHES on, and there is nothing to show a sheet about.
         Assert.Equal("http://stream.example/live.mp3",
@@ -66,7 +66,7 @@ public class PlayingRecordTests
         using var engine = new AudioEngine(new SilentSink());
 
         // Handed in as a source like a mix is, but it IS one row of the library and says so.
-        engine.PlaySource(new Multi("clip", null), durationSeconds: 300, path: "/library/cloud.flac");
+        engine.PlaySource(new Multi("clip", null), durationSeconds: 300, gainDb: 0, path: "/library/cloud.flac");
 
         Assert.Equal("/library/cloud.flac", engine.PlayingRecord);
     }
@@ -76,7 +76,7 @@ public class PlayingRecordTests
     {
         var speaker = new SilentSink();
         using var engine = new AudioEngine(speaker);
-        engine.PlaySource(new Multi("dj-set:whatever", null), durationSeconds: 0);
+        engine.PlaySource(new Multi("dj-set:whatever", null), durationSeconds: 0, gainDb: 0);
 
         // With the set actually running on it: a swap made before the pump has picked the source up
         // has nothing to carry over and ends the set, which is a different question from this one.

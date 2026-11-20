@@ -23,7 +23,7 @@ public class PausedHandoverTests
     {
         var here = new Speaker();
         using var engine = new AudioEngine(here);
-        engine.PlaySource(new Silence("dj-set:whatever"), durationSeconds: 0);
+        engine.PlaySource(new Silence("dj-set:whatever"), durationSeconds: 0, gainDb: 0);
         Assert.True(here.Started(), "the pump never reached the first sink");
 
         engine.Pause();
@@ -43,7 +43,7 @@ public class PausedHandoverTests
     {
         var here = new Speaker();
         using var engine = new AudioEngine(here);
-        engine.PlaySource(new Silence("dj-set:whatever"), durationSeconds: 0);
+        engine.PlaySource(new Silence("dj-set:whatever"), durationSeconds: 0, gainDb: 0);
         Assert.True(here.Started(), "the pump never reached the first sink");
 
         var speaker = new Speaker();

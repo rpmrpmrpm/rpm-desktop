@@ -28,7 +28,7 @@ public sealed partial class AudioEngine
         Playing? playing;
         string? source;
         string? seekVia;
-        double duration, at;
+        double duration, at, gainDb;
         double? length;
         bool wasPaused;
         IPcmSource? handed = null;
@@ -37,6 +37,7 @@ public sealed partial class AudioEngine
         {
             if (ReferenceEquals(_sink, sink)) return;
             playing = _playing; source = _source; duration = _duration; length = _playLength;
+            gainDb = _gainDb;
             wasPaused = _paused;
             declared = _declared;
             seekVia = _seekVia;
@@ -73,8 +74,6 @@ public sealed partial class AudioEngine
         // The new sink has not yet been told the gain of the current track. This matters for one case:
         // a surround cast started during playback. There, the encoder is the only part of the app that
         // applies the gain itself.
-        double gainDb;
-        lock (_gate) gainDb = _gainDb;
         try { sink.SetTrackGain(gainDb); } catch { }
 
         if (disposeOld) old.Dispose();
@@ -89,7 +88,7 @@ public sealed partial class AudioEngine
             // The source's identity and its seek address are passed on as well. A cloud track sent to a
             // speaker is still the same library row, and it can still be sought. A stream keeps its own
             // label. Passing that label as a path would make it look like a library record.
-            PlaySource(handed, duration, _track.Title, _track.Artist, declared, startSeconds: at,
+            PlaySource(handed, duration, gainDb, _track.Title, _track.Artist, declared, startSeconds: at,
                        path: playing is { IsRecord: true } record ? record.Name : null,
                        seekVia: seekVia, album: _track.Album);
             if (wasPaused) Pause();
@@ -103,7 +102,7 @@ public sealed partial class AudioEngine
         {
             // Switching to a Cast speaker also restarts the decoder. A cloud track has no local file
             // to restart from, so the restart reads from its source URL.
-            Play(record.Name, duration, at, length, _track.Title, _track.Artist, _track.Album, source);
+            Play(record.Name, duration, at, gainDb, length, _track.Title, _track.Artist, _track.Album, source);
             if (wasPaused) Pause();
         }
         else
@@ -123,12 +122,16 @@ public sealed partial class AudioEngine
     /// <paramref name="path"/> stays the track's identity. Code that checks "is this the row that is
     /// playing?" compares against that path.
     /// </param>
+    /// <param name="gainDb">The levelling gain for this track, in dB. Zero plays it as it was recorded. It
+    /// travels with the track and is applied on the worker after the old track has stopped, so it never
+    /// reaches the samples of the track before it.</param>
     /// <returns>False when the sink is not available and nothing was started. The caller must show
     /// this on screen. Otherwise a refused play looks like the app ignored the click.</returns>
     public bool Play(
         string path,
         double durationSeconds,
         double startSeconds,
+        double gainDb,
         double? playLengthSeconds = null,
         string? title = null,
         string? artist = null,
@@ -159,6 +162,7 @@ public sealed partial class AudioEngine
             _paused = false;
             _sourceIsFile = true;
             _declared = null;
+            _gainDb = gainDb;
             _track = track = new SinkTrack(
                 path,
                 string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(path) : title,
@@ -173,7 +177,7 @@ public sealed partial class AudioEngine
         // though the device and the decoder are still starting.
         int gen = Interlocked.Increment(ref _gen);
         string decodeFrom = source ?? path;
-        Post(() => PlayCore(gen, track, decodeFrom, start, playLengthSeconds));
+        Post(() => PlayCore(gen, track, decodeFrom, start, playLengthSeconds, gainDb));
         Changed?.Invoke();
         return true;
     }
@@ -187,6 +191,9 @@ public sealed partial class AudioEngine
     /// <param name="durationSeconds">The expected length of the whole set, used for the position
     /// readout. It is an estimate, because the tracks in a mix overlap. Nothing depends on it being
     /// exact.</param>
+    /// <param name="gainDb">The levelling gain for this source, in dB. Zero plays it as it comes, which is
+    /// right for a station or a mix. Applied on the worker after the old track has stopped, as in
+    /// <see cref="Play"/>.</param>
     /// <param name="declared">
     /// What <see cref="PlayingSource"/> reports, when that is not <paramref name="source"/> itself.
     /// Only <see cref="SetSink"/> passes this. A switch hands over the decode-ahead buffer, not the
@@ -211,7 +218,7 @@ public sealed partial class AudioEngine
     /// <returns>False when the sink is not available. The source is then disposed and nothing is
     /// started.</returns>
     public bool PlaySource(
-        IPcmSource source, double durationSeconds, string? title = null, string? artist = null,
+        IPcmSource source, double durationSeconds, double gainDb, string? title = null, string? artist = null,
         IPcmSource? declared = null, double startSeconds = 0, string? path = null, string? seekVia = null,
         string? album = null)
     {
@@ -246,12 +253,13 @@ public sealed partial class AudioEngine
             _paused = false;
             _sourceIsFile = false;
             _declared = declared ?? source;
+            _gainDb = gainDb;
             _track = track = new SinkTrack(
                 _playing.Name, title ?? source.Label, artist, album, durationSeconds, start);
         }
 
         int gen = Interlocked.Increment(ref _gen);
-        Post(() => PlaySourceCore(gen, track, source));
+        Post(() => PlaySourceCore(gen, track, source, gainDb));
         Changed?.Invoke();
         return true;
     }
@@ -293,10 +301,10 @@ public sealed partial class AudioEngine
     /// change the scrubber would do nothing.</param>
     /// <param name="gainDb">The gain for this track, in dB. It is stored with the source because the
     /// change happens on the pump, where no caller is available to ask. See
-    /// <see cref="SetTrackGain"/>.</param>
+    /// <see cref="Play"/>.</param>
     public void QueueNext(
-        IPcmSource source, double durationSeconds, string? title = null, string? artist = null,
-        string? path = null, string? seekVia = null, string? album = null, double gainDb = 0)
+        IPcmSource source, double durationSeconds, double gainDb, string? title = null, string? artist = null,
+        string? path = null, string? seekVia = null, string? album = null)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -410,7 +418,7 @@ public sealed partial class AudioEngine
 
     /// <summary>The blocking part of <see cref="PlaySource"/>, run on the worker thread. It retires the
     /// old track, starts the device, and pumps the given source. No decoder is opened.</summary>
-    private void PlaySourceCore(int gen, SinkTrack track, IPcmSource source)
+    private void PlaySourceCore(int gen, SinkTrack track, IPcmSource source, double gainDb)
     {
         Teardown();
         if (Volatile.Read(ref _gen) != gen)
@@ -420,6 +428,7 @@ public sealed partial class AudioEngine
         }
 
         var sink = Sink;
+        AdoptGain(sink, gainDb);
         ResetTap();
         BeginOn(sink, track);
 
@@ -575,12 +584,14 @@ public sealed partial class AudioEngine
     /// <summary>The blocking part of Play, run on the worker. It tears down the old track, starts the
     /// device and the decoder, and starts the pump. Each step stops early if a newer Play or Stop has
     /// replaced this one.</summary>
-    private void PlayCore(int gen, SinkTrack track, string decodeFrom, double start, double? playLengthSeconds)
+    private void PlayCore(
+        int gen, SinkTrack track, string decodeFrom, double start, double? playLengthSeconds, double gainDb)
     {
         Teardown();
         if (Volatile.Read(ref _gen) != gen) return;
 
         var sink = Sink;
+        AdoptGain(sink, gainDb);
         ResetTap();
         BeginOn(sink, track);
 
@@ -637,11 +648,13 @@ public sealed partial class AudioEngine
         SinkTrack track;
         bool isFile;
         string? seekVia;
+        double gainDb;
         lock (_gate)
         {
             path = _playing?.Name; source = _source; duration = _duration; length = _playLength; track = _track;
             isFile = _sourceIsFile;
             seekVia = _seekVia;
+            gainDb = _gainDb;
         }
         if (path is null) return;
 
@@ -656,7 +669,7 @@ public sealed partial class AudioEngine
         // A seek opens a new decoder, and it must use the same source as the first one. A cloud track
         // has no local file, so the name it plays under cannot be used. Using that name would open a
         // path that does not exist, and the track would stop.
-        Play(path, duration, Math.Clamp(seconds, 0, Math.Max(0, duration - 0.25)), length,
+        Play(path, duration, Math.Clamp(seconds, 0, Math.Max(0, duration - 0.25)), gainDb, length,
              track.Title, track.Artist, track.Album, seekVia ?? source);
     }
 
@@ -669,22 +682,19 @@ public sealed partial class AudioEngine
     }
 
     /// <summary>
-    /// The gain for the track now playing, in dB. It sets how far the track is moved to match the level
-    /// of the previous track. Zero leaves the track as it was recorded.
-    ///
-    /// <para>The change takes effect at once, like the volume and the EQ. The gain slides to the new
-    /// value over about twenty milliseconds instead of jumping. Turning normalisation on during
-    /// playback is heard as a level change, not as a click. The gain is set per track. See
-    /// <see cref="QueueNext"/> for how the next track in a gapless join gets its own gain.</para>
+    /// Makes <paramref name="gainDb"/> the gain the pump applies. Called on the worker only, after
+    /// <see cref="Teardown"/> has stopped the old pump and before <see cref="ResetTap"/> settles the gain
+    /// on its target. So the first block of the new track is played at its own gain, and no block of the
+    /// old track is.
     /// </summary>
-    public void SetTrackGain(double gainDb)
+    private void AdoptGain(IAudioSink sink, double gainDb)
     {
-        lock (_gate) _gainDb = gainDb;
         _gainTarget = RPM.Core.Analysis.ReplayGain.ToLinear(gainDb);
 
         // The gain is also sent to the sink. One output needs it this way: a surround cast re-encodes
-        // the source file and never sees the samples this code changes. Every other sink ignores it.
-        try { Sink.SetTrackGain(gainDb); } catch { }
+        // the source file and never sees the samples this code changes. Every other sink ignores it. It
+        // is sent before the sink begins the track, because the encoder reads it then.
+        try { sink.SetTrackGain(gainDb); } catch { }
     }
 
     /// <summary>Takes effect at once. The new coefficients apply from the next block of about 50 ms.

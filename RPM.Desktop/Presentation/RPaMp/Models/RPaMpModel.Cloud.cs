@@ -57,10 +57,6 @@ public sealed partial class RPaMpModel
     private int _skips;
 
     /// <summary>
-    /// Starts the record on the deck, wherever it is stored. The cursor, the deck and the track numbers are updated
-    /// before this runs. So the screen already shows the right track while the sound is being set up.
-    /// </summary>
-    /// <summary>
     /// Whether the tracks around the playing track in the queue belong to the same record.
     ///
     /// <para>A single track queued on its own counts as one record. Nothing says it is part of a mix, so the album
@@ -92,6 +88,10 @@ public sealed partial class RPaMpModel
         return alone;
     }
 
+    /// <summary>
+    /// Starts the record on the deck, wherever it is stored. The cursor, the deck and the track numbers are updated
+    /// before this runs. So the screen already shows the right track while the sound is being set up.
+    /// </summary>
     /// <param name="startSeconds">Where to start playback, in seconds. It is not zero only when the app has just opened
     /// on a track that was playing when the app closed. See <see cref="RestoreQueue"/>.</param>
     private async Task StartTrackAsync(PlaylistTrack track, double startSeconds = 0)
