@@ -78,8 +78,10 @@ public sealed partial class AlbumWallView : UserControl
     {
         InitializeComponent();
         // Before the first layout pass, so the card template never has the framework's own pool. See
-        // AlbumCardPool.
+        // AlbumCardPool, which the WinUI head does not have.
+#if !RPM_WINUI
         RecyclePool.SetPoolInstance((DataTemplate)Resources["CardTemplate"], new AlbumCardPool());
+#endif
         _band = new BandConductor(this);
         RowsLayout.Realizing = DealRowBeforeRealizing;
         _lineBreath = new Common.CloudLineBreath(() => _band.Current?.Lines ?? []);

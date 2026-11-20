@@ -23,7 +23,11 @@ namespace RPM.Desktop.Presentation.Main.Library;
 ///
 /// <para>This pool reads where a card is from the visual tree when the card is taken, not from the record of
 /// who gave it back. See <see cref="ReturnedCards{TCard}"/>.</para>
+///
+/// <para><b>Uno only.</b> The Windows App SDK offers <c>RecyclePool</c> only in its experimental release, so
+/// the WinUI head does not have the class and keeps the framework's own pool there.</para>
 /// </remarks>
+#if !RPM_WINUI
 internal sealed class AlbumCardPool : RecyclePool
 {
     private readonly ReturnedCards<UIElement> _returned = new(
@@ -74,3 +78,4 @@ internal sealed class AlbumCardPool : RecyclePool
         }
     }
 }
+#endif
