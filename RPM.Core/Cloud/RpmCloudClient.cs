@@ -1942,6 +1942,20 @@ public sealed partial class RpmCloudClient(
             answer.Page);
     }
 
+    /// <summary>Sends what the listener said about the generated lists in this library, whole: the verdicts on songs and
+    /// the refusals of acts and records. The store's list builds keep to it. See
+    /// <see cref="Library.LibraryDatabase.ListSayingsToSend"/>.</summary>
+    public async Task PutListSayingsAsync(Library.ListSayings said, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/list-sayings",
+                JsonContent.Create(
+                    new ListSayingsRequest(
+                        [.. said.Verdicts.Select(v => new ListVerdictEntry(
+                            v.RpmId, v.Kind.ToString(), v.Verdict.ToString(), PlayClock.Seconds(v.SaidUtcTicks)))],
+                        [.. said.Refusals.Select(r => new ListRefusalEntry(
+                            r.Scope.ToString(), r.Subject, r.Kind.ToString(), PlayClock.Seconds(r.SaidUtcTicks)))]),
+                    RpmCloudJson.Default.ListSayingsRequest), ct);
+
     // ── what this listener has heard on the radio ──
     //
     // The same shape as the play counts: one row per station per device. This machine writes only its own
@@ -2261,6 +2275,12 @@ public sealed partial class RpmCloudClient(
 
     private sealed record ListensRequest(string DeviceId, IReadOnlyList<ListenEntry> Listens);
 
+    private sealed record ListVerdictEntry(string RpmId, string Kind, string Verdict, long At);
+
+    private sealed record ListRefusalEntry(string Scope, string Subject, string Kind, long At);
+
+    private sealed record ListSayingsRequest(IReadOnlyList<ListVerdictEntry> Verdicts, IReadOnlyList<ListRefusalEntry> Refusals);
+
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
@@ -2357,6 +2377,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(TrackPlaysResponse))]
     [JsonSerializable(typeof(TrackPlaysListResponse))]
     [JsonSerializable(typeof(ListensRequest))]
+    [JsonSerializable(typeof(ListSayingsRequest))]
     [JsonSerializable(typeof(ListensResponse))]
     [JsonSerializable(typeof(ListensListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]

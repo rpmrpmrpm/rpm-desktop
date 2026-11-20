@@ -770,6 +770,10 @@ public sealed partial class CloudSyncService
         // CloudSyncService.Listens.
         await SyncListensAsync(db, ct);
 
+        // What the listener said about the generated lists here, for the lists the store cuts. See
+        // CloudSyncService.ListSayings.
+        await SyncListSayingsAsync(db, ct);
+
         // Song ratings, on a pass of their own beside the plays. See CloudSyncService.Ratings.
         await SyncRatingsAsync(db, cloud, ct);
 

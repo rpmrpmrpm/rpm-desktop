@@ -72,4 +72,28 @@ public class ListensClientTests
         Assert.Equal(1_790_000_000_999, page.Newest);
         Assert.Equal("next-token", page.Next);
     }
+
+    [Fact]
+    public async Task The_sayings_are_sent_whole_with_the_names_of_kinds_and_verdicts()
+    {
+        var (client, handler) = Client(_ => Json("{}"));
+
+        await client.PutListSayingsAsync(new ListSayings(
+            [new ListVerdict("t1", SmartPlaylistKind.Calm, TrackVerdict.Disliked, Ended.UtcTicks)],
+            [new ListRefusal(RecommendScope.Artist, "Nickelback", SmartPlaylistKind.Energetic, Ended.UtcTicks)]), CancellationToken.None);
+
+        var (request, body) = Assert.Single(handler.Seen);
+        Assert.Equal(HttpMethod.Put, request.Method);
+        Assert.Equal("https://api.test/cloud/list-sayings", request.RequestUri!.ToString());
+        using var json = JsonDocument.Parse(body!);
+        var verdict = json.RootElement.GetProperty("verdicts")[0];
+        Assert.Equal("t1", verdict.GetProperty("rpmId").GetString());
+        Assert.Equal("Calm", verdict.GetProperty("kind").GetString());
+        Assert.Equal("Disliked", verdict.GetProperty("verdict").GetString());
+        Assert.Equal(1_790_000_000, verdict.GetProperty("at").GetInt64());
+        var refusal = json.RootElement.GetProperty("refusals")[0];
+        Assert.Equal("Artist", refusal.GetProperty("scope").GetString());
+        Assert.Equal("Nickelback", refusal.GetProperty("subject").GetString());
+        Assert.Equal("Energetic", refusal.GetProperty("kind").GetString());
+    }
 }
