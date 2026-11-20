@@ -788,8 +788,9 @@ public partial class App : Application
         // thread. The card then sat on the screen with no window behind it, for as long as the process
         // lived. A promise is only as good as what it does not depend on.
         //
-        // Both halves are safe to call from here. The cloak is a DWM call on a handle, and the card's alpha
-        // is a user32 call on a handle. Neither goes through the interface thread. The card's own Close
+        // Both halves are safe to call from here. The cloak is a DWM call on a handle. The card is taken off
+        // by a user32 call on its handle: its alpha when it is layered, ShowWindowAsync when it is the clear
+        // card (see SplashWindow.Dismiss). Neither goes through the interface thread. The card's own Close
         // does go through it, and it may never run. A card with zero alpha is out of the way either way.
         if (Presentation.Startup.SplashWindow.IsUp)
         {

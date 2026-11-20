@@ -299,6 +299,19 @@ internal static class SplashWindow
             return;
         }
 
+        // The start-up backstop calls this on a pool thread. FadeContents reads Window.Content, and on any
+        // thread but the window's own that throws COMException 0x8001010E (RPC_E_WRONG_THREAD), which ends
+        // the process. So off that thread the card is hidden by its handle instead, with no fade.
+        // ShowWindowAsync posts the change and does not wait for the window's thread, which may be stuck.
+        // Close then queues the real close on that thread.
+        if (_window.DispatcherQueue is { HasThreadAccess: false })
+        {
+            if (_hwnd != IntPtr.Zero && OperatingSystem.IsWindows())
+                ShowWindowAsync(_hwnd, SW_HIDE);
+            Close();
+            return;
+        }
+
         FadeContents(from: 1, to: 0, FadeOutMs, done: Close);
     }
 
@@ -777,6 +790,12 @@ internal static class SplashWindow
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    private const int SW_HIDE = 0;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindowAsync(IntPtr hwnd, int command);
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
