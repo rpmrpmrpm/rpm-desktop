@@ -37,7 +37,7 @@ public sealed record MoodListPayload(string Kind, string? Genre, int Decade, IRe
     /// and the arrangement is part of what is being shared.</para>
     ///
     /// <para>Filled by the sender, which is the head that HAS the tree. See
-    /// <c>PublishedMoodLists.Dressed</c>. Empty is an ordinary answer: a cut from an older build says
+    /// <see cref="MoodListPush.Dressed"/>. Empty is an ordinary answer: a cut from an older build says
     /// nothing about where its lists go, and a reader falls back to placing them itself.</para>
     /// </summary>
     public IReadOnlyList<string> Folder { get; init; } = [];
@@ -128,7 +128,7 @@ public static class MoodListPush
     /// <param name="nowUtcTicks">One reading of the clock for the whole cut, so that two lists whose
     /// rules have a window in them cannot answer from two different moments.</param>
     /// <remarks>The lists come out of here unnamed and unplaced. The words and the tree belong to the
-    /// interface and not to the database, and the sender adds them. See <c>PublishedMoodLists</c>.
+    /// interface and not to the database, and the sender adds them. See <see cref="Dressed"/>.
     /// </remarks>
     public static MoodListsPayload Build(
         LibraryDatabase db, IReadOnlyList<SmartPlaylistKind> kinds, long nowUtcTicks)
@@ -170,6 +170,31 @@ public static class MoodListPush
         }
 
         return new MoodListsPayload(Recipe, lists);
+    }
+
+    /// <summary>
+    /// The cut, ready to send: each list with the name it is called by, the place it sits in the tree, and the
+    /// id it answers to (<see cref="IdOf"/>).
+    ///
+    /// <para><b>One function for every publisher, so they cannot disagree.</b> The desktop's cloud push, its
+    /// peer catalogue and the store's own cut for an account with no desktop all dress a cut here. Which records
+    /// are in a list is not changed.</para>
+    /// </summary>
+    /// <param name="text">The publisher's string table: a key in, the text in its language out. See
+    /// <see cref="ListNames"/>.</param>
+    public static MoodListsPayload Dressed(MoodListsPayload cut, Func<string, string> text)
+    {
+        ArgumentNullException.ThrowIfNull(cut);
+        ArgumentNullException.ThrowIfNull(text);
+        return cut with
+        {
+            Lists = [.. cut.Lists.Select(list => list with
+            {
+                Title = ListNames.Name(list.Kind, list.Genre, list.Decade, text),
+                Folder = ListNames.FolderChain(list.Kind, list.Genre, list.Decade, text),
+                Id = IdOf(list.Kind, list.Genre, list.Decade).ToString("D"),
+            })],
+        };
     }
 
     /// <summary>
@@ -224,7 +249,7 @@ public static class MoodListPush
     /// different answer on the screen that reads it.</para>
     ///
     /// <para>The names, the tree and the ids are not compared, because they are not in a cut. They are
-    /// added at the boundary from tables in this build (<c>PublishedMoodLists</c>), so two cuts that
+    /// added at the boundary (<see cref="Dressed"/>), so two cuts that
     /// name the same records get the same names.</para>
     /// </summary>
     public static bool Same(MoodListsPayload a, MoodListsPayload b)

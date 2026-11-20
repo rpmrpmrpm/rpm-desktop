@@ -1,4 +1,5 @@
-﻿using RPM.Core.Diagnostics;
+﻿using RPM.Desktop.Presentation.Main.LeftPane.Models;
+using RPM.Core.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -499,8 +500,8 @@ public sealed partial class SharingService : IDisposable
         // owner's phone alone.
         var moodLists = _library.IsOpen
             ? PeerCatalogBuilder.MoodLists(
-                PublishedMoodLists.Dressed(MoodListPush.OneListEach(
-                    MoodListPush.ForOthers(_library.Db.SessionMoodLists))))
+                MoodListPush.Dressed(MoodListPush.OneListEach(
+                    MoodListPush.ForOthers(_library.Db.SessionMoodLists)), SmartPlaylistFace.Text))
             : [];
 
         var catalog = PeerCatalogBuilder.Catalog(

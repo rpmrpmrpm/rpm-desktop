@@ -242,12 +242,11 @@ public sealed partial class MoodListPushService : IDisposable
             if (_pushed is not null && MoodListPush.Same(_pushed, cut))
                 return;
 
-            // The lists are named and placed here, on the way out, and not where the cut is built. The
-            // names and the tree are in the interface layer, and the records are in Core. If the phone
-            // wrote the names a second time, the copies would drift apart. So the sender sets each list's
-            // name and position, and the phone only renders what it receives. See PublishedMoodLists, which
-            // the peer catalogue also uses.
-            var dressed = PublishedMoodLists.Dressed(cut);
+            // The lists are named and placed here, on the way out, and not where the cut is built: the names
+            // are in this app's language. If the phone wrote the names a second time, the copies would drift
+            // apart. So the sender sets each list's name and position, and the phone only renders what it
+            // receives. The peer catalogue and the store's own cut dress lists through the same function.
+            var dressed = MoodListPush.Dressed(cut, SmartPlaylistFace.Text);
 
             var stamped = await _cloud.PutMoodListsAsync(dressed, ct);
 
