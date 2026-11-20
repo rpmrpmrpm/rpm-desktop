@@ -102,9 +102,9 @@ public sealed partial class LibraryDatabase
             write.CommandText =
                 """
                 INSERT INTO listen (relative_path, rpm_id, at_utc_ticks, heard_seconds, length_seconds,
-                                    counted, local_hour, local_dow, session_id)
+                                    counted, local_hour, local_dow, session_id, uid)
                 VALUES ($path, (SELECT rpm_id FROM tracks WHERE relative_path = $path), $at, $heard,
-                        $length, $counted, $hour, $dow, $session)
+                        $length, $counted, $hour, $dow, $session, lower(hex(randomblob(16))))
                 """;
             write.Parameters.AddWithValue("$path", listen.RelativePath);
             write.Parameters.AddWithValue("$at", listen.AtUtcTicks);
@@ -145,7 +145,10 @@ public sealed partial class LibraryDatabase
     private long SessionForLocked(long atUtcTicks)
     {
         using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT session_id, at_utc_ticks FROM listen ORDER BY at_utc_ticks DESC LIMIT 1";
+        // Only this library's own listens. A session is a run of listening on this machine, and listens from
+        // other devices arrive later and out of order (see AcceptListens).
+        cmd.CommandText =
+            "SELECT session_id, at_utc_ticks FROM listen WHERE device IS NULL ORDER BY at_utc_ticks DESC LIMIT 1";
         using var reader = cmd.ExecuteReader();
         if (!reader.Read())
             return 1;
@@ -244,14 +247,15 @@ public sealed partial class LibraryDatabase
         }
     }
 
-    /// <summary>How many listening sessions the log holds. A session is a run of listening with no gap
-    /// longer than <see cref="Listen.SessionGapMinutes"/>.</summary>
+    /// <summary>How many listening sessions the log holds. A session is a run of listening on this machine
+    /// with no gap longer than <see cref="Listen.SessionGapMinutes"/>. Listens from other devices are not in
+    /// a session.</summary>
     public int ListenSessions()
     {
         using (_readGate.Take())
         {
             using var cmd = _read.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(DISTINCT session_id) FROM listen";
+            cmd.CommandText = "SELECT COUNT(DISTINCT session_id) FROM listen WHERE device IS NULL";
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
     }
@@ -284,7 +288,8 @@ public sealed partial class LibraryDatabase
     /// The tracks of the latest <paramref name="count"/> listens that counted as plays, newest first, as
     /// relative paths. A track heard twice among them is named twice. A mixtape reads this so it does not
     /// queue a song that was just heard (see <see cref="Playback.Mixtape.Spares"/>). A listen that did not
-    /// count is a skip, and a skipped song is not one the listener has just heard.
+    /// count is a skip, and a skipped song is not one the listener has just heard. A listen from another
+    /// device of music this library does not hold has no path, and is left out.
     /// </summary>
     public IReadOnlyList<string> RecentlyHeard(int count)
     {
@@ -297,7 +302,7 @@ public sealed partial class LibraryDatabase
             cmd.CommandText =
                 """
                 SELECT relative_path FROM listen
-                WHERE counted = 1 ORDER BY at_utc_ticks DESC, id DESC LIMIT $count
+                WHERE counted = 1 AND relative_path <> '' ORDER BY at_utc_ticks DESC, id DESC LIMIT $count
                 """;
             cmd.Parameters.AddWithValue("$count", count);
 

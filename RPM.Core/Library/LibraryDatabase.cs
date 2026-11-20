@@ -1901,6 +1901,17 @@ public sealed partial class LibraryDatabase : IDisposable
         AddColumnIfMissing("tracks", "rating", "INTEGER NOT NULL DEFAULT 0");
         AddColumnIfMissing("tracks", "rating_sent", "INTEGER NOT NULL DEFAULT 1");
 
+        // Which listens travel between the listener's devices (see LibraryDatabase.SharedListens). Added on
+        // every open and not behind a version step, for the same reason as release_type above. An older build
+        // writes a listen with none of these, and that is a listen of this library's own that has not been
+        // sent, which is what the defaults say. The id is given to such rows here.
+        AddColumnIfMissing("listen", "uid", "TEXT");
+        AddColumnIfMissing("listen", "device", "TEXT");
+        AddColumnIfMissing("listen", "sent", "INTEGER NOT NULL DEFAULT 0");
+        Execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_listen_uid ON listen(uid)");
+        Execute("CREATE INDEX IF NOT EXISTS idx_listen_unsent ON listen(id) WHERE sent = 0 AND device IS NULL");
+        Execute("UPDATE listen SET uid = lower(hex(randomblob(16))) WHERE uid IS NULL");
+
         // The record of imports from other music apps (see LibraryDatabase.Migrations). Created on every
         // open and not behind a version step, for the same reason as release_type above.
         CreateMigrationTables();
