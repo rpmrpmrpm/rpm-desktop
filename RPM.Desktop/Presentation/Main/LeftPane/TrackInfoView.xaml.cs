@@ -162,15 +162,6 @@ public sealed partial class TrackInfoView : UserControl
 
         var (row, folder) = LibraryRowFor(path);
 
-        // Whether the sleeve on screen is this record's too is asked BEFORE _folder is overwritten. The
-        // album folder is the key rather than the album's name. Two records can share a title, but no
-        // two share a folder, and the sleeve is read out of that folder in the first place. The answer
-        // is kept only where the last read actually answered. A read that threw leaves the square on
-        // its placeholder. Keeping that for every remaining track of the album would turn one
-        // unreadable file into an album with no cover.
-        var sameRecord = folder.Length > 0
-                      && _sleeveAnswered
-                      && string.Equals(folder, _folder, StringComparison.Ordinal);
         _folder = folder;
 
         // Only for a record in the collection on screen: the album page draws that one, so offering it
@@ -192,18 +183,12 @@ public sealed partial class TrackInfoView : UserControl
         // away, and the peel cannot wait for them without the pane standing still on the last record.
         // Where the tags turn out to disagree, the build is started again at the wider scope. See
         // FillFromFileAsync.
-        var build = Rebuild(path, ScopeFor(PaneArtist(null, row)));
-        if (sameRecord)
-            build.KeepSleeve();
+        var build = Rebuild(path, folder, ScopeFor(PaneArtist(null, row)));
+        AskSleeve(build, row);
 
         // The mirror's row answers on this frame and the file's own tags replace it a moment later.
         // Both go into the same slot; whichever is latest when the credits are due is what goes up.
         build.GotFacts(BuildSections(null, row), TitleFor(null, row), row?.Artist ?? "", "");
-
-        // The sleeve is read from wherever this record keeps it. It is not asked for at all where the
-        // record has not changed, which is every track but the first of an album.
-        if (!build.SleeveKept)
-            _ = LoadCoverAsync(build, row);
 
         _ = FillFromFileAsync(build, row);     // the file's own tags follow
     }
@@ -216,9 +201,11 @@ public sealed partial class TrackInfoView : UserControl
     /// from and one place the old build is dropped. Everything in flight for the old one is superseded
     /// by identity the moment <c>_build</c> is written.</para>
     /// </summary>
-    private PaneBuild Rebuild(string path, PaneScope scope)
+    /// <param name="folder">The album folder of the record, "" for a file outside any collection. See
+    /// <see cref="PaneSleeve"/>.</param>
+    private PaneBuild Rebuild(string path, string folder, PaneScope scope)
     {
-        var build = new PaneBuild(path, scope);
+        var build = new PaneBuild(path, folder, scope);
 
         // A pane taken down when the music stopped has nothing to take down again.
         if (_bare)
@@ -270,6 +257,7 @@ public sealed partial class TrackInfoView : UserControl
         StopLyricTick();
         _path = "";
         _folder = "";
+        _sleeve.Forget();
         ReadFavorite(null);          // no record, so no mark to offer
         ContentScroller.Visibility = Visibility.Collapsed;
         ApplySheetFades();   // The two bands go with the sheet they belong to
@@ -343,7 +331,11 @@ public sealed partial class TrackInfoView : UserControl
         if (build.Order.Scope == PaneScope.Record && ScopeFor(artist) == PaneScope.Artist)
         {
             _paneArtist = artist;
-            build = Rebuild(build.Path, PaneScope.Artist);
+            build = Rebuild(build.Path, build.Folder, PaneScope.Artist);
+
+            // The read started for the replaced build stops at its next check, so this build asks
+            // again. Without that, its sleeve errand stays open and the hero never goes up.
+            AskSleeve(build, row);
         }
         else
         {
@@ -1765,8 +1757,7 @@ public sealed partial class TrackInfoView : UserControl
                     // next track of this record asks again.
                     if (ReferenceEquals(_build, build))
                     {
-                        _sleeveAnswered = false;
-                        build.NoSleeve();
+                        build.SleeveUnread();
                         Advance(build);
                     }
                     return;
@@ -1778,7 +1769,6 @@ public sealed partial class TrackInfoView : UserControl
 
             if (bytes is null)
             {
-                _sleeveAnswered = true;
                 build.NoSleeve();   // an answer: this record has no sleeve here
                 Advance(build);
                 return;
@@ -1798,26 +1788,40 @@ public sealed partial class TrackInfoView : UserControl
             if (!ReferenceEquals(_build, build))
                 return;
 
-            _sleeveAnswered = true;
             build.GotSleeve(bitmap);
             Advance(build);
         }
         catch
         {
-            _sleeveAnswered = false;
             // Decoration, but the build is still waiting on it: an errand that throws has to say so, or
             // the pane holds the last record's picture for ever on one unreadable file.
             if (ReferenceEquals(_build, build))
             {
-                build.NoSleeve();
+                build.SleeveUnread();
                 Advance(build);
             }
         }
     }
 
-    /// <summary>Whether the sleeve on screen is a settled answer rather than the leftovers of a read
-    /// that failed. What decides whether the next track of the same record may keep it.</summary>
-    private bool _sleeveAnswered;
+    /// <summary>
+    /// Answers the sleeve errand of <paramref name="build"/>. The sleeve is kept where the square already
+    /// holds this record's settled sleeve, which is every track but the first of an album. Otherwise it is
+    /// read from wherever the record keeps it.
+    ///
+    /// <para>Every build asks through here, including one started again at a wider scope. A build that
+    /// does not ask waits for its sleeve for ever, and its hero never goes up.</para>
+    /// </summary>
+    private void AskSleeve(PaneBuild build, LibraryTrack? row)
+    {
+        if (_sleeve.Holds(build.Folder))
+            build.KeepSleeve();
+        else
+            _ = LoadCoverAsync(build, row);
+    }
+
+    /// <summary>Which record's settled sleeve the square holds. What decides whether the next track may
+    /// keep it. Written only in PaintHero, where the square is written.</summary>
+    private readonly PaneSleeve _sleeve = new();
 
     /// <summary>The track's own art off this disk: embedded first, then the album folder's cover image.
     /// Null for a record whose file is not here.</summary>

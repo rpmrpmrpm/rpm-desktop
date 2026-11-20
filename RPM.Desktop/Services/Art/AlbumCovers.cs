@@ -147,9 +147,10 @@ public static class AlbumCovers
 
             mirrorMs = Lap();
 
+            var file = first.ToTrackInfo(root).FilePath;
             try
             {
-                if (TagReader.LoadArt(first.ToTrackInfo(root).FilePath)?.Bytes is { Length: > 0 } embedded)
+                if (TagReader.LoadArt(file)?.Bytes is { Length: > 0 } embedded)
                 {
                     var cut = Cut(embedded);
                     tagMs = Lap();
@@ -162,10 +163,9 @@ public static class AlbumCovers
                 return (null, null, $"the track's tag could not be read: {ex.Message}");
             }
 
-            // No picture on this disk. Two places can still answer for a record this machine does not
-            // hold: the cloud, for a record that was offloaded or adopted from the catalogue, and the
-            // computer that holds the files, for a record borrowed over the network.
-            return first.IsOffloaded || first.PeerAdopted ? (null, first, null) : (null, null, null);
+            return SleeveElsewhere(first, fileHere: File.Exists(file))
+                ? (null, first, null)
+                : (null, null, null);
         }, ct);
 
         var tookMs = System.Diagnostics.Stopwatch.GetElapsedTime(asked).TotalMilliseconds;
@@ -189,4 +189,20 @@ public static class AlbumCovers
 
         byte[] Cut(byte[] raw) => maxEdge > 0 ? ThumbCache.Get(raw, maxEdge) : raw;
     }
+
+    /// <summary>
+    /// Whether a record with no picture on this disk may have one somewhere else. Two places can still
+    /// answer for a record this machine does not hold: the cloud, for a record that was offloaded or
+    /// adopted from the catalogue, and the computer that holds the files, for a record borrowed over the
+    /// network.
+    ///
+    /// <para>Whether the file is here is asked of the disk, not of the row. A file deleted while the app
+    /// runs keeps a Synced row until the next library sync marks it cloud-only. Until then the row says
+    /// the file is here, but only the cloud has its cover. The album page, the track pane and the art
+    /// display ask the same question of the disk.</para>
+    /// </summary>
+    /// <param name="first">The first track of the record.</param>
+    /// <param name="fileHere">Whether that track's file is on this disk now.</param>
+    internal static bool SleeveElsewhere(LibraryTrack first, bool fileHere)
+        => first.IsOffloaded || first.PeerAdopted || !fileHere;
 }
