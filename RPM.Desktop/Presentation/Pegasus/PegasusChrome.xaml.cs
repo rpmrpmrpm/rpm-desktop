@@ -1091,67 +1091,24 @@ public sealed partial class PegasusChrome : UserControl
     /// Which piece of the score is being sung (see <see cref="LyricScore"/>), or -1 before the first line.
     /// This is not always the piece the sheet's stamps point at.
     ///
-    /// <para>An LRC file says when each line STARTS. It never says when a line ends. So the only end it can
-    /// offer is the start of the next line. Those are different facts. It is normal for a singer to hold
-    /// the last word of a line into the start of the next one. It is also normal for a stamp to be written
-    /// a beat early. If the sheet moved on at the stamp, it would move while the words are still being
-    /// sung, and the line's sweep would be cut short and jump flat in the middle of a word.</para>
-    ///
-    /// <para>Where a line's words have been MEASURED, the record itself says when the line ends. So the
-    /// line is held until its last word is done. It is only held until the NEXT line actually starts,
-    /// though. Two lines cannot both be sung at once. When the singer reaches the next line, that line has
-    /// the floor, however long the last one ran. A rest that no line marks starts a few seconds after the
-    /// line before it, and that line is held past it the same way.</para>
-    ///
-    /// <para>A guessed line has no measured end to rely on. It falls through to the sheet's own stamps.
-    /// This is the behaviour it has always had.</para>
-    ///
-    /// <para><b>A line waits for its voice.</b> A line measured to start well after its stamp would take
-    /// over at the stamp and stand there unlit until the singer reached it. So the piece before it stays up
-    /// until the light is about to arrive on the new line's first word (<see cref="VoiceLead"/> before it),
-    /// but never longer than <see cref="VoiceWaitLongest"/> past the stamp. A measurement that went astray
-    /// cannot hold the sheet back for longer than that.</para>
+    /// <para>An LRC file says when each line STARTS and never when it ends. Where a line's words have been
+    /// MEASURED, the record says when the line really starts and ends, and <see cref="KaraokeLines.Held"/>
+    /// uses that: a line is held while its last word is still sung, waits for a voice measured to come well
+    /// after its stamp, and takes over just before its first measured word when the voice comes before the
+    /// stamp. A line whose words were shared out goes by the sheet's own stamps.</para>
     /// </summary>
-    private int SungAt(double pos)
+    private int SungAt(double pos) => KaraokeLines.Held(_score, pos, Measured);
+
+    /// <summary>The measured words of a piece of the score, or null for a rest and for a line whose words
+    /// were shared out across it.</summary>
+    private IReadOnlyList<WordSpan>? Measured(int part)
     {
-        var at = _score.IndexAt(pos);
-        if (at < 0)
-            return at;
-
-        // Where the line actually begins: its first measured word where it has been measured, and its own
-        // stamp otherwise, which is all there is to go on.
-        double? measuredStart = Measured(at) is { } next ? next[0].From : null;
-        var stamp = _score.Parts[at].From;
-
-        var last = at - 1;
-        if (last >= 0 && Measured(last) is { } previous && pos < previous[^1].To)
-            return pos < (measuredStart ?? stamp) ? last : at;
-
-        // The piece before is done (or was never measured), and this one is measured to start well after its
-        // stamp. The piece before stays up until the light is about to reach this one, within the limit.
-        if (measuredStart is { } starts && pos < starts - VoiceLead && pos < stamp + VoiceWaitLongest)
-            return last;
-
-        return at;
-
-        // The measured words of a piece, or null for a rest and for a line whose words were shared out.
-        WordSpan[]? Measured(int part)
-        {
-            var line = _score.Parts[part] is { IsRest: false } words ? words.Line : -1;
-            return line >= 0 && line < _lyricWordMeasured.Length && _lyricWordMeasured[line]
-                   && line < _lyricWordSpans.Length && _lyricWordSpans[line] is { Length: > 0 } spans
-                ? spans
-                : null;
-        }
+        var line = _score.Parts[part] is { IsRest: false } words ? words.Line : -1;
+        return line >= 0 && line < _lyricWordMeasured.Length && _lyricWordMeasured[line]
+               && line < _lyricWordSpans.Length && _lyricWordSpans[line] is { Length: > 0 } spans
+            ? spans
+            : null;
     }
-
-    /// <summary>How long before its first measured word a line takes over, in seconds: about when the
-    /// light starts to arrive on it (see <see cref="KaraokeLight.GlyphSoftness"/>).
-    /// The TV waits the same.</summary>
-    private const double VoiceLead = 0.35;
-
-    /// <summary>The longest a line waits past its own stamp for its first measured word, in seconds.</summary>
-    private const double VoiceWaitLongest = 4.0;
 
     /// <summary>
     /// Brings the words of the sung line up as the singer reaches them.
