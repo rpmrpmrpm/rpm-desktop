@@ -399,6 +399,7 @@ public sealed partial class PegasusChrome : UserControl
         _lyricAt = -2;
         _lyricScroll = 0;
         _lyricShift.Y = 0;
+        _lyricClock.Reset();
         _glowH = _glowY = _glowBass = 0;
 
         if (!_sheet.IsSynced)
@@ -1550,6 +1551,11 @@ public sealed partial class PegasusChrome : UserControl
     /// player's own position notification. That notification exists to move a seek bar, and it fires
     /// several times a second. That is fine for a bar, but text sliding past would look jerky. The playhead
     /// is a continuous value, and this is the one place in the app that needs it as one.</para>
+    ///
+    /// <para>Even read every frame, the position moves in steps: the sound device's count is published once
+    /// for each 50 ms block, so it stands still for two or three frames and then jumps. The lit letters
+    /// would move in the same jumps. So it is read through <see cref="_lyricClock"/>, which runs evenly and
+    /// follows the steps slowly (see <see cref="KaraokeClock"/>).</para>
     /// </summary>
     private void TickLyrics(double dt)
     {
@@ -1564,7 +1570,8 @@ public sealed partial class PegasusChrome : UserControl
         if (!_view.IsLyric() && !_viewTo.IsLyric())
             return;
 
-        var pos = _amp?.Position ?? 0;
+        var pos = _lyricClock.Seconds(_amp?.Position ?? 0, _amp is { IsPlaying: true },
+                                      Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency);
         var part = SungAt(pos);
         var piece = part >= 0 ? _score.Parts[part] : default;
 
@@ -2181,6 +2188,10 @@ public sealed partial class PegasusChrome : UserControl
     private const double AsideFold = 9.0;
 
     private double _lyricScroll;    // where the sheet is, in points, easing toward the sung line
+
+    /// <summary>The record's time the sheet follows: the player's position, made steady (see
+    /// <see cref="TickLyrics"/>). Started again with each sheet.</summary>
+    private readonly KaraokeClock _lyricClock = new();
     private int _lyricAt = -2;      // the line lit last frame; -2 so the first pass always paints
 
     /// <summary>Whether there is a synced sheet for the record that is playing. This is the one view that
