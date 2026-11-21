@@ -483,4 +483,20 @@ public class MoodListPushTests : IDisposable
             ? SmartPlaylistId.Within(kind, genre)
             : SmartPlaylistId.WholeShelf(kind);
     }
+
+    /// <summary>The store gives the apps the cut with the highest recipe, so a build that cannot cut a list never
+    /// replaces the cut of a build that can. That holds only while every change to the kinds sent raises the
+    /// recipe. When this fails, raise <see cref="MoodListPush.Recipe"/> and write both new values here.</summary>
+    [Fact]
+    public void The_recipe_is_raised_with_the_kinds_it_sends()
+    {
+        Assert.Equal(5, MoodListPush.Recipe);
+        Assert.Equal(
+            [
+                "RightNow", "OnRepeat", "FavoriteTracks", "FirstListens", "Rediscover", "LovedAndForgotten", "LateNight",
+                "Calm", "Energetic", "Danceable", "Focus", "Sleep", "Melancholy", "Happy", "Angry", "Romantic", "Zen",
+                "NewYearsEve", "Christmas", "Classical",
+            ],
+            SmartPlaylists.SentOut.Select(kind => kind.ToString()));
+    }
 }

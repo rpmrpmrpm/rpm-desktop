@@ -1604,13 +1604,16 @@ public sealed partial class RpmCloudClient(
     /// They are a derived answer, and the newest reading of the collection is always the right one. The
     /// only writer is a computer that has the collection in front of it.</para>
     /// </summary>
+    /// <param name="deviceId">The library that cut the set (<see cref="Library.LibraryDatabase.PlaysDevice"/>). The
+    /// store keeps one set per library, so another computer of the same account cannot replace this one, and it gives
+    /// the apps the set that names the most of the collection.</param>
     /// <returns>When the store stamped it, in unix milliseconds, from the server's clock.</returns>
-    public async Task<long> PutMoodListsAsync(MoodListsPayload cut, CancellationToken ct = default)
+    public async Task<long> PutMoodListsAsync(string deviceId, MoodListsPayload cut, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cut);
 
         var said = await SendAsync<MoodListsPutResponse>(HttpMethod.Put, "cloud/moodlists",
-            JsonContent.Create(cut, RpmCloudJson.Default.MoodListsPayload), ct);
+            JsonContent.Create(new MoodListsRequest(deviceId, cut.Recipe, cut.Lists), RpmCloudJson.Default.MoodListsRequest), ct);
 
         return said.ComputedAt;
     }
@@ -2306,6 +2309,8 @@ public sealed partial class RpmCloudClient(
     private sealed record AlbumCatalogueRequest(
         string DeviceId, IReadOnlyList<CatalogueAlbumEntry> Albums, IReadOnlyList<CatalogueReleaseEntry> Releases);
 
+    private sealed record MoodListsRequest(string DeviceId, int Recipe, IReadOnlyList<MoodListPayload> Lists);
+
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
@@ -2368,7 +2373,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(SidecarsRewrittenRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(FeedbackReport))]
-    [JsonSerializable(typeof(MoodListsPayload))]
+    [JsonSerializable(typeof(MoodListsRequest))]
     [JsonSerializable(typeof(CloudQuota))]
     [JsonSerializable(typeof(RecordingKeysResponse))]
     [JsonSerializable(typeof(RecordingLookUpResponse))]

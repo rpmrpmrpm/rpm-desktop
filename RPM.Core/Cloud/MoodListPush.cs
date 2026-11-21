@@ -98,9 +98,17 @@ public static class MoodListPush
     /// Which arithmetic cut this.
     ///
     /// <para>Raised by hand when a change would put different records in the same list (an edge
-    /// moved, a flavour line rewritten, a cohort rule changed). It is not a schema version and nothing
-    /// branches on it. It travels so that a cut can be told apart from a later one made differently,
-    /// and so that a phone showing an old cut can say which one it is showing.</para>
+    /// moved, a flavour line rewritten, a cohort rule changed), and when the kinds sent change
+    /// (<see cref="SmartPlaylists.SentOut"/>). It is not a schema version. It travels so that a cut can
+    /// be told apart from a later one made differently, and so that a phone showing an old cut can say
+    /// which one it is showing.</para>
+    ///
+    /// <para><b>The store ranks the cuts of an account's computers by it.</b> Each computer sends its
+    /// own cut, and the apps are given the cut with the highest recipe first. So an older build, which
+    /// cannot cut the newer lists, never replaces the cut of a newer build that can. A kind added to or
+    /// removed from <see cref="SmartPlaylists.SentOut"/> without raising this lets an older build's cut
+    /// win again. <c>MoodListPushTests.The_recipe_is_raised_with_the_kinds_it_sends</c> fails until
+    /// both are changed.</para>
     ///
     /// <para>What the current value means: the reading that each mood list starts at is one number for
     /// each LIST and not one for the whole collection, so opening one list does not move the songs in
@@ -116,7 +124,7 @@ public static class MoodListPush
     /// in the same order. Which songs are in the run does not change: the picking still runs across
     /// the whole of it.</para>
     /// </summary>
-    public const int Recipe = 4;
+    public const int Recipe = 5;
 
     /// <summary>
     /// Every list the collection offers, with the songs in it.

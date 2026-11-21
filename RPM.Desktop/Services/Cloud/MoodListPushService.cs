@@ -248,7 +248,9 @@ public sealed partial class MoodListPushService : IDisposable
             // receives. The peer catalogue and the store's own cut dress lists through the same function.
             var dressed = MoodListPush.Dressed(cut, SmartPlaylistFace.Text);
 
-            var stamped = await _cloud.PutMoodListsAsync(dressed, ct);
+            // Under this library's own id: the store keeps one cut per library and gives the phones the one that
+            // names the most of the collection, so another computer's smaller library cannot replace these lists.
+            var stamped = await _cloud.PutMoodListsAsync(db.PlaysDevice, dressed, ct);
 
             // The push was cancelled while the request was in flight, because a second collection was
             // opened or the account was signed out. Recording the cut now would store a note about this
