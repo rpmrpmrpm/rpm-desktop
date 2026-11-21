@@ -75,6 +75,28 @@ public static class KaraokeLines
         return next;
     }
 
+    /// <summary>
+    /// When a backing line (<see cref="LyricAside"/>) is shown under its line: from <c>From</c> until
+    /// <c>Until</c>.
+    ///
+    /// <para>With measured words it comes in <see cref="Lead"/> before its first word, as a line does (<see
+    /// cref="Held"/>), but no earlier than <see cref="Earliest"/> before its stamp. Without them it comes in
+    /// at its stamp. It goes when its last word has been sung.</para>
+    /// </summary>
+    /// <param name="stamp">The backing line's own time on the sheet, in seconds.</param>
+    /// <param name="spans">Its words and when they are sung: measured, or shared out across the line (see
+    /// <see cref="LyricTiming.Sweep"/>).</param>
+    /// <param name="measured">Whether <paramref name="spans"/> were measured off the record.</param>
+    public static (double From, double Until) Shown(double stamp, IReadOnlyList<WordSpan> spans, bool measured)
+    {
+        ArgumentNullException.ThrowIfNull(spans);
+        if (spans.Count == 0)
+            return (stamp, stamp);
+
+        var from = measured ? Math.Max(spans[0].From - Lead, stamp - Earliest) : stamp;
+        return (from, spans[^1].To);
+    }
+
     /// <summary><see cref="Held"/> without moving on early: the piece before <paramref name="at"/> while it
     /// is still sung, or while the words of <paramref name="at"/> are still well ahead.</summary>
     private static int HeldBack(LyricScore score, int at, double seconds, Func<int, IReadOnlyList<WordSpan>?> measured)

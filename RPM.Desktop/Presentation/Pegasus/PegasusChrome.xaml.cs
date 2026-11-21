@@ -416,6 +416,9 @@ public sealed partial class PegasusChrome : UserControl
             _asideOpen = [];
             _score = LyricScore.Empty;
             _lineSection = [];
+            _hungUnder = [];
+            _hung = [];
+            _lineRow = [];
             LyricLayer.Visibility = Visibility.Collapsed;
             ShowWaiting();
             ApplyLyricFootHits();   // The sheet is gone, so the bar under it stops taking presses.
@@ -423,12 +426,33 @@ public sealed partial class PegasusChrome : UserControl
         }
 
         // The sheet cut into stretches of singing and rests, and the stretch each line belongs to. Every line
-        // is a piece of its own, a line of words or a break line, so each one has a stretch.
-        _score = LyricScore.Of(_sheet);
+        // is a piece of its own, a line of words or a break line, so each one has a stretch. The exception
+        // is a backing line, bracketed from end to end: it is hung under the line of words before it (see
+        // LyricAside), and it is in that line's stretch.
+        _score = LyricScore.Of(_sheet, asides: true);
         _lineSection = new int[_sheet.Lines.Count];
         foreach (var piece in _score.Parts)
             if (piece.Line >= 0 && piece.Line < _lineSection.Length)
                 _lineSection[piece.Line] = piece.Section;
+
+        _hungUnder = new int[_sheet.Lines.Count];
+        Array.Fill(_hungUnder, -1);
+        foreach (var aside in _score.Asides)
+        {
+            _hungUnder[aside.Line] = _score.Parts[aside.Part].Line;
+            _lineSection[aside.Line] = _score.Parts[aside.Part].Section;
+        }
+        _hung = [.. _score.Asides.Select(a => a.Line)];
+
+        // The row each line is drawn in. A backing line shares the row of the line it hangs under, so the
+        // lines around it are dimmed as if it were not there.
+        _lineRow = new int[_sheet.Lines.Count];
+        for (int i = 0, row = -1; i < _lineRow.Length; i++)
+        {
+            if (_hungUnder[i] < 0)
+                row++;
+            _lineRow[i] = Math.Max(0, row);
+        }
 
         _lyricLines = new TextBlock[_sheet.Lines.Count];
         _lyricDots = new Microsoft.UI.Xaml.Documents.Run[]?[_sheet.Lines.Count];
@@ -473,15 +497,15 @@ public sealed partial class PegasusChrome : UserControl
             // show how long the break has left. A whole line in brackets is a second voice. This is checked
             // on the line as WRITTEN, not as displayed, so the censor cannot turn a verse into an aside by
             // starring a word at either end.
-            _lyricAside[i] = IsAside(_sheet.Lines[i].Text);
+            _lyricAside[i] = LyricVoices.IsAside(_sheet.Lines[i].Text);
 
-            // A second singer gets a row of their own under the line. It is a SEPARATE block, not a second
-            // row inside the line's own block. Everything on this sheet is keyed by line index: the
+            // A second singer gets a row of their own under the line (see LyricVoices). It is a SEPARATE
+            // block, not a second row inside the line's own block. Everything on this sheet is keyed by line index: the
             // timings, the word spans, the letter runs, the dots and the scroll target. Splitting one sheet
             // line into two visual lines would have to be handled in each of those. Kept beside the line,
             // the index keeps its meaning, and the extra row is simply something the stack knows how to
             // make room for.
-            if (AsideGroups(_sheet.Lines[i].Text).Count > 0)
+            if (LyricVoices.Groups(_sheet.Lines[i].Text).Count > 0)
             {
                 var aside = new TextBlock
                 {
@@ -520,88 +544,6 @@ public sealed partial class PegasusChrome : UserControl
         // The record glides to where this song puts it, and the room is told where the words now are.
         RetargetBeside(glide: true);
         PushWordBox();
-    }
-
-    /// <summary>
-    /// Every stretch of a line that belongs to a second voice: the bracketed groups, in the order they were
-    /// written, as half-open ranges over the text.
-    ///
-    /// <para>Sheets write two singers as one line, with the second singer in brackets. Sometimes the
-    /// bracket closes the line: "It all falls down (and when it falls down, who you gon' call now?)".
-    /// Sometimes it is scattered through the line: "Oh, when it all (uh)". Left inline, this is one line of
-    /// two people's words. It runs off the column and wraps into the verse below, and nothing on the screen
-    /// says which half belongs to whom. A whole bracketed line is handled the same way (see <see
-    /// cref="IsAside"/>). Here the words are on one row instead of two, so they are shown the same way:
-    /// underneath, and smaller.</para>
-    ///
-    /// <para><b>Every group is handled, however short.</b> An ad-lib is the same kind of thing as a sung
-    /// answer. "(uh)" is a second voice in the room, just as "(come on, come on)" is. Keeping the short
-    /// groups inline while the long ones moved would put one voice in two places on one screen. Several
-    /// groups on one line are joined with commas on the row below, as they would be if the row were written
-    /// by hand.</para>
-    ///
-    /// <para>A line bracketed end to end is not this case. It is an aside whole, and it has no verse to sit
-    /// under.</para>
-    /// </summary>
-    private static List<(int Open, int Close)> AsideGroups(string? text)
-    {
-        var found = new List<(int, int)>();
-        if (text is not { Length: > 2 } line || IsAside(line))
-            return found;
-
-        var depth = 0;
-        var open = -1;
-        for (var i = 0; i < line.Length; i++)
-        {
-            if (line[i] == '(')
-            {
-                if (depth++ == 0)
-                    open = i;
-            }
-            else if (line[i] == ')' && depth > 0 && --depth == 0 && open >= 0)
-            {
-                // There must be text inside the brackets and text outside them. A line that is all bracket,
-                // with nothing around it, is an aside written untidily.
-                if (line[(open + 1)..i].Trim().Length > 0)
-                    found.Add((open, i + 1));
-                open = -1;
-            }
-        }
-
-        return found.Count > 0 && line.Length > found.Sum(g => g.Item2 - g.Item1) ? found : [];
-    }
-
-    /// <summary>The second voice's row for a line: its bracketed groups, without the brackets, joined with
-    /// commas. This is what the row shows where there are no runs to build it from. It is also how the row
-    /// is measured (see WidestLine).</summary>
-    private static string AsideText(string text, List<(int Open, int Close)> groups) =>
-        string.Join(", ", groups.Select(g => text[(g.Open + 1)..(g.Close - 1)].Trim()));
-
-    /// <summary>The verse text of a line: the line with its bracketed stretches taken out, and the double
-    /// spaces that leaves behind tidied away. This is what the verse row shows when there are no word
-    /// timings to hang runs off.</summary>
-    private static string Verse(string text, List<(int Open, int Close)> groups)
-    {
-        var verse = new System.Text.StringBuilder(text.Length);
-        var at = 0;
-        foreach (var (open, close) in groups)
-        {
-            verse.Append(text[at..open]);
-            at = close;
-        }
-        verse.Append(text[at..]);
-
-        return string.Join(' ', verse.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries)).Trim();
-    }
-
-    /// <summary>Whether a line is an aside. It is bracketed from end to end, which is how every sheet
-    /// writes a backing vocal. A line that only CONTAINS brackets is not an aside. For example, "I wish I
-    /// understood (yeah)" is the verse, with a shout in it.</summary>
-    private static bool IsAside(string? text)
-    {
-        var line = text?.Trim();
-        return line is { Length: > 2 } && line[0] == '(' && line[^1] == ')'
-               && line.IndexOf(')', 1) == line.Length - 1;   // One bracket pair around the whole line.
     }
 
     /// <summary>
@@ -784,7 +726,7 @@ public sealed partial class PegasusChrome : UserControl
     private bool[] _lyricAside = [];
 
     /// <summary>How much smaller an aside is drawn than the verse it answers.</summary>
-    private const double AsideScale = 0.76;
+    private const double AsideScale = LyricVoices.Scale;
 
     /// <summary>Which lines have had their words MEASURED off the record, rather than shared out across the
     /// line. Only these say when a line really ends, so only these can hold a line up past the next stamp
@@ -833,7 +775,7 @@ public sealed partial class PegasusChrome : UserControl
         // rather than carried over from earlier. The censor can change the length of the string, and every
         // offset below indexes what is actually on screen.
         var aside = i < _asideBlocks.Length ? _asideBlocks[i] : null;
-        var groups = aside is null ? [] : AsideGroups(text);
+        var groups = aside is null ? [] : LyricVoices.Groups(text);
         if (aside is not null && groups.Count == 0)
         {
             // The line has a second voice as written, but not as displayed. For example, the censor has
@@ -849,8 +791,8 @@ public sealed partial class PegasusChrome : UserControl
             // is done by hand, since there are no runs to hang them from.
             if (aside is not null && groups.Count > 0)
             {
-                block.Text = Verse(text, groups);
-                aside.Text = AsideText(text, groups);
+                block.Text = LyricVoices.Verse(text, groups);
+                aside.Text = LyricVoices.AsideText(text, groups);
             }
             return;
         }
@@ -1018,7 +960,13 @@ public sealed partial class PegasusChrome : UserControl
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        for (var i = Math.Max(0, at); i <= at + AlignAhead && i < sheet.Lines.Count; i++)
+        // The next line is the next one with a row of its own. Backing lines hung under this one come
+        // before it, and are measured on the way.
+        var ahead = at + AlignAhead;
+        while (ahead < sheet.Lines.Count && IsHung(ahead))
+            ahead++;
+
+        for (var i = Math.Max(0, at); i <= ahead && i < sheet.Lines.Count; i++)
         {
             if (!_asked.Add(i))
                 continue;
@@ -1382,11 +1330,11 @@ public sealed partial class PegasusChrome : UserControl
                 continue;
 
             var family = _lyricLines[i].FontFamily;
-            var groups = _asideBlocks.Length > i && _asideBlocks[i] is not null ? AsideGroups(text) : [];
+            var groups = _asideBlocks.Length > i && _asideBlocks[i] is not null ? LyricVoices.Groups(text) : [];
             if (groups.Count > 0)
             {
-                widest = Math.Max(widest, Measured(Verse(text, groups), size, family));
-                widest = Math.Max(widest, Measured(AsideText(text, groups), size * AsideScale, family));
+                widest = Math.Max(widest, Measured(LyricVoices.Verse(text, groups), size, family));
+                widest = Math.Max(widest, Measured(LyricVoices.AsideText(text, groups), size * AsideScale, family));
                 continue;
             }
 
@@ -1591,7 +1539,7 @@ public sealed partial class PegasusChrome : UserControl
         // in place, rather than scrolled off the top. The fold runs first, before the target is read.
         // Folding moves the very numbers the target is read from. A target taken from the last frame's
         // layout would have the sheet easing toward a place that no longer exists.
-        FoldAsides(dt, at);
+        FoldAsides(dt, at, pos);
 
         var idx = Math.Clamp(still, 0, _lineY.Length - 1);
         var target = _lineY[idx] + _lineH[idx] / 2;
@@ -1637,6 +1585,11 @@ public sealed partial class PegasusChrome : UserControl
         // what makes the sheet worth following word by word.
         TickWords(pos, at);
 
+        // A backing line is lit word by word while it is shown under its line, as the sung line is.
+        foreach (var hung in _hung)
+            if (hung < _asideOpen.Length && _asideOpen[hung] > 0)
+                TickWords(pos, hung);
+
         ShapeGlow(dt, at);
 
         // The lines on their way to their new strength since the last change of line.
@@ -1670,10 +1623,23 @@ public sealed partial class PegasusChrome : UserControl
         // starts, not through the solo before it. In a rest, the words go and only its dots stand. Before the
         // first line nothing of the sheet stands: the dots count in to it (see TickCount).
         var resting = part >= 0 && piece.IsRest;
+        var rowAt = at >= 0 && at < _lineRow.Length ? _lineRow[at] : -1;
         for (int i = 0; i < _lyricLines.Length; i++)
         {
-            var distance = Math.Abs(i - at);
             var block = _lyricLines[i];
+
+            // A backing line is shown by its fold alone (see FoldAsides), and lit by the sweep while it is
+            // shown. Nothing about the line being sung changes it.
+            if (IsHung(i))
+            {
+                _lineFadeFrom[i] = _lineFadeTo[i] = 0;
+                if (!ReferenceEquals(block.Foreground, _lyricInk.Lit))
+                    block.Foreground = _lyricInk.Lit;
+                continue;
+            }
+
+            // Counted in rows, so a backing line folded away between two lines does not dim the next one.
+            var distance = Math.Abs((i < _lineRow.Length ? _lineRow[i] : i) - rowAt);
             var ours = part >= 0 && i < _lineSection.Length && _lineSection[i] == piece.Section;
             var strength = !ours ? 0.0
                 : resting ? (i == at ? 1.0 : 0.0)
@@ -1858,6 +1824,10 @@ public sealed partial class PegasusChrome : UserControl
 
         for (int i = 0; i < _lyricLines.Length; i++)
         {
+            // A backing line is placed with the line it hangs under, below.
+            if (IsHung(i))
+                continue;
+
             var block = _lyricLines[i];
             var height = block.ActualHeight > 1 ? block.ActualHeight : _lyricSize * 1.35;
 
@@ -1880,6 +1850,27 @@ public sealed partial class PegasusChrome : UserControl
                 if (Math.Abs(Canvas.GetTop(aside) - (y + height)) > 0.5)
                     Canvas.SetTop(aside, y + height);
                 room = tall * _asideOpen[i];
+            }
+
+            // The backing lines hung under this line sit below it and below its second voice, one under
+            // the other. Each takes room by how far it is open, as the second voice does. Folded, it takes
+            // none, and the lines below stand where they would if it were not there.
+            var under = y + height + room;
+            for (var j = i + 1; j < _lyricLines.Length && IsHung(j) && _hungUnder[j] == i; j++)
+            {
+                var hung = _lyricLines[j];
+                var tall = hung.ActualHeight > 1 ? hung.ActualHeight : _lyricSize * AsideScale * 1.35;
+                if (Math.Abs(_lineY[j] - under) > 0.5)
+                    Canvas.SetTop(hung, under);
+
+                var opens = tall * _asideOpen[j];
+                if (Math.Abs(_lineH[j] - opens) > 0.5 || Math.Abs(_lineY[j] - under) > 0.5)
+                    moved = true;
+
+                _lineY[j] = under;
+                _lineH[j] = opens;
+                under += opens;
+                room += opens;
             }
 
             // Half a pixel. Below that, the change is the framework's own rounding, not a line that has
@@ -1911,7 +1902,7 @@ public sealed partial class PegasusChrome : UserControl
     /// is left, before and after, is the same as it would be if the line had never had a second
     /// voice.</para>
     /// </summary>
-    private void FoldAsides(double dt, int at)
+    private void FoldAsides(double dt, int at, double pos)
     {
         if (_asideBlocks.Length == 0 || _lineY.Length != _lyricLines.Length)
             return;
@@ -1919,11 +1910,14 @@ public sealed partial class PegasusChrome : UserControl
         var moved = false;
         for (int i = 0; i < _asideBlocks.Length; i++)
         {
-            if (_asideBlocks[i] is null)
+            var hung = IsHung(i);
+            if (_asideBlocks[i] is null && !hung)
                 continue;
 
-            // Open for the sung line only, and for nothing else.
-            var want = at >= 0 && i == at ? 1.0 : 0.0;
+            // A second voice is open for the sung line only, and for nothing else. A backing line is open
+            // while it is sung, whichever line is up (see HungShown).
+            var want = hung ? (HungShown(i, pos) ? 1.0 : 0.0)
+                : at >= 0 && i == at ? 1.0 : 0.0;
             var open = _asideOpen[i];
             if (Math.Abs(want - open) < 0.001)
             {
@@ -1952,12 +1946,36 @@ public sealed partial class PegasusChrome : UserControl
             StackLyrics(Math.Round(_lyricSize * (LyricLeading - 1.0)));
 
         // The row is read with the line it belongs to, so it takes that line's own dimming, multiplied by
-        // how far it has opened.
+        // how far it has opened. A backing line is at full strength while it is sung, whether or not its
+        // line is still the one up, so it is only as strong as it is open.
         void Fade(int i)
         {
-            if (_asideBlocks[i] is { } voice)
+            if (IsHung(i))
+                _lyricLines[i].Opacity = _asideOpen[i];
+            else if (_asideBlocks[i] is { } voice)
                 voice.Opacity = _lyricLines[i].Opacity * _asideOpen[i];
         }
+    }
+
+    /// <summary>Whether a sheet line is a backing line hung under the line before it (see <see
+    /// cref="LyricAside"/>). It has no row of its own.</summary>
+    private bool IsHung(int line) => line >= 0 && line < _hungUnder.Length && _hungUnder[line] >= 0;
+
+    /// <summary>
+    /// Whether a backing line is shown under its line at <paramref name="pos"/>.
+    ///
+    /// <para>It pops in just before it is sung, and folds away when its last word is done (see <see
+    /// cref="KaraokeLines.Shown"/>). Before and after, it is not on the sheet at all: the lines move on as if
+    /// it were not there.</para>
+    /// </summary>
+    private bool HungShown(int line, double pos)
+    {
+        if (line >= _lyricWordSpans.Length || _lyricWordSpans[line] is not { Length: > 0 } spans)
+            return false;
+
+        var measured = line < _lyricWordMeasured.Length && _lyricWordMeasured[line];
+        var (from, until) = KaraokeLines.Shown(_sheet.Lines[line].Seconds, spans, measured);
+        return pos >= from && pos < until;
     }
 
     /// <summary>
@@ -2151,6 +2169,18 @@ public sealed partial class PegasusChrome : UserControl
     /// shown.</summary>
     private int[] _lineSection = [];
 
+    /// <summary>For each sheet line, the line it hangs under when it is a backing line (see <see
+    /// cref="LyricAside"/>), or -1 for a line with a row of its own.</summary>
+    private int[] _hungUnder = [];
+
+    /// <summary>The backing lines, in sheet order. Their room under their line is in <see
+    /// cref="_asideOpen"/>, as a second voice's is.</summary>
+    private int[] _hung = [];
+
+    /// <summary>The row each sheet line is drawn in, counted down the sheet. A backing line shares the row
+    /// of the line it hangs under.</summary>
+    private int[] _lineRow = [];
+
     private TextBlock[] _lyricLines = [];
     private TranslateTransform _lyricShift = new();
     private CancellationTokenSource? _lyricLookup;
@@ -2163,9 +2193,9 @@ public sealed partial class PegasusChrome : UserControl
     /// These are kept beside the lines rather than among them. See the note in BuildLyrics.</summary>
     private TextBlock?[] _asideBlocks = [];
 
-    /// <summary>How much room each of those rows takes. It runs from one (open, under the line it belongs
-    /// to) to nought (folded away, as though the line never had one). It is eased rather than switched. See
-    /// FoldAsides.</summary>
+    /// <summary>How much room each of those rows takes, and each backing line hung under a line. It runs
+    /// from one (open, under the line it belongs to) to nought (folded away, as though the line never had
+    /// one). It is eased rather than switched. See FoldAsides.</summary>
     private double[] _asideOpen = [];
 
     /// <summary>Where the light behind the sung line is, and how tall it is. It eases toward where the line

@@ -12,8 +12,22 @@ namespace RPM.Core.Lyrics;
 /// <param name="IsRest">Whether nothing is sung in this piece.</param>
 /// <param name="From">When the piece starts, in seconds.</param>
 /// <param name="Until">When the next piece starts, or <see cref="double.PositiveInfinity"/> after the
-/// last.</param>
+/// last. For a line with backing lines under it (<see cref="LyricAside"/>), it is the first backing line's
+/// stamp: the line's own words are sung until then.</param>
 public readonly record struct LyricPart(int Id, int Section, int Line, bool IsRest, double From, double Until);
+
+/// <summary>
+/// A line bracketed from end to end (<see cref="LyricVoices.IsAside"/>), a backing vocal, that the score
+/// hangs under the line of words before it (see <see cref="LyricScore.Of(LyricSheet, bool)"/>). It is not
+/// a piece of its own: a screen shows it under that line while it is sung, and moves on as if it were not
+/// there.
+/// </summary>
+/// <param name="Part">The piece it is shown under: the line of words before it.</param>
+/// <param name="Line">Its own line on the sheet.</param>
+/// <param name="From">Its stamp, in seconds.</param>
+/// <param name="Until">When the next line of the sheet starts, or <see cref="double.PositiveInfinity"/>
+/// after the last.</param>
+public readonly record struct LyricAside(int Part, int Line, double From, double Until);
 
 /// <summary>
 /// A lyric sheet cut into what is sung and what is waited through. It is the iPhone's and the Android TV
@@ -40,12 +54,20 @@ public sealed class LyricScore
     public const double Sung = 8.0;
 
     /// <summary>A score with no pieces, for a sheet that has no lines.</summary>
-    public static LyricScore Empty { get; } = new([]);
+    public static LyricScore Empty { get; } = new([], []);
 
-    private LyricScore(IReadOnlyList<LyricPart> parts) => Parts = parts;
+    private LyricScore(IReadOnlyList<LyricPart> parts, IReadOnlyList<LyricAside> asides)
+    {
+        Parts = parts;
+        Asides = asides;
+    }
 
     /// <summary>The pieces, in time order.</summary>
     public IReadOnlyList<LyricPart> Parts { get; }
+
+    /// <summary>The backing lines hung under the line before them, in time order. Empty unless the score
+    /// was made with them (see <see cref="Of(LyricSheet, bool)"/>).</summary>
+    public IReadOnlyList<LyricAside> Asides { get; }
 
     /// <summary>
     /// Which piece the playhead is in, or -1 before the first line. The intro is not a piece of its own:
@@ -72,14 +94,27 @@ public sealed class LyricScore
         return found;
     }
 
-    /// <summary>The score of <paramref name="sheet"/>.</summary>
-    public static LyricScore Of(LyricSheet sheet)
+    /// <summary>The score of <paramref name="sheet"/>, with every line of words a piece of its own.</summary>
+    public static LyricScore Of(LyricSheet sheet) => Of(sheet, asides: false);
+
+    /// <summary>
+    /// The score of <paramref name="sheet"/>.
+    ///
+    /// <para>With <paramref name="asides"/>, a line bracketed from end to end (<see
+    /// cref="LyricVoices.IsAside"/>) is not a piece of its own. It is a backing vocal, and it goes with the
+    /// line of words before it (<see cref="Asides"/>). The score moves on as if it were not there, so the
+    /// line before it stays the line being sung. A backing line with no line of words before it in its
+    /// stretch stays a piece of its own.</para>
+    /// </summary>
+    public static LyricScore Of(LyricSheet sheet, bool asides)
     {
+        ArgumentNullException.ThrowIfNull(sheet);
         var lines = sheet.Lines;
         if (lines.Count == 0)
             return Empty;
 
         var parts = new List<LyricPart>(lines.Count + 4);
+        var hung = new List<LyricAside>();
         var section = 0;
         double? lastSang = null;
 
@@ -94,6 +129,15 @@ public sealed class LyricScore
                 parts.Add(new LyricPart(parts.Count, section, at, true, line.Seconds, next));
                 section++;
                 lastSang = null;
+                continue;
+            }
+
+            // A backing line sung soon after a line of words goes under that line. The stretch goes on
+            // through it, as it would through any line that is sung.
+            if (asides && lastSang is { } before && line.Seconds - before < Rest && LyricVoices.IsAside(line.Text))
+            {
+                hung.Add(new LyricAside(parts.Count - 1, at, line.Seconds, next));
+                lastSang = line.Seconds;
                 continue;
             }
 
@@ -118,7 +162,7 @@ public sealed class LyricScore
             if (parts[i].Until > parts[i + 1].From)
                 parts[i] = parts[i] with { Until = parts[i + 1].From };
 
-        return new LyricScore(parts);
+        return new LyricScore(parts, hung);
     }
 
     /// <summary>How far through a rest the playhead is, from nought to one. A rest with no end never

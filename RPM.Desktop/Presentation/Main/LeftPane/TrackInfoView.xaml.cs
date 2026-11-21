@@ -559,8 +559,21 @@ public sealed partial class TrackInfoView : UserControl
 
         LyricStack.Children.Clear();
         _lyricAt = -2;
+        _lyricHung.Clear();
+        _hungFold?.Stop();
 
         var mask = App.Services.GetRequiredService<SettingsService>().MaskProfanity;
+
+        // A line bracketed from end to end is a backing vocal. On a timed sheet it gets no row of its own:
+        // it is hung under the line of words before it (see LyricAside), shown while it is sung, and folded
+        // away after. The well moves on as if it were not there.
+        var hungUnder = new Dictionary<int, int>();
+        if (_sheet.IsSynced)
+        {
+            var score = LyricScore.Of(_sheet, asides: true);
+            foreach (var aside in score.Asides)
+                hungUnder[aside.Line] = score.Parts[aside.Part].Line;
+        }
 
         // The plain wall is unstamped line by line as it is drawn. Anything that parsed is already a
         // sheet by now (see PaintLyrics); what reaches here with a clock on it is a tag the reader
@@ -586,6 +599,15 @@ public sealed partial class TrackInfoView : UserControl
             if (_sheet.IsSynced && LyricSheet.IsWordless(lines[i]))
             {
                 _lyricFor[i] = rows.Count - 1;
+                continue;
+            }
+
+            // A backing line goes in under its line's row, and the clock holds that row lit through it, as
+            // it does through a break.
+            if (hungUnder.TryGetValue(i, out var host) && _lyricFor[host] >= 0)
+            {
+                _lyricFor[i] = _lyricFor[host];
+                HangUnder(rows[_lyricFor[host]], i, LyricCensor.Mask(LyricVoices.Unbracketed(lines[i]), mask));
                 continue;
             }
 
@@ -932,6 +954,9 @@ public sealed partial class TrackInfoView : UserControl
         if (!string.Equals(playback.PlayingPath, _path, StringComparison.Ordinal))
             return;
 
+        // The backing lines open and fold on their own times, whichever row is lit.
+        FoldHung(playback.PositionSeconds);
+
         // The clock answers in the sheet's own lines. The well is drawn in rows, and the two are not
         // the same list once the rests have been taken out. A rest maps back to the row before it, so
         // the last words sung stay lit until the next ones are. See _lyricFor.
@@ -971,6 +996,144 @@ public sealed partial class TrackInfoView : UserControl
         LyricScroller.ChangeView(null, Math.Max(0, target), null);
     }
 
+    /// <summary>
+    /// A backing line in the well: its block under the row it hangs under, and when it is sung.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Open"/> runs from nought (folded: no height, not drawn) to one (open), and is eased by
+    /// <see cref="HungFoldStep"/>. <see cref="Natural"/> is the block's full height, measured as it opens.
+    /// </remarks>
+    private sealed class HungLine(TextBlock block, double from, double until)
+    {
+        public TextBlock Block { get; } = block;
+        public double From { get; } = from;
+        public double Until { get; } = until;
+        public bool Wanted { get; set; }
+        public double Open { get; set; }
+        public double Natural { get; set; }
+    }
+
+    /// <summary>The backing lines of the sheet in the well, in sheet order.</summary>
+    private readonly List<HungLine> _lyricHung = [];
+
+    /// <summary>Moves the backing lines' folds while one of them is opening or folding, and only then.
+    /// The lyric tick is four times a second, too coarse for a movement.</summary>
+    private DispatcherTimer? _hungFold;
+
+    private long _hungFoldAt;
+
+    /// <summary>How long a backing line takes to open or fold away, in seconds. Quick: it is a thing
+    /// arriving or finishing, and a slow fold would look like the well was still deciding.</summary>
+    private const double HungFoldSeconds = 0.25;
+
+    /// <summary>
+    /// Puts a backing line (line <paramref name="line"/> of the sheet) under <paramref name="row"/>, folded.
+    ///
+    /// <para>The row and the backing lines under it are put in one panel with no spacing. A folded block then
+    /// takes no room at all. In the well's own stack it would still take the stack's spacing.</para>
+    /// </summary>
+    private void HangUnder(TextBlock row, int line, string text)
+    {
+        if (row.Parent is not StackPanel group || ReferenceEquals(group, LyricStack))
+        {
+            var at = LyricStack.Children.IndexOf(row);
+            LyricStack.Children.RemoveAt(at);
+            group = new StackPanel();
+            group.Children.Add(row);
+            LyricStack.Children.Insert(at, group);
+        }
+
+        var block = new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12 * LyricVoices.Scale,
+            LineHeight = 18 * LyricVoices.Scale,
+            Foreground = LyricLit,
+            Opacity = 0,
+            MaxHeight = 0,
+        };
+        group.Children.Add(block);
+
+        // Shown from its stamp until its words, shared out across it, are done. The next line's stamp is
+        // the end of its time, as for any line.
+        var lines = _sheet.Lines;
+        var stamp = lines[line].Seconds;
+        var next = line + 1 < lines.Count ? lines[line + 1].Seconds : double.PositiveInfinity;
+        var spans = LyricTiming.Sweep(lines[line].Text, stamp, next, lines[line].Words);
+        var (from, until) = KaraokeLines.Shown(stamp, spans, measured: false);
+        _lyricHung.Add(new HungLine(block, from, until));
+    }
+
+    /// <summary>Opens the backing lines being sung at <paramref name="seconds"/>, and folds the others
+    /// away.</summary>
+    private void FoldHung(double seconds)
+    {
+        var moving = false;
+        foreach (var hung in _lyricHung)
+        {
+            var wanted = seconds >= hung.From && seconds < hung.Until;
+            if (wanted != hung.Wanted)
+            {
+                hung.Wanted = wanted;
+                if (wanted)
+                {
+                    // Measured as it opens, at the well's width now, so a resize since the last time counts.
+                    hung.Block.Foreground = LyricLit;
+                    hung.Block.MaxHeight = double.PositiveInfinity;
+                    hung.Block.Measure(new Windows.Foundation.Size(Math.Max(1, LyricStack.ActualWidth), double.PositiveInfinity));
+                    hung.Natural = hung.Block.DesiredSize.Height;
+                    hung.Block.MaxHeight = hung.Natural * Eased(hung.Open);
+                }
+            }
+            moving |= hung.Open != (hung.Wanted ? 1 : 0);
+        }
+
+        if (!moving)
+            return;
+
+        if (_hungFold is null)
+        {
+            _hungFold = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _hungFold.Tick += (_, _) => HungFoldStep();
+        }
+        if (!_hungFold.IsEnabled)
+        {
+            _hungFoldAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            _hungFold.Start();
+        }
+    }
+
+    /// <summary>One step of the folds: each backing line's height and strength move together, so the rows
+    /// under it close up with it and do not jump.</summary>
+    private void HungFoldStep()
+    {
+        var dt = System.Diagnostics.Stopwatch.GetElapsedTime(_hungFoldAt).TotalSeconds;
+        _hungFoldAt = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        var moving = false;
+        foreach (var hung in _lyricHung)
+        {
+            var want = hung.Wanted ? 1.0 : 0.0;
+            if (hung.Open == want)
+                continue;
+
+            hung.Open = want > hung.Open
+                ? Math.Min(want, hung.Open + (dt / HungFoldSeconds))
+                : Math.Max(want, hung.Open - (dt / HungFoldSeconds));
+            var eased = Eased(hung.Open);
+            hung.Block.MaxHeight = hung.Natural * eased;
+            hung.Block.Opacity = eased;
+            moving |= hung.Open != want;
+        }
+
+        if (!moving)
+            _hungFold?.Stop();
+    }
+
+    /// <summary>A fold's movement, slow at both ends.</summary>
+    private static double Eased(double t) => t * t * (3 - (2 * t));
+
     private void StartLyricTick()
     {
         _lyricTick ??= Build();
@@ -985,7 +1148,11 @@ public sealed partial class TrackInfoView : UserControl
         }
     }
 
-    private void StopLyricTick() => _lyricTick?.Stop();
+    private void StopLyricTick()
+    {
+        _lyricTick?.Stop();
+        _hungFold?.Stop();
+    }
 
     // ── the band, and the sleeve on the corner of their photo ──
 
