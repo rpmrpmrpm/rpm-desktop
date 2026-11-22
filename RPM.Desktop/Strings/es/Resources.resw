@@ -1573,6 +1573,50 @@
   <data name="Settings_MusicFolderHint" xml:space="preserve">
     <value>Donde rpm guarda tu colección.</value>
   </data>
+  <data name="Settings_Database" xml:space="preserve">
+    <value>Base de datos de la colección</value>
+    <comment>Settings &gt; Collection: title of the card that says where the collection database is kept. Also a jump link at the top of the page.</comment>
+  </data>
+  <data name="Settings_DatabaseHint" xml:space="preserve">
+    <value>rpm guarda todo lo que sabe de tu música en una sola base de datos: tus listas, tus escuchas y tus favoritos, y todo lo que ha aprendido de cada pista. Normalmente está en tu carpeta de música, justo al lado de tu música.</value>
+    <comment>Settings &gt; Collection: hint under the collection database card's title.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDisk" xml:space="preserve">
+    <value>Guardar la base de datos en un disco más rápido</value>
+    <comment>Settings &gt; Collection: switch that keeps the collection database in the folder below instead of in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDiskHint" xml:space="preserve">
+    <value>¿Tu música está en un disco más lento? Guarda la base de datos en la carpeta de abajo y rpm arrancará y se desplazará mucho más rápido. Tu música se queda justo donde está, solo se mueve la base de datos. Las colecciones en red siempre guardan la suya en esta carpeta.</value>
+    <comment>Settings &gt; Collection: hint under the switch that keeps the collection database on a faster disk.</comment>
+  </data>
+  <data name="Settings_DatabaseFolder" xml:space="preserve">
+    <value>Carpeta de la base de datos</value>
+    <comment>Settings &gt; Collection: label over the folder where collection databases are kept when they are not in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseFolderDefault" xml:space="preserve">
+    <value>Usar la predeterminada</value>
+    <comment>Settings &gt; Collection: button that puts the database folder back to the app's own folder. Shown only when another folder was chosen.</comment>
+  </data>
+  <data name="Settings_DatabaseNow" xml:space="preserve">
+    <value>Ahora mismo tu base de datos está aquí: {0}</value>
+    <comment>Settings &gt; Collection: line in the collection database card. {0} is the full path of the database file the app has open.</comment>
+  </data>
+  <data name="Settings_DatabaseNextStart" xml:space="preserve">
+    <value>¡Listo! El cambio se aplica la próxima vez que abras rpm. Cuando tu base de datos se mueve, rpm guarda también la copia antigua, con otro nombre, por si acaso.</value>
+    <comment>Settings &gt; Collection: shown after the switch or the database folder changes. The move happens when the app next opens the collection.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinning" xml:space="preserve">
+    <value>Tu música está en un disco duro mecánico, y eso puede hacer que rpm tarde en arrancar. Este ordenador también tiene un SSD rápido, así que guardar ahí la base de datos podría notarse de verdad. ¿Quieres probarlo?</value>
+    <comment>Settings &gt; Collection: one-time note in the collection database card when the music folder is on a spinning disk and the database folder is on an SSD.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningYes" xml:space="preserve">
+    <value>Sí, muévela</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Turns the faster-disk switch on.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningNo" xml:space="preserve">
+    <value>No, gracias</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Closes the note for good.</comment>
+  </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
     <value>Esta carpeta contiene otros archivos. Elige una carpeta vacía, una carpeta con música o una carpeta de música de rpm existente.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>

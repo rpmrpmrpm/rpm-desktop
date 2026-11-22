@@ -1573,6 +1573,50 @@
   <data name="Settings_MusicFolderHint" xml:space="preserve">
     <value>Where rpm keeps your collection.</value>
   </data>
+  <data name="Settings_Database" xml:space="preserve">
+    <value>Collection database</value>
+    <comment>Settings &gt; Collection: title of the card that says where the collection database is kept. Also a jump link at the top of the page.</comment>
+  </data>
+  <data name="Settings_DatabaseHint" xml:space="preserve">
+    <value>rpm keeps everything it knows about your music in one database: your playlists, plays and favourites, and all it has learned about each track. Normally it lives in your music folder, right beside your music.</value>
+    <comment>Settings &gt; Collection: hint under the collection database card's title.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDisk" xml:space="preserve">
+    <value>Keep the database on a faster disk</value>
+    <comment>Settings &gt; Collection: switch that keeps the collection database in the folder below instead of in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDiskHint" xml:space="preserve">
+    <value>Is your music on a slower disk? Keep the database in the folder below and rpm starts and scrolls much faster. Your music stays right where it is, only the database moves. Collections on a network always keep theirs in this folder.</value>
+    <comment>Settings &gt; Collection: hint under the switch that keeps the collection database on a faster disk.</comment>
+  </data>
+  <data name="Settings_DatabaseFolder" xml:space="preserve">
+    <value>Database folder</value>
+    <comment>Settings &gt; Collection: label over the folder where collection databases are kept when they are not in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseFolderDefault" xml:space="preserve">
+    <value>Use the default</value>
+    <comment>Settings &gt; Collection: button that puts the database folder back to the app's own folder. Shown only when another folder was chosen.</comment>
+  </data>
+  <data name="Settings_DatabaseNow" xml:space="preserve">
+    <value>Right now your database is here: {0}</value>
+    <comment>Settings &gt; Collection: line in the collection database card. {0} is the full path of the database file the app has open.</comment>
+  </data>
+  <data name="Settings_DatabaseNextStart" xml:space="preserve">
+    <value>All set! This takes effect the next time you start rpm. When your database moves, rpm keeps the old copy too, renamed, just in case.</value>
+    <comment>Settings &gt; Collection: shown after the switch or the database folder changes. The move happens when the app next opens the collection.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinning" xml:space="preserve">
+    <value>Your music is on a spinning hard disk, and that can make rpm slow to start. This computer also has a fast SSD, so keeping the database there could make a real difference. Want to try it?</value>
+    <comment>Settings &gt; Collection: one-time note in the collection database card when the music folder is on a spinning disk and the database folder is on an SSD.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningYes" xml:space="preserve">
+    <value>Yes, move it</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Turns the faster-disk switch on.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningNo" xml:space="preserve">
+    <value>No thanks</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Closes the note for good.</comment>
+  </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
     <value>This folder holds other files. Pick an empty folder, a folder with music, or an existing rpm music folder.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>

@@ -1573,6 +1573,50 @@
   <data name="Settings_MusicFolderHint" xml:space="preserve">
     <value>L’endroit où rpm range votre collection.</value>
   </data>
+  <data name="Settings_Database" xml:space="preserve">
+    <value>Base de données de la collection</value>
+    <comment>Settings &gt; Collection: title of the card that says where the collection database is kept. Also a jump link at the top of the page.</comment>
+  </data>
+  <data name="Settings_DatabaseHint" xml:space="preserve">
+    <value>rpm garde tout ce qu’il sait de votre musique dans une seule base de données : vos playlists, vos écoutes, vos favoris et tout ce qu’il a appris sur chaque piste. D’habitude, elle se trouve dans votre dossier musical, juste à côté de votre musique.</value>
+    <comment>Settings &gt; Collection: hint under the collection database card's title.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDisk" xml:space="preserve">
+    <value>Garder la base de données sur un disque plus rapide</value>
+    <comment>Settings &gt; Collection: switch that keeps the collection database in the folder below instead of in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDiskHint" xml:space="preserve">
+    <value>Votre musique est sur un disque plus lent ? Gardez la base de données dans le dossier ci-dessous, et rpm démarre et défile bien plus vite. Votre musique reste exactement où elle est, seule la base de données change de place. Les collections sur un réseau gardent toujours la leur dans ce dossier.</value>
+    <comment>Settings &gt; Collection: hint under the switch that keeps the collection database on a faster disk.</comment>
+  </data>
+  <data name="Settings_DatabaseFolder" xml:space="preserve">
+    <value>Dossier de la base de données</value>
+    <comment>Settings &gt; Collection: label over the folder where collection databases are kept when they are not in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseFolderDefault" xml:space="preserve">
+    <value>Utiliser l’emplacement par défaut</value>
+    <comment>Settings &gt; Collection: button that puts the database folder back to the app's own folder. Shown only when another folder was chosen.</comment>
+  </data>
+  <data name="Settings_DatabaseNow" xml:space="preserve">
+    <value>En ce moment, votre base de données est ici : {0}</value>
+    <comment>Settings &gt; Collection: line in the collection database card. {0} is the full path of the database file the app has open.</comment>
+  </data>
+  <data name="Settings_DatabaseNextStart" xml:space="preserve">
+    <value>C’est noté ! Le changement s’applique au prochain démarrage de rpm. Quand votre base de données change de place, rpm garde aussi l’ancienne copie, renommée, au cas où.</value>
+    <comment>Settings &gt; Collection: shown after the switch or the database folder changes. The move happens when the app next opens the collection.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinning" xml:space="preserve">
+    <value>Votre musique est sur un disque dur mécanique, ce qui peut ralentir le démarrage de rpm. Cet ordinateur a aussi un SSD rapide : y garder la base de données pourrait vraiment changer les choses. Vous voulez essayer ?</value>
+    <comment>Settings &gt; Collection: one-time note in the collection database card when the music folder is on a spinning disk and the database folder is on an SSD.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningYes" xml:space="preserve">
+    <value>Oui, déplacer</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Turns the faster-disk switch on.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningNo" xml:space="preserve">
+    <value>Non merci</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Closes the note for good.</comment>
+  </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
     <value>Ce dossier contient d'autres fichiers. Choisissez un dossier vide, un dossier de musique ou un dossier musical rpm existant.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>

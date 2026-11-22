@@ -1573,6 +1573,50 @@
   <data name="Settings_MusicFolderHint" xml:space="preserve">
     <value>rpm 存放音乐收藏的位置。</value>
   </data>
+  <data name="Settings_Database" xml:space="preserve">
+    <value>音乐收藏数据库</value>
+    <comment>Settings &gt; Collection: title of the card that says where the collection database is kept. Also a jump link at the top of the page.</comment>
+  </data>
+  <data name="Settings_DatabaseHint" xml:space="preserve">
+    <value>rpm 把它对你音乐的所有了解都存放在一个数据库里：你的播放列表、播放记录和收藏，以及它对每首曲目学到的一切。通常它就放在你的音乐文件夹里，紧挨着你的音乐。</value>
+    <comment>Settings &gt; Collection: hint under the collection database card's title.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDisk" xml:space="preserve">
+    <value>把数据库放在更快的磁盘上</value>
+    <comment>Settings &gt; Collection: switch that keeps the collection database in the folder below instead of in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDiskHint" xml:space="preserve">
+    <value>你的音乐在较慢的磁盘上吗？把数据库放在下面的文件夹里，rpm 启动和滚动都会快很多。你的音乐原地不动，只有数据库会搬走。网络上的音乐收藏总是把数据库放在这个文件夹里。</value>
+    <comment>Settings &gt; Collection: hint under the switch that keeps the collection database on a faster disk.</comment>
+  </data>
+  <data name="Settings_DatabaseFolder" xml:space="preserve">
+    <value>数据库文件夹</value>
+    <comment>Settings &gt; Collection: label over the folder where collection databases are kept when they are not in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseFolderDefault" xml:space="preserve">
+    <value>使用默认位置</value>
+    <comment>Settings &gt; Collection: button that puts the database folder back to the app's own folder. Shown only when another folder was chosen.</comment>
+  </data>
+  <data name="Settings_DatabaseNow" xml:space="preserve">
+    <value>你的数据库目前在这里：{0}</value>
+    <comment>Settings &gt; Collection: line in the collection database card. {0} is the full path of the database file the app has open.</comment>
+  </data>
+  <data name="Settings_DatabaseNextStart" xml:space="preserve">
+    <value>搞定！下次启动 rpm 时生效。数据库搬家时，rpm 也会把旧副本改名保留，以防万一。</value>
+    <comment>Settings &gt; Collection: shown after the switch or the database folder changes. The move happens when the app next opens the collection.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinning" xml:space="preserve">
+    <value>你的音乐在机械硬盘上，这可能让 rpm 启动很慢。这台电脑还有一块快速的 SSD，把数据库放在那里可能会有明显的改善。要试试吗？</value>
+    <comment>Settings &gt; Collection: one-time note in the collection database card when the music folder is on a spinning disk and the database folder is on an SSD.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningYes" xml:space="preserve">
+    <value>好，搬过去</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Turns the faster-disk switch on.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningNo" xml:space="preserve">
+    <value>不用了</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Closes the note for good.</comment>
+  </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
     <value>此文件夹包含其他文件。请选择空文件夹、含有音乐的文件夹或现有的 rpm 音乐文件夹。</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>

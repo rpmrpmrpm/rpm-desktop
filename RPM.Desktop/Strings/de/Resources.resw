@@ -1573,6 +1573,50 @@
   <data name="Settings_MusicFolderHint" xml:space="preserve">
     <value>Wo rpm deine Sammlung ablegt.</value>
   </data>
+  <data name="Settings_Database" xml:space="preserve">
+    <value>Datenbank der Sammlung</value>
+    <comment>Settings &gt; Collection: title of the card that says where the collection database is kept. Also a jump link at the top of the page.</comment>
+  </data>
+  <data name="Settings_DatabaseHint" xml:space="preserve">
+    <value>rpm speichert alles, was es über deine Musik weiß, in einer Datenbank: deine Playlists, Wiedergaben und Favoriten und alles, was es über jeden Titel gelernt hat. Normalerweise liegt sie in deinem Musikordner, direkt neben deiner Musik.</value>
+    <comment>Settings &gt; Collection: hint under the collection database card's title.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDisk" xml:space="preserve">
+    <value>Datenbank auf einem schnelleren Laufwerk speichern</value>
+    <comment>Settings &gt; Collection: switch that keeps the collection database in the folder below instead of in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseOffDiskHint" xml:space="preserve">
+    <value>Liegt deine Musik auf einem langsameren Laufwerk? Speichere die Datenbank im Ordner unten, dann startet und scrollt rpm viel schneller. Deine Musik bleibt genau, wo sie ist, nur die Datenbank zieht um. Sammlungen im Netzwerk speichern ihre immer in diesem Ordner.</value>
+    <comment>Settings &gt; Collection: hint under the switch that keeps the collection database on a faster disk.</comment>
+  </data>
+  <data name="Settings_DatabaseFolder" xml:space="preserve">
+    <value>Datenbankordner</value>
+    <comment>Settings &gt; Collection: label over the folder where collection databases are kept when they are not in the music folder.</comment>
+  </data>
+  <data name="Settings_DatabaseFolderDefault" xml:space="preserve">
+    <value>Standard verwenden</value>
+    <comment>Settings &gt; Collection: button that puts the database folder back to the app's own folder. Shown only when another folder was chosen.</comment>
+  </data>
+  <data name="Settings_DatabaseNow" xml:space="preserve">
+    <value>Gerade liegt deine Datenbank hier: {0}</value>
+    <comment>Settings &gt; Collection: line in the collection database card. {0} is the full path of the database file the app has open.</comment>
+  </data>
+  <data name="Settings_DatabaseNextStart" xml:space="preserve">
+    <value>Alles klar! Das gilt ab dem nächsten Start von rpm. Wenn deine Datenbank umzieht, behält rpm die alte Kopie umbenannt, nur für alle Fälle.</value>
+    <comment>Settings &gt; Collection: shown after the switch or the database folder changes. The move happens when the app next opens the collection.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinning" xml:space="preserve">
+    <value>Deine Musik liegt auf einer Festplatte mit drehenden Scheiben, und das kann den Start von rpm bremsen. Dieser Computer hat auch eine schnelle SSD, die Datenbank dort zu speichern, könnte richtig viel bringen. Willst du es ausprobieren?</value>
+    <comment>Settings &gt; Collection: one-time note in the collection database card when the music folder is on a spinning disk and the database folder is on an SSD.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningYes" xml:space="preserve">
+    <value>Ja, verschieben</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Turns the faster-disk switch on.</comment>
+  </data>
+  <data name="Settings_DatabaseSpinningNo" xml:space="preserve">
+    <value>Nein danke</value>
+    <comment>Settings &gt; Collection: button on the spinning-disk note. Closes the note for good.</comment>
+  </data>
   <data name="Settings_MusicFolderNotEmpty" xml:space="preserve">
     <value>Dieser Ordner enthält andere Dateien. Wähle einen leeren Ordner, einen Ordner mit Musik oder einen vorhandenen rpm Musikordner.</value>
     <comment>Settings, Music folder card: the chosen folder has files in it and no RPM mirror.</comment>
