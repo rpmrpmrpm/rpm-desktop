@@ -332,16 +332,17 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     public Visibility ScanningVisibility => _scanning ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether the queue's ticks can be worked with at all. A scan is still writing the rows, and
-    /// an import is taking them away. In both cases the grid is off screen. Ticking every row of a list
-    /// that is half-built answers a question that nobody could have read.</summary>
-    public bool CanTickQueue => !_scanning && !_importing && _library.IsOpen;
+    /// an import is taking them away. In both cases the grid is off screen, and so it is during the tag stage
+    /// (see MainModel.TagStage). Ticking every row of a list that is half-built answers a question that nobody
+    /// could have read.</summary>
+    public bool CanTickQueue => !_scanning && !_importing && !TagStageShown && _library.IsOpen;
 
     /// <summary>The tree's own visibility, which is the exact opposite. Neither a scan nor an import is
     /// shown next to the grid. The animation has no background of its own. The rows it would sit on are
-    /// half-written (for a scan), or are being filed away one by one (for an import). So the grid goes away
-    /// for the duration, and is not covered.</summary>
+    /// half-written (for a scan), or are being filed away one by one (for an import), or are being given their
+    /// tags (for the tag stage). So the grid goes away for the duration, and is not covered.</summary>
     public Visibility QueueTreeVisibility =>
-        _scanning || _importing ? Visibility.Collapsed : Visibility.Visible;
+        _scanning || _importing || TagStageShown ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>The queue's legend and its action chin. These are hidden while an import runs. Both
     /// describe a grid that is not on screen, and every button on the chin is dead until the import is
@@ -796,6 +797,9 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
     {
         var edited = rows as IReadOnlyList<TrackRow> ?? rows.ToList();
 
+        // These are the user's own words, and the catalogue fill keeps them (see NoteQueueEditedByHand).
+        NoteQueueEditedByHand(edited);
+
         // The one question worth asking after an edit is whether anything MOVED. A row whose group, disc or
         // title changed belongs somewhere else, and the skeleton has to be built again. Everything else (a
         // genre, a comment, a year, a composer, four hundred of them at once) changes what a cell reads,
@@ -917,6 +921,7 @@ public sealed partial class MainModel : INotifyPropertyChanged, IDisposable
         OnChanged(nameof(QueueVisibility));
         OnChanged(nameof(ScanningVisibility));
         OnChanged(nameof(ImportingVisibility));
+        OnChanged(nameof(TagStageVisibility));
         OnChanged(nameof(QueueTreeVisibility));
         OnChanged(nameof(QueueActionsVisibility));
         OnChanged(nameof(QueueFolderPath));

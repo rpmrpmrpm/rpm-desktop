@@ -44,4 +44,36 @@ public static class TagPanelValues
 
         return first;
     }
+
+    /// <summary>
+    /// What one box should show after its rows were read again from the store under it, or null to leave the
+    /// box as it is.
+    ///
+    /// <para>The rows are read again whenever the queue changes, and the catalogue fill changes it on its own
+    /// while somebody is typing. A box the user has changed keeps what they put in it, applied or not. So does
+    /// the box they are typing in, even before it counts as changed. Every other box shows what the rows say
+    /// now, so a genre the fill found appears in an empty genre box. Where the rows now disagree the box is
+    /// left alone: it cannot show several values, and it would write nothing anyway.</para>
+    /// </summary>
+    /// <param name="touched">The box shows something other than what it was filled with.</param>
+    /// <param name="focused">The keyboard is in the box.</param>
+    /// <param name="shows">What the box would write now.</param>
+    /// <param name="allSame">Whether the rows agree on the field now.</param>
+    /// <param name="common">What they agree on.</param>
+    public static string? Refreshed(bool touched, bool focused, string shows, bool allSame, string common)
+    {
+        if (touched || focused || !allSame)
+            return null;
+        return string.Equals(shows, common, StringComparison.Ordinal) ? null : common;
+    }
+
+    /// <summary>
+    /// The ticked rows as one comparable value: their store ids, in number order.
+    ///
+    /// <para>In number order, not in the order they were read. A rebuild of the tree can read the same rows in
+    /// another order, and that is still the same selection. Read as a new selection, it would throw away what
+    /// the panel holds for it.</para>
+    /// </summary>
+    public static string SelectionKey(IEnumerable<long> queueIds)
+        => string.Join(",", queueIds.Order());
 }

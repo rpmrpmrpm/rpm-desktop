@@ -35,6 +35,14 @@ namespace RPM.Desktop.Presentation.Main.Models;
 /// read, and the user may have typed a genre in the meantime. The fill is applied to what the store holds then,
 /// on the interface thread, so a value typed while the request was in flight is a value already there, and a
 /// blank-only fill leaves it alone.</para>
+///
+/// <para><b>A genre written by hand is kept as written.</b> The fill translates a genre to its shelf, and replaces
+/// one the lists cannot read. On a row somebody has edited in the queue this session, it fills blanks only (see
+/// <see cref="CatalogueFill.FillBlanks"/>): the word they typed stays.</para>
+///
+/// <para><b>The tag stage.</b> Right after an add, the queue shows a stage while the release fill runs for the
+/// records the add brought (see MainModel.TagStage). Those records are asked about first, and while the stage is
+/// on screen the fill is waited on, so the governor does not hold it for the stage's own animation.</para>
 /// </summary>
 public sealed partial class MainModel
 {
@@ -60,10 +68,46 @@ public sealed partial class MainModel
 
     /// <summary>Whether this session's fill has answered for a queued record. An import follow-up asks only about
     /// the records it has not answered for. See MainModel.ImportFollowUp.</summary>
-    private bool FillAnswered(string artist, string album)
+    private bool FillAnswered(string artist, string album) => FillAnswered(FillKey(artist, album));
+
+    /// <inheritdoc cref="FillAnswered(string, string)"/>
+    private bool FillAnswered(string key)
     {
         lock (_fillAsked)
-            return ReferenceEquals(_fillAskedIn, _library.Db) && _fillAsked.Contains($"{artist}\u001f{album}");
+            return ReferenceEquals(_fillAskedIn, _library.Db) && _fillAsked.Contains(key);
+    }
+
+    /// <summary>The fill's key for a record: the queue's two group keys in one string.</summary>
+    private static string FillKey(string artist, string album) => $"{artist}\u001f{album}";
+
+    /// <summary>The queued rows somebody has edited by hand this session, by store id, and the library they were
+    /// edited in. The fill keeps a genre written on these as it is written (see <see cref="ApplyCatalogueFill"/>).</summary>
+    private readonly HashSet<long> _queueByHand = [];
+    private LibraryDatabase? _queueByHandIn;
+
+    /// <summary>Notes that the user has written these queued rows: the tag panel's Apply, the editors in the
+    /// queue's menu, a release they picked. Called by <see cref="PersistQueueRows"/>.</summary>
+    private void NoteQueueEditedByHand(IEnumerable<TrackRow> rows)
+    {
+        if (!_library.IsOpen)
+            return;
+        lock (_queueByHand)
+        {
+            if (!ReferenceEquals(_queueByHandIn, _library.Db))
+            {
+                _queueByHand.Clear();
+                _queueByHandIn = _library.Db;
+            }
+            foreach (var row in rows)
+                if (row.QueueId != 0)
+                    _queueByHand.Add(row.QueueId);
+        }
+    }
+
+    private bool QueueEditedByHand(long id)
+    {
+        lock (_queueByHand)
+            return ReferenceEquals(_queueByHandIn, _library.Db) && _queueByHand.Contains(id);
     }
 
     /// <summary>Whether the disc picture held against this intent was found online by the fill.</summary>
@@ -82,10 +126,15 @@ public sealed partial class MainModel
     /// off. Called on the interface thread after music is added. A fill already running takes the new records
     /// on at the end of its round, rather than a second worker doubling the requests.
     /// </summary>
-    private void StartCatalogueFill()
+    /// <param name="added">The fill's keys of the records this add brought. The tag stage covers these (see
+    /// MainModel.TagStage).</param>
+    private void StartCatalogueFill(IReadOnlyCollection<string> added)
     {
         if (!_settings.ImportFillFromCatalogue || !_library.IsOpen)
             return;
+
+        // Before the worker is started or told, so the worker finds the stage's records when it reads the queue.
+        BeginTagStage(added);
 
         Interlocked.Exchange(ref _fillAgain, 1);
         if (_fillWorker is { IsCompleted: false })
@@ -116,6 +165,10 @@ public sealed partial class MainModel
             }
         }
 
+        // The records whose explicit flags are asked song by song, after the release fill of every record. Kept
+        // across rounds: a round that stops early for newly added records (see below) leaves the rest for the next.
+        var bySongLater = new List<(QueueGroup Group, CatalogueFill.Album Album)>();
+
         try
         {
             while (Interlocked.Exchange(ref _fillAgain, 0) == 1)
@@ -128,13 +181,19 @@ public sealed partial class MainModel
                     return;
 
                 IReadOnlyList<QueueGroup> groups;
-                var bySongLater = new List<(QueueGroup Group, CatalogueFill.Album Album)>();
-                using (var page = await sweep.Next(ct))
+                int staged;
+                using (var page = await sweep.Next(ct, TagStageWaiting))
                 {
                     if (!page.Go || !Still())
                         return;
+                    staged = TagStageAdds;
                     groups = db.WholeQueue.Groups();
                 }
+
+                // The records the tag stage waits for come first, so the stage ends as soon as they are done. A stage
+                // record that is not in the queue cannot be reached, and is no longer waited for.
+                TagStageKeepOnly(groups.Select(g => FillKey(g.Artist, g.Album)).ToHashSet(StringComparer.OrdinalIgnoreCase), staged);
+                groups = [.. groups.OrderBy(g => TagStageCovers(FillKey(g.Artist, g.Album)) ? 0 : 1)];
 
                 foreach (var group in groups)
                 {
@@ -142,12 +201,23 @@ public sealed partial class MainModel
                     if (group.Artist.Length == 0 || group.Album.Length == 0)
                         continue;
 
-                    var key = $"{group.Artist}\u001f{group.Album}";
-                    lock (_fillAsked)
-                        if (_fillAsked.Contains(key))
-                            continue;
+                    var key = FillKey(group.Artist, group.Album);
 
-                    using var slot = await sweep.Next(ct);
+                    // Music added meanwhile, with the tag stage waiting on screen: the queue is read again in the
+                    // next round, so the new records come first. The records passed over here come after them.
+                    if (Volatile.Read(ref _fillAgain) == 1 && TagStageWaiting() && !TagStageCovers(key))
+                        break;
+
+                    bool asked;
+                    lock (_fillAsked)
+                        asked = _fillAsked.Contains(key);
+                    if (asked)
+                    {
+                        TagStageDone(key);
+                        continue;
+                    }
+
+                    using var slot = await sweep.Next(ct, TagStageWaiting);
                     if (!slot.Go || !Still() || !_settings.ImportFillFromCatalogue)
                         return;
 
@@ -158,12 +228,17 @@ public sealed partial class MainModel
                     // asked about it. This runs off the interface thread, because it looks in folders and files.
                     var wantsDisc = WantsDiscOnline(db, rows);
                     if (album is null && !wantsDisc)
+                    {
+                        TagStageDone(key);
                         continue;   // Nothing to fill. Not remembered: an edit can blank a field again.
+                    }
+
+                    TagStageAt(key, album?.Artist ?? group.Artist, album?.Title ?? group.Album);
 
                     if (album is not null)
                     {
                         // Not answering is not an answer about this record. The rest of the records would get the
-                        // same silence, so the pass stops, and the next add asks again.
+                        // same silence, so the pass stops, and the next add asks again. The stage ends with it.
                         if (!(await CatalogueFill.FindAsync(catalogue, album, ct)).Answers(out var release, out _))
                             return;
 
@@ -183,6 +258,7 @@ public sealed partial class MainModel
 
                     lock (_fillAsked)
                         _fillAsked.Add(key);
+                    TagStageDone(key);
 
                     if (!await Cancellable.DelayAsync(FillBreath, ct))
                         return;
@@ -191,17 +267,27 @@ public sealed partial class MainModel
                 // Then the explicit flags, song by song, for the records the release left without them. A record
                 // that has left the queue since has nothing to ask about (the import follow-up takes it). When the
                 // API does not answer, only this part stops: the release fill above is already done.
-                foreach (var (group, album) in bySongLater)
+                while (bySongLater.Count > 0)
                 {
+                    // Music added meanwhile, with the tag stage waiting on screen: its release fill comes first, in
+                    // the next round. The records left here are asked about after it.
+                    if (Volatile.Read(ref _fillAgain) == 1 && TagStageWaiting())
+                        break;
+
+                    var (group, album) = bySongLater[0];
                     using var slot = await sweep.Next(ct);
                     if (!slot.Go || !Still() || !_settings.ImportFillFromCatalogue)
                         return;
+                    bySongLater.RemoveAt(0);
 
                     var (reached, bySong) = await FillAdvisoryBySongAsync(db, group, album, Still, ct);
                     if (bySong)
                         filled++;
                     if (!reached)
+                    {
+                        bySongLater.Clear();
                         break;
+                    }
                 }
             }
         }
@@ -221,6 +307,20 @@ public sealed partial class MainModel
         }
         finally
         {
+            _dispatcher.TryEnqueue(() =>
+            {
+                // Music added just as this pass was ending found it still running, and left its records to it.
+                // They get a pass of their own, and the stage waits for that one.
+                if (Volatile.Read(ref _fillAgain) == 1 && _library.IsOpen && _settings.ImportFillFromCatalogue)
+                {
+                    var next = _library.Db;
+                    _fillWorker = Task.Run(() => CatalogueFillAsync(next, sweep));
+                    return;
+                }
+
+                // Otherwise a stage still on screen waits for records this pass will not reach now.
+                EndTagStage("the fill ended");
+            });
             if (filled > 0)
                 SetStatus(Loc.Format("Queue_CatalogueFilled", filled));
         }
@@ -272,9 +372,12 @@ public sealed partial class MainModel
             if (_library.Db.QueueRowById(id) is not { } stored)
                 continue;
             // The explicit flag comes from the same listing. The record's size is the number of rows asked about,
-            // which is the whole record (see CatalogueFill.AlbumOf).
-            var filled = AdvisoryFill.Fill(
-                CatalogueFill.Fill(stored.Wanted, release), stored.Current, release, ids.Count);
+            // which is the whole record (see CatalogueFill.AlbumOf). A row somebody edited keeps the genre they
+            // wrote.
+            var tags = QueueEditedByHand(id)
+                ? CatalogueFill.FillBlanks(stored.Wanted, release)
+                : CatalogueFill.Fill(stored.Wanted, release);
+            var filled = AdvisoryFill.Fill(tags, stored.Current, release, ids.Count);
             if (!ReferenceEquals(filled, stored.Wanted))
                 changed.Add(QueueTreeSource.MaterializeRow(stored with { Wanted = filled }));
         }

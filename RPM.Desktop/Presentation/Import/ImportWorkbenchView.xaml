@@ -175,6 +175,19 @@
                                      IsIndeterminate="{Binding ScanIsIndeterminate}"
                                      CountText="{Binding ScanCountText}"/>
 
+      <!-- The tag stage, straight after the scan: the same control in the same place, with its own words. The
+           records just added are given their genre, subgenre, year, explicit marks and disc picture from the
+           catalogue, and the line under the bar names the record being asked about. The button opens the queue
+           at once, and the fill goes on behind it (see MainModel.TagStage). -->
+      <local:FolderProgressAnimation x:Name="TagStage" Grid.Row="3" Grid.ColumnSpan="2"
+                                     Visibility="{Binding TagStageVisibility}"
+                                     Caption="{loc:Str Key=Queue_TagStageCaption}"
+                                     ProgressMax="{Binding TagStageProgressMax}"
+                                     ProgressValue="{Binding TagStageProgressValue}"
+                                     CountText="{Binding TagStageCountText}"
+                                     ActionText="{loc:Str Key=Queue_TagStageSkip}"
+                                     ActionHint="{loc:Str Key=Queue_TagStageSkipHint}"/>
+
       <!-- Import in progress: the same control in the same place, but with the filing artwork. Nothing is searched
            for here. The records are being moved into the folder. The caption says where the files are going
            (the Library setting), and the line under it counts them. The grid, the legend and the bottom bar are

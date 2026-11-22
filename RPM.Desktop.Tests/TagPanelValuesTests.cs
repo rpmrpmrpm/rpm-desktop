@@ -97,4 +97,39 @@ public class TagPanelValuesTests
         Assert.Null(TagPanelValues.AgreedPicture([null, null]));
         Assert.Null(TagPanelValues.AgreedPicture([[]]));
     }
+
+    // ── the rows read again under the panel ──
+
+    /// <summary>The catalogue fill writes a genre onto the record while somebody is typing one. What they typed
+    /// stays, whatever the rows say now.</summary>
+    [Fact]
+    public void A_box_the_user_changed_keeps_what_they_put_in_it()
+        => Assert.Null(TagPanelValues.Refreshed(touched: true, focused: false, shows: "Rock", allSame: true, common: "Pop"));
+
+    /// <summary>The box they are typing in counts as theirs before it counts as changed.</summary>
+    [Fact]
+    public void The_box_the_keyboard_is_in_is_left_alone()
+        => Assert.Null(TagPanelValues.Refreshed(touched: false, focused: true, shows: "", allSame: true, common: "Pop"));
+
+    [Fact]
+    public void An_untouched_box_shows_what_the_fill_found()
+        => Assert.Equal("Pop", TagPanelValues.Refreshed(touched: false, focused: false, shows: "", allSame: true, common: "Pop"));
+
+    [Fact]
+    public void An_untouched_box_that_already_agrees_is_not_written_again()
+        => Assert.Null(TagPanelValues.Refreshed(touched: false, focused: false, shows: "Pop", allSame: true, common: "Pop"));
+
+    [Fact]
+    public void Rows_that_now_disagree_leave_the_box_as_it_is()
+        => Assert.Null(TagPanelValues.Refreshed(touched: false, focused: false, shows: "Pop", allSame: false, common: ""));
+
+    /// <summary>A rebuild of the tree reads the same ticked rows in another order. That is the same selection,
+    /// and the panel must not drop what it holds for it.</summary>
+    [Fact]
+    public void The_same_rows_in_another_order_are_the_same_selection()
+    {
+        Assert.Equal(TagPanelValues.SelectionKey([3, 1, 2]), TagPanelValues.SelectionKey([1, 2, 3]));
+        Assert.NotEqual(TagPanelValues.SelectionKey([1, 2]), TagPanelValues.SelectionKey([1, 2, 3]));
+        Assert.NotEqual(TagPanelValues.SelectionKey([12]), TagPanelValues.SelectionKey([1, 2]));
+    }
 }

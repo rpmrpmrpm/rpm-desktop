@@ -97,11 +97,12 @@ public sealed partial class MainModel
             var queueRows = await Task.Run(() => BuildQueueTracks(tracks, sourcePath));
             await _queueSource.InsertAsync(queueRows);
 
-            // The rows are in the store and on screen. What they lack is asked about now, in the background,
-            // so the user sees the filled genre and year in the queue before they import. See
-            // MainModel.CatalogueFill.
+            // The rows are in the store and on screen. What they lack is asked about now, so the user sees the
+            // filled genre and year in the queue before they import. See MainModel.CatalogueFill. The tag stage
+            // follows the scan's animation while the records this add brought are filled (see
+            // MainModel.TagStage).
             if (fillFromCatalogue && queueRows.Count > 0)
-                StartCatalogueFill();
+                StartCatalogueFill(RecordKeysOf(queueRows));
             return tracks.Count;
         }
         finally

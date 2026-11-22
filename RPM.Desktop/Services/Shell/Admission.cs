@@ -120,12 +120,42 @@ public static class Admission
         Wave wave,
         Lane lane,
         int runningInLane)
+        => Ask(lateMs, heldForMs, calm, reached, opened, notBefore, wave, lane, runningInLane, waitedOn: false);
+
+    /// <summary>
+    /// The rule, for a pass that the user may be waiting on.
+    /// </summary>
+    /// <param name="waitedOn">The user is watching this pass on screen and doing nothing else, for example the
+    /// import queue's "fetching your tags" stage. The wave and the drawing thread are then not asked about.
+    /// The wave order protects a screen the user is not using, and the only thing on the drawing thread is
+    /// the animation that says the pass is running: holding the pass for that animation would make the
+    /// user wait longer for nothing. The phase and the lane are still asked, because neither is about the
+    /// interface.</param>
+    /// <inheritdoc cref="Ask(double, double, int, Phase, Wave, Phase, Wave, Lane, int)"/>
+    public static Verdict Ask(
+        double lateMs,
+        double heldForMs,
+        int calm,
+        Phase reached,
+        Wave opened,
+        Phase notBefore,
+        Wave wave,
+        Lane lane,
+        int runningInLane,
+        bool waitedOn)
     {
         // These two order questions come first. They are answered without looking at the interface. A
         // pass that is not due yet is not due on a quiet machine either. A wait worked out from a calm
         // reading would make it ask again every 32 ms until it is due.
         if (reached < notBefore)
             return new Verdict(false, CeilingMs, Held.TooEarly);
+
+        if (waitedOn)
+        {
+            return runningInLane >= Width(lane)
+                ? new Verdict(false, FloorMs, Held.LaneFull)
+                : Verdict.Yes;
+        }
 
         if (wave > opened)
             return new Verdict(false, CeilingMs, Held.WaveShut);

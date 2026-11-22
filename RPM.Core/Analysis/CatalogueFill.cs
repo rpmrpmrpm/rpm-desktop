@@ -249,4 +249,37 @@ public static partial class CatalogueFill
             TagsEdited = true,
         };
     }
+
+    /// <summary>
+    /// <see cref="Fill"/> for a file whose tags a person has written by hand: only blanks are filled. A genre
+    /// that is written stays as it is written, even one the lists cannot read, and so does its style.
+    ///
+    /// <para><see cref="Fill"/> translates a written genre to its shelf ("deep house" becomes House and Deep
+    /// House) and replaces one the lists cannot read. That is right for a tag that came with a file. It is wrong
+    /// for a word somebody has just typed into the queue: the fill would take it away while they watch.</para>
+    /// </summary>
+    /// <returns>The filled tags, or the same instance when nothing changed.</returns>
+    public static TrackInfo FillBlanks(TrackInfo wanted, ReleaseDetail release)
+    {
+        var filled = Fill(wanted, release);
+        if (ReferenceEquals(filled, wanted) || string.IsNullOrWhiteSpace(wanted.Genre)
+            || string.Equals(filled.Genre, wanted.Genre, StringComparison.Ordinal))
+            return filled;
+
+        // The same shelf in other letters keeps the style the fill found for it. A different shelf does not: a
+        // style the fill chose belongs under the shelf the fill chose, so the written style is kept with the
+        // written genre.
+        var sameShelf = string.Equals(filled.Genre, wanted.Genre, StringComparison.OrdinalIgnoreCase);
+        var kept = filled with
+        {
+            Genre = wanted.Genre,
+            Subgenre = sameShelf ? filled.Subgenre : wanted.Subgenre,
+        };
+
+        return string.Equals(kept.Subgenre, wanted.Subgenre, StringComparison.Ordinal)
+               && kept.Year == wanted.Year
+               && kept.OriginalYear == wanted.OriginalYear
+            ? wanted
+            : kept;
+    }
 }

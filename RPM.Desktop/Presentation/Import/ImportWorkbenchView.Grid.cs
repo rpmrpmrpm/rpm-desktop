@@ -171,6 +171,18 @@ public sealed partial class ImportWorkbenchView
         foreach (var span in selection.Spans)
             _nowSelected.Add(span.First, span.Last);
 
+        // Nothing selected after a plain gesture is not something a click does: a click always selects a row.
+        // It is the grid letting go of its highlight because the tree was rebuilt under it (RpmGrid clears its
+        // selection on a reset), for example when more music is added or an edit moved a record. The ticks are
+        // the selection, and they are kept in the store, so a rebuild must not clear them. Clearing them here
+        // would empty the tag panel and lose what the user was typing in it.
+        if (_nowSelected.IsEmpty && selection.LastModifiers == GridModifiers.None && !selection.IsSweeping)
+        {
+            _wasSelected.Clear();
+            RefreshQueueGrid();
+            return;
+        }
+
         if (selection.LastModifiers == GridModifiers.None && !selection.IsSweeping)
         {
             // One statement in the store for the whole queue, against one write per row.

@@ -369,9 +369,21 @@
                                  Foreground="#0B84E0"
                                  Background="#26FFFFFF"/>
                     <TextBlock Text="{Binding CountText, ElementName=Root}"
-                               HorizontalAlignment="Center"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="320"
                                FontSize="13" FontWeight="SemiBold"
                                Foreground="#CCFFFFFF"/>
+
+                    <!-- A way out of the wait, for a job that can go on without the user watching it, such as the
+                         tag stage. Hidden when the job has none (see ActionText). -->
+                    <Button x:Name="ActionButton" Visibility="Collapsed"
+                            HorizontalAlignment="Center" Margin="0,8,0,0"
+                            Style="{StaticResource GlassButtonStyle}" Height="30" MinHeight="30"
+                            Padding="14,0" FontSize="12.5"
+                            Content="{Binding ActionText, ElementName=Root}"
+                            ToolTipService.ToolTip="{Binding ActionHint, ElementName=Root}"
+                            AutomationProperties.HelpText="{Binding ActionHint, ElementName=Root}"
+                            Click="Action_Click"/>
                 </StackPanel>
 
             </StackPanel>

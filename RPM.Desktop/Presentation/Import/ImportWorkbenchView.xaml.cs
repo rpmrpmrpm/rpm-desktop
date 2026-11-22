@@ -41,6 +41,7 @@ public sealed partial class ImportWorkbenchView : UserControl
         // rather than being laid out once for whatever width it happened to open at.
         SizeChanged += OnBenchSizeChanged;
         QueueTagPanel.CloseRequested += () => ToggleTagPanel();
+        TagStage.ActionInvoked += () => Model?.SkipTagStage();
     }
 
     /// <summary>The window this sits in. Set once by the page, which is also what supplies the model

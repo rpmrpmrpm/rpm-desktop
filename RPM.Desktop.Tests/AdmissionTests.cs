@@ -174,4 +174,45 @@ public class AdmissionTests
 
         Assert.Equal(Held.UiHeld, verdict.Why);
     }
+
+    // ── a pass the user is waiting on ──
+
+    private static Verdict AskWaitedOn(
+        Phase reached = Phase.Ready,
+        Wave opened = Wave.First,
+        Wave wave = Wave.Second,
+        Lane lane = Lane.Network,
+        int runningInLane = 0,
+        double lateMs = 400,
+        double heldForMs = 0,
+        int calm = 0)
+        => Admission.Ask(lateMs, heldForMs, calm, reached, opened, Phase.Ready, wave, lane, runningInLane, waitedOn: true);
+
+    /// <summary>The import queue's tag stage: the user watches the catalogue fill and does nothing else. The
+    /// only thing busy on the drawing thread is the stage's own animation, so it must not hold the pass.</summary>
+    [Fact]
+    public void A_pass_the_user_is_waiting_on_is_not_held_by_a_busy_interface()
+    {
+        Assert.Equal(Held.UiBusy, Ask(calm: 0, lateMs: 400).Why);
+        Assert.True(AskWaitedOn(calm: 0, lateMs: 400).Go);
+        Assert.True(AskWaitedOn(heldForMs: 900).Go);
+    }
+
+    [Fact]
+    public void A_pass_the_user_is_waiting_on_does_not_wait_for_its_wave()
+    {
+        Assert.Equal(Held.WaveShut, Ask(opened: Wave.First, wave: Wave.Second).Why);
+        Assert.True(AskWaitedOn(opened: Wave.First, wave: Wave.Second, calm: UiPulse.CalmTurns, lateMs: 8).Go);
+    }
+
+    /// <summary>The phase and the lane are not about the interface, so being watched changes neither.</summary>
+    [Fact]
+    public void A_pass_the_user_is_waiting_on_still_keeps_to_its_phase_and_its_lane()
+    {
+        Assert.Equal(Held.TooEarly, AskWaitedOn(reached: Phase.Loading).Why);
+
+        var full = AskWaitedOn(runningInLane: Admission.Width(Lane.Network));
+        Assert.Equal(Held.LaneFull, full.Why);
+        Assert.Equal(Admission.FloorMs, full.WaitMs);
+    }
 }

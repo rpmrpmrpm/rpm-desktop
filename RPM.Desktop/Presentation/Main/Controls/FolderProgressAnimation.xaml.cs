@@ -7,7 +7,7 @@ namespace RPM.Desktop.Presentation.Main.Controls;
 /// <summary>
 /// Magnifier sweeping over a folder, with a caption and a running file count under it. It is shown in place
 /// of the import pane's file list whenever the pane is busy: a source folder being scanned into the queue,
-/// and the queue being filed into the collection.
+/// the tags of the records just added being fetched, and the queue being filed into the collection.
 ///
 /// <para>The control keeps no state of its own. The bar, the caption and the count are set from outside
 /// (<see cref="Caption"/>, <see cref="CountText"/>, <see cref="ProgressValue"/>), so the same control
@@ -62,6 +62,31 @@ public sealed partial class FolderProgressAnimation : UserControl
         nameof(Art), typeof(FolderProgressArt), typeof(FolderProgressAnimation),
         new PropertyMetadata(FolderProgressArt.Search, OnArtChanged));
 
+    /// <summary>The words on the button under the count. Empty hides the button, which is the case for a scan and
+    /// an import: neither can be left while it runs.</summary>
+    public static readonly DependencyProperty ActionTextProperty = DependencyProperty.Register(
+        nameof(ActionText), typeof(string), typeof(FolderProgressAnimation),
+        new PropertyMetadata("", OnActionTextChanged));
+
+    /// <summary>What pressing the button does, in a sentence, for its tooltip.</summary>
+    public static readonly DependencyProperty ActionHintProperty = DependencyProperty.Register(
+        nameof(ActionHint), typeof(string), typeof(FolderProgressAnimation), new PropertyMetadata(""));
+
+    /// <summary>Raised when the button under the count is pressed.</summary>
+    public event Action? ActionInvoked;
+
+    public string ActionText
+    {
+        get => (string)GetValue(ActionTextProperty);
+        set => SetValue(ActionTextProperty, value);
+    }
+
+    public string ActionHint
+    {
+        get => (string)GetValue(ActionHintProperty);
+        set => SetValue(ActionHintProperty, value);
+    }
+
     public string Caption
     {
         get => (string)GetValue(CaptionProperty);
@@ -106,7 +131,16 @@ public sealed partial class FolderProgressAnimation : UserControl
         RegisterPropertyChangedCallback(VisibilityProperty, OnVisibilityChanged);
         SyncCaption();
         SyncArt();
+        SyncAction();
     }
+
+    private static void OnActionTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((FolderProgressAnimation)d).SyncAction();
+
+    private void SyncAction() =>
+        ActionButton.Visibility = string.IsNullOrWhiteSpace(ActionText) ? Visibility.Collapsed : Visibility.Visible;
+
+    private void Action_Click(object sender, RoutedEventArgs e) => ActionInvoked?.Invoke();
 
     private static void OnCaptionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((FolderProgressAnimation)d).SyncCaption();

@@ -85,9 +85,14 @@ public sealed partial class ImportTagPanel : UserControl
     /// offered for an edit that does not exist. A box that still shows what it showed when it was filled is
     /// not an edit, whatever raised the event.</para>
     /// </summary>
-    private sealed class Entry(TagField field, Func<string> read, Func<string> shown, Action<string> write)
+    private sealed class Entry(
+        TagField field, FrameworkElement control, Func<string> read, Func<string> shown, Action<string> write)
     {
         public TagField Field { get; } = field;
+
+        /// <summary>The control the user types or picks in, so a refresh can tell whether the keyboard is in
+        /// it.</summary>
+        public FrameworkElement Control { get; } = control;
 
         /// <summary>Puts a value into the box, for example when a release lookup fills the form. This is not an
         /// edit of the rows. The box holds the value until Apply is pressed, the same as any typed value.</summary>
@@ -152,6 +157,12 @@ public sealed partial class ImportTagPanel : UserControl
     ///
     /// <para>Pending edits are DROPPED when the set changes. If they were kept, a genre typed for one record
     /// could be applied to a different record after a few more ticks, and nothing on screen would show it.</para>
+    ///
+    /// <para>The SAME set is not built again. The workbench calls this whenever the queue changes, and the
+    /// queue changes on its own: the catalogue fill writes genres and years onto records while somebody types
+    /// in this panel, about the same record or another one. Building the form again would throw away what
+    /// they typed, and take the keyboard out of the box they are typing in. So the form stays, and only the
+    /// boxes nobody has changed are given what the rows say now (see <see cref="Refill"/>).</para>
     /// </summary>
     public void SetRows(IReadOnlyList<TrackRow> rows)
     {
@@ -166,13 +177,70 @@ public sealed partial class ImportTagPanel : UserControl
             _chosenFor = ticked;
         }
 
+        // The disc well is there only for a whole record. When that answer changed under the same rows, the form
+        // has to be built again to add or remove the well.
+        if (ticked == _builtFor && rows.Count > 0 && (Record is null) == (_disc is null))
+        {
+            _rows = rows;
+            Refill();
+            return;
+        }
+
         _rows = rows;
         Build();
+    }
+
+    /// <summary>The ticked set the form on screen was built for. See <see cref="SetRows"/>.</summary>
+    private string _builtFor = "";
+
+    /// <summary>
+    /// The same rows, read again. Each box that nobody has changed, and that the keyboard is not in, shows
+    /// what the rows say now. Every other box keeps what it holds (see <see cref="TagPanelValues.Refreshed"/>).
+    ///
+    /// <para>The rows themselves are always the new copies, also for a box that keeps its own value. Apply
+    /// saves the panel's rows whole, so rows read before the fill would put the fill's genre and year back to
+    /// blank. The panel's own changes are written onto the new copies, so they still win.</para>
+    /// </summary>
+    private void Refill()
+    {
+        var focused = XamlRoot is { } root
+            ? Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) as DependencyObject
+            : null;
+
+        foreach (var entry in _entries)
+        {
+            var now = TagPanelValues.Of(_rows, entry.Field);
+            if (TagPanelValues.Refreshed(
+                    entry.Touched, IsInside(focused, entry.Control), entry.Read(), now.AllSame, now.CommonValue)
+                is not { } value)
+                continue;
+
+            entry.Write(value);
+            // What the box shows now came from the rows, so it is not an edit.
+            entry.Loaded = entry.Shown();
+        }
+
+        if (Record is { } record)
+            UpdateRecord(record);
+        RefreshButtons();
+    }
+
+    /// <summary>Whether <paramref name="element"/> is <paramref name="control"/> or inside it, such as the text
+    /// box inside an editable list.</summary>
+    private static bool IsInside(DependencyObject? element, FrameworkElement control)
+    {
+        for (var at = element; at is not null; at = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(at))
+        {
+            if (ReferenceEquals(at, control))
+                return true;
+        }
+        return false;
     }
 
     private void Build()
     {
         _build++;
+        _builtFor = Signature(_rows);
         _seriesName = null;
         _seriesVolume = null;
         _seriesLoaded = "";
@@ -407,7 +475,7 @@ public sealed partial class ImportTagPanel : UserControl
 
         // What the box says when it is filled in is the baseline for every later check. An edit is a difference
         // from this baseline, not an event that happened later.
-        _entries.Add(new Entry(field, read, shown, write) { Loaded = shown() });
+        _entries.Add(new Entry(field, control, read, shown, write) { Loaded = shown() });
         return (label, placed ?? control);
     }
 
@@ -500,9 +568,9 @@ public sealed partial class ImportTagPanel : UserControl
     /// applied to another.</summary>
     private string _chosenFor = "";
 
-    /// <summary>The ticked set as one comparable value: the store's own row ids, in order.</summary>
+    /// <summary>The ticked set as one comparable value. See <see cref="TagPanelValues.SelectionKey"/>.</summary>
     private static string Signature(IReadOnlyList<TrackRow> rows)
-        => string.Join(",", rows.Select(r => r.QueueId));
+        => TagPanelValues.SelectionKey(rows.Select(r => r.QueueId));
 
     private Picture? _cover;
     private Picture? _disc;

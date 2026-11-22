@@ -213,6 +213,16 @@ public sealed partial class ImportWorkbenchView
         if (Model is not { } m)
             return;
 
+        // Import pressed during the tag stage leaves the stage first. The tag panel is hidden during the stage,
+        // and the question below is only asked about a panel on screen: unapplied edits in a hidden panel would
+        // otherwise be lost to the import without a word.
+        if (m.TagStageVisibility == Visibility.Visible)
+        {
+            m.SkipTagStage();
+            ApplyTagPanelVisibility();
+            RefreshTagPanel();
+        }
+
         switch (ImportGate.For(m.CanImport, QueueTagColumn.Width.Value > 0, QueueTagPanel.HasPendingEdits))
         {
             case ImportPress.Nothing:

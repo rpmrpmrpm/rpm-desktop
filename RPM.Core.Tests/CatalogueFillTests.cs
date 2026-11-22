@@ -112,6 +112,54 @@ public class CatalogueFillTests
         => Assert.Equal("Downtempo",
             CatalogueFill.Fill(File(genre: "Electronic / Dance", subgenre: "Downtempo"), Release()).Subgenre);
 
+    // ── a genre written by hand ──
+
+    [Fact]
+    public void A_genre_written_by_hand_is_kept_even_where_the_lists_cannot_read_it()
+    {
+        var filled = CatalogueFill.FillBlanks(File(genre: "Albums I Own"), Release());
+
+        Assert.Equal("Albums I Own", filled.Genre);
+        Assert.True(string.IsNullOrEmpty(filled.Subgenre));
+        Assert.Equal(1998u, filled.Year);
+    }
+
+    [Fact]
+    public void A_genre_written_by_hand_is_not_translated_to_its_shelf()
+    {
+        var filled = CatalogueFill.FillBlanks(File(genre: "deep house"), Release());
+
+        Assert.Equal("deep house", filled.Genre);
+        Assert.True(string.IsNullOrEmpty(filled.Subgenre));
+    }
+
+    [Fact]
+    public void A_genre_written_by_hand_keeps_its_spelling_and_still_gets_a_style()
+    {
+        var filled = CatalogueFill.FillBlanks(File(genre: "electronic / dance"), Release());
+
+        Assert.Equal("electronic / dance", filled.Genre);
+        Assert.Equal("Trip Hop", filled.Subgenre);
+    }
+
+    [Fact]
+    public void Blanks_on_a_file_edited_by_hand_are_filled_as_usual()
+    {
+        var blank = File();
+        Assert.Equal(CatalogueFill.Fill(blank, Release()), CatalogueFill.FillBlanks(blank, Release()));
+
+        var full = File(genre: "Rock", subgenre: "Hard Rock", year: 1990);
+        Assert.Same(full, CatalogueFill.FillBlanks(full, Release() with { OriginalYear = 0 } with { Year = 0 }));
+    }
+
+    [Fact]
+    public void A_file_edited_by_hand_with_nothing_blank_comes_back_unchanged()
+    {
+        var file = File(genre: "Albums I Own", subgenre: "Mine", year: 1990) with { OriginalYear = 1990 };
+
+        Assert.Same(file, CatalogueFill.FillBlanks(file, Release()));
+    }
+
     // ── which records are asked about ──
 
     [Fact]

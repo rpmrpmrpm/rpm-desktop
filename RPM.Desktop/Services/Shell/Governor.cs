@@ -194,7 +194,7 @@ public sealed class Governor
 
     /// <summary>The rule, asked with this governor's own state. Public so a test can drive the object
     /// rather than only the function.</summary>
-    internal Verdict Ask(Wave wave, Lane lane, Phase notBefore) =>
+    internal Verdict Ask(Wave wave, Lane lane, Phase notBefore, bool waitedOn = false) =>
         Admission.Ask(
             _pulse.LateMs,
             _pulse.HeldForMs,
@@ -204,7 +204,8 @@ public sealed class Governor
             notBefore,
             wave,
             lane,
-            Volatile.Read(ref _inLane[(int)lane]));
+            Volatile.Read(ref _inLane[(int)lane]),
+            waitedOn);
 
     /// <summary>Books a unit of work into its lane and its wave. Paired with <see cref="Done"/> by
     /// <see cref="Sweep.Slot"/>, which is the only thing that calls either.</summary>
@@ -290,6 +291,7 @@ public sealed class Sweep
     private readonly Phase _notBefore;
 
     private Held _lastSaid = Held.None;
+    private bool _saidWaitedOn;
 
     internal Sweep(Governor governor, string name, Lane lane, Wave wave, Phase notBefore)
     {
@@ -309,13 +311,29 @@ public sealed class Sweep
     /// <returns>A slot whose <see cref="Slot.Go"/> is true, held until it is disposed. False only when
     /// <paramref name="ct"/> fired, which means the app is closing or the library was swapped. In that
     /// case nothing was taken, and the caller returns.</returns>
-    public async Task<Slot> Next(CancellationToken ct)
+    public Task<Slot> Next(CancellationToken ct) => Next(ct, waitedOn: null);
+
+    /// <summary>
+    /// <see cref="Next(CancellationToken)"/> for a pass the user may be waiting on.
+    /// </summary>
+    /// <param name="ct">Fires when the app is closing or the library was swapped.</param>
+    /// <param name="waitedOn">Asked before every answer: is the user watching this pass on screen right now,
+    /// and doing nothing else? While it says yes, the wave and the drawing thread are not asked about (see
+    /// <see cref="Admission.Ask(double, double, int, Phase, Wave, Phase, Wave, Lane, int, bool)"/>). It is a
+    /// question and not a flag, because the user can leave the screen while the pass waits.</param>
+    public async Task<Slot> Next(CancellationToken ct, Func<bool>? waitedOn)
     {
         while (!ct.IsCancellationRequested)
         {
-            var verdict = _governor.Ask(_wave, _lane, _notBefore);
+            var watched = waitedOn?.Invoke() == true;
+            var verdict = _governor.Ask(_wave, _lane, _notBefore, watched);
             if (verdict.Go)
             {
+                // Said once each time the pass goes from governed to waited on, so the ring shows why a pass ran
+                // while the drawing thread was busy.
+                if (watched && !_saidWaitedOn)
+                    _governor.Say($"{Name} in: waited on");
+                _saidWaitedOn = watched;
                 _lastSaid = Held.None;
                 _governor.Took(_wave, _lane);
                 return new Slot(_governor, _wave, _lane);
