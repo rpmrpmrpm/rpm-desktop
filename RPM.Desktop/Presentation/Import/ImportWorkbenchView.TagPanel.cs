@@ -121,6 +121,15 @@ public sealed partial class ImportWorkbenchView
         QueueTagPanel.SetRows(selected);
     }
 
+    /// <summary>The queue's fill found a disc picture for a record. The panel is told about the record it shows,
+    /// and brings its disc well up to date, without building the form again.</summary>
+    private void QueueDiscChanged()
+    {
+        if (Model is not { } m || QueueTagColumn.Width.Value <= 0)
+            return;
+        QueueTagPanel.UpdateRecord(m.WholeQueueRecord(m.SelectedQueueRowsSnapshot()));
+    }
+
     /// <summary>
     /// The cover search, over the words the panel is showing.
     ///

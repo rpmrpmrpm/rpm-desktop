@@ -11,9 +11,11 @@ namespace RPM.Core.Tests;
 public class CatalogueFillTests
 {
     private static TrackInfo File(string? genre = null, string? subgenre = null, uint year = 0,
-        string album = "Mezzanine", string artist = "Massive Attack", string? releaseId = null)
+        string album = "Mezzanine", string artist = "Massive Attack", string? releaseId = null,
+        ContentAdvisory advisory = ContentAdvisory.Unknown)
         => new()
         {
+            Advisory = advisory,
             FilePath = "/q/a.flac",
             Extension = ".flac",
             Album = album,
@@ -115,12 +117,25 @@ public class CatalogueFillTests
     [Fact]
     public void A_record_whose_files_say_everything_is_not_asked_about()
     {
-        Assert.Null(CatalogueFill.AlbumOf([File("Rock", "Hard Rock", 1990), File("Rock", "Hard Rock", 1990)]));
-        Assert.NotNull(CatalogueFill.AlbumOf([File("Rock", "Hard Rock", 1990), File("Rock", "Hard Rock", 0)]));
-        Assert.NotNull(CatalogueFill.AlbumOf([File("hip hop", "Trap", 1990)]));
+        const ContentAdvisory e = ContentAdvisory.Explicit;
+        Assert.Null(CatalogueFill.AlbumOf(
+            [File("Rock", "Hard Rock", 1990, advisory: e), File("Rock", "Hard Rock", 1990, advisory: e)]));
+        Assert.NotNull(CatalogueFill.AlbumOf(
+            [File("Rock", "Hard Rock", 1990, advisory: e), File("Rock", "Hard Rock", 0, advisory: e)]));
+        Assert.NotNull(CatalogueFill.AlbumOf([File("hip hop", "Trap", 1990, advisory: e)]));
 
         // A shelf with no styles has nothing left to fill once it has a year.
-        Assert.Null(CatalogueFill.AlbumOf([File(RPM.Core.Metadata.Genres.Unknown, null, 1990)]));
+        Assert.Null(CatalogueFill.AlbumOf([File(RPM.Core.Metadata.Genres.Unknown, null, 1990, advisory: e)]));
+    }
+
+    [Fact]
+    public void A_record_whose_songs_have_no_explicit_flag_is_still_asked_about()
+    {
+        // The genre and year are all there; the flag is not, and the same release answers it.
+        Assert.NotNull(CatalogueFill.AlbumOf([File("Rock", "Hard Rock", 1990), File("Rock", "Hard Rock", 1990)]));
+
+        // Clean may be a downloader's word for "not explicit", so a strong match may still change it.
+        Assert.NotNull(CatalogueFill.AlbumOf([File("Rock", "Hard Rock", 1990, advisory: ContentAdvisory.Clean)]));
     }
 
     [Fact]

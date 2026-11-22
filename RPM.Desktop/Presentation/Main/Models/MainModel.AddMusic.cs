@@ -223,7 +223,12 @@ public sealed partial class MainModel
         // record. A release lookup fills in the album artist and the release's own title. So by the time
         // the answers come back, the group they were given for may not exist. A stamp keyed on its name
         // would land on nothing.
-        _library.Db.QueueSetAlbumIntentForRows([.. rows.Select(r => r.QueueId)], intent);
+        var id = _library.Db.QueueSetAlbumIntentForRows([.. rows.Select(r => r.QueueId)], intent);
+
+        // A disc picked or taken away here is the person's answer, not the one the fill found online.
+        if (intent.DiscArt is { Length: > 0 } || intent.RemoveDiscArt)
+            lock (_discFoundOnline)
+                _discFoundOnline.Remove(id);
         _ = _queueSource.RebuildAsync(_queueFilter);
     }
 
@@ -272,7 +277,9 @@ public sealed partial class MainModel
             return null;
 
         var said = QueueAlbumIntentSharedByRows(rows);
-        return new QueueRecordSelection(said?.DiscArt, said is { SeriesSet: true } ? said.Series : null);
+        return new QueueRecordSelection(
+            said?.DiscArt, said is { SeriesSet: true } ? said.Series : null,
+            DiscFoundOnline: said is { DiscArt.Length: > 0 } && QueueDiscFoundOnline(said.Id));
     }
 
     /// <summary>What these rows' record says about itself, when all the rows agree. A window asks this

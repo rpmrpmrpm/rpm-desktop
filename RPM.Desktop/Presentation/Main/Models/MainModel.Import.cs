@@ -275,6 +275,10 @@ public sealed partial class MainModel
         // (intent, where its file landed) for this run only. This is the scope in which the album answers
         // are applied.
         var landed = new List<(long IntentId, string DestinationPath)>();
+        // What the follow-up needs to know about each album folder this run filed into (see
+        // MainModel.ImportFollowUp): whether the fill answered for its record in the queue, and which songs had
+        // their explicit flag set in the queue, which the follow-up leaves alone.
+        var followUp = new Dictionary<string, (bool Answered, HashSet<string> Leave)>(StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<Filed> filed;
         try
         {
@@ -291,6 +295,7 @@ public sealed partial class MainModel
                     // no others (see AlbumIntentApplier). A run can only touch what the run filed.
                     if (queued.AlbumIntentId != 0)
                         landed.Add((queued.AlbumIntentId, done.Result.DestinationPath));
+                    NoteForFollowUp(followUp, queued, done);
                 },
                 CancellationToken.None);
         }
@@ -305,6 +310,13 @@ public sealed partial class MainModel
         // what the disc label looks like) is written onto the folders that this run filed them into. It is
         // read after the filing, because the queue rows are gone by now, and the ids were kept above.
         ApplyAlbumIntents(landed, albumIntents, root);
+
+        // A picture of the disc that came with the files: a scan beside them, or a picture inside them. After the
+        // record's own answers, so a disc picked in the queue wins. A square scan has the disc cut out of it here,
+        // so the folder holds the transparent disc.png the rest of the app expects.
+        DiscArtFinder.Carry(list, CutDisc);
+
+        StartImportFollowUp(followUp.Select(f => new FollowUpAlbum(f.Key, f.Value.Answered, f.Value.Leave)));
 
         // The import already has in hand what the CATALOGUE said about each record. It is kept here, and it
         // is not thrown away once the tags are written.
@@ -386,6 +398,33 @@ public sealed partial class MainModel
         static string? First(List<TrackInfo?> tags, Func<TrackInfo?, string?> field)
             => tags.Select(field).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
     }
+
+    /// <summary>Notes one filed song for the follow-up: its album folder, whether the fill answered for its record
+    /// in the queue, and whether its explicit flag was set in the queue.</summary>
+    private void NoteForFollowUp(
+        Dictionary<string, (bool Answered, HashSet<string> Leave)> followUp, QueueTrack queued, Filed done)
+    {
+        if (done.Row is not { } row)
+            return;
+        var slash = row.RelativePath.LastIndexOf('/');
+        var folder = slash < 0 ? "" : row.RelativePath[..slash];
+        if (folder.Length == 0)
+            return;   // the library root is not an album
+
+        var (artist, album) = LibraryDatabase.QueueGroupKeys(queued.Wanted.AlbumArtist, queued.Wanted.Artist, queued.Wanted.Album);
+        var answered = artist.Length > 0 && album.Length > 0 && FillAnswered(artist, album);
+        if (!followUp.TryGetValue(folder, out var entry))
+            entry = (true, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        if (queued.Wanted.Advisory != queued.Current.Advisory)
+            entry.Leave.Add(row.RelativePath);
+        followUp[folder] = (entry.Answered && answered, entry.Leave);
+    }
+
+    /// <summary>A found disc picture as the folder keeps it: a transparent picture of the disc. One that already
+    /// has transparency is kept as it is. Null where no disc can be found in it, and the picture is then saved as
+    /// it was found (the app cuts it round when it draws it).</summary>
+    private static byte[]? CutDisc(byte[] bytes)
+        => Services.Art.DiscStamp.HasAlpha(bytes) ? bytes : Services.Art.DiscStamp.Stamp(bytes, vinyl: false);
 
     /// <summary>Applies each record's album-level answers to the folders that THIS run put its files in.
     ///

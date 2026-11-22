@@ -27,6 +27,9 @@ namespace RPM.Core.Analysis;
 /// once case, accents, punctuation and edition notes are set aside, and its track count is close to the
 /// number of files. A file that names its MusicBrainz release is taken at its word, because that is the most
 /// exact answer there is.</para>
+///
+/// <para>The explicit flag is filled from the same release, by <see cref="AdvisoryFill"/>, so a record whose
+/// genre and year are already set is still looked up when its songs have no flag.</para>
 /// </summary>
 public static partial class CatalogueFill
 {
@@ -48,11 +51,12 @@ public static partial class CatalogueFill
 
     /// <summary>
     /// The record a set of queued files is, or null when there is nothing to ask about: no album title, no
-    /// artist, or no file that wants anything (<see cref="Wants"/>).
+    /// artist, or no file that wants anything. A file wants something when <see cref="Wants"/> says so, or when
+    /// its explicit flag is one <see cref="AdvisoryFill"/> may fill.
     /// </summary>
     public static Album? AlbumOf(IReadOnlyList<TrackInfo> files)
     {
-        if (files.Count == 0 || !files.Any(Wants))
+        if (files.Count == 0 || !files.Any(f => Wants(f) || AdvisoryFill.Wants(f.Advisory)))
             return null;
 
         var title = MostCommon(files.Select(f => f.Album is { } a ? AlbumResolver.NormalizeAlbum(a) : null));

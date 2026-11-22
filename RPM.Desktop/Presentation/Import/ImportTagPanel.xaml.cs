@@ -1,5 +1,7 @@
 using System.IO;
 using RPM.Core.Art;
+using RPM.Core.Import;
+using RPM.Core.Metadata;
 using RPM.Desktop.Presentation.Dialogs;
 using RPM.Desktop.Presentation.Dialogs.Controls;
 using RPM.Desktop.Presentation.Main.LeftPane.Models;
@@ -170,6 +172,7 @@ public sealed partial class ImportTagPanel : UserControl
 
     private void Build()
     {
+        _build++;
         _seriesName = null;
         _seriesVolume = null;
         _seriesLoaded = "";
@@ -449,7 +452,38 @@ public sealed partial class ImportTagPanel : UserControl
         public byte[]? Bytes;
         public string? Mime;
         public bool Chosen;
+
+        /// <summary>Where the picture in the well came from, in a few words under it: in the files, in the
+        /// folder, found online, picked by you, or none yet. Empty while that is still being looked for.</summary>
+        public TextBlock Caption { get; } = new()
+        {
+            FontSize = 10.5,
+            Foreground = CaptionInk,
+            TextWrapping = TextWrapping.Wrap,
+            Width = CoverEdge,
+        };
     }
+
+    private static readonly Microsoft.UI.Xaml.Media.Brush CaptionInk =
+        new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+
+    /// <summary>Where a picture in a well came from, as the caption under it says.</summary>
+    private enum PictureOrigin { Looking, None, Files, Folder, Online, Picked }
+
+    private static void Say(Picture picture, PictureOrigin origin)
+        => picture.Caption.Text = origin switch
+        {
+            PictureOrigin.None => Loc.Get("Queue_ArtNone"),
+            PictureOrigin.Files => Loc.Get("Queue_ArtInFiles"),
+            PictureOrigin.Folder => Loc.Get("Queue_ArtInFolder"),
+            PictureOrigin.Online => Loc.Get("Queue_ArtFoundOnline"),
+            PictureOrigin.Picked => Loc.Get("Queue_ArtPicked"),
+            _ => "",
+        };
+
+    /// <summary>Counts the builds of the form. A look for the pictures that finishes after the form was built
+    /// again is about a form that is gone, and is dropped.</summary>
+    private int _build;
 
     /// <summary>The lookup button of the form now on screen, or null while there is none.</summary>
     private Button? _lookupButton;
@@ -489,6 +523,7 @@ public sealed partial class ImportTagPanel : UserControl
             _cover.Bytes = bytes;
             _cover.Mime = _rows[0].PendingArtMime;
             _ = ShowAsync(_cover, bytes);
+            Say(_cover, PictureOrigin.Picked);
         }
 
         // The disc label the record already has. It cannot be stored on a row, because it belongs to the RECORD
@@ -499,6 +534,7 @@ public sealed partial class ImportTagPanel : UserControl
             well.Bytes = label;
             well.Mime = "image/png";
             _ = ShowAsync(well, label);
+            Say(well, Record.DiscFoundOnline ? PictureOrigin.Online : PictureOrigin.Picked);
         }
 
         // Above both of those is whatever was chosen here and not yet applied. It takes priority over what the
@@ -515,7 +551,12 @@ public sealed partial class ImportTagPanel : UserControl
             picture.Mime = held.Mime;
             picture.Chosen = true;
             _ = ShowAsync(picture, held.Bytes);
+            Say(picture, PictureOrigin.Picked);
         }
+
+        // What the files and their folders already hold, for a well that nothing above filled. It is read off the
+        // interface thread, and the well shows it without counting it as chosen, so Apply does not write it again.
+        _ = LookForPicturesAsync(_build);
 
         var pane = new StackPanel
         {
@@ -559,6 +600,7 @@ public sealed partial class ImportTagPanel : UserControl
 
         var column = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left };
         column.Children.Add(picture.Well.Root);
+        column.Children.Add(picture.Caption);
         column.Children.Add(change);
         column.Children.Add(find);
         return column;
@@ -606,6 +648,110 @@ public sealed partial class ImportTagPanel : UserControl
         => _entries.FirstOrDefault(e => e.Field.Kind == kind)?.Read().Trim() is { Length: > 0 } value
             ? value
             : null;
+
+    /// <summary>
+    /// Fills the wells that nothing has filled yet with what the record already has, and says where it is.
+    ///
+    /// <para>The cover: the picture inside the first file that carries one, or else the folder's own picture. The
+    /// disc: a picture of the disc beside the files or inside them (see <see cref="DiscArtFinder"/>). Both are only
+    /// shown. Import carries them into the library as it does any file's pictures.</para>
+    /// </summary>
+    private async Task LookForPicturesAsync(int build)
+    {
+        var rows = _rows;
+        var cover = _cover is { Bytes: null, Chosen: false } ? _cover : null;
+        var disc = _disc is { Bytes: null, Chosen: false } ? _disc : null;
+        if (rows.Count == 0 || (cover is null && disc is null))
+            return;
+
+        if (cover is not null) Say(cover, PictureOrigin.Looking);
+        if (disc is not null) Say(disc, PictureOrigin.Looking);
+
+        FoundPicture? foundCover = null, foundDisc = null;
+        try
+        {
+            (foundCover, foundDisc) = await Task.Run(() => (
+                cover is null ? null : CoverOf(rows),
+                disc is null ? null : DiscArtFinder.ForRecord(
+                    rows.Select(r => Path.GetDirectoryName(r.Current.FilePath))
+                        .Where(d => !string.IsNullOrEmpty(d)).Select(d => d!),
+                    rows.Take(4).Select(r => r.Current.FilePath))));
+        }
+        catch (Exception ex)
+        {
+            RPM.Core.Diagnostics.Faults.Note("tag-panel", "looking for the record's pictures", ex);
+        }
+
+        if (build != _build)
+            return;   // the form was built again meanwhile
+
+        await Show(cover, foundCover);
+        await Show(disc, foundDisc);
+
+        static async Task Show(Picture? picture, FoundPicture? found)
+        {
+            // A picture chosen while the look ran is the person's answer, and it stays.
+            if (picture is null || picture.Chosen || picture.Bytes is not null)
+                return;
+            if (found is null)
+            {
+                Say(picture, PictureOrigin.None);
+                return;
+            }
+            picture.Bytes = found.Bytes;
+            picture.Mime = IsPng(found.Bytes) ? "image/png" : "image/jpeg";
+            Say(picture, found.Origin == ArtOrigin.Files ? PictureOrigin.Files : PictureOrigin.Folder);
+            await ShowAsync(picture, found.Bytes);
+        }
+    }
+
+    /// <summary>The cover a set of queued files already has: inside the first file that carries one, or else the
+    /// picture in the first file's folder. A row whose picture was taken away in the queue counts as having
+    /// none.</summary>
+    private static FoundPicture? CoverOf(IReadOnlyList<TrackRow> rows)
+    {
+        foreach (var row in rows)
+        {
+            if (row.PendingArt is null && row.Current.HasArt && TagReader.LoadArt(row.Current.FilePath) is { } inside)
+                return new FoundPicture(inside.Bytes, ArtOrigin.Files);
+        }
+
+        foreach (var folder in rows.Where(r => r.PendingArt is null)
+                     .Select(r => Path.GetDirectoryName(r.Current.FilePath))
+                     .Where(d => !string.IsNullOrEmpty(d))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (FolderArtWriter.FindFolderImage(folder!) is { } image)
+            {
+                try
+                {
+                    return new FoundPicture(File.ReadAllBytes(image), ArtOrigin.Folder);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // An unreadable picture is no picture.
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The record the rows are the whole of has changed in the store: a disc picture was found for it while the
+    /// panel was open. Only the disc well is brought up to date. Building the form again would throw away
+    /// whatever is typed in the boxes and not yet applied.
+    /// </summary>
+    public void UpdateRecord(QueueRecordSelection? record)
+    {
+        Record = record;
+        if (_disc is not { Chosen: false } well || record?.DiscArt is not { Length: > 0 } label
+            || ReferenceEquals(well.Bytes, label))
+            return;
+        well.Bytes = label;
+        well.Mime = "image/png";
+        Say(well, record.DiscFoundOnline ? PictureOrigin.Online : PictureOrigin.Picked);
+        _ = ShowAsync(well, label);
+    }
 
     /// <summary>The PNG signature. It is more reliable than the file name the source gave, because web sources often give
     /// wrong names.</summary>
@@ -747,6 +893,7 @@ public sealed partial class ImportTagPanel : UserControl
     private void Took(Picture picture)
     {
         picture.Chosen = true;
+        Say(picture, PictureOrigin.Picked);
         if (picture.Bytes is not { Length: > 0 } bytes)
             return;
 

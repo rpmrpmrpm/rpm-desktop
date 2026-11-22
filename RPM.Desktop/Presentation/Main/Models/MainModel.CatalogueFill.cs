@@ -1,5 +1,6 @@
 using RPM.Core.Analysis;
 using RPM.Core.Diagnostics;
+using RPM.Core.Import;
 using RPM.Core.Library;
 using RPM.Core.Metadata.Providers;
 using RPM.Core.Threading;
@@ -10,8 +11,12 @@ namespace RPM.Desktop.Presentation.Main.Models;
 
 /// <summary>
 /// Filling in what queued records lack from the catalogue, on their own, once music has been added. See
-/// <see cref="CatalogueFill"/> for what is filled and when a release is trusted. This is the part that decides
-/// when to ask, and puts the answers on the rows.
+/// <see cref="CatalogueFill"/> for what is filled and when a release is trusted, and <see cref="AdvisoryFill"/>
+/// for the explicit flag. This is the part that decides when to ask, and puts the answers on the rows.
+///
+/// <para><b>The disc picture.</b> A record that came with no picture of its disc (see <see cref="DiscArtFinder"/>)
+/// is given the one the rpm API knows, if any (<see cref="Services.Art.ArtworkService.DiscArtBytesAsync"/>). It is held
+/// against the record like a disc picked in the tag panel, and written into the album folder at import.</para>
 ///
 /// <para><b>Started by the user's own action, governed like any other pass.</b> Adding music starts it: a picked
 /// folder, a finished rip, the setup wizard, or music dropped into the inbox while the app runs. The inbox
@@ -46,6 +51,26 @@ public sealed partial class MainModel
     /// the library they were asked in. A different library is a different queue.</summary>
     private readonly HashSet<string> _fillAsked = new(StringComparer.OrdinalIgnoreCase);
     private LibraryDatabase? _fillAskedIn;
+
+    /// <summary>The queued records whose disc picture this pass found online, by the store's intent id. The tag
+    /// panel says "found online" for these rather than "picked by you". Only for this session: after a restart the
+    /// picture is still there, and is shown as picked.</summary>
+    private readonly HashSet<long> _discFoundOnline = [];
+
+    /// <summary>Whether this session's fill has answered for a queued record. An import follow-up asks only about
+    /// the records it has not answered for. See MainModel.ImportFollowUp.</summary>
+    private bool FillAnswered(string artist, string album)
+    {
+        lock (_fillAsked)
+            return ReferenceEquals(_fillAskedIn, _library.Db) && _fillAsked.Contains($"{artist}\u001f{album}");
+    }
+
+    /// <summary>Whether the disc picture held against this intent was found online by the fill.</summary>
+    public bool QueueDiscFoundOnline(long intentId)
+    {
+        lock (_discFoundOnline)
+            return intentId != 0 && _discFoundOnline.Contains(intentId);
+    }
 
     /// <summary>A second between records. The API passes these to a catalogue that allows one request a
     /// second, and the lookup window someone may open meanwhile should not queue behind a whole import.</summary>
@@ -125,20 +150,31 @@ public sealed partial class MainModel
                         return;
 
                     var rows = db.WholeQueue.RowsInGroup(group.Artist, group.Album);
-                    if (CatalogueFill.AlbumOf([.. rows.Select(r => r.Wanted)]) is not { } album)
+                    var album = CatalogueFill.AlbumOf([.. rows.Select(r => r.Wanted)]);
+
+                    // A record that came with a picture of its disc, or already has one held against it, is not
+                    // asked about it. This runs off the interface thread, because it looks in folders and files.
+                    var wantsDisc = WantsDiscOnline(db, rows);
+                    if (album is null && !wantsDisc)
                         continue;   // Nothing to fill. Not remembered: an edit can blank a field again.
 
-                    // Not answering is not an answer about this record. The rest of the records would get the
-                    // same silence, so the pass stops, and the next add asks again.
-                    if (!(await CatalogueFill.FindAsync(catalogue, album, ct)).Answers(out var release, out _))
-                        return;
+                    if (album is not null)
+                    {
+                        // Not answering is not an answer about this record. The rest of the records would get the
+                        // same silence, so the pass stops, and the next add asks again.
+                        if (!(await CatalogueFill.FindAsync(catalogue, album, ct)).Answers(out var release, out _))
+                            return;
+
+                        if (release is not null
+                            && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release)))
+                            filled++;
+                    }
+
+                    if (wantsDisc)
+                        await FetchQueueDiscAsync(db, rows, ct);
 
                     lock (_fillAsked)
                         _fillAsked.Add(key);
-
-                    if (release is not null
-                        && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release)))
-                        filled++;
 
                     if (!await Cancellable.DelayAsync(FillBreath, ct))
                         return;
@@ -211,7 +247,10 @@ public sealed partial class MainModel
         {
             if (_library.Db.QueueRowById(id) is not { } stored)
                 continue;
-            var filled = CatalogueFill.Fill(stored.Wanted, release);
+            // The explicit flag comes from the same listing. The record's size is the number of rows asked about,
+            // which is the whole record (see CatalogueFill.AlbumOf).
+            var filled = AdvisoryFill.Fill(
+                CatalogueFill.Fill(stored.Wanted, release), stored.Current, release, ids.Count);
             if (!ReferenceEquals(filled, stored.Wanted))
                 changed.Add(QueueTreeSource.MaterializeRow(stored with { Wanted = filled }));
         }
@@ -227,4 +266,59 @@ public sealed partial class MainModel
             _queueSource.ApplyEditsInPlace(changed);
         return true;
     }
+    /// <summary>
+    /// Whether a queued record should be given a disc picture from the rpm API: it has no picture of its disc
+    /// held against it, the person has not taken one away, and none came with its files.
+    /// </summary>
+    private static bool WantsDiscOnline(LibraryDatabase db, IReadOnlyList<QueueTrack> rows)
+    {
+        if (rows.Count == 0)
+            return false;
+        if (db.QueueAlbumIntentSharedBy([.. rows.Select(r => r.Id)]) is { } said
+            && (said.DiscArt is { Length: > 0 } || said.RemoveDiscArt))
+            return false;
+
+        // A picture inside the files is on every track if it is on any, so a few files are enough to read.
+        return DiscArtFinder.ForRecord(
+            rows.Select(r => Path.GetDirectoryName(r.Wanted.FilePath)).Where(d => !string.IsNullOrEmpty(d)).Select(d => d!),
+            rows.Take(4).Select(r => r.Wanted.FilePath)) is null;
+    }
+
+    /// <summary>Asks the rpm API for the record's disc picture and holds it against the record. Quiet: no answer
+    /// leaves the record as it was, and the drawn disc stands in for it.</summary>
+    private async Task FetchQueueDiscAsync(LibraryDatabase db, IReadOnlyList<QueueTrack> rows, CancellationToken ct)
+    {
+        var first = rows[0].Wanted;
+        var artist = string.IsNullOrWhiteSpace(first.AlbumArtist) ? first.Artist : first.AlbumArtist;
+        var title = first.Album is { } a ? AlbumResolver.NormalizeAlbum(a) : null;
+        if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title))
+            return;
+
+        var bytes = await App.Services.GetRequiredService<Services.Art.ArtworkService>().DiscArtBytesAsync(artist, title, ct);
+        if (bytes is not { Length: > 0 })
+            return;
+
+        await OnInterfaceAsync(() =>
+        {
+            if (!_library.IsOpen || !ReferenceEquals(_library.Db, db) || _importing)
+                return false;
+
+            // Asked again at the moment of writing. A disc picked in the tag panel while the request was out is
+            // the person's answer, and it stays.
+            var ids = rows.Select(r => r.Id).ToList();
+            if (db.QueueAlbumIntentSharedBy(ids) is { } said && (said.DiscArt is { Length: > 0 } || said.RemoveDiscArt))
+                return false;
+
+            var intentId = db.QueueSetAlbumIntentForRows(ids, new QueueAlbumIntent(DiscArt: bytes));
+            if (intentId != 0)
+                lock (_discFoundOnline)
+                    _discFoundOnline.Add(intentId);
+            QueueDiscChanged?.Invoke();
+            return true;
+        });
+    }
+
+    /// <summary>Raised on the interface thread when the fill gave a queued record a disc picture, so a tag panel
+    /// that shows that record can show the picture.</summary>
+    public event Action? QueueDiscChanged;
 }

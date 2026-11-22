@@ -318,6 +318,35 @@ public static class FolderArtWriter
         }
     }
 
+    /// <summary>
+    /// Writes a disc picture that was FOUND, not chosen: a scan beside the files, a picture inside them, or one
+    /// from the rpm API. It yields to any disc picture the album already has, and to one the person removed in
+    /// rpm. In a kept library it goes into the album's chosen pictures (<see cref="KeptFiles.ArtFolderFor"/>), as
+    /// every picture rpm writes there does. Best effort. Returns whether one was written.
+    /// </summary>
+    public static bool WriteFoundDisc(string folder, byte[] bytes)
+    {
+        if (bytes.Length == 0)
+            return false;
+        if (KeptFiles.ArtFolderFor(folder) is { } chosen)
+        {
+            if (File.Exists(Path.Combine(chosen, DiscRemovedName)) || FindDiscImage(folder) is not null)
+                return false;
+            return WriteChosen(chosen, "disc.png", DiscImageNames, DiscRemovedName, bytes);
+        }
+        try
+        {
+            if (!Directory.Exists(folder) || FindDiscImage(folder) is not null)
+                return false;
+            File.WriteAllBytes(Path.Combine(folder, "disc.png"), bytes);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Writes (or replaces) the album folder's disc art as disc.png. This is the counterpart of
     /// <see cref="WriteCover"/>. <see cref="WriteDisc"/> is the import-time writer that yields to whatever
     /// is already there. This method is used when somebody explicitly puts this picture on this record, so

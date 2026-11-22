@@ -78,6 +78,11 @@ public sealed partial class ImportWorkbenchView : UserControl
         QueueToolbar.ColumnsMenuOpening += BuildColumnsMenu;
         QueueTagPanel.Applied -= QueueTagPanel_Applied;
         QueueTagPanel.Applied += QueueTagPanel_Applied;
+        if (Model is { } model)
+        {
+            model.QueueDiscChanged -= QueueDiscChanged;
+            model.QueueDiscChanged += QueueDiscChanged;
+        }
         AttachRpmGrid();
         Refresh();
     }

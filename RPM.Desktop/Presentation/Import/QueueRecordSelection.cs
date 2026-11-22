@@ -18,7 +18,10 @@ namespace RPM.Desktop.Presentation.Import;
 /// <param name="DiscArt">The label the record already carries, or null where it carries none.</param>
 /// <param name="Series">The series the record has been named a volume of in the queue, or null. Like the
 /// disc label it belongs to the record, so only a whole record is offered it.</param>
-public sealed record QueueRecordSelection(byte[]? DiscArt, RPM.Core.Library.AlbumSeries? Series = null)
+/// <param name="DiscFoundOnline">The disc label was found online by the queue's fill, not picked by a person.
+/// The tag panel says so under the picture.</param>
+public sealed record QueueRecordSelection(
+    byte[]? DiscArt, RPM.Core.Library.AlbumSeries? Series = null, bool DiscFoundOnline = false)
 {
     /// <summary>
     /// The one record every row is on, or null where they are not all on one.

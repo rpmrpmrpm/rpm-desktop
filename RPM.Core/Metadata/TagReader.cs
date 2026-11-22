@@ -302,6 +302,33 @@ public static class TagReader
     }
 
     /// <summary>
+    /// Writes the explicit-lyrics flag into the file, and nothing else.
+    ///
+    /// <para>For a pass that runs unattended over files already in the library, as
+    /// <see cref="WriteAnalysisTags"/> is. It does not go through <see cref="Write"/>, which sets every field the
+    /// info carries and can change the carrier of the RPM id. The file is saved only when its flag is
+    /// <paramref name="expected"/> and differs from <paramref name="advisory"/>, so a flag somebody set after the
+    /// caller decided is kept.</para>
+    /// </summary>
+    /// <returns>Whether the file was changed.</returns>
+    public static bool WriteAdvisory(string path, ContentAdvisory expected, ContentAdvisory advisory)
+    {
+        KeptFiles.Refuse(path, "tagged");
+        if (advisory == ContentAdvisory.Unknown || NotOnThisDisk(path))
+            return false;
+
+        using var file = TagLib.File.Create(path);
+        var (_, marked) = ExplicitTitleMark.Split(file.Tag.Title);
+        var now = ExplicitTitleMark.Advisory(marked, AdvisoryTag.Read(file)) ?? ContentAdvisory.Unknown;
+        if (now != expected || now == advisory)
+            return false;
+
+        AdvisoryTag.Write(file, advisory);
+        file.Save();
+        return true;
+    }
+
+    /// <summary>
     /// Makes sure the file has an RPM id, and returns it. The id the file already has is kept, unless
     /// <paramref name="force"/> is true. Then a new id is made. Use this for a file that was copied outside
     /// the app, because that file shares its id with the original. Returns null when the file cannot be
@@ -518,6 +545,31 @@ public static class TagReader
             if (data is not { Length: > 0 })
                 return null;
             return (data, string.IsNullOrWhiteSpace(pic.MimeType) ? "image/jpeg" : pic.MimeType);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The picture of the disc itself that the file carries, or null. Tags type such a picture "Media"
+    /// (ID3 picture type 6, the label side of a CD). It is never the cover: <see cref="LoadArt"/> takes the front
+    /// cover first, and this takes only a picture that says it is the disc.
+    /// </summary>
+    public static (byte[] Bytes, string Mime)? LoadDiscArt(string path)
+    {
+        if (NotOnThisDisk(path))
+            return null;
+
+        try
+        {
+            using var file = OpenToRead(path);
+            var pic = file.Tag.Pictures?.FirstOrDefault(p => p.Type == TagLib.PictureType.Media);
+            var data = pic?.Data?.Data;
+            if (data is not { Length: > 0 })
+                return null;
+            return (data, string.IsNullOrWhiteSpace(pic!.MimeType) ? "image/jpeg" : pic.MimeType);
         }
         catch
         {
