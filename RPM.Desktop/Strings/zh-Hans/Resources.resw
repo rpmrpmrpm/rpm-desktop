@@ -5282,6 +5282,26 @@
     <value>已从目录补全的唱片：{0}</value>
     <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre, year or explicit marks.</comment>
   </data>
+  <data name="Queue_TagStageCaption" xml:space="preserve">
+    <value>接下来是你的标签！我们正在从目录获取流派、子流派、年份、露骨内容标记和碟片图片。</value>
+    <comment>Line above the progress bar in the import queue's tag stage, shown right after music is added: rpm fills in what the new records lack from its catalogue before the queue opens for editing.</comment>
+  </data>
+  <data name="Queue_TagStageAlbum" xml:space="preserve">
+    <value>第 {0}/{1} 张专辑：{2} – {3}</value>
+    <comment>Line under the progress bar in the import queue's tag stage. {0} is the album being looked up, {1} how many there are, {2} its artist and {3} its title.</comment>
+  </data>
+  <data name="Queue_TagStageCount" xml:space="preserve">
+    <value>第 {0}/{1} 张专辑</value>
+    <comment>Line under the progress bar in the import queue's tag stage, before the first album is named. {0} is the album being looked up, {1} how many there are.</comment>
+  </data>
+  <data name="Queue_TagStageSkip" xml:space="preserve">
+    <value>立即编辑</value>
+    <comment>Button in the import queue's tag stage: open the queue for editing at once, while the tags keep arriving in the background.</comment>
+  </data>
+  <data name="Queue_TagStageSkipHint" xml:space="preserve">
+    <value>没问题！现在就开始编辑吧。你的标签会在后台继续到来，你输入的内容不会丢失。</value>
+    <comment>Tooltip on the Edit now button in the import queue's tag stage.</comment>
+  </data>
   <data name="QueueDup_InLibrary" xml:space="preserve">
     <value>音乐收藏中已有这首曲目，且质量不低于此文件。</value>
     <comment>Tooltip on the duplicate mark.</comment>

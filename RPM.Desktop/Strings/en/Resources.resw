@@ -5282,6 +5282,26 @@
     <value>Records filled in from the catalogue: {0}</value>
     <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre, year or explicit marks.</comment>
   </data>
+  <data name="Queue_TagStageCaption" xml:space="preserve">
+    <value>Now for your tags! We’re fetching the genres, subgenres, years, explicit marks and disc pictures from the catalogue.</value>
+    <comment>Line above the progress bar in the import queue's tag stage, shown right after music is added: rpm fills in what the new records lack from its catalogue before the queue opens for editing.</comment>
+  </data>
+  <data name="Queue_TagStageAlbum" xml:space="preserve">
+    <value>Album {0} of {1}: {2} – {3}</value>
+    <comment>Line under the progress bar in the import queue's tag stage. {0} is the album being looked up, {1} how many there are, {2} its artist and {3} its title.</comment>
+  </data>
+  <data name="Queue_TagStageCount" xml:space="preserve">
+    <value>Album {0} of {1}</value>
+    <comment>Line under the progress bar in the import queue's tag stage, before the first album is named. {0} is the album being looked up, {1} how many there are.</comment>
+  </data>
+  <data name="Queue_TagStageSkip" xml:space="preserve">
+    <value>Edit now</value>
+    <comment>Button in the import queue's tag stage: open the queue for editing at once, while the tags keep arriving in the background.</comment>
+  </data>
+  <data name="Queue_TagStageSkipHint" xml:space="preserve">
+    <value>No problem! Start editing right away. Your tags keep arriving in the background, and nothing you type is lost.</value>
+    <comment>Tooltip on the Edit now button in the import queue's tag stage.</comment>
+  </data>
   <data name="QueueDup_InLibrary" xml:space="preserve">
     <value>The collection already holds this track, in a copy at least as good.</value>
     <comment>Tooltip on the duplicate mark.</comment>
