@@ -254,12 +254,14 @@
                 VerticalAlignment="Center"
                 MinWidth="200">
 
-            <!-- The words sit close under the art: the art's box is only as tall as the magnifier's path needs
-                 (the folder is 120 high and the glass swings 22 above and below it), and the gap is small. -->
+            <!-- The words sit close under the art. The art's box keeps its full height, because the filing notes
+                 start 70 above the folder's centre and the card clips what falls outside it. The box's foot is
+                 pulled up instead (the negative bottom margin): below the folder there is only the magnifier's
+                 swing, and the words start a few pixels under the folder. -->
             <StackPanel Spacing="8" HorizontalAlignment="Center">
 
                 <!-- Animation icons -->
-                <Grid Width="240" Height="130" HorizontalAlignment="Center">
+                <Grid Width="240" Height="180" Margin="0,0,0,-30" HorizontalAlignment="Center">
 
                     <!-- Folder icon -->
                     <Viewbox Width="160" Height="120"
