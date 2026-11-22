@@ -27,6 +27,10 @@ namespace RPM.Desktop.Presentation.Main.Library;
 /// the repeater clear every element and realize the row again in the same pass. See
 /// <c>AlbumRow.Deal</c>.</para>
 ///
+/// <para>Clearing every element also empties the repeater's <c>Children</c>, while the card template's pool
+/// still records the cards under this repeater. Other rows take cards from the same pool. The framework's own
+/// pool throws when they take one of these cards, so the card template uses <c>AlbumCardPool</c> on the Uno head.</para>
+///
 /// <para>A card sets its own width (<c>Metrics.Stride</c>), so a card is measured with unlimited width, as a
 /// horizontal <c>StackLayout</c> measures it, and placed at the width it asks for.</para>
 /// </remarks>

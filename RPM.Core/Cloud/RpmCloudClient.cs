@@ -17,6 +17,19 @@ public sealed class CloudQuotaExceededException(long usedBytes, long quotaBytes)
     public long QuotaBytes { get; } = quotaBytes;
 }
 
+/// <summary>
+/// The app's own network gate refused the request, so nothing was sent. The gate does this while it
+/// believes there is no line out (see <see cref="RPM.Core.Net.OnlineGateHandler"/>).
+///
+/// <para><b>This is not a failure of the request.</b> The server never saw it, and the track, playlist or
+/// picture is exactly as it was. A caller puts the work back and waits for the line, and does not count an
+/// attempt or show an error. It is an <see cref="HttpRequestException"/> with status 503, which is what the
+/// gate's made-up response says, so a caller that only knows about HTTP errors handles it as it did
+/// before.</para>
+/// </summary>
+public sealed class CloudOfflineException()
+    : HttpRequestException("The app is offline, so the request was not sent.", null, HttpStatusCode.ServiceUnavailable);
+
 /// <summary>The server refused to link this file. Either the caller could not prove that they hold it,
 /// or the bytes were not what they said they were. Both mean that this track is not going up, and
 /// retrying will not change that.
@@ -508,6 +521,42 @@ public sealed partial class RpmCloudClient(
 
     private sealed record SoundResponse(
         [property: JsonPropertyName("embeddings")] string? Embeddings);
+
+    /// <summary>
+    /// Asks the store to measure its own copy of one of this account's tracks: any of the level, the arousal
+    /// numbers, the sound and the fingerprint (see <see cref="StoredReading"/>).
+    ///
+    /// <para>This is for a track that is only in the cloud, whose file no computer holds. The store reads
+    /// the blob it keeps for the track, so nothing is sent but the track's id. The answer comes back in the
+    /// same request, after a few seconds of work in the store.</para>
+    /// </summary>
+    /// <returns>The store's answer, or null when it did not give one: offline, busy, or a store that does not
+    /// have this address yet.</returns>
+    /// <exception cref="HttpRequestException">A 429: the day's limit is used up.</exception>
+    public async Task<StoredReading?> MeasureStoredAsync(
+        string rpmId, bool level, bool mood, bool sound, bool fingerprint, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(rpmId) || !(level || mood || sound || fingerprint))
+            return null;
+
+        try
+        {
+            return await SendAsync<StoredReading>(HttpMethod.Post, "recordings/measure",
+                JsonContent.Create(new MeasureRequest(rpmId, level, mood, sound, fingerprint),
+                                   RpmCloudJson.Default.MeasureRequest), ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            throw;
+        }
+        // Everything else except a cancel, for the reason given at ReadGridWindowAsync.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record MeasureRequest(string RpmId, bool Level, bool Mood, bool Sound, bool Fingerprint);
 
     private sealed record RecordingLookUpResponse(
         [property: JsonPropertyName("results")] IReadOnlyList<KnownRecordingBody>? Results);
@@ -1555,13 +1604,16 @@ public sealed partial class RpmCloudClient(
     /// They are a derived answer, and the newest reading of the collection is always the right one. The
     /// only writer is a computer that has the collection in front of it.</para>
     /// </summary>
+    /// <param name="deviceId">The library that cut the set (<see cref="Library.LibraryDatabase.PlaysDevice"/>). The
+    /// store keeps one set per library, so another computer of the same account cannot replace this one, and it gives
+    /// the apps the set that names the most of the collection.</param>
     /// <returns>When the store stamped it, in unix milliseconds, from the server's clock.</returns>
-    public async Task<long> PutMoodListsAsync(MoodListsPayload cut, CancellationToken ct = default)
+    public async Task<long> PutMoodListsAsync(string deviceId, MoodListsPayload cut, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(cut);
 
         var said = await SendAsync<MoodListsPutResponse>(HttpMethod.Put, "cloud/moodlists",
-            JsonContent.Create(cut, RpmCloudJson.Default.MoodListsPayload), ct);
+            JsonContent.Create(new MoodListsRequest(deviceId, cut.Recipe, cut.Lists), RpmCloudJson.Default.MoodListsRequest), ct);
 
         return said.ComputedAt;
     }
@@ -1627,6 +1679,7 @@ public sealed partial class RpmCloudClient(
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         using var resp = await http.SendAsync(req, ct);
+        ThrowIfRefused(resp);
 
         if (resp.StatusCode == HttpStatusCode.Conflict)
         {
@@ -1858,6 +1911,70 @@ public sealed partial class RpmCloudClient(
         => (await SendAsync<TrackPlaysListResponse>(
                 HttpMethod.Get, $"cloud/track-plays?since={since}", null, ct)).Tracks;
 
+    // ── the listening log ──
+    //
+    // One row per finished listen, keyed on the id the device that heard it made, so a re-send is harmless.
+    // See RPM.Lambda.Api.Services.ListenStore. The listens do not move any play total: those travel above.
+
+    /// <summary>Sends a batch of this machine's listens, at most 500. Answers with the stamp the store wrote them
+    /// under.</summary>
+    public async Task<long> PutListensAsync(
+        string deviceId, IReadOnlyList<Library.SharedListen> listens, CancellationToken ct = default)
+        => (await SendAsync<ListensResponse>(
+                HttpMethod.Put, "cloud/listens",
+                JsonContent.Create(
+                    new ListensRequest(
+                        deviceId,
+                        [.. listens.Select(l => new ListenEntry(
+                            l.ListenId, l.RpmId, PlayClock.Seconds(l.AtUtcTicks), l.HeardSeconds, l.LengthSeconds,
+                            l.Counted, l.LocalHour, l.LocalDayOfWeek))]),
+                    RpmCloudJson.Default.ListensRequest), ct)).ReceivedAt;
+
+    /// <summary>One page of every device's listens that the store received at or after <paramref name="since"/>,
+    /// the newest stamp on it, and the token for the next page (null at the end).</summary>
+    public async Task<ListensPage> ListListensAsync(long since, string? page, CancellationToken ct = default)
+    {
+        var path = $"cloud/listens?since={since}" + (page is { Length: > 0 } ? $"&page={Uri.EscapeDataString(page)}" : "");
+        var answer = await SendAsync<ListensListResponse>(HttpMethod.Get, path, null, ct);
+        var rows = answer.Listens ?? [];
+        return new ListensPage(
+            [.. rows.Select(r => new Library.SharedListen(
+                r.ListenId, r.DeviceId, r.RpmId, PlayClock.Ticks(r.At), r.HeardSeconds, r.LengthSeconds, r.Counted,
+                r.LocalHour, r.LocalDayOfWeek))],
+            rows.Count == 0 ? since : rows.Max(r => r.ReceivedAt),
+            answer.Page,
+            answer.SafeUntil);
+    }
+
+    /// <summary>Sends what the listener said about the generated lists in this library, whole: the verdicts on songs and
+    /// the refusals of acts and records. The store keeps one copy per library (<paramref name="deviceId"/>) and its list
+    /// builds keep to all of them. See <see cref="Library.LibraryDatabase.ListSayingsToSend"/>.</summary>
+    public async Task PutListSayingsAsync(string deviceId, Library.ListSayings said, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/list-sayings",
+                JsonContent.Create(
+                    new ListSayingsRequest(
+                        deviceId,
+                        [.. said.Verdicts.Select(v => new ListVerdictEntry(
+                            v.RpmId, v.Kind.ToString(), v.Verdict.ToString(), PlayClock.Seconds(v.SaidUtcTicks)))],
+                        [.. said.Refusals.Select(r => new ListRefusalEntry(
+                            r.Scope.ToString(), r.Subject, r.Kind.ToString(), PlayClock.Seconds(r.SaidUtcTicks)))]),
+                    RpmCloudJson.Default.ListSayingsRequest), ct);
+
+    /// <summary>Sends what the catalogues said about this library's albums, whole: which release each album is linked
+    /// to, and the catalogues' own words for each release. The store keeps one copy per library
+    /// (<paramref name="deviceId"/>), and its list builds take them in so their lists place each record as this
+    /// library does. See <see cref="Library.LibraryDatabase.AlbumCatalogueToSend"/>.</summary>
+    public async Task PutAlbumCatalogueAsync(string deviceId, Library.AlbumCatalogue catalogue, CancellationToken ct = default)
+        => await SendAsync<object>(
+                HttpMethod.Put, "cloud/album-catalogue",
+                JsonContent.Create(
+                    new AlbumCatalogueRequest(
+                        deviceId,
+                        [.. catalogue.Albums.Select(a => new CatalogueAlbumEntry(a.Folder, a.Provider, a.ReleaseId, a.ReleaseGroupId))],
+                        [.. catalogue.Releases.Select(r => new CatalogueReleaseEntry(r.Provider, r.ReleaseId, r.Genres, r.Styles, r.Votes))]),
+                    RpmCloudJson.Default.AlbumCatalogueRequest), ct);
+
     // ── what this listener has heard on the radio ──
     //
     // The same shape as the play counts: one row per station per device. This machine writes only its own
@@ -2017,10 +2134,22 @@ public sealed partial class RpmCloudClient(
     {
         if (resp.IsSuccessStatusCode) return;
 
+        // Before the rejection below. The gate's refusal is a 503 that S3 never sent, and reading it as S3
+        // refusing the bytes would mark a track that did nothing wrong as rejected.
+        ThrowIfRefused(resp);
+
         // S3 answers in XML. Its message is the only thing that tells a signature problem apart from a
         // checksum problem.
         var body = await resp.Content.ReadAsStringAsync(ct);
         throw new CloudRejectedException($"S3 refused the upload ({(int)resp.StatusCode}): {body}");
+    }
+
+    /// <summary>Throws <see cref="CloudOfflineException"/> when this response is the app's own gate
+    /// refusing the request, and not an answer from the server.</summary>
+    private static void ThrowIfRefused(HttpResponseMessage resp)
+    {
+        if (RPM.Core.Net.OnlineGateHandler.WasRefused(resp))
+            throw new CloudOfflineException();
     }
 
     /// <summary>One call to the API. The token is sent with it, the body is already written, and the
@@ -2041,6 +2170,7 @@ public sealed partial class RpmCloudClient(
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         using var resp = await http.SendAsync(req, ct);
+        ThrowIfRefused(resp);
 
         if (resp.StatusCode == HttpStatusCode.RequestEntityTooLarge)
         {
@@ -2158,6 +2288,29 @@ public sealed partial class RpmCloudClient(
 
     private sealed record TrackPlaysRequest(string DeviceId, IReadOnlyList<TrackPlaysEntry> Tracks);
 
+    private sealed record ListenEntry(
+        string ListenId, string RpmId, long At, double HeardSeconds, double LengthSeconds, bool Counted,
+        int LocalHour, int LocalDayOfWeek);
+
+    private sealed record ListensRequest(string DeviceId, IReadOnlyList<ListenEntry> Listens);
+
+    private sealed record ListVerdictEntry(string RpmId, string Kind, string Verdict, long At);
+
+    private sealed record ListRefusalEntry(string Scope, string Subject, string Kind, long At);
+
+    private sealed record ListSayingsRequest(
+        string DeviceId, IReadOnlyList<ListVerdictEntry> Verdicts, IReadOnlyList<ListRefusalEntry> Refusals);
+
+    private sealed record CatalogueAlbumEntry(string Folder, string? Provider, string? ReleaseId, string? GroupId);
+
+    private sealed record CatalogueReleaseEntry(
+        string Provider, string ReleaseId, IReadOnlyList<string> Genres, IReadOnlyList<string> Styles, IReadOnlyList<int>? Votes);
+
+    private sealed record AlbumCatalogueRequest(
+        string DeviceId, IReadOnlyList<CatalogueAlbumEntry> Albums, IReadOnlyList<CatalogueReleaseEntry> Releases);
+
+    private sealed record MoodListsRequest(string DeviceId, int Recipe, IReadOnlyList<MoodListPayload> Lists);
+
     private sealed record TrackRatingEntry(string RpmId, int Rating);
 
     private sealed record TrackRatingsRequest(IReadOnlyList<TrackRatingEntry> Tracks);
@@ -2200,6 +2353,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(RpmIdsRequest))]
     [JsonSerializable(typeof(GridWindowRequest))]
     [JsonSerializable(typeof(SoundRequest))]
+    [JsonSerializable(typeof(MeasureRequest))]
     [JsonSerializable(typeof(UploadInitRequest))]
     [JsonSerializable(typeof(ProveRequest))]
     [JsonSerializable(typeof(UploadCompleteRequest))]
@@ -2219,7 +2373,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(SidecarsRewrittenRequest))]
     [JsonSerializable(typeof(ErrorReport))]
     [JsonSerializable(typeof(FeedbackReport))]
-    [JsonSerializable(typeof(MoodListsPayload))]
+    [JsonSerializable(typeof(MoodListsRequest))]
     [JsonSerializable(typeof(CloudQuota))]
     [JsonSerializable(typeof(RecordingKeysResponse))]
     [JsonSerializable(typeof(RecordingLookUpResponse))]
@@ -2227,6 +2381,7 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(AnalyseResponse))]
     [JsonSerializable(typeof(GridWindowResponse))]
     [JsonSerializable(typeof(SoundResponse))]
+    [JsonSerializable(typeof(StoredReading))]
     [JsonSerializable(typeof(ErrorReportResponse))]
     [JsonSerializable(typeof(UploadInitResponse))]
     [JsonSerializable(typeof(ProveResponse))]
@@ -2251,6 +2406,11 @@ public sealed partial class RpmCloudClient(
     [JsonSerializable(typeof(TrackAddedRequest))]
     [JsonSerializable(typeof(TrackPlaysResponse))]
     [JsonSerializable(typeof(TrackPlaysListResponse))]
+    [JsonSerializable(typeof(ListensRequest))]
+    [JsonSerializable(typeof(ListSayingsRequest))]
+    [JsonSerializable(typeof(AlbumCatalogueRequest))]
+    [JsonSerializable(typeof(ListensResponse))]
+    [JsonSerializable(typeof(ListensListResponse))]
     [JsonSerializable(typeof(CloudTrackPlays))]
     [JsonSerializable(typeof(StationListensRequest))]
     [JsonSerializable(typeof(StationListensResponse))]
@@ -2311,6 +2471,26 @@ public sealed partial class RpmCloudClient(
 
     private sealed record TrackPlaysListResponse(
         [property: JsonPropertyName("tracks")] IReadOnlyList<CloudTrackPlays> Tracks);
+
+    private sealed record ListensResponse(
+        [property: JsonPropertyName("receivedAt")] long ReceivedAt);
+
+    private sealed record ListenRow(
+        [property: JsonPropertyName("listenId")] string ListenId,
+        [property: JsonPropertyName("deviceId")] string DeviceId,
+        [property: JsonPropertyName("rpmId")] string RpmId,
+        [property: JsonPropertyName("at")] long At,
+        [property: JsonPropertyName("heardSeconds")] double HeardSeconds,
+        [property: JsonPropertyName("lengthSeconds")] double LengthSeconds,
+        [property: JsonPropertyName("counted")] bool Counted,
+        [property: JsonPropertyName("localHour")] int LocalHour,
+        [property: JsonPropertyName("localDayOfWeek")] int LocalDayOfWeek,
+        [property: JsonPropertyName("receivedAt")] long ReceivedAt);
+
+    private sealed record ListensListResponse(
+        [property: JsonPropertyName("listens")] IReadOnlyList<ListenRow>? Listens,
+        [property: JsonPropertyName("page")] string? Page,
+        [property: JsonPropertyName("safeUntil")] long SafeUntil = 0);
 
     private sealed record StationListensResponse(
         [property: JsonPropertyName("updatedAt")] long UpdatedAt);
@@ -2435,6 +2615,14 @@ public sealed record CloudListenedStation(
                 IsHls = IsHls,
             };
 }
+
+/// <summary>One page of the listening log as the store hands it out.</summary>
+/// <param name="Newest">The newest <c>receivedAt</c> on the page, or the asked stamp for an empty page. A caller keeps
+/// the newest it has taken in and asks from it next time.</param>
+/// <param name="Next">The token for the next page, or null where this is the last.</param>
+/// <param name="SafeUntil">The stamp up to which every row was readable when the store answered: its own clock less a
+/// margin. Zero from a store that does not say. See <see cref="ListensPull"/>.</param>
+public sealed record ListensPage(IReadOnlyList<Library.SharedListen> Listens, long Newest, string? Next, long SafeUntil = 0);
 
 /// <summary>One device's play total for one track, as the store holds it.</summary>
 /// <param name="DeviceId">Which device played them. This machine's own rows also come back in the listing.

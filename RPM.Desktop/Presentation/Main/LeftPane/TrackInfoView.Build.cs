@@ -80,10 +80,13 @@ public sealed partial class TrackInfoView
     /// whichever errand finished last. No call paints out of turn, because no call paints
     /// directly.</para>
     /// </summary>
-    private sealed class PaneBuild(string path, PaneScope scope)
+    private sealed class PaneBuild(string path, string folder, PaneScope scope)
     {
         /// <summary>The record this build is for.</summary>
         public string Path { get; } = path;
+
+        /// <summary>The album folder the record is filed in, "" for a file outside any collection.</summary>
+        public string Folder { get; } = folder;
 
         /// <summary>The order, and how much of the pane is being replaced. The sequence decides WHEN each
         /// layer goes up and HOW MUCH of the pane is replaced.</summary>
@@ -144,14 +147,28 @@ public sealed partial class TrackInfoView
             Order.Answered(PaneErrand.Facts, found: true);
         }
 
+        /// <summary>Whether the sleeve errand has a settled answer: a picture, or "this record has no
+        /// sleeve". False while it waits, and after a read that failed.</summary>
+        public bool SleeveSettled { get; private set; }
+
         public void GotSleeve(ImageSource art)
         {
             SleeveArt = art;
+            SleeveSettled = true;
             Order.Answered(PaneErrand.Sleeve, found: true);
         }
 
         /// <summary>This record has no sleeve anywhere the app can reach. An answer.</summary>
-        public void NoSleeve() => Order.Answered(PaneErrand.Sleeve, found: false);
+        public void NoSleeve()
+        {
+            SleeveSettled = true;
+            Order.Answered(PaneErrand.Sleeve, found: false);
+        }
+
+        /// <summary>The sleeve could not be read: a file that threw, or a computer or cloud that did not
+        /// answer. The build moves on with the placeholder, but this is not an answer, so the next track
+        /// of the record asks again.</summary>
+        public void SleeveUnread() => Order.Answered(PaneErrand.Sleeve, found: false);
 
         public void GotPhoto(ImageSource art, double? runOff, string artist, string url,
                              Windows.UI.Color? tint, Windows.UI.Color? behind, ImageSource? wash)
@@ -519,6 +536,7 @@ public sealed partial class TrackInfoView
         {
             Cover.Source = build.SleeveArt;
             CoverPlaceholder.Visibility = build.SleeveArt is null ? Visibility.Visible : Visibility.Collapsed;
+            _sleeve.Painted(build.Folder, build.SleeveSettled);
         }
 
         // Only when this build arranges the strip. On a change of track by the same artist, the

@@ -36,22 +36,6 @@ public static class Wire
     private static readonly TimeSpan IdleFor = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// How long an unused connection to the storage service stays in the pool.
-    ///
-    /// <para>Amazon S3 closes a keep-alive connection after 6 seconds without a request. A request sent at
-    /// that moment goes out on a connection that is closing. The pool only learns of the close when S3's
-    /// FIN arrives, which is a round trip later. A short body then reaches the socket and no answer comes
-    /// ("the response ended prematurely"); a long one fails while it is written. .NET sends a request
-    /// again on a new connection only when none of its body was sent, so an upload is not saved by it.
-    /// Measured against S3 in eu-west-1: 7 of 42 uploads failed when they were sent between 5.94 and 6.00
-    /// seconds after the previous one, and none failed with this setting.</para>
-    ///
-    /// <para>Three seconds keeps every connection the pool hands out well inside S3's limit. Requests sent
-    /// one after another, such as a sidecar and then its track, still share one connection.</para>
-    /// </summary>
-    private static readonly TimeSpan StorageIdleFor = TimeSpan.FromSeconds(3);
-
-    /// <summary>
     /// A socket handler with the connection budget set. It is the ONLY way one is made in this app.
     /// </summary>
     /// <remarks>
@@ -143,15 +127,32 @@ public static class Wire
     /// <summary>
     /// A client for the storage service's presigned addresses: uploads, and downloads of what was uploaded.
     /// Each request gives its own absolute URL, so it has no base address. Gated and retrying like
-    /// <see cref="OutsideRetrying"/>. It differs in its pool, which closes an idle connection before the
-    /// storage service does (see <see cref="StorageIdleFor"/>). Do not send storage requests through the
-    /// API's client: its pool keeps connections for two minutes.
+    /// <see cref="OutsideRetrying"/>. Do not send storage requests through the API's client.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Every request asks for its connection to be closed (<c>Connection: close</c>), so no
+    /// connection to the storage service is ever reused.</b> There are two reasons.</para>
+    ///
+    /// <para>Amazon S3 closes a keep-alive connection after 6 seconds without a request. A request sent at
+    /// that moment goes out on a connection that is closing, and .NET sends a request again on a new
+    /// connection only when none of its body was sent, so an upload is not saved by it. Measured against S3
+    /// in eu-west-1: 7 of 42 uploads failed when they were sent between 5.94 and 6.00 seconds after the
+    /// previous one.</para>
+    ///
+    /// <para>A pool that closes its idle connections earlier avoids that, but each connection it closes
+    /// aborts the read that was waiting on it, and that throws several exceptions inside .NET. Uploads are
+    /// a few seconds apart (each track is transcoded first), so nearly every upload paid for one. Measured
+    /// against S3: five requests four seconds apart threw 38 IOExceptions with a 3-second idle pool, and
+    /// none with this header. Nothing fails, but under a debugger every throw stops the runtime, and a
+    /// burst of them stopped the whole app for seconds while it uploaded.</para>
+    ///
+    /// <para>The cost is one TLS handshake per request, which is small next to a transfer of megabytes.</para>
+    /// </remarks>
     public static HttpClient Storage(TimeSpan timeout)
     {
-        var sockets = Budget();
-        sockets.PooledConnectionIdleTimeout = StorageIdleFor;
-        return Build(Destination.Unaddressed, timeout, Gate(new TransientRetryHandler(sockets), timeout));
+        var client = Build(Destination.Unaddressed, timeout, Gate(new TransientRetryHandler(Budget()), timeout));
+        client.DefaultRequestHeaders.ConnectionClose = true;
+        return client;
     }
 
     /// <remarks>

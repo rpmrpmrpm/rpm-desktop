@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The search bar that Cmd or Ctrl+F opens over the whole window: one wide box near the top, in the centre,
+     with the library search (LibrarySearchView) dropping down under it. The rest of the window is shaded, and a
+     press on the shade puts the search away. It searches what the boxes in the library's headings search, and
+     a chosen answer opens or plays as it does from there. ShellPage holds it, over the library and the deck and
+     under the problem screen. Cmd or Ctrl+F and the deck's search key open it (ShellPage.SearchLibrary), and
+     MainPage fills it (FocusSearch). -->
+<UserControl
+    x:Class="RPM.Desktop.Presentation.Main.Search.SearchOverlay"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:RPM.Desktop.Strings"
+    xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
+    xmlns:ui="using:RPM.Desktop.Presentation.Common"
+    Visibility="Collapsed">
+
+  <UserControl.Resources>
+    <FontFamily x:Key="Fa">ms-appx:///Assets/Fonts/fa-solid-900.ttf#Font Awesome 5 Pro</FontFamily>
+  </UserControl.Resources>
+
+  <!-- The bar stands a seventh of the way down, and never closer to the top than the title bar's height and a
+       gap. It is laid out, not placed in code, so the panel under it (which measures the bar) always reads
+       where the bar is now. -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="14*" MinHeight="56"/>
+      <RowDefinition Height="86*"/>
+    </Grid.RowDefinitions>
+
+    <!-- The shade: the window behind, blurred a little and darkened. The blur is live (GlassBrush reads what is
+         drawn under it), so it costs a read of the whole window on each frame, and only while the bar is up. -->
+    <Grid x:Name="Shade" Grid.RowSpan="2" Background="Transparent" PointerPressed="Shade_PointerPressed">
+      <Border>
+        <Border.Background>
+          <ui:GlassBrush BlurAmount="6"/>
+        </Border.Background>
+      </Border>
+      <Border Background="#4D000000"/>
+    </Grid>
+
+    <!-- The surface of the app's flyouts, as the panel under it wears, so the bar and the answers read as one
+         thing. As wide as the window allows, up to MaxWidth, and centred. -->
+    <Border x:Name="Bar" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+            MaxWidth="680" Margin="24,0" Height="48" CornerRadius="10" Padding="16,0,10,0"
+            Background="{ThemeResource FlyoutPresenterBackground}"
+            BorderBrush="{ThemeResource FlyoutBorderThemeBrush}" BorderThickness="1">
+      <Border.RenderTransform>
+        <TranslateTransform x:Name="BarShift"/>
+      </Border.RenderTransform>
+
+      <Grid ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="&#xf002;" FontFamily="{StaticResource Fa}" FontSize="16" Foreground="#99FFFFFF"
+                   VerticalAlignment="Center"/>
+
+        <!-- Every default TextBox chrome stripped, so it reads as bare text on the bar: the template paints a
+             filled box, a rounded border, and on focus an accent line that BorderThickness=0 cannot override. -->
+        <TextBox x:Name="Field" Grid.Column="1" FontSize="18"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                 Background="Transparent" BorderThickness="0" Padding="0"
+                 MinHeight="0" Height="26" MinWidth="0"
+                 PlaceholderText="{loc:Str Key=Rpm_Search_Library}"
+                 AutomationProperties.AutomationId="SearchOverlayBox"
+                 AutomationProperties.Name="{loc:Str Key=Rpm_Search_Library}"
+                 TextChanged="Field_TextChanged" PreviewKeyDown="Field_PreviewKeyDown">
+          <TextBox.Resources>
+            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+            <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+            <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+            <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+          </TextBox.Resources>
+        </TextBox>
+
+        <!-- Empties the box and keeps the bar up. Shown only while there is something to clear. -->
+        <Button x:Name="ClearKey" Grid.Column="2" Click="ClearKey_Click" Visibility="Collapsed"
+                Width="26" Height="26" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="13"
+                Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+                AutomationProperties.AutomationId="SearchOverlayClear"
+                AutomationProperties.Name="{loc:Str Key=Artists_SearchClear}"
+                ToolTipService.ToolTip="{loc:Str Key=Artists_SearchClear}">
+          <Button.Resources>
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF"/>
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33FFFFFF"/>
+          </Button.Resources>
+          <TextBlock Text="&#xf00d;" FontSize="11" Foreground="#99FFFFFF" FontFamily="{StaticResource Fa}"/>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Over the whole control, so its panel can drop under the bar and reach the window's foot. Where it draws
+         nothing (outside its panel and its catcher) a press falls through to the shade and the bar. -->
+    <search:LibrarySearchView x:Name="Results" Grid.RowSpan="2"/>
+  </Grid>
+</UserControl>

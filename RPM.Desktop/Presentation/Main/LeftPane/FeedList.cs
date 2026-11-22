@@ -377,7 +377,9 @@ internal static class FeedCovers
             byte[]? bytes = null;
             try
             {
-                bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, ArtScaler.RowEdge);
+                // A cover that could not be read is left to the search below, as a missing one is.
+                bytes = (await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, ArtScaler.RowEdge))
+                    .Answers(out var found, out _) ? found : null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {

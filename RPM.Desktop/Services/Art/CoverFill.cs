@@ -20,6 +20,12 @@ namespace RPM.Desktop.Services.Art;
 /// on the card, an empty answer means the art does not exist. With a picture on the card, it means the
 /// read failed, and it must not latch. See <see cref="CoverTier.Latches"/>.</para>
 ///
+/// <para><b>Only an answer is a verdict.</b> A fetch that could not be answered (the cloud or the computer
+/// that holds the record did not answer, a file could not be read) leaves the card as it is: no picture
+/// and no made sleeve. The next time the shelf is built, it asks again. A card marked as having no art
+/// on that basis would show a made sleeve for a record that has artwork, for as long as the page is
+/// open.</para>
+///
 /// <para><b>The cards are looked up after the answer lands, never before.</b> A fetch is a disk read or
 /// a network round trip, and the page can be scrolled, rebuilt or left during it. So the caller passes a
 /// way to FIND the cards, not the cards themselves. The cards are found against the shelf as it is when
@@ -34,22 +40,26 @@ public static class CoverFill
     /// <param name="cards">Finds the cards, and is called once the read has answered. There can be more
     /// than one card, because the same record can stand on two shelves of one page and only one of them
     /// did the asking.</param>
-    /// <param name="fetch">Gets this shelf's bytes. A null or empty result matters most, because it
-    /// decides whether the record is marked as having no art.</param>
+    /// <param name="fetch">Gets this shelf's bytes. An answer of null or empty matters most, because it
+    /// decides whether the record is marked as having no art. An unanswered fetch decides nothing.</param>
     /// <param name="decode">Turns bytes into a picture at the size and pace the shelf uses. A genre page
     /// limits its decodes against the frame rate. A row of six does not.</param>
     public static async Task DressAsync(
         Func<IEnumerable<ISleeveCard>> cards,
-        Func<CancellationToken, Task<byte[]?>> fetch,
+        Func<CancellationToken, Task<Asked<byte[]?>>> fetch,
         Func<byte[], Task<ImageSource?>> decode,
         CancellationToken ct)
     {
-        var bytes = await fetch(ct);
+        var asked = await fetch(ct);
 
         // A cancelled read is not a verdict. The page was left, or the shelf was rebuilt during the
         // fetch. A card marked as having no cover on that basis would keep showing a made sleeve for the
         // rest of the session, even though its artwork was never looked for.
         if (ct.IsCancellationRequested)
+            return;
+
+        // A read that could not be answered is not a verdict either. See the summary.
+        if (!asked.Answers(out var bytes, out _))
             return;
 
         if (bytes is not { Length: > 0 })
@@ -72,7 +82,7 @@ public static class CoverFill
     /// genre page. There, a record stands under "newest" and in its decade at once.</summary>
     public static Task DressAsync(
         ISleeveCard card,
-        Func<CancellationToken, Task<byte[]?>> fetch,
+        Func<CancellationToken, Task<Asked<byte[]?>>> fetch,
         Func<byte[], Task<ImageSource?>> decode,
         CancellationToken ct)
         => DressAsync(() => [card], fetch, decode, ct);

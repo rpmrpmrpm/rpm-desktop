@@ -2,6 +2,8 @@
 using System.Net.Http;
 using RPM.Core.Sharing;
 
+using Ask = RPM.Fingerprint.Net.Asked;
+
 namespace RPM.Core.Tests;
 
 /// <summary>
@@ -67,10 +69,14 @@ public class LibraryServerTests : IDisposable
             }))),
             OnTrack = (_, id, _) => Task.FromResult<TrackBytes?>(
                 id == Track.RpmId ? new TrackBytes(file, null) : null),
-            OnArt = (_, key, _) => Task.FromResult<(byte[], string)?>(
-                key == "sleeve" ? ("JPEG"u8.ToArray(), "image/jpeg") : null),
-            OnDisc = (_, id, _) => Task.FromResult<(byte[], string)?>(
-                id == Track.RpmId ? ("PNG"u8.ToArray(), "image/png") : null),
+            OnArt = (_, key, _) => Task.FromResult(key switch
+            {
+                "sleeve" => Ask.Answer<(byte[], string)?>(("JPEG"u8.ToArray(), "image/jpeg")),
+                "cloud-down" => Ask.Failed<(byte[], string)?>("the cloud did not answer"),
+                _ => Ask.Answer<(byte[], string)?>(null),
+            }),
+            OnDisc = (_, id, _) => Task.FromResult(Ask.Answer<(byte[], string)?>(
+                id == Track.RpmId ? ("PNG"u8.ToArray(), "image/png") : null)),
         };
 
         server.Start();
@@ -310,8 +316,31 @@ public class LibraryServerTests : IDisposable
 
         var art = await client.ImageAsync(SharingProtocol.ArtRoute, "sleeve");
 
-        Assert.Equal("JPEG"u8.ToArray(), art);
-        Assert.Null(await client.ImageAsync(SharingProtocol.ArtRoute, "no-such-sleeve"));
+        Assert.Equal("JPEG"u8.ToArray(), Picture(art));
+        Assert.Null(Picture(await client.ImageAsync(SharingProtocol.ArtRoute, "no-such-sleeve")));
+    }
+
+    /// <summary>A lender whose own source did not answer (its cloud, for an offloaded record) says so. The
+    /// borrower gets "could not fetch", not "no picture", so it does not show a made sleeve for a record
+    /// that has artwork.</summary>
+    [Fact]
+    public async Task A_picture_the_lender_could_not_fetch_is_not_a_picture_that_is_not_there()
+    {
+        using var server = Serving();
+        using var client = Borrower(server);
+
+        var asked = await client.ImageAsync(SharingProtocol.ArtRoute, "cloud-down");
+
+        Assert.False(asked.Answers(out _, out var why));
+        Assert.Equal("HTTP 503", why);
+    }
+
+    /// <summary>The bytes of an answered read. Fails the test for an unanswered one, which these tests do
+    /// not expect.</summary>
+    private static byte[]? Picture(Asked<byte[]?> asked)
+    {
+        Assert.True(asked.Answers(out var bytes, out var why), why);
+        return bytes;
     }
 
     /// <summary>The disc image, which is not the cover: a borrowed album's disc.png is on the
@@ -324,8 +353,8 @@ public class LibraryServerTests : IDisposable
         using var server = Serving();
         using var client = Borrower(server);
 
-        Assert.Equal("PNG"u8.ToArray(), await client.ImageAsync(SharingProtocol.DiscRoute, Track.RpmId));
-        Assert.Null(await client.ImageAsync(SharingProtocol.DiscRoute, "not-a-track"));
+        Assert.Equal("PNG"u8.ToArray(), Picture(await client.ImageAsync(SharingProtocol.DiscRoute, Track.RpmId)));
+        Assert.Null(Picture(await client.ImageAsync(SharingProtocol.DiscRoute, "not-a-track")));
     }
 
     /// <summary>An older peer knows no disc route, and a machine holding no disc art answers exactly as
@@ -338,7 +367,7 @@ public class LibraryServerTests : IDisposable
         server.OnDisc = null;
         using var client = Borrower(server);
 
-        Assert.Null(await client.ImageAsync(SharingProtocol.DiscRoute, Track.RpmId));
+        Assert.Null(Picture(await client.ImageAsync(SharingProtocol.DiscRoute, Track.RpmId)));
     }
 
     [Fact]

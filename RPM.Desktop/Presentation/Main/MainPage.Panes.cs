@@ -60,8 +60,7 @@ public sealed partial class MainPage
         // Back out of a list that was pressed on the home screen: home again. The view says the press
         // happened and this puts home up, because home covers both panes and only this page can.
         PlaylistPanel.HomeRequested += () => ShowHome(true);
-        HookSearchBox(PlaylistPanel.SearchBox);   // its heading's library search
-        AttachPlaylistHeading();                  // and its keys' slide clear of the record
+        AttachPlaylistHeading();                  // its keys' slide clear of the record
         _playlistModel.DetailInvalidated += PlaylistPanel.RefreshDetailIfOpen;        // add/remove ⇒ re-read
         _playlistModel.QueueInvalidated += PlaylistPanel.RefreshQueueDetailIfOpen;    // and the queue, itself only
         _playlistModel.MarksInvalidated += PlaylistPanel.RefreshMarkedDetailIfOpen;   // and a heart, the loved lists only
@@ -219,9 +218,8 @@ public sealed partial class MainPage
     /// <summary>Raises the Import view's warning band. The pane is opened on Import by whatever is
     /// scanning, so this only has to say the words.</summary>
     /// <summary>
-    /// A press of one of the library rail's tabs, and Cmd or Ctrl+F asking for the collection
-    /// (<see cref="FocusSearch"/>): each tab asks for its view's own wall or tree, not for the one page
-    /// that happens to be open in it, and leaves home.
+    /// A press of one of the library rail's tabs: each tab asks for its view's own wall or tree, not for
+    /// the one page that happens to be open in it, and leaves home.
     /// </summary>
     private void AskForTab(RightTab tab)
     {
@@ -229,9 +227,6 @@ public sealed partial class MainPage
         // stopwatch. The rail's tabs do not, and their switch is the bigger move: a whole view stands
         // down and another comes up.
         RPM.Desktop.Diagnostics.SwitchDiag.Begin($"library {tab}");
-
-        // A tab pressed while the search is up is the reader going somewhere else: the search goes away.
-        LibrarySearch.Close();
 
         // Playlists is every list, so pressing it is asking for the tree, not for the one list that
         // happens to be open in it. Said first because the panel has to exist to be asked; the
@@ -365,11 +360,11 @@ public sealed partial class MainPage
         // that view has ever been opened.
         LibraryRail.TabRequested += AskForTab;
 
-        // The deck's own reports: its pill drives the same pane the rail's foot button closes, its
-        // hamburger opens the shell's menu at the button, and its view menu asks for one of the app's
-        // three views. None of the three is decided here, the deck asks, the service moves, and the
-        // deck is told what happened so its menu can grey the line the app is on.
-        Deck.PaneToggleRequested += () => Panes.Toggle();
+        // The deck's own reports: its search key opens the library search over the window, as Cmd or
+        // Ctrl+F does (the shell holds the bar), its hamburger opens the shell's menu at the button, and
+        // its view menu asks for one of the app's three views. None of these is decided here, the deck
+        // asks, and the deck is told what happened so its menu can grey the line the app is on.
+        Deck.SearchRequested += () => ShellPage.Current?.SearchLibrary();
         Deck.HomeRequested += () =>
         {
             RPM.Desktop.Diagnostics.SwitchDiag.Begin("home");
@@ -486,7 +481,7 @@ public sealed partial class MainPage
     private bool RowCovered => _rowCover.Stretched;
 
     /// <summary>Both panes' single source of truth: which function the left pane shows
-    /// (<see cref="Tab"/>) and whether it is <see cref="Open"/> or <see cref="Shown"/> at all, which
+    /// (<see cref="Tab"/>) and whether it is <see cref="Open"/>, which
     /// way the library pane is <see cref="Reading"/> the collection, plus the remembered star split.
     /// Every state change funnels through <see cref="Apply"/>, the ONLY writer of the column widths, so
     /// open/close, tab switches, folds and splitter drags can't fight over the width.
@@ -613,11 +608,11 @@ public sealed partial class MainPage
         /// <summary>What <see cref="ApplyViews"/> last put up, per pane, null until it first has. What a
         /// move fades is the difference between these and the state as it now stands, so a re-apply that
         /// changes nothing (a queue count ticking over, a window resize) costs no show.</summary>
-        private (LeftTab Tab, bool Open, bool Shown, bool Queue)? _leftShowing;
+        private (LeftTab Tab, bool Open, bool Queue)? _leftShowing;
         private (RightTab Reading, bool Home)? _rightShowing;
 
-        private (LeftTab, bool, bool, bool) LeftSignature =>
-            (Tab, Open, Shown, p.Model?.QueueVisible ?? false);
+        private (LeftTab, bool, bool) LeftSignature =>
+            (Tab, Open, p.Model?.QueueVisible ?? false);
 
         // Home uses the RIGHT signature, since that is the host it stands in: going home swaps the
         // library card's content, and the left pane's own change is already told by Open. The import
@@ -705,7 +700,7 @@ public sealed partial class MainPage
         {
             if (tab != LeftTab.Import || Tab == LeftTab.Import)
                 return;
-            _openBeneath = Shown && _open;
+            _openBeneath = _open;
             _tabBeneath = Tab;
         }
 
@@ -749,19 +744,9 @@ public sealed partial class MainPage
         /// read off it (see <see cref="SearchTarget"/>).</summary>
         public PaneStage OnScreen => Stage;
 
-        /// <summary>Whether the column is there at all, the rail included.
-        ///
-        /// <para>The two are separate because the two controls that move them mean different things.
-        /// The chevron at the foot of the rail folds the VIEW away and leaves the tabs. The reader is
-        /// done reading, not done with the pane. Taking the four functions off the screen as well would
-        /// leave the only way back on the other side of the window. The deck's pane pill folds the
-        /// whole column, and that is the control for showing or hiding the side pane.</para>
-        /// </summary>
-        public bool Shown { get; private set; } = true;
-
         /// <summary>The rail on its own, with no view beside it in the column. See <see
         /// cref="ColumnOpen"/> for why that is not the same as the chevron being folded.</summary>
-        private bool RailOnly => Shown && !ColumnOpen;
+        private bool RailOnly => !ColumnOpen;
 
         /// <summary>What the rail measures. Fixed in the rail's own markup; read from the control where it
         /// has been laid out, since a number in two files is a number that will disagree with
@@ -824,7 +809,6 @@ public sealed partial class MainPage
             GoingToImport(tab);
             Tab = tab;
             _open = true;
-            Shown = true;   // a tab pressed on a hidden column is a column being asked for
             Apply();
         }
 
@@ -895,19 +879,6 @@ public sealed partial class MainPage
             Apply();
         }
 
-        /// <summary>
-        /// The deck's pane pill: the whole column, rail and all.
-        ///
-        /// <para>Coming back it opens on the view it had, because a column that returned as a bare rail
-        /// would answer a press with almost nothing, and the press was for the pane.</para>
-        /// </summary>
-        public void Toggle()
-        {
-            Shown = !Shown;
-            _open = Shown;
-            Apply();
-        }
-
         /// <summary>Queue-driven transitions: a fresh import opens the pane on Import; when a queue
         /// that WAS there empties (the import finished), Import hands back to Track info. Only on that
         /// transition: the user can sit on Import with an empty queue, and that view is the add-music
@@ -924,7 +895,6 @@ public sealed partial class MainPage
             if (queueVisible && !_queueWasVisible)
             {
                 GoingToImport(LeftTab.Import);
-                Shown = true;
                 _open = true;
                 Tab = LeftTab.Import;
                 AtHome = false;   // the workbench is asking for the window, so home is not what is up
@@ -1013,7 +983,7 @@ public sealed partial class MainPage
             //
             // The VIEWS follow it rather than lead it (see ApplyViews): the room is made first and what
             // goes in it changes once the room is the right size.
-            (double left, double right) = !Shown || !ColumnOpen ? (0.0, _rightStars) : (_leftStars, _rightStars);
+            (double left, double right) = !ColumnOpen ? (0.0, _rightStars) : (_leftStars, _rightStars);
             GlideColumns(left, right);
             RPM.Desktop.Diagnostics.SwitchDiag.Mark("glide");
 
@@ -1038,21 +1008,13 @@ public sealed partial class MainPage
 
             // The seam stands between whatever the two columns hold (two views, a view and a bare rail,
             // or two rails). It is the gutter down the middle of the window and it is always the same
-            // width, so folding a pane never changes how far its neighbour is from what is beside it. It
-            // goes only when there is no left column at all and the library has the whole row.
-            p.Splitter.Visibility = Vis(Shown);
-            // Dragged only where there are two VIEWS to size against each other: a bare rail has no width
-            // of its own to give, and under the import workbench there is no seam to see.
-            var seam = Shown && ColumnOpen && !stage.ImportOver;
+            // width, so folding a pane never changes how far its neighbour is from what is beside it.
+            // It is dragged only where there are two VIEWS to size against each other: a bare rail has no
+            // width of its own to give, and under the import workbench there is no seam to see.
+            var seam = ColumnOpen && !stage.ImportOver;
             p.Splitter.IsHitTestVisible = seam;
             if (seam)
                 p.DebutSplitterGrip();   // the grip introduces itself the first time there is a seam to drag
-
-            // The card itself is the box being resized, not something standing in it, so it comes and
-            // goes with the column. Its view comes with it when the pane opens on the tab it had (see
-            // GlideColumns and ApplyLeftViews). The view is put in during the move, not at the end of
-            // it. If it waited for the end, the pane would grow as an empty card.
-            p.LeftPanel.Visibility = Vis(Shown);
 
             // The views never lay out narrower than the pane's narrowest open width. A move passes
             // through every width between the rail's and the pane's, and without a floor the text in a
@@ -1060,8 +1022,6 @@ public sealed partial class MainPage
             // column clips the view instead, as the visualization gallery's own 240-point floor does.
             // No settled width is below it: the splitter stops at MinPanelWidth.
             p.LeftViews.MinWidth = Math.Max(0, MinPanelWidth - RailWidth);
-
-            p.Deck.SetPaneOpen(Shown);   // the deck pill's drawer rides with the column it hides
 
             // Home's tab, since it has none on either rail: the deck's key wears the same mark the rails'
             // tabs wear while home is the view up.
@@ -1132,7 +1092,7 @@ public sealed partial class MainPage
             if (Open && Tab == LeftTab.TrackInfo)
                 p.UpdateTrackInfo();
 
-            p.LeftViews.Visibility = Vis(Shown && Open);
+            p.LeftViews.Visibility = Vis(Open);
 
             // The rail as it stands once the views have: lit for the view beside it, and for nothing once
             // that view is folded away.
@@ -1143,7 +1103,7 @@ public sealed partial class MainPage
             // seam and the library and laid on top of them, and the columns underneath stay where they
             // are. Done here, with the views, so the card changes shape at the same moment as what is in
             // it, behind the fade where there is one.
-            if (Shown && Stage.ImportOver)
+            if (Stage.ImportOver)
                 p.CoverRow(GlideMs);
             else
                 p.DropCover();
@@ -1151,8 +1111,8 @@ public sealed partial class MainPage
             // Whether the track info pane is really on screen, which is this class's answer and not the
             // view's: the view stays marked visible inside a left column that has been folded away. The
             // album page paints its facing corner in the pane's colour while it is (see PaneCorner).
-            Presentation.Common.PaneCorner.Showing(Shown && Open && Tab == LeftTab.TrackInfo);
-            p.LeftPaneBand.Visibility = Shown && Open ? p.LeftPaneBand.Visibility : Visibility.Collapsed;
+            Presentation.Common.PaneCorner.Showing(Open && Tab == LeftTab.TrackInfo);
+            p.LeftPaneBand.Visibility = Open ? p.LeftPaneBand.Visibility : Visibility.Collapsed;
         }
 
         /// <summary>The library card's half of <see cref="ApplyViews"/>. Only ever run at the landing: a
@@ -1293,7 +1253,7 @@ public sealed partial class MainPage
             // Which side is about to show something else, and so has something to fade. A switch that
             // costs no width fades without moving anything.
             //
-            // THE LEFT PANE'S VIEW, not its signature. The signature also carries Open and Shown, and
+            // THE LEFT PANE'S VIEW, not its signature. The signature also carries Open, and
             // those changing IS this move: a pane sliding in or out is not switching what it shows, so
             // it has nothing to cross-fade and slides with its column instead. Only its tab, or the
             // queue appearing under Import, is a switch.
@@ -1305,7 +1265,7 @@ public sealed partial class MainPage
             // Going to or from the import workbench does not fade either. It lies over the whole row and
             // slides out to it and back (see CoverRow), and that slide is the transition: a fade around
             // it would be a second one.
-            var fadeLeft = _leftShowing is { Open: true, Shown: true } left
+            var fadeLeft = _leftShowing is { Open: true } left
                 && (left.Tab != Tab
                     ? left.Tab != LeftTab.Import && Tab != LeftTab.Import
                     : left.Queue != (p.Model?.QueueVisible ?? false));
@@ -1360,7 +1320,7 @@ public sealed partial class MainPage
             // pane grew as an empty card and its content appeared in one step at the end. A pane that is
             // switching tabs still waits: that swap happens behind its fade, at the landing. So does the
             // import workbench, which goes over the row only once the column has stopped.
-            if (moves && !fadeLeft && Shown && Open && Tab != LeftTab.Import)
+            if (moves && !fadeLeft && Open && Tab != LeftTab.Import)
                 ApplyLeftViews();
 
             // A width move that does not switch the library's view is a LIVE RESIZE, not a compositor

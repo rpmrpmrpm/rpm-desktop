@@ -716,7 +716,7 @@ public sealed partial class AlbumWallView
         var stride = AlbumGridLayout.StrideFor(available, columns, MaxArt + CardChrome);
 
         // What the wall may do on this pass. Anything it may not do is spent once at the landing instead.
-        // See WallFreeze. Scale is what ships on WinUI. Size and All are for measurements only.
+        // See WallFreeze. Scale is what ships on both heads. Size and All are for measurements only.
         var frozen = _liveResize ? Freeze : WallFreeze.None;
 
         // A column change during a live move: where the cards and the reader are drawn now, before this pass
@@ -817,7 +817,8 @@ public sealed partial class AlbumWallView
     /// </remarks>
     internal enum WallFreeze
     {
-        /// <summary>The wall re-flows as the pane moves. This is what the Skia head ships with.</summary>
+        /// <summary>The wall re-flows as the pane moves. The cards cannot slide to a new column count in this
+        /// mode, because their size changes on every frame.</summary>
         None,
 
         /// <summary>The card size is held. The column count still changes.</summary>
@@ -831,13 +832,25 @@ public sealed partial class AlbumWallView
         /// the width, and no margin opens. This is the fixed-stride design, in full.
         /// </summary>
         /// <remarks>
-        /// <b>What ships on WinUI</b>, with the scale on each row's composition visual (see
+        /// <b>What ships on both heads.</b> On WinUI the scale is on each row's composition visual (see
         /// <c>AlbumWallLayout.Draw</c>). The repeater's cache is kept for the move. On the 2,501-album
         /// bench library, eight folds of the left pane came back with 6 to 8 writes out of 8, and worst
         /// gaps of 43 to 74 ms (median about 53 ms). With <see cref="None"/>, the same test gave 5 to 6
         /// writes and worst gaps of 60 to 102 ms. The columns still step during the move, and the scale
-        /// bridges each step. So the wall always fills its width, and nothing is hidden. The Skia head
-        /// uses <see cref="None"/>.
+        /// bridges each step. So the wall always fills its width, and nothing is hidden. Those readings are
+        /// from WinUI.
+        ///
+        /// <para>On the Skia head a XAML render transform and the visual's matrix are the same write (Uno's
+        /// render transform sets the visual's <c>TransformMatrix</c>), so the row's <c>CompositeTransform</c>
+        /// costs no more than the matrix does on WinUI. Skia draws the whole window on every frame in any case.
+        /// Scale is also what lets the cards slide to a new column count (see <c>AlbumWallView.Glide.cs</c>),
+        /// which <see cref="None"/> cannot do.</para>
+        ///
+        /// <para><b>Measured on macOS</b> (Uno 6.8.0-dev.60, a 120 Hz panel, a 3,204-album library, ten folds
+        /// of the left pane over the wall, no debugger). Scale: 29 to 32 writes per 240 ms move, worst gaps
+        /// 16 to 21 ms, one re-deal per move with 12 cards sliding and 23 fading in. <see cref="None"/>: 24
+        /// to 30 writes, worst gaps 16 to 29 ms, and three re-deals per move, each of which moves nearly every
+        /// card on screen in one frame.</para>
         ///
         /// <para>This machinery (<see cref="AlbumWallLayout.Scale"/>, <c>RowWidth</c> and the constant
         /// arrange rect) is the only thing in the app that resizes a virtualized list without laying it
@@ -852,21 +865,15 @@ public sealed partial class AlbumWallView
     }
 
     /// <summary>Which of these this run is, read from <c>RPM_PANE_FREEZE</c> (<c>none</c>, <c>size</c>,
-    /// <c>all</c> or <c>scale</c>; <c>1</c> means <c>size</c>). If the value is absent or not recognised,
-    /// the default depends on the head: <see cref="WallFreeze.Scale"/> on WinUI, and
-    /// <see cref="WallFreeze.None"/> on Skia.</summary>
+    /// <c>all</c> or <c>scale</c>; <c>1</c> means <c>size</c>). If the value is absent or not recognised, it
+    /// is <see cref="WallFreeze.Scale"/>.</summary>
     internal static readonly WallFreeze Freeze =
         RPM.Core.Diagnostics.DevSwitch.Read("RPM_PANE_FREEZE")?.Trim().ToLowerInvariant() switch
         {
             "none" => WallFreeze.None,
             "size" or "1" or "true" => WallFreeze.Size,
             "all" => WallFreeze.All,
-            "scale" => WallFreeze.Scale,
-#if RPM_WINUI
             _ => WallFreeze.Scale,
-#else
-            _ => WallFreeze.None,
-#endif
         };
 
     private void PersistSizeDebounced()

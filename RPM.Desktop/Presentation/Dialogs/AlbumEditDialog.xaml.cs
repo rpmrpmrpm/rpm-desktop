@@ -807,8 +807,10 @@ public sealed partial class AlbumEditDialog : ContentDialog
 
         var art = App.Services.GetRequiredService<Services.Cloud.CloudArtService>();
 
+        // A cover that could not be fetched leaves the editor as it is. Nothing is written from here either way.
         if (_cover.Bytes is not { Length: > 0 }
-            && await art.CoverAsync(first.AlbumArtist, first.Artist, first.Album, rpmId: null) is { Length: > 0 } cover)
+            && (await art.CoverAsync(first.AlbumArtist, first.Artist, first.Album, rpmId: null)).Answers(out var cover, out _)
+            && cover is { Length: > 0 })
         {
             _cover.Bytes = cover;
             await ShowPictureAsync(_cover);

@@ -5,8 +5,8 @@ using RPM.Desktop.Presentation.Common;
 
 namespace RPM.Desktop.Services.Art;
 
-/// <summary>The bytes of one record's cover at one size, or null where nothing can answer.</summary>
-public delegate Task<byte[]?> CoverRead(string folder, int edge, CancellationToken ct);
+/// <summary>The bytes of one record's cover at one size. Answered with null when the record has no cover; unanswered when a source that might have one could not be read (see <see cref="AlbumCovers.LoadAsync"/>).</summary>
+public delegate Task<Asked<byte[]?>> CoverRead(string folder, int edge, CancellationToken ct);
 
 /// <summary>When a record's colour is read off its cover.</summary>
 public enum TintReading
@@ -408,7 +408,18 @@ public sealed class CoverStream
             return spent;
         }
 
-        if (await _wall.Read(card.Folder, edge, CancellationToken.None) is not { Length: > 0 } bytes)
+        var asked = await _wall.Read(card.Folder, edge, CancellationToken.None);
+        if (!asked.Answers(out var bytes, out _))
+        {
+            // The read could not be answered: the cloud or the computer that holds the record did not answer,
+            // or a file could not be read. That is not "no art", so nothing is latched. The edge is noted, as
+            // for a failed read on a card that has a picture, so the loader does not ask again in a loop. It
+            // asks again when the wall's size changes or the wall is read again.
+            card.MissedEdge = edge;
+            return spent;
+        }
+
+        if (bytes is not { Length: > 0 })
         {
             // Nothing came back. What that means depends on whether this record has ever shown a picture. See
             // CoverTier.Latches.
@@ -758,7 +769,11 @@ public sealed class CoverStream
                     return (reads[i].Bytes, Asked: true);
                 try
                 {
-                    return (await _wall.Read(card.Folder, edge, CancellationToken.None), Asked: true);
+                    // Only an answered read counts as asked. An unanswered one is the same as a read that
+                    // threw: nobody has managed to ask about this record yet.
+                    return (await _wall.Read(card.Folder, edge, CancellationToken.None)).Answers(out var found, out _)
+                        ? (found, Asked: true)
+                        : ((byte[]?)null, Asked: false);
                 }
                 catch
                 {

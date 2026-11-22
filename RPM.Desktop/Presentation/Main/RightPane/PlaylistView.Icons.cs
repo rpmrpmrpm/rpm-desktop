@@ -488,7 +488,7 @@ public sealed partial class PlaylistView
     /// Without this, every frame of a move wrote a new tile size, which every tile laid out again, and the
     /// tiles were dealt into a new column count two or three times in one move, each time in one frame.
     ///
-    /// <para>WinUI only. On the Skia head the grid keeps re-flowing every frame.</para>
+    /// <para>Both heads. See <see cref="TileGridMove"/> for how each one draws it.</para>
     /// </remarks>
     public void BeginLiveResize() => _tileMove?.Begin();
 

@@ -112,7 +112,7 @@
         <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
       </Grid.Resources>
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>     <!-- the pane pill (left) -->
+        <ColumnDefinition Width="*"/>     <!-- home and the search (left) -->
         <ColumnDefinition Width="Auto"/>  <!-- transport (centred) -->
         <ColumnDefinition Width="*"/>     <!-- deck chrome (right) -->
       </Grid.ColumnDefinitions>
@@ -252,46 +252,12 @@
                    Foreground="#77FFFFFF" VerticalAlignment="Center"/>
       </StackPanel>
 
-      <!-- The pane pill, alone on the LEFT. It is the deck's one control over what the window SHOWS. It sits at
-           the outer edge. One pill covers both the library and the playlists. Add music is in the Import view, not
-           on the deck. Everything that is a state rather than a view (the rip, the cloud, the cast and the
-           menu) sits on the right. -->
+      <!-- Home and the search on the LEFT: the deck's two ways into a view of the collection. Everything that is
+           a state rather than a view (the rip, the cloud, the cast and the menu) sits on the right. -->
       <StackPanel x:Name="DeckLeft" Grid.Column="0" Orientation="Horizontal" Spacing="10"
                   HorizontalAlignment="Left" VerticalAlignment="Stretch">
 
-        <!-- The pane pill sits at the outer left edge. Its mark shows what it does: a little window with a drawer
-             that slides out of the left edge and back in, clipped by the frame. So the button plays the same move
-             the pane makes. Hovering peeks the drawer out. Clicking commits it. -->
-        <Button x:Name="PanePill" Style="{StaticResource DeckPill}" Click="PanePill_Click"
-                Background="{StaticResource OnGlassBrush}"
-                ToolTipService.ToolTip="{loc:Str Key=Deck_PaneTip}"
-                PointerEntered="PanePill_PointerEntered" PointerExited="PanePill_PointerExited">
-          <!-- The live frame on its own. It already shows a pane sliding out of a window. A static columns glyph beside
-               it would say the same thing twice. -->
-          <Border Width="26" Height="16" CornerRadius="4" Background="#12FFFFFF"
-                  BorderBrush="#66FFFFFF" BorderThickness="1" VerticalAlignment="Center">
-            <!-- The clip is set in code, on SizeChanged. The drawer slides into the frame's edge until only a sliver
-                 shows. A geometry needs the measured size. -->
-            <Grid x:Name="PaneIconClip">
-              <Border x:Name="PaneDrawer" Width="10" HorizontalAlignment="Left"
-                      CornerRadius="3,0,0,3">
-                <!-- Frost, not colour: a lit white sheet against the frame's dimmer fill, so the drawer
-                     reads by brightness alone. -->
-                <Border.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Offset="0" Color="#A6FFFFFF"/>
-                    <GradientStop Offset="1" Color="#59FFFFFF"/>
-                  </LinearGradientBrush>
-                </Border.Background>
-                <Border.RenderTransform>
-                  <TranslateTransform x:Name="PaneDrawerShift" X="-7"/>
-                </Border.RenderTransform>
-              </Border>
-            </Grid>
-          </Border>
-        </Button>
-
-        <!-- Home, beside the pane pill and nowhere else. It is the one door into a view that is not the collection:
+        <!-- Home, at the outer left edge and nowhere else. It is the one door into a view that is not the collection:
              what has been listened to, and what the shelf suggests from that. It is not on the library's own rail,
              because it is not one more way to file the records. It asks the records a different question. The house
              icon is the usual mark for the place you start. -->
@@ -303,10 +269,18 @@
                     Foreground="#E6FFFFFF"/>
         </Button>
 
+        <!-- The search, beside home: the library search over the whole window, the same as Cmd or Ctrl+F. It is a
+             key and not a field, because the bar it opens is the field. -->
+        <Button x:Name="SearchPill" Style="{StaticResource DeckPill}" Click="SearchPill_Click"
+                Background="{StaticResource OnGlassBrush}"
+                ToolTipService.ToolTip="{loc:Str Key=Rpm_Search_Library}"
+                AutomationProperties.Name="{loc:Str Key=Rpm_Search_Library}">
+          <FontIcon Glyph="&#xf002;" FontFamily="{StaticResource Fa}" FontSize="13" Foreground="#E6FFFFFF"/>
+        </Button>
+
       </StackPanel>
 
-      <!-- Deck chrome on the RIGHT. The search field is not on the deck. It is in the library's own header, above
-           the list and the wall it filters. Read outward from the transport: the two chips that appear only while
+      <!-- Deck chrome on the RIGHT. Read outward from the transport: the two chips that appear only while
            something is happening, then cast, then the menu on the outer edge. So the pills that come and go never
            move the two that are always there. -->
       <StackPanel x:Name="DeckChrome" Grid.Column="2" Orientation="Horizontal" Spacing="10"

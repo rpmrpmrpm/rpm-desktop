@@ -13,6 +13,9 @@ namespace RPM.Desktop.Services.Platform;
 /// that record. A run with no <c>Closing</c> is never marked as handled. The crash harvest then reads it
 /// again at every launch, and it would file a native fault during shutdown as a crash.</para>
 ///
+/// <para>The rest of what a close does is missed in the same way: the session's last write, a staged update,
+/// the library being closed. So the app hands its end of run to <see cref="Then"/>, and it runs here too.</para>
+///
 /// <para>This observes <c>NSApplicationWillTerminateNotification</c>. AppKit posts it on the main thread
 /// before the process ends, which is Uno's UI thread on macOS.</para>
 /// </summary>
@@ -24,6 +27,20 @@ internal static class MacQuit
     {
         if (OperatingSystem.IsMacOS())
             Observer.Install();
+    }
+
+    /// <summary>The work to run when the app quits, after the closing record: the app's own end of run (see
+    /// <c>App.EndRun</c>). Set once, by the app, when its main window exists. A quit before that runs only
+    /// the record, which is all there is to do before there is a window.</summary>
+    private static Action? _then;
+
+    /// <summary>Runs <paramref name="work"/> on the main thread when the app quits through AppKit, before
+    /// the process ends. Does nothing off macOS.</summary>
+    public static void Then(Action work)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        if (OperatingSystem.IsMacOS())
+            Volatile.Write(ref _then, work);
     }
 
     /// <summary>One observer object for the life of the app. It is created at runtime as an NSObject
@@ -85,6 +102,10 @@ internal static class MacQuit
             // window and then quitting both reach this code.
             try { Scope.Closing(); }
             catch { /* A managed exception must never cross back into AppKit. */ }
+
+            // AppKit ends the process when this returns, so the work is done here and not posted.
+            try { Volatile.Read(ref _then)?.Invoke(); }
+            catch { /* The same: nothing may cross back into AppKit. */ }
         }
 
         [DllImport("/usr/lib/libobjc.dylib")]

@@ -69,6 +69,12 @@ public static class PlaylistCovers
     /// <summary> What one stored playlist is drawn as: the square at its head, and the wash that the page
     /// it opens stands on. Both are empty where none of its records can supply artwork. The caller then
     /// falls back to what it shows for a list with no picture.
+    ///
+    /// <para>Unanswered when nothing could be drawn and that is not known to be the list's answer: no library
+    /// open, the list could not be read, or a record's sleeve could not be read (the cloud or the computer
+    /// that holds it did not answer). A caller must not keep "no picture" for that. A list drawn while one of
+    /// its sleeves could not be read is still shown, but it is not kept in memory or on the disk, because it
+    /// is not the list's picture. It is asked for again on the next draw.</para>
     /// </summary>
     /// <param name="nodeId">The playlist's node. A nested reference asks under the node it points AT. So a
     /// list and a reference to it show the same picture.</param>
@@ -79,12 +85,12 @@ public static class PlaylistCovers
     /// automatic cover over a picture that the user chose. The result would look like a real picture, not
     /// like a fault.</param>
     /// <param name="shelf">Whose tree the node is in. No default. See <see cref="PlaylistShelf"/>.</param>
-    public static async Task<PlaylistArt.Drawn> MadeAsync(
+    public static async Task<Asked<PlaylistArt.Drawn>> MadeAsync(
         long nodeId, string name, PlaylistCover cover, PlaylistShelf shelf, CancellationToken ct)
     {
         var library = App.Services.GetRequiredService<LibraryService>();
         if (!library.IsOpen)
-            return PlaylistArt.Drawn.None;   // Not remembered. A closed library is a temporary state.
+            return Asked.Failed<PlaylistArt.Drawn>("no library is open");   // A closed library is a temporary state.
 
         var own = shelf is PlaylistShelf.Own;
 
@@ -92,7 +98,7 @@ public static class PlaylistCovers
         // deciding what it was drawing and this line. Nothing is a better answer than the user's own
         // playlist number three.
         if (!own && library.ViewingPeer is not { Length: > 0 })
-            return PlaylistArt.Drawn.None;
+            return Asked.Answer(PlaylistArt.Drawn.None);
 
         // One of the owner's generated lists, on their shelf. It wears that list's own picture, the same
         // one that GeneratedCover draws for it everywhere else. This is checked BEFORE the master, and
@@ -100,14 +106,14 @@ public static class PlaylistCovers
         // under node ids that the shelf reuses. If they were read first, one of those quilts would win over
         // the list's own picture.
         if (cover is PlaylistCover.Generated generated)
-            return await GeneratedCover.PageAsync(generated.Id, ct);
+            return Asked.Answer(await GeneratedCover.PageAsync(generated.Id, ct));
 
         // A picture the owner chose, from their computer. If it cannot be had (they are not on the network,
         // or the file is lost), the list falls through to the quilt below. That is the picture this side
         // can draw for itself. It is asked again on the next draw.
         if (!own && cover is PlaylistCover.ChosenByOwner
             && await ChosenAsync(nodeId, cover, shelf, ct) is { Length: > 0 } theirs)
-            return new PlaylistArt.Drawn(theirs, await Task.Run(() => ArtScaler.Wash(theirs), ct));
+            return Asked.Answer(new PlaylistArt.Drawn(theirs, await Task.Run(() => ArtScaler.Wash(theirs), ct)));
 
         var segment = PlaylistCoverStore.SegmentOf(shelf, library.Root, library.ViewingPeer);
 
@@ -115,13 +121,13 @@ public static class PlaylistCovers
         // replaced by the picker since this session last drew anything. A memo checked first would keep the
         // old picture until the next tree change.
         if (PlaylistCoverStore.Read(nodeId, segment) is { Cover: { Length: > 0 } kept } master)
-            return new PlaylistArt.Drawn(kept, master.Wash);
+            return Asked.Answer(new PlaylistArt.Drawn(kept, master.Wash));
 
         var key = own ? $":{nodeId}" : $"{library.ViewingPeer}:{nodeId}";
 
         lock (Drawn)
             if (Drawn.TryGetValue(key, out var keptDrawn))
-                return keptDrawn;
+                return Asked.Answer(keptDrawn);
 
         // A chosen list of records skips the flatten entirely. Sixty rows are walked to GUESS which four to
         // show. When somebody has said which four, there is nothing left to guess.
@@ -138,12 +144,12 @@ public static class PlaylistCovers
             if (await Cancellable.RunAsync(
                     () => library.Read(mirror, "a playlist's records for its cover",
                         m => m.FlattenPlaylistTracks(nodeId)), ct) is not { Ran: true, Value: { } asked })
-                return PlaylistArt.Drawn.None;   // nobody is waiting on this list any more
+                return Asked.Failed<PlaylistArt.Drawn>("cancelled");   // nobody is waiting on this list any more
 
-            // Unanswered is no picture. A refusal has put the problem screen up over the app. A closed
-            // mirror is followed by a Changed that draws the list again.
-            if (!asked.Answers(out var tracks, out _))
-                return PlaylistArt.Drawn.None;
+            // A refusal has put the problem screen up over the app. A closed mirror is followed by a Changed
+            // that draws the list again.
+            if (!asked.Answers(out var tracks, out var why))
+                return Asked.Failed<PlaylistArt.Drawn>(why);
 
             folders = [.. tracks
                 .Select(track => track.Folder)
@@ -153,6 +159,10 @@ public static class PlaylistCovers
         }
 
         var sleeves = new List<byte[]>(PlaylistArt.Sleeves);
+
+        // Why a record's sleeve could not be read, for the first one that could not. Null while every
+        // sleeve that was asked for has answered.
+        string? unread = null;
         foreach (var folder in folders)
         {
             if (sleeves.Count == PlaylistArt.Sleeves)
@@ -162,8 +172,14 @@ public static class PlaylistCovers
             // mirrors are not interchangeable, in either direction. A folder from the listener's own list
             // does not exist on the borrowed shelf that the window is browsing. A folder from a borrowed
             // list does not exist in the listener's own collection.
-            if (await AlbumCovers.LoadAsync(folder, ct, ArtScaler.TileEdge, ownCollection: own)
-                    is { Length: > 0 } sleeve)
+            if (!(await AlbumCovers.LoadAsync(folder, ct, ArtScaler.TileEdge, ownCollection: own))
+                    .Answers(out var sleeve, out var why))
+            {
+                unread ??= why;
+                continue;
+            }
+
+            if (sleeve is { Length: > 0 })
                 sleeves.Add(sleeve);
         }
 
@@ -173,7 +189,13 @@ public static class PlaylistCovers
         // that a figure is chosen for.
         if (await Cancellable.RunAsync(() => Render(cover, sleeves, name), ct)
                 is not { Ran: true, Value: { } made })
-            return PlaylistArt.Drawn.None;
+            return Asked.Failed<PlaylistArt.Drawn>("cancelled");
+
+        // A sleeve that could not be read means this is not the list's picture, only what could be drawn
+        // just now. It is shown, but it is not kept, so the next draw asks for the missing sleeve again. With
+        // nothing drawn at all, the list's answer is not known.
+        if (unread is not null)
+            return made.Cover is { Length: > 0 } ? Asked.Answer(made) : Asked.Failed<PlaylistArt.Drawn>(unread);
 
         if (!ct.IsCancellationRequested)
         {
@@ -188,7 +210,7 @@ public static class PlaylistCovers
                 PlaylistCoverStore.Write(nodeId, segment, drawnCover, made.Wash);
         }
 
-        return made;
+        return Asked.Answer(made);
     }
 
     /// <summary>

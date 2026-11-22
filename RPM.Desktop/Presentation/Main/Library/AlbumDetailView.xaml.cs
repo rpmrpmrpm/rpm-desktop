@@ -141,8 +141,14 @@ public sealed partial class AlbumDetailView : UserControl
     ///
     /// <para>It reads straight from the mirror, not through a loader. The page reads its own record from the
     /// library anyway, and one folder's rows is the same query that it already runs to draw the list.</para>
+    ///
+    /// <para><b>The read runs on a worker.</b> Every library read takes the one reading gate. On this same
+    /// signal the wall and the list read the cloud state of every record on the shelf, and that read holds
+    /// the gate for a few hundred milliseconds on a large shelf. A read on the UI thread would wait for all
+    /// of it, and the window would stop for that long on every cloud change while an album page has been
+    /// opened.</para>
     /// </summary>
-    public void RefreshTrackBadges()
+    public async void RefreshTrackBadges()
     {
         if (_folder.Length == 0 || TrackList.ItemsSource is not IReadOnlyList<AlbumTrackItem> lines)
             return;
@@ -151,9 +157,24 @@ public sealed partial class AlbumDetailView : UserControl
         if (!library.IsOpen || library.ShelfRoot is not { } root)
             return;
 
-        AlbumTrackItem.ApplyCloud(
-            lines, [.. library.Shelf.FolderTracks(_folder).Select(t => t.ToTrackInfo(root))],
-            Cloud.UploadsStopped, Shelf);
+        var folder = _folder;
+        var shelf = library.Shelf;
+        List<TrackInfo> tracks;
+        try
+        {
+            tracks = await Task.Run(() => shelf.FolderTracks(folder).Select(t => t.ToTrackInfo(root)).ToList());
+        }
+        catch
+        {
+            return;   // the marks stay as they are until the next cloud change
+        }
+
+        // The page can show another record by now, or the same record drawn again with new lines. The answer
+        // belongs to the lines it was read for, so it is applied only while those are still on the page.
+        if (!ReferenceEquals(TrackList.ItemsSource, lines) || !string.Equals(_folder, folder, StringComparison.Ordinal))
+            return;
+
+        AlbumTrackItem.ApplyCloud(lines, tracks, Cloud.UploadsStopped, Shelf);
         _lineBreath.Sync();
     }
 
@@ -202,15 +223,16 @@ public sealed partial class AlbumDetailView : UserControl
     {
         _loading?.Cancel();
 
-        // …and so is the sleeve read. The token above does not cover it. That read is stamped rather than
-        // cancelled (see PeelGround), and a stamp is only dropped by a newer one. If it kept running, it would
-        // land on a page nobody is looking at and re-dress it. The album just left would then give the window its
-        // colours from behind the page that replaced it.
+        // …and so are the stage's reads: the sleeve, the disc and the ground. The token above does not cover them.
+        // They are stamped rather than cancelled (see StageOpening), and a stamp is only dropped by a newer one. If
+        // they kept running, they would land on a page nobody is looking at and re-dress it. The album just left
+        // would then give the window its colours from behind the page that replaced it.
         _paint++;
 
         // The window goes back to its own backdrop as the page goes. The page's own layers are left standing,
         // because the page is fading out as a whole, and a ground peeled away under that fade would be seen
-        // leaving twice. What the page lent the app behind it is no longer about anything on screen.
+        // leaving twice. What the page lent the app behind it is no longer about anything on screen. The next
+        // record opened takes them down at once, before it is shown (see PeelStage).
         PageBackdrop.Closed(this);
     }
 
@@ -301,7 +323,7 @@ public sealed partial class AlbumDetailView : UserControl
         ShowCopyright(null);
         _ = FillCopyrightAsync(folder, _tracks);
 
-        LoadCover(root);
+        LoadCover(root, how);
         // A record marked classical, or one filed under Classical or Opera, is drawn as works and movements.
         // The work tags alone decide nothing (see AlbumTracklist.ClassicalByGenre). Every other record is a
         // plain numbered list.
@@ -1201,42 +1223,46 @@ public sealed partial class AlbumDetailView : UserControl
     /// <summary>Where one suggestion's bytes come from, and nothing else. They come from the picture in the folder
     /// on this disk, then from whoever holds the record. In the harness, a drawn one is used. What an empty answer
     /// MEANS is not decided here. See <see cref="Services.Art.CoverFill"/>.</summary>
-    private static async Task<byte[]?> SimilarSleeveAsync(
+    private static async Task<Asked<byte[]?>> SimilarSleeveAsync(
         string folder, string artist, string title, string root, CancellationToken ct)
     {
         if (folder.Length > 0)
         {
             var full = Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar));
             if (FolderArtWriter.FindFolderImage(full) is { } image)
-                return await Task.Run(() => ThumbCache.Get(File.ReadAllBytes(image), ArtScaler.TileEdge));
+                return Asked.Answer<byte[]?>(
+                    await Task.Run(() => ThumbCache.Get(File.ReadAllBytes(image), ArtScaler.TileEdge)));
 
             // No sleeve is under the folder. A borrowed shelf is a mirror with no music beneath it, so this is EVERY
             // suggestion on a shared library, not the odd record. An offloaded album of one's own has none either.
             // The page's own cover takes the other route in that case (see FillRemoteCoverAsync). Without this
             // fallback, the row of suggestions would read only the disk and draw blank squares.
-            return await RemoteSleeveForAsync(folder, artist, title, ct) is { Length: > 0 } bytes
-                ? await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge))
-                : null;
+            var remote = await RemoteSleeveForAsync(folder, artist, title, ct);
+            return remote.Answers(out var bytes, out _) && bytes is { Length: > 0 }
+                ? Asked.Answer<byte[]?>(await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge)))
+                : remote;
         }
 
         // The harness has no disk under its shelf, so it draws the sleeve in bytes. Otherwise every card in the row
         // would be blank.
-        return Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(artist, title)) : null;
+        return Asked.Answer(Mock ? await Task.Run(() => Gallery.GalleryArt.CoverPng(artist, title)) : null);
     }
 
     /// <summary>The sleeve of an album whose folder holds no picture. It comes from the computer that has the
     /// record, or from the store. One row of the shelf is enough to say which. See <see cref="RemoteSleeve"/>,
     /// which the page's own cover goes through for the same reason.</summary>
-    private static async Task<byte[]?> RemoteSleeveForAsync(
+    private static async Task<Asked<byte[]?>> RemoteSleeveForAsync(
         string folder, string artist, string title, CancellationToken ct)
     {
         var library = Library;
         if (!library.IsOpen)
-            return null;
+            return Asked.Failed<byte[]?>("no library is open");
 
-        if (await Cancellable.RunAsync(() => library.Shelf.FolderTracks(folder).FirstOrDefault(), ct)
-                is not { Ran: true, Value: { } row })
-            return null;
+        var read = await Cancellable.RunAsync(() => library.Shelf.FolderTracks(folder).FirstOrDefault(), ct);
+        if (!read.Ran)
+            return Asked.Failed<byte[]?>("cancelled");
+        if (read.Value is not { } row)
+            return Asked.Answer<byte[]?>(null);
 
         // Only for a record that is not on this disk. That means a borrowed one, or one of the reader's own that has
         // been offloaded. An album sitting here with no cover.jpg in its folder simply has no artwork. Asking the
@@ -1244,7 +1270,7 @@ public sealed partial class AlbumDetailView : UserControl
         // same test the page's own cover makes.
         var file = Path.Combine(library.ShelfRoot ?? "", row.RelativePath.Replace('/', Path.DirectorySeparatorChar));
         if (File.Exists(file))
-            return null;
+            return Asked.Answer<byte[]?>(null);
 
         return await RemoteSleeve.ForAsync(row, artist, title, ct);
     }
@@ -1279,39 +1305,53 @@ public sealed partial class AlbumDetailView : UserControl
             Load(folder, AlbumOpen.Fresh);
     }
 
-    private void LoadCover(string root)
+    /// <summary>
+    /// Starts the stage for the record in <see cref="_folder"/>: the sleeve, the disc behind it, and the ground
+    /// read from the sleeve. Each is read on its own clock and comes in when it is complete. See the map at the top
+    /// of AlbumDetailView.Surface.cs.
+    /// </summary>
+    private void LoadCover(string root, AlbumOpen how)
     {
-        // The last record's colours are not this one's, and they sit under the whole card. They are taken down
-        // before the new sleeve is even looked for. What arrives later paints over the peel.
-        PeelGround();
+        var opening = new StageOpening(++_paint, _folder, how is AlbumOpen.Fresh);
+
+        // The last record's pictures and colours are not this one's. They are taken down before the new sleeve is
+        // even looked for. A re-read of the same record keeps them up: what it reads replaces them in place, so a
+        // series named or a song deleted does not make the sleeve blink.
+        if (opening.Fresh)
+            PeelStage();
 
         var fullFolder = Path.Combine(root, _folder.Replace('/', Path.DirectorySeparatorChar));
 
-        // The record behind the sleeve runs on its own clock. It is a second file from the same folder, and it has
-        // nothing to wait for.
-        _ = LoadDiscAsync(fullFolder, _folder);
+        // The record behind the sleeve. It is read beside the sleeve and comes in after it (see StageOpening).
+        _ = LoadDiscAsync(fullFolder, opening);
 
         if (FolderArtWriter.FindFolderImage(fullFolder) is { } image)
         {
-            // The made sleeve is shown now, and the picture lands when the disk answers. The square is cleared, so it
-            // does not keep showing the record just closed. The fill sets the source itself, because the picture it
-            // sets is not the same object it started with. It is cut to size on its way past Skia.
-            Cover.Source = null;
-            ForgetStage(StagePicture.Sleeve);
+            // The picture lands when the disk answers. It is set by the fill itself, because the picture it sets is
+            // not the same object it started with. It is cut to size on its way past Skia.
             ShowMadeSleeve(false);
-            _ = FillCoverAsync(image, _folder);
+            _ = FillCoverAsync(image, opening);
             return;
         }
 
+        // A record that is not on this disk has no folder here to hold a cover.jpg. This covers a record that was
+        // offloaded, and one borrowed from another computer. Both the machine holding it and the store keep a sleeve
+        // per album for exactly that case. The made sleeve is NOT shown while it is asked for: most such records
+        // have a sleeve, and a made one that stands in for a moment looks like a different record. The dark square
+        // stands in, as it does for every record, and the box is filled with whichever the answer is.
+        if (_tracks.Count > 0 && _tracks[0] is { RpmId.Length: > 0 } first && !File.Exists(first.FilePath))
+        {
+            _ = FillRemoteCoverAsync(first, opening);
+            return;
+        }
+
+        // No artwork anywhere: the made sleeve, now. A re-read that finds the sleeve gone takes the picture down
+        // too, and the colours it gave the page.
         Cover.Source = null;
         ForgetStage(StagePicture.Sleeve);
         ShowMadeSleeve(true);
-
-        // A record that is not on this disk has no folder here to hold a cover.jpg. This covers a record that was
-        // offloaded, and one borrowed from another computer. Both the machine holding it and the store keep a sleeve
-        // per album for exactly that case. The placeholder stays until the sleeve arrives.
-        if (_tracks.Count > 0 && _tracks[0] is { RpmId.Length: > 0 } first && !File.Exists(first.FilePath))
-            _ = FillRemoteCoverAsync(first);
+        PutGround(null);
+        SleeveLands(opening, made: true);
     }
 
     /// <summary>
@@ -1320,113 +1360,130 @@ public sealed partial class AlbumDetailView : UserControl
     ///
     /// <para>Disc art is a folder file (disc.png, written at import or by the editor). There are two kinds of
     /// picture. A photographed CD is the whole record, with grooves, sheen, label and all. It replaces the drawn
-    /// disc. A vinyl label is the middle third of one. It is worn ON the pressing. The pressing stays, tinted by
-    /// <see cref="PressDiscAsync"/> like any other record's. Otherwise the label would hang in the air with nothing
-    /// behind it. Which kind this is comes from the picture itself (see <see cref="DiscStamp.Covers"/>). The deck
-    /// follows the same rule for the record that is playing.</para>
+    /// disc. A vinyl label is the middle third of one. It is worn ON the pressing. The pressing stays, tinted like
+    /// any other record's. Otherwise the label would hang in the air with nothing behind it. Which kind this is
+    /// comes from the picture itself (see <see cref="DiscStamp.Covers"/>). The deck follows the same rule for the
+    /// record that is playing.</para>
     ///
-    /// <para>The black pressing stays until <see cref="PressDiscAsync"/> has a sleeve to take a colour from. It is
-    /// not a placeholder for the scan. A folder with no disc.png has no scan coming, and the pressing is the answer
-    /// there. It is also not painted over a colour that has already landed. The two reads race, and which of them is
-    /// the slower one depends on what the folder holds.</para>
+    /// <para>The pressing is the app's own record in the sleeve's colour. It is the same disc that the deck, the
+    /// header and the visualizer press, from the same hue, so a record looks like itself wherever the app draws
+    /// it. A sleeve with no colour in it, and a record with no sleeve, press black. The press waits for the
+    /// sleeve's bytes and is made once, so the reader never sees a black record turn to a colour.</para>
+    ///
+    /// <para>Everything is read and cut first, and written to the three layers in one turn, after the sleeve is
+    /// on the page (see <see cref="StageOpening"/>). This is the only method that writes the disc, so a scan and a
+    /// press have no race to settle.</para>
     /// </summary>
-    /// <param name="opened">The folder this load was started for. The page may have moved to another record by the
-    /// time the disk answers. A disc from the last record painting over this one is the one failure that this must
-    /// not allow.</param>
-    private async Task LoadDiscAsync(string fullFolder, string opened)
+    private async Task LoadDiscAsync(string fullFolder, StageOpening opening)
     {
-        _discIsWholeScan = false;
-        _pressedFolder = null;
-        CoverDiscScan.Opacity = 0;
-        CoverCdDress.Opacity = 0;
-        CoverDisc.Opacity = 1;
-
-        // The last record's disc pictures are not cut again for this one.
-        ForgetStage(StagePicture.DiscScan);
-        ForgetStage(StagePicture.Pressing);
-
         try
         {
-            var scan = await Task.Run(() => DiscScan(fullFolder));
-
-            if (!ReferenceEquals(_folder, opened) && _folder != opened)
+            var scan = await ScanAsync(fullFolder, opening);
+            if (!Current(opening))
                 return;
 
-            // Nothing is on this disk. For a BORROWED record, that is not the same as having no disc art. The folder
-            // is on the computer that holds it, and so is the picture. It is asked only when the disk had nothing, so
-            // a record of this collection's own never touches the network for it.
-            if (scan is null)
-            {
-                scan = await BorrowedDiscAsync();
-                if (_folder != opened)
-                    return;
-            }
-
-            // No disc art anywhere. The plain CD stands in when the listener chose it, cut the same way as a
-            // folder's disc.png (see BlankDisc).
-            if (scan is null && await BlankDisc.StandInAsync() is { } blank)
-            {
-                scan = await Task.Run(() => DiscStamp.Round(ThumbCache.Get(blank, ArtScaler.TileEdge), vinyl: false));
-                if (_folder != opened)
-                    return;
-            }
-
+            // The scan as it will be drawn, and the picture it was cut from. Both are null where there is no scan, or
+            // where it will not decode.
+            var edge = StageEdge();
+            BitmapImage? scanned = null;
+            DiscPicture? drawn = null;
             if (scan is { Bytes.Length: > 0 } picture)
             {
-                // Cut to exactly the size the record is drawn at, the same way as the sleeve in front of it. See
-                // RemoteImage.DecodeArtAsync, and StageEdge for which size.
-                var edge = StageEdge();
-                var disc = await RemoteImage.DecodeArtAsync(picture.Bytes, edge);
-
-                // This is asked again on the far side of the cut. It takes two more turns of the dispatcher, and the
-                // reader can open another record in the meantime.
-                if (_folder != opened)
-                    return;
-
-                CoverDiscScan.Source = disc;
-                ShownOnStage(StagePicture.DiscScan, new StageCut(opened, picture.Bytes, edge));
-                CoverDiscScan.Opacity = 1;
-
-                // A whole record covers the pressing, and the pressing goes down with it. Otherwise it would show through
-                // the spindle hole that the stamp punched. A label leaves the pressing standing. The press below then
-                // tints it in the sleeve's own colour.
-                _discIsWholeScan = picture.CoversRecord;
-                CoverDisc.Opacity = picture.CoversRecord ? 0 : 1;
-                CoverCdDress.Opacity = picture.CoversRecord ? 1 : 0;
-                if (picture.CoversRecord)
-                    return;
+                try
+                {
+                    // Cut to exactly the size the record is drawn at, the same way as the sleeve in front of it. See
+                    // RemoteImage.DecodeArtAsync, and StageEdge for which size.
+                    scanned = await RemoteImage.DecodeArtAsync(picture.Bytes, edge);
+                    drawn = picture;
+                }
+                catch
+                {
+                    // A scan that will not decode leaves the pressing as the record.
+                }
             }
+
+            // A whole CD covers the pressing, so none is made for it. A label is worn on one.
+            var whole = drawn is { CoversRecord: true };
+            var pressing = whole ? null : await PressingAsync(opening);
+            if (!Current(opening))
+                return;
+
+            // The disc stands behind the sleeve, so it comes in after it. A record alone on the stage, covered a
+            // moment later by its sleeve, would look like two things arriving.
+            await opening.Landed;
+            if (!Current(opening))
+                return;
+
+            CoverDiscScan.Source = scanned;
+            CoverDiscScan.Opacity = scanned is null ? 0 : 1;
+            if (drawn is { } shown)
+                ShownOnStage(StagePicture.DiscScan, new StageCut(opening.Folder, shown.Bytes, edge));
+            else
+                ForgetStage(StagePicture.DiscScan);
+
+            // The even rim, the rpm hub and the spindle go over a whole CD only.
+            CoverCdDress.Opacity = whole ? 1 : 0;
+
+            // A whole CD takes the pressing down with it. Otherwise the pressing would show through the spindle hole
+            // that the stamp punched.
+            CoverDisc.Source = pressing?.Picture;
+            CoverDisc.Opacity = pressing is null ? 0 : 1;
+            if (pressing is { } pressed)
+                ShownOnStage(StagePicture.Pressing, pressed.Cut);
+            else
+                ForgetStage(StagePicture.Pressing);
+
+            DiscFade.To(1, Seen(GroundFadeMs));
         }
         catch
         {
-            // Decoration. A disc that will not read leaves the pressing below in its place.
-        }
-
-        // Black stays until a sleeve gives a colour, and only until then. This read and the press next door start
-        // together (see LoadCover). They finish on their own clocks, so the press may already have landed by the time
-        // this gets here. A label scan makes this the slow one. A folder with no disc art makes it the fast one. The
-        // check is made on what is on the record, not on how long anything took.
-        if (_folder != opened || _pressedFolder == opened)
-            return;
-
-        // As bytes, so it is cut to the size it is drawn at, like the other two pictures.
-        if (await VinylPressing.PressBlackBytesAsync() is not { } blackBytes)
-            return;
-
-        var blackEdge = StageEdge();
-        var black = await RemoteImage.DecodeArtAsync(blackBytes, blackEdge);
-
-        // Asked again after the cut. The press next door may have landed while it ran.
-        if (_folder == opened && _pressedFolder != opened)
-        {
-            CoverDisc.Source = black;
-            ShownOnStage(StagePicture.Pressing, new StageCut(opened, blackBytes, blackEdge));
+            // Decoration. A disc that will not read leaves the sleeve on the stage alone.
         }
     }
 
-    /// <summary>The record whose own colour is on the disc, or null while it is still the house black. It is
-    /// written where the press lands, so it is what the disc IS wearing.</summary>
-    private string? _pressedFolder;
+    /// <summary>The disc art for the record: the folder's own, then the art on the computer that holds a borrowed
+    /// record, then the plain CD where the listener chose it as the stand-in. Null where there is none.</summary>
+    private async Task<DiscPicture?> ScanAsync(string fullFolder, StageOpening opening)
+    {
+        var scan = await Task.Run(() => DiscScan(fullFolder));
+
+        // Nothing is on this disk. For a BORROWED record, that is not the same as having no disc art. The folder is
+        // on the computer that holds it, and so is the picture. It is asked only when the disk had nothing, so a
+        // record of this collection's own never touches the network for it.
+        if (scan is null && Current(opening))
+            scan = await BorrowedDiscAsync();
+
+        // No disc art anywhere. The plain CD stands in when the listener chose it, cut the same way as a folder's
+        // disc.png (see BlankDisc).
+        if (scan is null && Current(opening) && await BlankDisc.StandInAsync() is { } blank)
+            scan = await Task.Run(() => DiscStamp.Round(ThumbCache.Get(blank, ArtScaler.TileEdge), vinyl: false));
+
+        return scan;
+    }
+
+    /// <summary>
+    /// The pressing for this record, cut to the size it is drawn at: the app's record in the sleeve's colour, or
+    /// black where the sleeve has no colour in it or there is no sleeve. Null where the record's picture will not
+    /// load, or the page has moved on.
+    /// </summary>
+    private async Task<(BitmapImage Picture, StageCut Cut)?> PressingAsync(StageOpening opening)
+    {
+        var sleeve = await opening.Sleeve;
+        if (!Current(opening))
+            return null;
+
+        var hue = sleeve is null ? null : await Task.Run(() => VinylPressing.HueFromArt(sleeve));
+        var bytes = (hue is { } colour ? await VinylPressing.PressBytesAsync(colour) : null)
+                    ?? await VinylPressing.PressBlackBytesAsync();
+        if (bytes is null || !Current(opening))
+            return null;
+
+        // As bytes, so it is cut to the size it is drawn at with the smooth bicubic, and not shrunk from the
+        // 1024-pixel render by the renderer. See RemoteImage.DecodeArtAsync.
+        var edge = StageEdge();
+        var picture = await RemoteImage.DecodeArtAsync(bytes, edge);
+        return (picture, new StageCut(opening.Folder, bytes, edge));
+    }
 
     /// <summary>
     /// The folder's disc art, cut down and cut OUT: a round record with a hole in it, whatever kind of
@@ -1484,55 +1541,8 @@ public sealed partial class AlbumDetailView : UserControl
         return thumb is { Length: > 0 } ? DiscStamp.Round(thumb, vinyl: false) : null;
     }
 
-    /// <summary>
-    /// The app's pressing in the sleeve's own colour, once a sleeve has landed.
-    ///
-    /// <para>It is the same disc that the deck, the header and the visualizer press, from the same hue. So a record
-    /// looks like itself wherever the app draws it. A sleeve with no colour in it presses nothing, and keeps the black
-    /// already on screen.</para>
-    ///
-    /// <para>It does nothing where the album brought its own scan. A photograph of the actual record beats a render
-    /// of the app's. A hue pressed over it would throw away the better picture that the page already found.</para>
-    /// </summary>
-    private async Task PressDiscAsync(byte[] coverBytes, string opened)
-    {
-        if (_discIsWholeScan)
-            return;
-
-        try
-        {
-            var hue = await Task.Run(() => VinylPressing.HueFromArt(coverBytes));
-            if (hue is not { } colour || _discIsWholeScan || _folder != opened)
-                return;
-
-            // As bytes, so it is cut to the size it is drawn at, with the smooth bicubic. It is not shrunk from the
-            // 1024-pixel render by the renderer. See RemoteImage.DecodeArtAsync.
-            if (await VinylPressing.PressBytesAsync(colour) is not { } bytes || _discIsWholeScan || _folder != opened)
-                return;
-
-            var edge = StageEdge();
-            var pressed = await RemoteImage.DecodeArtAsync(bytes, edge);
-
-            if (_discIsWholeScan || _folder != opened)
-                return;
-
-            CoverDisc.Source = pressed;
-            _pressedFolder = opened;
-            ShownOnStage(StagePicture.Pressing, new StageCut(opened, bytes, edge));
-        }
-        catch
-        {
-            // Decoration, again: the black pressing stays.
-        }
-    }
-
-    /// <summary>Whether the disc on screen is the album's own scan of the WHOLE record. It stops a late hue press
-    /// from painting the app's render over a photograph of the actual record. It is false for a label scan. A label
-    /// is worn on the pressing, and that pressing is tinted like every other record's.</summary>
-    private bool _discIsWholeScan;
-
     /// <summary>The made sleeve and the disc over it are shown or hidden together. One call does both, rather than
-    /// two assignments at each of the three places where a cover is settled. They are one state: this record has no
+    /// two assignments at each place where a cover is settled. They are one state: this record has no
     /// artwork. Two lines can be forgotten, and one line cannot.</summary>
     private void ShowMadeSleeve(bool show)
     {
@@ -1548,7 +1558,14 @@ public sealed partial class AlbumDetailView : UserControl
             CoverFigure.Background = Converters.SleeveFigureConverter.For(_folder);
     }
 
-    private async Task FillRemoteCoverAsync(TrackInfo track)
+    /// <summary>
+    /// The sleeve of a record that is not on this disk, from the computer that holds it or from the store.
+    ///
+    /// <para>A fresh record whose sleeve could not be fetched comes in with the made sleeve, as a record with no
+    /// artwork does. A re-read leaves the sleeve that is up. Nothing is kept, so the next visit to the page asks
+    /// again.</para>
+    /// </summary>
+    private async Task FillRemoteCoverAsync(TrackInfo track, StageOpening opening)
     {
         try
         {
@@ -1556,63 +1573,70 @@ public sealed partial class AlbumDetailView : UserControl
             // TrackInfo carries, and it decides where the sleeve is asked for.
             if (!Library.IsOpen || Library.Shelf.FindByRpmId(track.RpmId!) is not { } row) return;
 
-            if (await RemoteSleeve.ForAsync(row, track.Artist, track.Album)
-                is not { Length: > 0 } bytes) return;
+            if (!(await RemoteSleeve.ForAsync(row, track.Artist, track.Album)).Answers(out var bytes, out _)
+                || bytes is not { Length: > 0 }) return;
 
             // The page may have moved to another record while this was in the air.
-            if (_tracks.Count == 0 || !ReferenceEquals(_tracks[0], track)) return;
+            if (!Current(opening)) return;
 
-            ShowSleeveGroundAsync(bytes);
-            _ = PressDiscAsync(bytes, _folder);
-
-            var thumb = await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge));
-
-            // Cut to exactly the size it is drawn at, with the smooth bicubic. See StageEdge.
-            var edge = StageEdge();
-            var sleeve = await RemoteImage.DecodeArtAsync(thumb, edge);
-
-            // This is checked again on the far side of the cut, for the same reason as the check above.
-            if (_tracks.Count == 0 || !ReferenceEquals(_tracks[0], track)) return;
-
-            Cover.Source = sleeve;
-            ShownOnStage(StagePicture.Sleeve, new StageCut(_folder, thumb, edge));
-            ShowMadeSleeve(false);
+            await DressSleeveAsync(bytes, opening);
         }
-        catch { /* Decoration. The square stays empty rather than failing the page. */ }
+        catch { /* Decoration. The made sleeve stands in rather than failing the page. */ }
+        finally
+        {
+            SleeveLands(opening, made: true);
+        }
     }
 
-    /// <param name="opened">The folder this read was started for. A twelve-megabyte scan takes a while to read from
-    /// disk, and the reader can open another record in that time. The sleeve now lands ON the page, not in a bitmap
-    /// that the page has already let go of. So the record just left has to be stopped here, or it paints over the one
-    /// being looked at. This is the same guard, for the same reason, as in <see cref="LoadDiscAsync"/>.</param>
-    private async Task FillCoverAsync(string path, string opened)
+    /// <summary>The folder's own sleeve, read from this disk.</summary>
+    private async Task FillCoverAsync(string path, StageOpening opening)
     {
         try
         {
-            // One read from the disk, two uses. The square in the rail needs the sleeve's detail, and the ground under
-            // the card needs its colour. Reading the file twice would mean decoding a scan that can be twelve megabytes
-            // twice.
+            // One read from the disk, three uses: the sleeve's detail for the box, its colour for the ground, and its
+            // hue for the disc. Reading the file more than once would mean decoding a scan that can be twelve
+            // megabytes more than once.
             var bytes = await Task.Run(() => File.ReadAllBytes(path));
-            ShowSleeveGroundAsync(bytes);
+            if (!Current(opening)) return;
 
-            // The folder this read was for is used, not whatever the page shows by now. The hue belongs to this sleeve.
-            // Pressed onto a record opened since, it would be the wrong colour on the right disc.
-            _ = PressDiscAsync(bytes, opened);
-
-            var thumb = await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge));
-
-            // Cut to exactly the size it is drawn at, with the smooth bicubic, before anything is decoded. See
-            // RemoteImage.DecodeArtAsync, and StageEdge for which size.
-            var edge = StageEdge();
-            var sleeve = await RemoteImage.DecodeArtAsync(thumb, edge);
-
-            if (_folder != opened)
-                return;
-
-            Cover.Source = sleeve;
-            ShownOnStage(StagePicture.Sleeve, new StageCut(opened, thumb, edge));
+            await DressSleeveAsync(bytes, opening);
         }
         catch { /* Decoration. The square stays empty rather than failing the page. */ }
+        finally
+        {
+            SleeveLands(opening, made: false);
+        }
+    }
+
+    /// <summary>
+    /// Cuts the sleeve for the box and reads the ground from it, side by side, and puts both on the page in ONE
+    /// turn, so the sleeve and the colours it gives the page come in together. The box itself is brought in by
+    /// <see cref="SleeveLands"/>, which the caller runs straight after, in the same turn.
+    /// </summary>
+    /// <param name="opening">The opening this sleeve was read for. The bytes are handed to it at once, so the disc
+    /// is pressed in their colour while the cut is made.</param>
+    private async Task DressSleeveAsync(byte[] bytes, StageOpening opening)
+    {
+        opening.Read(bytes);
+
+        var ground = ReadGroundAsync(bytes);
+        var thumb = await Task.Run(() => ThumbCache.Get(bytes, ArtScaler.TileEdge));
+
+        // Cut to exactly the size it is drawn at, with the smooth bicubic, before anything is decoded. See
+        // RemoteImage.DecodeArtAsync, and StageEdge for which size.
+        var edge = StageEdge();
+        var sleeve = await RemoteImage.DecodeArtAsync(thumb, edge);
+        var dress = await ground;
+
+        // Checked on the far side of both reads. The reader can open another record during either.
+        if (!Current(opening))
+            return;
+
+        Cover.Source = sleeve;
+        ShownOnStage(StagePicture.Sleeve, new StageCut(opening.Folder, thumb, edge));
+        ShowMadeSleeve(false);
+        opening.Pictured = true;
+        PutGround(dress);
     }
 
     /// <summary>

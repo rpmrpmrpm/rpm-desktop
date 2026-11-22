@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Radio;
 using RPM.Core.Threading;
+using RPM.Core.Viz;
 using RPM.Desktop.Presentation.Main.Home;
 using RPM.Desktop.Presentation.Main.LeftPane.Models;
 using RPM.Desktop.Services.Audio;
@@ -701,7 +702,7 @@ public sealed partial class PegasusChrome
             // asked again by the next build, which is the next reading.
             // The mark's main colour is read with the room: an essential card's picture is washed in it.
             if (answer.Answers(out var mark, out _) && mark is { Length: > 0 }
-                && await Cancellable.RunAsync(() => (Room: CoverRoom.Of(mark), Tint: CoverColor.Dominant(mark)), ct)
+                && await Cancellable.RunAsync(() => (Room: CoverRoom.Of(mark, RoomLight.Stage), Tint: CoverColor.Dominant(mark)), ct)
                     is { Ran: true, Value: var painted }
                 && !ct.IsCancellationRequested)
             {

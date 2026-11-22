@@ -348,8 +348,8 @@ public sealed partial class PegasusChrome
             if (!stillWanted())
                 return;
             var edge = CardDecodeEdgeFor(card.Edge);
-            var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
-            if (bytes is not { Length: > 0 } || !stillWanted())
+            if (!(await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge)).Answers(out var bytes, out _)
+                || bytes is not { Length: > 0 } || !stillWanted())
                 return;
             var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
             if (stillWanted())
@@ -869,8 +869,8 @@ public sealed partial class PegasusChrome
                 if (!stillWanted())
                     return;
                 var edge = CardDecodeEdgeFor(64 * QueueScale);
-                var bytes = await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge);
-                if (bytes is not { Length: > 0 } || !stillWanted())
+                if (!(await AlbumCovers.LoadForSquareAsync(folder, CancellationToken.None, edge)).Answers(out var bytes, out _)
+                    || bytes is not { Length: > 0 } || !stillWanted())
                     return;
                 var bitmap = await RemoteImage.DecodeArtAsync(bytes, edge);
                 if (stillWanted())
@@ -1139,8 +1139,10 @@ public sealed partial class PegasusChrome
                 var bytes = door switch
                 {
                     ListCoverDoor.Generated generated => await GeneratedCover.SquareAsync(generated.Id, CancellationToken.None),
+                    // Nothing is kept for a picture that could not be drawn, so the next build asks again.
                     ListCoverDoor.Kept kept => (await PlaylistCovers.MadeAsync(
-                        kept.NodeId, kept.Name, kept.Cover, kept.Shelf, CancellationToken.None)).Cover,
+                        kept.NodeId, kept.Name, kept.Cover, kept.Shelf, CancellationToken.None))
+                        .Answers(out var drawn, out _) ? drawn.Cover : null,
                     _ => null,
                 };
                 if (bytes is not { Length: > 0 } || read != _artistPageRead)

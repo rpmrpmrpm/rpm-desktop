@@ -262,12 +262,49 @@ public sealed partial class PlaylistView : UserControl
             return;
         }
 
-        var flyout = BuildMenu(item);
+        var flyout = CloudPickFor(item) is { } pick ? BuildCloudPickMenu(pick) : BuildMenu(item);
         if (e.TryGetPosition(sender, out var pos))
             flyout.ShowAt(sender, new FlyoutShowOptions { Position = pos });
         else
             flyout.ShowAt((FrameworkElement)sender);
         e.Handled = true;
+    }
+
+    /// <summary>The cloud entries for the selection, when the right-clicked row is part of a selection
+    /// of several playlists. Null when the menu is for that row alone. Nothing is offered on a borrowed
+    /// shelf, whose rows belong to another computer (see <see cref="BuildMenu"/>).</summary>
+    private PlaylistCloudPick? CloudPickFor(PlaylistTreeItem clicked)
+    {
+        if (Model is not { IsBorrowed: false })
+            return null;
+
+        var selected = Tree.SelectedItems.OfType<PlaylistTreeItem>().ToList();
+        return PlaylistCloudPick.For(
+            [.. selected.Select(r => new PlaylistCloudPick.Row(r.NodeId, r.CanAddToCloud, r.CanRemoveFromCloud))],
+            clickedIsSelected: selected.Contains(clicked));
+    }
+
+    /// <summary>
+    /// The menu for a selection of several playlists: only the cloud entries. The single-row entries
+    /// (rename, cover, delete) are about one playlist and are not offered, as a file browser offers only
+    /// what applies to every selected file.
+    /// </summary>
+    private MenuFlyout BuildCloudPickMenu(PlaylistCloudPick pick)
+    {
+        var m = Model!;
+        var flyout = new MenuFlyout();
+
+        // Disabled while the store is full, as the single-row entry is.
+        if (pick.ToAdd.Count > 0)
+            flyout.Items.Add(Item(Loc.Format(pick.AddKey, pick.ToAdd.Count), GlyphCloudUp,
+                () => m.AddPlaylistsToCloud(pick.ToAdd, $"{pick.ToAdd.Count} playlists"),
+                enabled: App.Services.GetRequiredService<CloudSyncService>().CanUpload));
+
+        if (pick.ToRemove.Count > 0)
+            flyout.Items.Add(Item(Loc.Format(pick.RemoveKey, pick.ToRemove.Count), GlyphCloudOff,
+                () => m.RemovePlaylistsFromCloud(pick.ToRemove, $"{pick.ToRemove.Count} playlists")));
+
+        return flyout;
     }
 
     private MenuFlyout BuildMenu(PlaylistTreeItem item)
@@ -679,6 +716,13 @@ public sealed partial class PlaylistView : UserControl
         // A press that did not move is a click, and a click on a row opens it.
         if (!dragged)
         {
+            // Unless Cmd, Ctrl or Shift is held. Then the click adds to or extends the selection, which the
+            // list has already done on the press, so that the menu can act on several playlists. Opening the
+            // row would slide the tree away from the selection being made. HeldKeys reads the keyboard
+            // itself, so a Cmd whose key-up went to another app does not count.
+            if ((HeldKeys.Now & (Modifier.Shift | Modifier.Control | Modifier.Command)) != Modifier.None)
+                return;
+
             // Except the app's own folders, which hold lists and not songs: there is nothing to open in
             // detail, so a click on one does what its chevron does. This applies on both shelves; see
             // PlaylistTreeItem.IsAppFolder.
@@ -1110,11 +1154,13 @@ public sealed partial class PlaylistView : UserControl
 
                 // Drawn in the same place as every surface that shows a playlist, so the picture at the head of
                 // this list and the picture on an artist's shelf are the same picture.
+                // A picture that could not be drawn is shown as none. The page keeps nothing, so opening
+                // the list again asks again.
                 PlaylistRowKind.Playlist or PlaylistRowKind.Ref when NodeOf(kind) is { } node
-                    => await PlaylistCovers.MadeAsync(
+                    => (await PlaylistCovers.MadeAsync(
                         node, detail.Name, CoverOf(node, borrowed),
                         borrowed ? PlaylistShelf.Borrowed : PlaylistShelf.Own,
-                        CancellationToken.None),
+                        CancellationToken.None)).Answers(out var made, out _) ? made : PlaylistArt.Drawn.None,
 
                 _ => PlaylistArt.Drawn.None,
             };
@@ -1273,17 +1319,10 @@ public sealed partial class PlaylistView : UserControl
         }
     }
 
-    /// <summary>The library search's box in this view's heading. The page wires it with the other views'
-    /// boxes: one search for the whole collection.</summary>
-    internal Search.LibrarySearchBox SearchBox => LibrarySearchSlot;
-
     /// <summary>The heading's keys, which the page slides clear of the spinning record as it does the
     /// library header's (MainPage.UpdateChromeAvoidance), and their slide.</summary>
     internal FrameworkElement Chrome => PlaylistChrome;
     internal Microsoft.UI.Xaml.Media.TranslateTransform ChromeShift => PlaylistChromeShift;
-
-    /// <summary>The heading's row of controls, whose right edge the search's panel reaches to.</summary>
-    internal FrameworkElement SearchRow => (FrameworkElement)LibrarySearchSlot.Parent;
 
     /// <summary>
     /// Opens one playlist's tracklist from outside this view. The artist page's shelf of playlists
@@ -1477,7 +1516,9 @@ public sealed partial class PlaylistView : UserControl
         _detailItem = null;
         _detailFrom = PlaylistFrom.Elsewhere;
         _detailRows = Array.Empty<PlaylistTrackRow>();
-        Tree.SelectedItem = null;   // so that clicking the same playlist again opens it again
+        // So that clicking the same playlist again opens it again. Every selected row is cleared, not only
+        // the first: the tree allows a selection of several.
+        Tree.SelectedItems.Clear();
 
         // The tree is not a page and has no colours of its own, so the window takes back its wallpaper.
         // This is done here and only here: a view left under a fade still holds the ground it showed, and

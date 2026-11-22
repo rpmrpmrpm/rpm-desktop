@@ -199,6 +199,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => true,
             ask: async _ => { Interlocked.Increment(ref probes); await release.Task; return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
@@ -233,6 +234,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => { Interlocked.Increment(ref probes); return Task.FromResult(false); },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
@@ -268,6 +270,7 @@ public class GateUnderLoadTests
             // each finds the answer already measured again and honestly retires it. The test would then pin
             // the scheduler instead of the coalescing.
             ask: async _ => { Interlocked.Increment(ref probes); await Task.Delay(60); return true; },
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         // The ten are held at the far end until all ten are there, so that they fail together the
@@ -332,6 +335,7 @@ public class GateUnderLoadTests
         var reach = new NetworkReach(
             hasNetwork: () => false,
             ask: _ => Task.FromResult(false),
+            pace: StubPace.Steady,
             now: () => DateTimeOffset.UtcNow);
 
         var inner = new Counting();
@@ -349,5 +353,26 @@ public class GateUnderLoadTests
         // The retries would sleep for a dozen seconds. The bound is well below that, and well above what the first
         // request through a new HttpClient costs on a slow, busy test machine.
         Assert.True(started.ElapsedMilliseconds < 5000, $"the refusal took {started.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>The storage client never reuses a connection. Reusing one races the storage service's own
+    /// idle close (an upload then fails), and a pool that closes connections early throws inside .NET for
+    /// each one, which stops the runtime under a debugger. See <see cref="Wire.Storage"/>.</summary>
+    [Fact]
+    public void The_storage_client_asks_for_every_connection_to_be_closed()
+    {
+        using var storage = Wire.Storage(TimeSpan.FromSeconds(30));
+
+        Assert.True(storage.DefaultRequestHeaders.ConnectionClose);
+    }
+
+    /// <summary>The API's client keeps its connections, which is what keeps the number of them down. Only
+    /// the storage client gives that up.</summary>
+    [Fact]
+    public void The_api_client_keeps_its_connections()
+    {
+        using var api = Wire.OutsideRetrying(Destination.Unaddressed, TimeSpan.FromSeconds(30));
+
+        Assert.NotEqual(true, api.DefaultRequestHeaders.ConnectionClose);
     }
 }

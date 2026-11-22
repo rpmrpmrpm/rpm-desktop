@@ -585,7 +585,7 @@ public sealed partial class ArtistWallView : UserControl
     /// which dirties nothing. The boxes are dealt into a new column count once, and slide there. See
     /// <see cref="TileGridMove"/>, which the genre wall and the playlists' tiles use too.
     ///
-    /// <para>WinUI only. On the Skia head the wall keeps re-flowing every frame.</para>
+    /// <para>Both heads. See <see cref="TileGridMove"/> for how each one draws it.</para>
     /// </remarks>
     public void BeginLiveResize() => _move.Begin();
 

@@ -767,17 +767,26 @@
               -->
           <Grid x:Name="CoverBox" HorizontalAlignment="Left" VerticalAlignment="Center"
                 ContextRequested="Cover_ContextRequested">
-            <Border CornerRadius="8" Background="#33000000"/>
-            <!-- No cover: the made picture, filled and shown by LoadCover alongside the disc. It is
-                under the sleeve, not over it, so a cover that arrives late (offloaded, or borrowed from
-                another computer) simply paints across it.
+            <!-- The dark square the sleeve sits on. It is outside the faded group, so it is on the
+                stage from the first frame, the same for every record, while the sleeve is read.
                 -->
-            <Border x:Name="CoverFigure" CornerRadius="8" IsHitTestVisible="False" Visibility="Collapsed"/>
-            <Border CornerRadius="8">
-              <Image x:Name="Cover" Stretch="UniformToFill"/>
-            </Border>
-            <FontIcon x:Name="CoverPlaceholder" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
-                      FontSize="40" Foreground="#4DFFFFFF"/>
+            <Border CornerRadius="8" Background="#33000000"/>
+
+            <!-- What the box holds: the sleeve, or the made sleeve where the record has none. One group,
+                faded in code (SleeveFade), so whichever of the two arrives comes in the same way.
+                -->
+            <Grid x:Name="CoverFace">
+              <!-- No cover: the made picture, filled and shown where the record has no artwork (see
+                  LoadCover and SleeveLands). It is under the sleeve, not over it, so a cover that arrives
+                  on a re-read simply paints across it.
+                  -->
+              <Border x:Name="CoverFigure" CornerRadius="8" IsHitTestVisible="False" Visibility="Collapsed"/>
+              <Border CornerRadius="8">
+                <Image x:Name="Cover" Stretch="UniformToFill"/>
+              </Border>
+              <FontIcon x:Name="CoverPlaceholder" Glyph="&#xf51f;" FontFamily="{StaticResource Fa}"
+                        FontSize="40" Foreground="#4DFFFFFF"/>
+            </Grid>
           </Grid>
         </Grid>
 

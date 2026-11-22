@@ -310,12 +310,17 @@ public sealed partial class RPaMpView
 
         try
         {
-            var bytes = await AlbumCovers.LoadForSquareAsync(folder, cancel.Token, LibArtEdge);
+            var asked = await AlbumCovers.LoadForSquareAsync(folder, cancel.Token, LibArtEdge);
 
             // Is this still the record on screen? The stored folder is checked, not the cancellation token.
             // A read that finished just before the cancellation can still hold a valid picture, but of the
             // wrong album.
             if (_libArtFolder != folder)
+                return;
+
+            // A cover that could not be read is not "no cover". The square keeps what it shows, and the next
+            // time this record is shown it is read again.
+            if (!asked.Answers(out var bytes, out _))
                 return;
 
             if (bytes is not { Length: > 0 })

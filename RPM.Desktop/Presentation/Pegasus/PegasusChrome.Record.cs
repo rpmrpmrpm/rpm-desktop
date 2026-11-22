@@ -1732,8 +1732,8 @@ public sealed partial class PegasusChrome
 
         try
         {
-            if (await AlbumCovers.LoadAsync(card.Folder, CancellationToken.None, edge)
-                is not { Length: > 0 } bytes)
+            if (!(await AlbumCovers.LoadAsync(card.Folder, CancellationToken.None, edge)).Answers(out var bytes, out _)
+                || bytes is not { Length: > 0 })
                 return;
 
             var bitmap = await DecodeArtAsync(bytes, edge);

@@ -474,4 +474,56 @@ public class GateTests
 
         Assert.Null(refused);
     }
+
+    [Fact]
+    public void The_last_step_runs_once_at_the_end_of_the_outermost_hold()
+    {
+        var runs = 0;
+        Gate? gate = null;
+        gate = new Gate("test", lastInside: () =>
+        {
+            runs++;
+            using (gate!.Take()) { }   // a take inside the step is nested and does not run it again
+        });
+
+        using (gate.Take())
+        {
+            using (gate.Take()) { }
+            Assert.Equal(0, runs);
+        }
+        Assert.Equal(1, runs);
+    }
+
+    [Fact]
+    public void Nobody_else_gets_in_while_the_last_step_runs()
+    {
+        using var inStep = new ManualResetEventSlim();
+        using var finish = new ManualResetEventSlim();
+        var gate = new Gate("test", lastInside: () =>
+        {
+            inStep.Set();
+            finish.Wait(TimeSpan.FromSeconds(10));
+        });
+
+        var holder = Task.Run(() => { using (gate.Take()) { } });
+        Assert.True(inStep.Wait(TimeSpan.FromSeconds(5)));
+
+        var other = Task.Run(() => { using (gate.Take()) { } });
+        Assert.False(other.Wait(TimeSpan.FromMilliseconds(200)), "another thread got in during the step");
+
+        finish.Set();
+        Assert.True(holder.Wait(TimeSpan.FromSeconds(5)));
+        Assert.True(other.Wait(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void A_last_step_that_throws_does_not_keep_the_gate()
+    {
+        var gate = new Gate("test", lastInside: () => throw new InvalidOperationException("step"));
+
+        using (gate.Take()) { }
+
+        var other = Task.Run(() => { using (gate.Take()) { } });
+        Assert.True(other.Wait(TimeSpan.FromSeconds(5)), "the gate stayed shut after the step threw");
+    }
 }

@@ -77,8 +77,9 @@ public sealed partial class SessionService : IDisposable
     {
         _write = new Timer(_ => Write(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-        // Quitting from the dock or with Cmd+Q ends the process without closing the window. So the window's
-        // own flush never runs. The EQ writes its curve here for the same reason.
+        // A process that ends without the main window closing never runs the window's flush. ProcessExit
+        // covers that on Windows and Linux. It does not run on the macOS Skia head, where Cmd+Q and the Dock
+        // menu's Quit flush through App.EndRun instead (see MacQuit).
         AppDomain.CurrentDomain.ProcessExit += (_, _) => { try { Flush(); } catch { } };
     }
 

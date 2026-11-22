@@ -18,6 +18,10 @@ public class FpcalcRunnerTests
         FpcalcFailure.Unreadable)]
     [InlineData("ERROR: Could not find any audio stream in the file (Stream not found)",
         FpcalcFailure.Unreadable)]
+    // A track of about two seconds: decoded in full, too short for Chromaprint.
+    [InlineData("ERROR: Empty fingerprint", FpcalcFailure.Unreadable)]
+    // A WAV or FLAC with an audio stream and no samples in it.
+    [InlineData("ERROR: Not enough audio data", FpcalcFailure.Unreadable)]
     [InlineData("ERROR: Could not open the input file (No such file or directory)",
         FpcalcFailure.Unopened)]
     [InlineData("ERROR: Unknown option -nonsense", FpcalcFailure.Unavailable)]

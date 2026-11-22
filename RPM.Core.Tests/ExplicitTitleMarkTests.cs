@@ -193,6 +193,31 @@ public class ExplicitTitleMarkTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// The clean-up on open reads the marked rows through their own index and does not scan the table. The
+    /// open runs on the drawing thread while the splash is up, and a scan of a large table whose pages are
+    /// not in the file cache costs a few hundred milliseconds. SQLite uses a partial index only when the
+    /// query states the index's own condition, so the two must not drift apart.
+    /// </summary>
+    [Fact]
+    public void The_marked_titles_are_found_through_their_index()
+    {
+        using (var db = new LibraryDatabase(MirrorLocation.InFolder(_root)))
+            db.Upsert(Row("Killah", null));
+
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection(
+            $"Data Source={Path.Combine(_root, ".rpm", "library.db")};Pooling=False");
+        connection.Open();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"EXPLAIN QUERY PLAN SELECT id, title, advisory FROM tracks WHERE {LibraryDatabase.MarkedTitle}";
+        using var reader = cmd.ExecuteReader();
+        var plan = new List<string>();
+        while (reader.Read())
+            plan.Add(reader.GetString(3));
+
+        Assert.Contains(plan, step => step.Contains("idx_tracks_title_marked", StringComparison.Ordinal));
+    }
+
     /// <summary>Puts a title in the file the way an older build wrote it, past the rule.</summary>
     private void WriteTitleDirectly(string title, int? advisory)
     {

@@ -35,20 +35,27 @@ public static class ReleaseFactsAsk
         if (!(await catalogue.GetReleaseAsync(album.ReleaseId, ct)).Answers(out var release, out _))
             return false;
 
-        var words = WordsOf(release);
-        db.SetReleaseMeta(album.Provider, album.ReleaseId, words, words);
+        var said = Said(album.Provider, album.ReleaseId, release?.Genres, release?.Genre, release?.Subgenre);
+        db.SetReleaseMeta(said.Provider, said.ReleaseId, said.Genres, said.Styles);
         return true;
     }
 
-    /// <summary>The catalogue's words for a release: the voted list, most votes first, or the pair an older
-    /// server sends in its place.</summary>
-    private static IReadOnlyList<string> WordsOf(ReleaseDetail? release)
+    /// <summary>
+    /// What the catalogue said about a release, as a library keeps it: the voted list, most votes first, or the pair
+    /// an older server sends in its place, given as both the genres and the styles.
+    /// </summary>
+    /// <remarks>The server's list builds use this too, for the albums it fills from its own copy of the catalogue's
+    /// answers, so an album reads the same facts there as here.</remarks>
+    /// <param name="voted">Every word the catalogue's voters gave, most votes first. Null or empty from an older
+    /// server.</param>
+    /// <param name="genre">The single most voted word, from an older server.</param>
+    /// <param name="subgenre">The narrower word beside it, from an older server.</param>
+    public static CatalogueRelease Said(
+        string provider, string releaseId, IReadOnlyList<string>? voted, string? genre, string? subgenre)
     {
-        if (release is null)
-            return [];
-        if (release.Genres is { Count: > 0 } voted)
-            return voted;
-
-        return [.. new[] { release.Subgenre, release.Genre }.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!)];
+        IReadOnlyList<string> words = voted is { Count: > 0 }
+            ? voted
+            : [.. new[] { subgenre, genre }.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!)];
+        return new CatalogueRelease(provider, releaseId, words, words, null);
     }
 }

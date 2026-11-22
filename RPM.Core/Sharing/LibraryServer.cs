@@ -76,8 +76,11 @@ public sealed class LibraryServer : IDisposable
     /// <summary>Where one track's bytes are, or null when this machine does not have that track.</summary>
     public delegate Task<TrackBytes?> TrackSource(TrustedPeer peer, string rpmId, CancellationToken cancellation);
 
-    /// <summary>A picture, and what kind it is. Null when there is none.</summary>
-    public delegate Task<(byte[] Bytes, string ContentType)?> ImageSource(
+    /// <summary>A picture, and what kind it is. Answered with null when there is none. Unanswered when
+    /// this machine could not find out just now, for example when the picture is in the cloud and the
+    /// cloud did not answer. The asker is told the difference (404 against 503), so it does not show
+    /// "no artwork" for a record that has some.</summary>
+    public delegate Task<Asked<(byte[] Bytes, string ContentType)?>> ImageSource(
         TrustedPeer peer, string key, CancellationToken cancellation);
 
     private const int MaxRequestBytes = 16 * 1024;
@@ -758,8 +761,20 @@ public sealed class LibraryServer : IDisposable
         ImageSource? source, TrustedPeer peer, string key, Request request, Stream stream,
         CancellationToken cancellation)
     {
-        if (source is null || await source(peer, key, cancellation) is not { } image ||
-            image.Bytes is not { Length: > 0 })
+        if (source is null)
+        {
+            await WriteStatusAsync(stream, "404 Not Found", cancellation);
+            return;
+        }
+
+        if (!(await source(peer, key, cancellation)).Answers(out var found, out _))
+        {
+            // Not "there is none". The asker keeps no verdict for this answer and asks again later.
+            await WriteStatusAsync(stream, "503 Service Unavailable", cancellation);
+            return;
+        }
+
+        if (found is not { } image || image.Bytes is not { Length: > 0 })
         {
             await WriteStatusAsync(stream, "404 Not Found", cancellation);
             return;

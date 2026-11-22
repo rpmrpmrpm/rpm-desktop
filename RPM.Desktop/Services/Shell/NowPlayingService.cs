@@ -168,8 +168,12 @@ public sealed class NowPlayingService
         try
         {
             if (FolderOf(path) is { } folder)
-                cover = await AlbumCovers.LoadAsync(folder, ct, maxEdge: 512, ownCollection: true)
-                    ?? await AlbumCovers.LoadAsync(folder, ct, maxEdge: 512);
+                cover = Picture(await AlbumCovers.LoadAsync(folder, ct, maxEdge: 512, ownCollection: true))
+                    ?? Picture(await AlbumCovers.LoadAsync(folder, ct, maxEdge: 512));
+
+            // The system's media panel is told about each track once. A cover that could not be read is sent
+            // as none, and the next track is asked about again.
+            static byte[]? Picture(Asked<byte[]?> asked) => asked.Answers(out var bytes, out _) ? bytes : null;
         }
         catch
         {

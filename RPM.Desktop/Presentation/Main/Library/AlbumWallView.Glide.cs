@@ -36,16 +36,15 @@ namespace RPM.Desktop.Presentation.Main.Library;
 /// another row, and its pointer to another column. It slides there with the cards (<c>SlideBand</c>).
 /// Its slot in the row carries it up or down, and the pointer inside it slides across.</para>
 ///
-/// <para>WinUI only. On the Skia head the cards move in one frame as before.</para>
+/// <para><b>Both heads.</b> The slides are composition animations on each element's visual (see
+/// <see cref="Common.TileGlide"/>, which also says where each head puts the shift). On WinUI the system
+/// compositor runs them. On the Skia head Uno's compositor runs them on the drawing thread, frame by frame, but
+/// they still cause no layout.</para>
 /// </remarks>
 public sealed partial class AlbumWallView
 {
-    /// <summary>How long a card takes to reach its new place. A little shorter than a pane move, so a card
-    /// moved by the second column change has arrived soon after the pane has.</summary>
-    private const double GlideMs = 220;
-
-    /// <summary>How long a card that comes into view takes to fade in.</summary>
-    private const double FadeMs = 160;
+    /// <summary>How long a card takes to reach its new place. See <see cref="Common.TileGlide.SlideMs"/>.</summary>
+    private const double GlideMs = Common.TileGlide.SlideMs;
 
     /// <summary>Where each card in view was drawn just before the column change, measured from the top of the
     /// viewport, and how wide it was drawn. Null when no slide is waiting to start.</summary>
@@ -55,14 +54,12 @@ public sealed partial class AlbumWallView
     /// against its slot's, and when. Used to work out where a card is in the middle of its slide.</summary>
     private readonly Dictionary<AlbumCard, (Vector2 Offset, float Size, long Started)> _glides = new();
 
-    /// <summary>The elements that have been given a slide or a fade, so that only those are ever stopped.
-    /// Stopping an animation on a property that a visual does not have throws.</summary>
-    private readonly HashSet<UIElement> _gliding = new();
+    /// <summary>The slides and fades on the cards' elements, and on the drawer's slot and pointer.</summary>
+    private readonly Common.TileGlide _tileGlide = new();
 
     private bool _glideWaiting;
     private int _glideTries;
 
-#if RPM_WINUI
     /// <summary>Where the open drawer was drawn just before the column change: the top of its slot, measured
     /// from the top of the viewport, and the middle of the card its pointer points at, measured from the left
     /// of its row. Null when no drawer is open, or no slide is waiting to start.</summary>
@@ -76,7 +73,6 @@ public sealed partial class AlbumWallView
 
     /// <summary>The drawer's slot and its pointer, while they have a slide, so that it can be stopped.</summary>
     private FrameworkElement? _bandSlot, _bandPointer;
-#endif
 
     /// <summary>Writes down where each card in view is drawn now, measured from the top of the viewport.
     /// <paramref name="drawnStride"/> is the card width as it is drawn, scale included, before the pass that
@@ -84,7 +80,6 @@ public sealed partial class AlbumWallView
     private void PrepareGlide(double drawnStride)
     {
         _glideFrom = null;
-#if RPM_WINUI
         _bandFrom = null;
         if (Freeze != WallFreeze.Scale || drawnStride <= 0 || _rows.Count == 0)
             return;
@@ -114,10 +109,8 @@ public sealed partial class AlbumWallView
                 (float)(BandTop(bandRow) - top) + left.Y,
                 (float)((band.ColumnIndex + 0.5) * drawnStride) + left.X);
         }
-#endif
     }
 
-#if RPM_WINUI
     /// <summary>Where the drawer under row <paramref name="row"/> is drawn: below the row's cards, which are
     /// one row height tall before the scale.</summary>
     private double BandTop(int row) => RowsLayout.TopOf(row) + (RowsLayout.Pitch - RowsLayout.Spacing) * RowsLayout.Scale;
@@ -131,7 +124,6 @@ public sealed partial class AlbumWallView
         var t = System.Diagnostics.Stopwatch.GetElapsedTime(glide.Started, now).TotalMilliseconds / GlideMs;
         return t >= 1 ? Vector2.Zero : glide.Offset * (float)(1 - PaneGlide.EaseAt(t));
     }
-#endif
 
     /// <summary>How far a card still is from its slot on screen at <paramref name="now"/>, and its size
     /// against its slot's. Nothing and one for a card that is not sliding.</summary>
@@ -172,9 +164,7 @@ public sealed partial class AlbumWallView
         RowsRepeater.LayoutUpdated -= OnGlideLayout;
         _glideWaiting = false;
         _glideFrom = null;
-#if RPM_WINUI
         _bandFrom = null;
-#endif
     }
 
     /// <summary>Moves each card in view back to where it was drawn, and slides it to its slot. Returns false,
@@ -182,7 +172,6 @@ public sealed partial class AlbumWallView
     /// cards.</summary>
     private bool StartGlides()
     {
-#if RPM_WINUI
         if (_glideFrom is not { } from)
             return true;
         // During a move the cards are laid out at the stride the move began with and drawn through the scale.
@@ -258,11 +247,9 @@ public sealed partial class AlbumWallView
             RPM.Core.Diagnostics.Scope.Said("panes",
                 $"wall slid {slid} cards{(drawer ? " and the drawer" : "")} and faded in {faded} after the landing");
         }
-#endif
         return true;
     }
 
-#if RPM_WINUI
     /// <summary>
     /// Slides the open drawer from where it was drawn to the row its record is in now, and its pointer to the
     /// record's new column. Returns whether anything was given a slide.
@@ -313,64 +300,14 @@ public sealed partial class AlbumWallView
         _bandPointer = null;
         _bandGlide = null;
     }
+
     /// <summary>Starts <paramref name="element"/> <paramref name="offset"/> away from its slot, in its row's
-    /// units, at <paramref name="size"/> times its own size, and slides it home. The size is scaled about the
-    /// card's top-left corner, which is the corner its place is measured to.</summary>
-    private void Slide(FrameworkElement element, Vector2 offset, float size)
-    {
-        StopGlide(element);
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        var compositor = visual.Compositor;
-        var ease = PaneGlide.Ease(compositor);
+    /// units, at <paramref name="size"/> times its own size, and slides it home.</summary>
+    private void Slide(FrameworkElement element, Vector2 offset, float size) => _tileGlide.Slide(element, offset, size);
 
-        var slide = compositor.CreateVector3KeyFrameAnimation();
-        slide.InsertKeyFrame(0f, new Vector3(offset, 0));
-        slide.InsertKeyFrame(1f, Vector3.Zero, ease);
-        slide.Duration = TimeSpan.FromMilliseconds(GlideMs);
-        visual.StartAnimation("Translation", slide);
-
-        if (Math.Abs(size - 1) >= 0.005f)
-        {
-            visual.CenterPoint = Vector3.Zero;
-            var grow = compositor.CreateVector3KeyFrameAnimation();
-            grow.InsertKeyFrame(0f, new Vector3(size, size, 1));
-            grow.InsertKeyFrame(1f, Vector3.One, ease);
-            grow.Duration = TimeSpan.FromMilliseconds(GlideMs);
-            visual.StartAnimation("Scale", grow);
-        }
-        _gliding.Add(element);
-    }
-
-    private void Fade(FrameworkElement element)
-    {
-        StopGlide(element);
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        var compositor = visual.Compositor;
-        var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(0f, 0f);
-        fade.InsertKeyFrame(1f, 1f, PaneGlide.Ease(compositor));
-        fade.Duration = TimeSpan.FromMilliseconds(FadeMs);
-        visual.StartAnimation("Opacity", fade);
-        _gliding.Add(element);
-    }
-#endif
+    private void Fade(FrameworkElement element) => _tileGlide.Fade(element);
 
     /// <summary>Puts an element that was given a slide or a fade back where layout put it, at full
     /// opacity. Does nothing for an element that was never given one.</summary>
-    private void StopGlide(FrameworkElement element)
-    {
-#if RPM_WINUI
-        if (!_gliding.Remove(element))
-            return;
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        visual.StopAnimation("Translation");
-        visual.Properties.InsertVector3("Translation", Vector3.Zero);
-        visual.StopAnimation("Scale");
-        visual.Scale = Vector3.One;
-        visual.StopAnimation("Opacity");
-        visual.Opacity = 1;
-#endif
-    }
+    private void StopGlide(FrameworkElement element) => _tileGlide.Stop(element);
 }

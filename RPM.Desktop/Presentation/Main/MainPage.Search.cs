@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using RPM.Core.Diagnostics;
 using RPM.Core.Library;
 using RPM.Desktop.Presentation.Main.LeftPane;
 using RPM.Desktop.Presentation.Main.RightPane;
@@ -12,66 +13,49 @@ namespace RPM.Desktop.Presentation.Main;
 
 public sealed partial class MainPage
 {
-    /// <summary>Cmd or Ctrl+F on the library window.
+    /// <summary>Cmd or Ctrl+F, or the deck's search key, on the library window.
     ///
-    /// <para>The fields that search one thing keep the keyboard where they are on screen: an artist's
-    /// tracks, the import queue, the stations. Everything else is the library search: the box in the heading
-    /// of the view on screen slides out and takes the keyboard. Where no view with one is up (home, a
-    /// record's page), the Albums view is asked for and its box takes the keyboard once it is shown.</para>
+    /// <para>With the keyboard in the import workbench or the radio, that pane's own field takes it, because
+    /// that is what the person is working in (<see cref="SearchTarget"/>). Everywhere else the library search
+    /// opens over the whole window, in <paramref name="overlay"/>, whichever view or page is up.</para>
     ///
-    /// <para>A request for a field that is still on its way is held by <see cref="FieldFocus"/>. It stays
-    /// valid only while that field is still the one on screen.</para>
+    /// <para>A request for a side pane's field that is still on its way is held by <see cref="FieldFocus"/>.
+    /// It stays valid only while that field is still the one the rule picks.</para>
     /// </summary>
-    internal void FocusSearch()
+    internal void FocusSearch(Search.SearchOverlay overlay)
     {
-        if (OnScreen() is { } shown && FieldFor(shown) is { } field)
+        if (OnScreen() is { } shown)
         {
-            FieldFocus.Give(field, () => OnScreen() == shown);
+            Said.Line("search", $"shortcut: the side pane's {shown} field, the keyboard is in the side pane");
+            FieldFocus.Give(FieldFor(shown), () => OnScreen() == shown);
             return;
         }
 
-        WireLibrarySearch();
-        if (SearchBoxOnScreen() is { } box)
+        if (Model is not { } model)
         {
-            box.Unfold();
+            Said.Line("search", "shortcut: no library open, nothing to search");
             return;
         }
 
-        AskForTab(RightTab.Albums);
-        SearchSlot.Unfold();
-        FieldFocus.Give(SearchSlot.Box, () => Panes.OnScreen.RightShowing == RightTab.Albums);
-    }
-
-    /// <summary>The library search's box in the heading on screen, or null where the view up has none
-    /// (home, or a record's, an artist's or a genre's page, which cover their view's heading).</summary>
-    private Search.LibrarySearchBox? SearchBoxOnScreen()
-    {
-        if (Home.Visibility == Visibility.Visible)
-            return null;
-
-        return Panes.OnScreen.RightShowing switch
+        // The playlists view is made first if nothing has asked for it yet: its lists are searched too, and
+        // the lists below are read from it.
+        EnsurePlaylistPanel();
+        if (!ReferenceEquals(_overlay, overlay))
         {
-            RightTab.Albums when AlbumDetail.Visibility != Visibility.Visible => SearchSlot,
-            RightTab.Artists when ArtistDetail.Visibility != Visibility.Visible => ArtistSearchSlot,
-            RightTab.Genres when GenreDetail.Visibility != Visibility.Visible => GenreSearchSlot,
-            RightTab.Playlists when _playlistModel is not null => PlaylistPanel.SearchBox,
-            _ => null,
-        };
+            _overlay = overlay;
+            WireChoices(overlay.Answers);
+        }
+
+        overlay.Open(SearchSources(model));
     }
 
-    private SearchField? OnScreen() => SearchTarget.OnScreen(
-        Panes.OnScreen,
-        Panes.Shown,
-        albumPageUp: AlbumDetail.Visibility == Visibility.Visible,
-        artistPageUp: ArtistDetail.Visibility == Visibility.Visible,
-        keyboardInSide: KeyboardIn(LeftViews));
+    /// <summary>The search bar over the window, once its answers are wired to this page.</summary>
+    private Search.SearchOverlay? _overlay;
 
-    /// <summary>The field that answers for <paramref name="field"/>, or null for the two views whose search
-    /// is the library search: Albums and Artists.</summary>
-    private TextBox? FieldFor(SearchField field) => field switch
+    private SearchField? OnScreen() => SearchTarget.OnScreen(Panes.OnScreen, keyboardInSide: KeyboardIn(LeftViews));
+
+    private TextBox FieldFor(SearchField field) => field switch
     {
-        SearchField.Albums or SearchField.Artists => null,
-        SearchField.ArtistTracks => ArtistDetail.TrackSearch,
         SearchField.Import => ImportWorkbench.SearchField,
         SearchField.Radio => RadioBody.SearchField,
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, null),
@@ -90,65 +74,19 @@ public sealed partial class MainPage
         return false;
     }
 
-    // ── the library search ──
-
-    private bool _librarySearchWired;
-
-    /// <summary>The heading's box the search is open under, which folds when the search goes away.</summary>
-    private Search.LibrarySearchBox? _searchingFrom;
-
-    /// <summary>Hooks a heading's box to the one search. The playlists view's box is hooked when that view
-    /// is made (EnsurePlaylistPanel).</summary>
-    private void HookSearchBox(Search.LibrarySearchBox box)
-    {
-        box.Entered += OpenSearchUnder;
-        box.Typed += (from, text) =>
-        {
-            // Emptied on the way out (Fold): nothing to search, and nothing to open.
-            if (!LibrarySearch.IsOpen && text.Length == 0)
-                return;
-            if (!LibrarySearch.IsOpen || !ReferenceEquals(_searchingFrom, from))
-                OpenSearchUnder(from);
-            LibrarySearch.Ask(text);
-        };
-        box.Dismissed += _ =>
-        {
-            LibrarySearch.Close();
-            box.Fold();
-        };
-        box.IntoAnswers += _ => LibrarySearch.FocusFirstAnswer();
-
-        // The keyboard went elsewhere with nothing typed and nothing on the panel to press: the box folds.
-        // Not while the panel shows the recent searches, because a press on one of them takes the keyboard
-        // on its way to being a click, and folding here would take the row away under the pointer.
-        box.Left += from => DispatcherQueue.TryEnqueue(() =>
-        {
-            if (from.Text.Length > 0 || LibrarySearch.ShowsAnything || from.Box.FocusState != FocusState.Unfocused)
-                return;
-            LibrarySearch.Close();
-            from.Fold();
-        });
-    }
+    // ── what the search looks through ──
 
     /// <summary>
-    /// Puts the library search up under <paramref name="box"/>, looking through the collection as it is
-    /// now.
+    /// What the library search looks through, as the page holds it now.
     /// </summary>
     /// <remarks>
     /// The records, artists, genres and playlists are the lists the views already hold, handed over as
     /// they stand: the search reads them on a worker and they are replaced, never changed, when the
     /// library moves. The songs are asked of the library itself, capped, because no view holds every
-    /// song. The panel reaches from the box to the right edge of the heading's last control.
+    /// song.
     /// </remarks>
-    private void OpenSearchUnder(Search.LibrarySearchBox box)
+    private LibrarySearchSources SearchSources(MainModel model)
     {
-        if (Model is not { } model)
-            return;
-
-        if (_searchingFrom is { } other && !ReferenceEquals(other, box))
-            other.Fold();
-        _searchingFrom = box;
-
         var index = model.AlbumIndex;
         var records = new List<SearchRecord>(index.Albums.Count);
         foreach (var folder in index.Albums)
@@ -158,22 +96,12 @@ public sealed partial class MainPage
 
         var library = App.Services.GetRequiredService<LibraryService>();
 
-        FrameworkElement rightEdge =
-            ReferenceEquals(box, SearchSlot) ? LibraryChrome
-            : _playlistModel is not null && ReferenceEquals(box, PlaylistPanel.SearchBox) ? PlaylistPanel.SearchRow
-            : ReferenceEquals(box, ArtistSearchSlot) ? ArtistChrome
-            : ReferenceEquals(box, GenreSearchSlot) ? GenreChrome
-            : box;
-
-        LibrarySearch.Open(
-            new LibrarySearchSources(
-                records,
-                model.ArtistShelf.Acts,
-                _wall ?? [],
-                PlaylistsToSearch(),
-                (asked, most) => SongsToSearch(library, asked, most)),
-            box,
-            rightEdge);
+        return new LibrarySearchSources(
+            records,
+            model.ArtistShelf.Acts,
+            _wall ?? [],
+            PlaylistsToSearch(),
+            (asked, most) => SongsToSearch(library, asked, most));
     }
 
     /// <summary>Every list the playlists view offers by name: the ones the listener made and the
@@ -217,60 +145,40 @@ public sealed partial class MainPage
         return cut < 0 ? "" : relativePath[..cut];
     }
 
-    /// <summary>What a chosen answer does, set once: each opens where the same thing opens from its own
-    /// view, and a song plays, as a song pressed anywhere else in the app does.</summary>
-    private void WireLibrarySearch()
+    /// <summary>What a chosen answer does: each opens where the same thing opens from its own view, and a
+    /// song plays, as a song pressed anywhere else in the app does.</summary>
+    private void WireChoices(LibrarySearchView search)
     {
-        if (_librarySearchWired)
-            return;
-        _librarySearchWired = true;
+        search.CoverLoader = LoadAlbumCoverAsync;
 
-        // The playlists view is made here if nothing has asked for it yet: its lists are searched too, and
-        // its heading's box is hooked when it is made.
-        EnsurePlaylistPanel();
-        HookSearchBox(SearchSlot);
-        HookSearchBox(ArtistSearchSlot);
-        HookSearchBox(GenreSearchSlot);
-
-        LibrarySearch.CoverLoader = LoadAlbumCoverAsync;
-
-        LibrarySearch.Closed += () =>
-        {
-            _searchingFrom?.Fold();
-            _searchingFrom = null;
-        };
-
-        LibrarySearch.RecentPicked += asked =>
-        {
-            if (_searchingFrom is not { } box)
-                return;
-            box.Text = asked;
-            box.Unfold();
-        };
-
-        LibrarySearch.RecordChosen += folder => NavigateToAlbumPage(folder, WhereTheReaderIs);
+        // The bar can be opened on home, which WhereTheReaderIs does not know. Home is asked first, as for
+        // the header's cover, so the page's back button returns there.
+        search.RecordChosen += folder =>
+            NavigateToAlbumPage(folder, Panes.AtHome ? AlbumFrom.HomeScreen : WhereTheReaderIs);
 
         // NavigateToArtistPage moves the rail itself.
-        LibrarySearch.ArtistChosen += artist => NavigateToArtistPage(artist, ArtistFrom.Collection);
+        search.ArtistChosen += artist => NavigateToArtistPage(artist, ArtistFrom.Collection);
 
         // The page is built before the move is asked for, as NavigateToAlbumPage explains.
-        LibrarySearch.GenreChosen += genre =>
+        search.GenreChosen += genre =>
         {
             NavigateToGenrePage(genre);
             Panes.OpenRightTab(RightTab.Genres);
         };
 
-        LibrarySearch.PlaylistChosen += list =>
+        // Home is asked here too, so backing out of a list opened over home goes back to home.
+        search.PlaylistChosen += list =>
         {
             EnsurePlaylistPanel();
+            var fromHome = Panes.AtHome;
             var opened = list.Kind == PlaylistRowKind.Smart
-                ? PlaylistPanel.OpenSmart(list.SmartId, fromHome: false)
-                : list.NodeId is { } node && PlaylistPanel.OpenPlaylist(node, fromHome: false);
+                ? PlaylistPanel.OpenSmart(list.SmartId, fromHome)
+                : list.NodeId is { } node && PlaylistPanel.OpenPlaylist(node, fromHome);
             if (opened)
                 Panes.OpenRightTab(RightTab.Playlists);
         };
 
-        LibrarySearch.SongChosen += track =>
+        search.SongChosen += track =>
             App.Services.GetRequiredService<RPaMpService>().AddTracks([track], play: true);
     }
 }

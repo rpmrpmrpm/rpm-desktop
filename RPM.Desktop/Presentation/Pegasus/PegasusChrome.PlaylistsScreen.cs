@@ -275,8 +275,10 @@ public sealed partial class PegasusChrome
                     var bytes = door switch
                     {
                         ListCoverDoor.Generated g => await GeneratedCover.SquareAsync(g.Id, CancellationToken.None),
+                        // Nothing is kept for a picture that could not be drawn, so the next build asks again.
                         ListCoverDoor.Kept k => (await PlaylistCovers.MadeAsync(
-                            k.NodeId, k.Name, k.Cover, k.Shelf, CancellationToken.None)).Cover,
+                            k.NodeId, k.Name, k.Cover, k.Shelf, CancellationToken.None))
+                            .Answers(out var drawn, out _) ? drawn.Cover : null,
                         _ => null,
                     };
                     if (bytes is not { Length: > 0 } || built != _playlistsBuiltFrom)

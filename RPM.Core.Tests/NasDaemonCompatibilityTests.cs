@@ -245,9 +245,15 @@ public sealed partial class NasDaemonCompatibilityTests : IDisposable
         Assert.True(await ownerClient.PutArtAsync("pl:12", png, CancellationToken.None));
 
         using var guestClient = Client(_guest, library);
-        Assert.Equal(png, await guestClient.ImageAsync(SharingProtocol.CoverRoute, "RPM0001"));
-        Assert.Equal(png, await guestClient.ImageAsync(SharingProtocol.ArtRoute, "pl:12"));
-        Assert.Null(await guestClient.ImageAsync(SharingProtocol.DiscRoute, "RPM0001"));
+        Assert.Equal(png, Answered(await guestClient.ImageAsync(SharingProtocol.CoverRoute, "RPM0001")));
+        Assert.Equal(png, Answered(await guestClient.ImageAsync(SharingProtocol.ArtRoute, "pl:12")));
+        Assert.Null(Answered(await guestClient.ImageAsync(SharingProtocol.DiscRoute, "RPM0001")));
+
+        static byte[]? Answered(Asked<byte[]?> asked)
+        {
+            Assert.True(asked.Answers(out var bytes, out var why), why);
+            return bytes;
+        }
     }
 
     private static bool Probe(string exe)

@@ -19,7 +19,8 @@ namespace RPM.Desktop.Presentation.Shell;
 /// the shell again, when the page on screen sets its look or is left (a sleeve read from disk, a photo
 /// from the network). Both run on the dispatcher, and the last call wins. The most recent answer about
 /// what the window is standing on is the correct one. The only state kept between calls is which face
-/// is up and whose ground it holds. Both are written before <see cref="Show"/> returns.</para>
+/// is up, and whose ground it holds and what that ground is. All three are written before
+/// <see cref="Show"/> returns.</para>
 ///
 /// <para>The third arrival is the removal of the outgoing face. It is a timer this control starts
 /// itself. The timer checks a turn number, not the state of the faces. A move started during the fade
@@ -41,6 +42,11 @@ public sealed partial class ShellGround : UserControl
     /// <see cref="object.Equals(object?, object?)"/> rather than by reference, so a page is itself and a
     /// backdrop is the picture it names.</summary>
     private object? _owner;
+
+    /// <summary>The ground the face on screen holds, so a call that brings nothing new changes nothing.
+    /// Compared by value: a page that lends the same brushes and picture again builds an equal
+    /// record.</summary>
+    private PageBackdrop.Ground? _ground;
 
     /// <summary>Whose ground is on screen. The shell reads it to tell a backdrop it has just changed from
     /// one it has not.</summary>
@@ -68,32 +74,33 @@ public sealed partial class ShellGround : UserControl
     /// <summary>
     /// Puts <paramref name="ground"/> on the window, as belonging to <paramref name="owner"/>.
     ///
-    /// <para>The owner tells the two kinds of change apart, and they are drawn differently. The SAME
-    /// owner dressed differently is one surface getting closer to its final look. An example is an
-    /// artist's photograph arriving a moment after the colour it was read beside. That change is
-    /// written straight onto the current face, the same way a page writes its own layers. A NEW owner
-    /// is a different room. It is faded in: painted on the idle face, raised above, and eased up over
-    /// what is there.</para>
+    /// <para>Every change is faded in: painted on the idle face, raised above, and eased up over what is
+    /// there. This is also true when the owner is the same. A page that is given another record or
+    /// another artist keeps its place in <see cref="PageBackdrop"/>, so the owner does not change, but
+    /// the colours do. Written straight onto the face on screen, the new colours would replace the old
+    /// ones in one frame. The pages themselves fade their own layers in, and the window moves with
+    /// them.</para>
+    ///
+    /// <para>The owner is still kept, because the shell reads it (see <see cref="Owner"/>).</para>
     ///
     /// <para>The first ground of a session is written with no fade. There is nothing behind it to fade
     /// from, so the window would otherwise fade up out of its own fill.</para>
     /// </summary>
     public void Show(object owner, PageBackdrop.Ground ground)
     {
-        if (Equals(owner, _owner))
-        {
-            Dress(Face, ground);
-            Fading(Face).To(1, CrossFadeMs);
-            return;
-        }
-
         if (_owner is null)
         {
             Dress(Face, ground);
             _owner = owner;
+            _ground = ground;
             Fading(Face).To(1, 0);
             return;
         }
+
+        // Nothing new. The shell asks again when the app's own backdrop changes behind a page, and
+        // that must not fade the page's ground over itself.
+        if (Equals(owner, _owner) && Equals(ground, _ground))
+            return;
 
         var turn = ++_turn;
         _wait?.Stop();
@@ -115,6 +122,7 @@ public sealed partial class ShellGround : UserControl
 
         _onA = !_onA;
         _owner = owner;
+        _ground = ground;
 
         _wait = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(CrossFadeMs) };
         _wait.Tick += (_, _) =>

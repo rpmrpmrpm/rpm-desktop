@@ -1,60 +1,39 @@
 using RPM.Desktop.Presentation.Main.LeftPane;
-using RPM.Desktop.Presentation.Main.RightPane;
 
 namespace RPM.Desktop.Presentation.Main;
 
-/// <summary>The library window's search fields, one for each screen that filters something.</summary>
+/// <summary>The side pane's search fields, each of which searches only what its pane shows.</summary>
 internal enum SearchField
 {
-    /// <summary>The collection's, over the wall, the list and the table.</summary>
-    Albums,
-
-    /// <summary>The artists wall's.</summary>
-    Artists,
-
-    /// <summary>An artist's page, over the artist's songs.</summary>
-    ArtistTracks,
-
-    /// <summary>The import workbench's, in the side pane.</summary>
+    /// <summary>The import workbench's.</summary>
     Import,
 
-    /// <summary>The internet radio's, in the side pane.</summary>
+    /// <summary>The internet radio's.</summary>
     Radio,
 }
 
 /// <summary>
-/// Which search field Cmd or Ctrl+F puts the keyboard in on the library window.
+/// Where Cmd or Ctrl+F puts the keyboard on the library window.
 ///
-/// <para>Read off what is on screen, which <see cref="PaneStage"/> already decides: the library card's
-/// view and the side pane's. The side pane's field is taken first only while the keyboard is in the side
-/// pane, so a person working in the import workbench searches the import; otherwise the card's, which is
-/// the main thing on screen. Null when neither has one on screen (home, an album page, the genres, the
-/// playlists, the track info): the caller then asks for the collection, as the Albums tab does, and its
-/// field.</para>
+/// <para>The side pane's own field while the keyboard is in the side pane: a person working in the import
+/// workbench or the radio searches what they are working in. Null everywhere else, and the caller opens the
+/// library search over the whole window (<c>Search.SearchOverlay</c>). The pane's state is read off
+/// <see cref="PaneStage"/>, which already decides what is on screen.</para>
 ///
 /// <para>Pure, so it can be unit tested without a window.</para>
 /// </summary>
 internal static class SearchTarget
 {
-    public static SearchField? OnScreen(
-        PaneStage stage, bool sideShown, bool albumPageUp, bool artistPageUp, bool keyboardInSide)
+    public static SearchField? OnScreen(PaneStage stage, bool keyboardInSide)
     {
-        SearchField? card = stage.RightShowing switch
+        if (!keyboardInSide || !stage.LeftViewUp)
+            return null;
+
+        return stage.Tab switch
         {
-            RightTab.Albums when !albumPageUp => SearchField.Albums,
-            RightTab.Artists => artistPageUp ? SearchField.ArtistTracks : SearchField.Artists,
+            LeftTab.Import => SearchField.Import,
+            LeftTab.Radio => SearchField.Radio,
             _ => null,
         };
-
-        SearchField? side = sideShown && stage.LeftViewUp
-            ? stage.Tab switch
-            {
-                LeftTab.Import => SearchField.Import,
-                LeftTab.Radio => SearchField.Radio,
-                _ => null,
-            }
-            : null;
-
-        return keyboardInSide ? side ?? card : card ?? side;
     }
 }

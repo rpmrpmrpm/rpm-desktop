@@ -62,10 +62,47 @@ internal static class Landing
         if (opening is LibraryOpening.Trouble trouble)
             nav.NavigateRoot(typeof(LibraryProblemPage), new LibraryProblem(trouble, ProblemPlace.Landing));
         else if (route is OpeningRoute.Library)
+        {
+            // Before the page and not after it: the page is built on this thread and reads almost
+            // nothing from the library, so the worker has the read gate to itself for that time.
+            BuildSessionCutsEarly(App.Services.GetRequiredService<LibraryService>().Db);
             nav.NavigateRoot(typeof(MainPage));
+        }
         else
             nav.NavigateRoot(typeof(WizardPage), route);
 
         return route;
+    }
+
+    /// <summary>
+    /// Starts building the listening profile and the mood cut that home reads first, on a worker, while
+    /// the main page is being built.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why.</b> Home cannot show anything before it has both, and building them is most of its
+    /// reading, about a second on a large library. Home asks only after the main page is built and
+    /// attached, which takes about as long again on the drawing thread. Started here, the two overlap.
+    /// See <see cref="LibraryDatabase.BuildSessionCuts"/>.</para>
+    ///
+    /// <para><b>Safe in any order.</b> Whichever thread asks first builds, and a thread that asks during
+    /// the build waits for it. If home asks before the worker starts, home builds and the worker finds the
+    /// answers made. A build that fails is not kept: home then builds for itself and meets the failure
+    /// through its own read, where the problem screen is put up.</para>
+    /// </remarks>
+    private static void BuildSessionCutsEarly(LibraryDatabase db)
+    {
+        _ = Task.Run(() =>
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                db.BuildSessionCuts();
+                RPM.Core.Diagnostics.Scope.Said("boot", $"session cuts built early in {clock.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                RPM.Core.Diagnostics.Scope.Said("boot", $"session cuts not built early: {ex.GetType().Name}");
+            }
+        });
     }
 }

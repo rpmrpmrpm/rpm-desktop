@@ -201,7 +201,7 @@ public sealed partial class PegasusStage : GlCanvas, IPegasusRoom
     /// decode the header has already done.</para>
     /// </summary>
     public void SetPalette(Windows.UI.Color? tint, Windows.UI.Color? glow, Windows.UI.Color? shade)
-        => _paletteTo = RoomPalette.From(Rgb(tint), Rgb(glow), Rgb(shade));
+        => _paletteTo = RoomPalette.From(Rgb(tint), Rgb(glow), Rgb(shade), RoomLight.Stage);
 
     private static Vector3? Rgb(Windows.UI.Color? c)
         => c is { } v ? new Vector3(v.R / 255f, v.G / 255f, v.B / 255f) : null;

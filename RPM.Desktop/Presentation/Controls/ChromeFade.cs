@@ -33,6 +33,11 @@ internal sealed class ChromeFade
     private double _elapsed, _seconds, _last;
     private bool _ticking;
     private EventHandler<object>? _tick;
+    private readonly (Action<EventHandler<object>> Add, Action<EventHandler<object>> Remove) _frames;
+
+    /// <summary>The app's render tick, which drives every fade in the app.</summary>
+    private static readonly (Action<EventHandler<object>> Add, Action<EventHandler<object>> Remove) RenderTick =
+        (tick => CompositionTarget.Rendering += tick, tick => CompositionTarget.Rendering -= tick);
 
     /// <summary>An element's own opacity. Nearly every fade in the app is this.</summary>
     public ChromeFade(FrameworkElement element)
@@ -48,9 +53,17 @@ internal sealed class ChromeFade
     /// the opacity of three elements by hand cannot promise that.</para>
     /// </summary>
     public ChromeFade(Action<double> write, double from)
+        : this(write, from, RenderTick) { }
+
+    /// <summary>The same, with the frames coming from <paramref name="frames"/> rather than the render tick.
+    /// For tests, where no app is running and nothing draws frames.</summary>
+    internal ChromeFade(
+        Action<double> write, double from,
+        (Action<EventHandler<object>> Add, Action<EventHandler<object>> Remove) frames)
     {
         _write = write;
         _value = _from = _to = from;
+        _frames = frames;
     }
 
     /// <summary>Where the fade is headed. Use it as the guard. A pointer move over chrome that is already
@@ -58,11 +71,16 @@ internal sealed class ChromeFade
     public double Target => _to;
 
     /// <summary>Eases to <paramref name="to"/> over <paramref name="ms"/> milliseconds. A zero
-    /// <paramref name="ms"/> writes the value at once and stops the tick. Calling it with the target it is
-    /// already moving to does nothing.</summary>
+    /// <paramref name="ms"/> writes the value at once and stops the tick. Calling it with a non-zero
+    /// <paramref name="ms"/> and the target it is already moving to does nothing.
+    ///
+    /// <para>A zero <paramref name="ms"/> always lands, even on the target a fade is already moving to.
+    /// Callers use it to say "be at this value now", for example to hide a layer before a page comes up.
+    /// If it were ignored there, the fade in flight would keep running, and the layer would still be
+    /// visible while the page appeared.</para></summary>
     public void To(double to, double ms)
     {
-        if (_to == to)
+        if (_to == to && (ms > 0 || !_ticking))
             return;
         _to = to;
 
@@ -83,7 +101,7 @@ internal sealed class ChromeFade
         _clock.Restart();
         _last = 0;
         _tick ??= OnTick;
-        CompositionTarget.Rendering += _tick;
+        _frames.Add(_tick);
         Services.Shell.FrameWatch.Began("chrome-fade");
     }
 
@@ -97,7 +115,7 @@ internal sealed class ChromeFade
         _seconds = 0;
         _clock.Stop();
         if (_tick is not null)
-            CompositionTarget.Rendering -= _tick;
+            _frames.Remove(_tick);
         Services.Shell.FrameWatch.Ended("chrome-fade");
     }
 

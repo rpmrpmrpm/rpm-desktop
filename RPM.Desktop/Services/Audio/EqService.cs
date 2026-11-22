@@ -89,7 +89,8 @@ public sealed class EqService
         UseDevice(_playback.OutputDeviceName);
 
         // A curve is saved 600 ms after the last slider change. If the app closes inside that time, the
-        // last change would be lost. So the pending curve is written when the process exits.
+        // last change would be lost. So the pending curve is written when the process exits. ProcessExit
+        // does not run on the macOS Skia head, so App.EndRun flushes it there.
         AppDomain.CurrentDomain.ProcessExit += (_, _) => { try { Flush(); } catch { } };
     }
 

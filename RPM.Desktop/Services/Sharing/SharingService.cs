@@ -1,4 +1,5 @@
-﻿using RPM.Core.Diagnostics;
+﻿using RPM.Desktop.Presentation.Main.LeftPane.Models;
+using RPM.Core.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -286,8 +287,9 @@ public sealed partial class SharingService : IDisposable
             OnCatalog = (asking, have, ct) => Task.FromResult(Catalog(asking, have, ct)),
             OnTrack = TrackBytesFor,
             OnCover = CoverFor,
-            OnDisc = DiscFor,
-            OnArt = ArtFor,
+            // Both are read from this disk alone, so their null is always a real "none".
+            OnDisc = async (peer, key, ct) => Asked.Answer(await DiscFor(peer, key, ct)),
+            OnArt = async (peer, key, ct) => Asked.Answer(await ArtFor(peer, key, ct)),
             HasRoom = () => !_book.IsFull,
             OnPaired = Record,
             OnError = (route, ex) =>
@@ -498,8 +500,8 @@ public sealed partial class SharingService : IDisposable
         // owner's phone alone.
         var moodLists = _library.IsOpen
             ? PeerCatalogBuilder.MoodLists(
-                PublishedMoodLists.Dressed(MoodListPush.OneListEach(
-                    MoodListPush.ForOthers(_library.Db.SessionMoodLists))))
+                MoodListPush.Dressed(MoodListPush.OneListEach(
+                    MoodListPush.ForOthers(_library.Db.SessionMoodLists)), SmartPlaylistFace.Text))
             : [];
 
         var catalog = PeerCatalogBuilder.Catalog(
@@ -691,14 +693,15 @@ public sealed partial class SharingService : IDisposable
     /// <para>The request names a track, not an album key. A track is what the catalogue gives a borrower to
     /// point at. The answer belongs to the album, and the borrower stores it under the album.</para>
     /// </summary>
-    private async Task<(byte[] Bytes, string ContentType)?> CoverFor(
+    private async Task<Asked<(byte[] Bytes, string ContentType)?>> CoverFor(
         TrustedPeer peer, string rpmId, CancellationToken ct)
     {
         _ = peer;
 
-        if (!_library.IsOpen || _library.Root is not { } root ||
-            _library.Db.FindByRpmId(rpmId) is not { } track || track.PeerAdopted)
-            return null;
+        if (!_library.IsOpen || _library.Root is not { } root)
+            return Asked.Failed<(byte[], string)?>("no library is open");
+        if (_library.Db.FindByRpmId(rpmId) is not { } track || track.PeerAdopted)
+            return Asked.Answer<(byte[], string)?>(null);
 
         string Absolute(string relative) =>
             Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
@@ -719,7 +722,7 @@ public sealed partial class SharingService : IDisposable
             foreach (var sibling in _library.Db.FolderTracks(track.Folder))
             {
                 if (ct.IsCancellationRequested)
-                    return null;
+                    return Asked.Failed<(byte[], string)?>("cancelled");
 
                 var siblingPath = Absolute(sibling.RelativePath);
                 if (siblingPath == path || !File.Exists(siblingPath))
@@ -734,18 +737,16 @@ public sealed partial class SharingService : IDisposable
         }
 
         if (cover is { Bytes.Length: > 0 })
-            return (cover.Bytes, cover.Mime);
+            return Asked.Answer<(byte[], string)?>((cover.Bytes, cover.Mime));
 
         // Nothing is on this disk. For a record that this machine has offloaded, the cover is part of
         // the record. The cover was uploaded with it, under this account. The borrower has no other way
-        // to ask for it.
+        // to ask for it. A cloud that did not answer is passed on as that, not as "no cover".
         if (_art is not { } art)
-            return null;
+            return Asked.Answer<(byte[], string)?>(null);
 
-        var stored = await art.CoverAsync(
-            track.AlbumArtist, track.Artist, track.Album, track.RpmId, ct);
-
-        return stored is { Length: > 0 } ? (stored, AlbumArt.SniffMime(stored)) : null;
+        return (await art.CoverAsync(track.AlbumArtist, track.Artist, track.Album, track.RpmId, ct))
+            .Then<(byte[], string)?>(stored => stored is { Length: > 0 } ? (stored, AlbumArt.SniffMime(stored)) : null);
     }
 
     /// <summary>
@@ -895,8 +896,11 @@ public sealed partial class SharingService : IDisposable
         if (borrowed.Client is not { } client)
             return null;
 
-        var bytes = await client.ImageAsync(SharingProtocol.ArtRoute, $"pl:{ownerNodeId}", cancellation);
-        if (bytes is not { Length: > 0 })
+        // A picture that could not be fetched and a picture that is not there both give null. Neither is
+        // remembered (see the summary), so the next ask goes to that computer again.
+        if (!(await client.ImageAsync(SharingProtocol.ArtRoute, $"pl:{ownerNodeId}", cancellation))
+                .Answers(out var bytes, out _)
+            || bytes is not { Length: > 0 })
             return null;
 
         try
@@ -1407,16 +1411,18 @@ public sealed partial class SharingService : IDisposable
     /// The cover of a borrowed record, from the computer that holds it.
     ///
     /// <para>Kept on this disk under the album it belongs to. So a wall that scrolls past forty borrowed
-    /// records asks the other machine once per album, and never again. Null means that computer is not on
-    /// the network. The card is then left blank, and this is not an error. It is the same answer as a
-    /// record whose folder has no picture.</para>
+    /// records asks the other machine once per album, and never again.</para>
+    ///
+    /// <para>Answered with null when that computer says the record has no cover. Unanswered when it is not
+    /// on the network or did not answer. The two are different for a card: the first is a record with no
+    /// artwork, the second is a record whose artwork could not be fetched just now.</para>
     /// </summary>
-    public async Task<byte[]?> CoverAsync(
+    public async Task<Asked<byte[]?>> CoverAsync(
         string deviceId, string rpmId, string? albumArtist, string? artist, string? album,
         CancellationToken cancellation = default)
     {
         if (string.IsNullOrEmpty(deviceId) || string.IsNullOrEmpty(rpmId))
-            return null;
+            return Asked.Answer<byte[]?>(null);
 
         var key = AlbumArt.KeyForTrack(albumArtist, artist, album);
         var cached = Path.Combine(ArtFolder(deviceId), key + ".img");
@@ -1424,7 +1430,7 @@ public sealed partial class SharingService : IDisposable
         try
         {
             if (File.Exists(cached))
-                return await File.ReadAllBytesAsync(cached, cancellation);
+                return Asked.Answer<byte[]?>(await File.ReadAllBytesAsync(cached, cancellation));
         }
         catch
         {
@@ -1433,11 +1439,11 @@ public sealed partial class SharingService : IDisposable
 
         using var borrowed = Borrow(deviceId);
         if (borrowed.Client is not { } client)
-            return null;
+            return Asked.Failed<byte[]?>("that computer is not on the network");
 
-        var bytes = await client.ImageAsync(SharingProtocol.CoverRoute, rpmId, cancellation);
-        if (bytes is not { Length: > 0 })
-            return null;
+        var asked = await client.ImageAsync(SharingProtocol.CoverRoute, rpmId, cancellation);
+        if (!asked.Answers(out var bytes, out _) || bytes is not { Length: > 0 })
+            return asked;
 
         try
         {
@@ -1449,7 +1455,7 @@ public sealed partial class SharingService : IDisposable
             // This is only a cache. A cover that could not be written is fetched again next time.
         }
 
-        return bytes;
+        return asked;
     }
 
     /// <summary>
@@ -1488,8 +1494,10 @@ public sealed partial class SharingService : IDisposable
         if (borrowed.Client is not { } client)
             return null;
 
-        var bytes = await client.ImageAsync(SharingProtocol.DiscRoute, rpmId, cancellation);
-        if (bytes is not { Length: > 0 })
+        // A disc that could not be fetched and a disc that is not there both give null. Neither is
+        // remembered, so the next ask goes to that computer again.
+        if (!(await client.ImageAsync(SharingProtocol.DiscRoute, rpmId, cancellation)).Answers(out var bytes, out _)
+            || bytes is not { Length: > 0 })
             return null;
 
         try
@@ -1528,8 +1536,10 @@ public sealed partial class SharingService : IDisposable
         var row = (_library.IsOpen ? _library.Db.FindByRpmId(rpmId) : null)
                   ?? _guests.Find(deviceId, rpmId);
 
-        return await CoverAsync(
-            deviceId, rpmId, row?.AlbumArtist, row?.Artist, row?.Album, cancellation);
+        // A cover that could not be fetched gives null here too. This caller sends one picture with one
+        // track and keeps nothing, so the next track asks again.
+        return (await CoverAsync(deviceId, rpmId, row?.AlbumArtist, row?.Artist, row?.Album, cancellation))
+            .Answers(out var cover, out _) ? cover : null;
     }
 
     /// <summary>

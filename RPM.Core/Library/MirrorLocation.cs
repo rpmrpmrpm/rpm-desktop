@@ -149,6 +149,36 @@ public sealed class MirrorLocation
     private static string InFolderPath(string libraryRoot) =>
         Path.Combine(libraryRoot, LibraryDatabase.DataFolderName, LibraryDatabase.DataFileName);
 
+    /// <summary>
+    /// The database file that <see cref="For(string, string)"/> opens for a music folder on one of this
+    /// computer's own disks, when that file is already there. Null for a folder on a network volume, a
+    /// folder that is not there, a folder with no database in it yet, or a path that cannot be asked about.
+    /// </summary>
+    /// <remarks>
+    /// <b>Nothing is changed and nothing is created.</b> <see cref="For(string, string)"/> moves a legacy
+    /// folder and can write the id file. This only asks the volume and checks one file, so it can run on any
+    /// thread while the real open has not happened yet (see <see cref="MirrorReadAhead"/>). A folder whose
+    /// legacy folder has not been moved yet answers null, which only means nothing is read ahead.
+    /// </remarks>
+    public static string? OwnDiskDatabase(string libraryRoot)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(libraryRoot) || !Directory.Exists(libraryRoot))
+                return null;
+
+            if (VolumeOf(libraryRoot) is DriveType.Network or DriveType.NoRootDirectory)
+                return null;
+
+            var file = InFolderPath(libraryRoot);
+            return File.Exists(file) ? file : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>What kind of volume the folder is on. This is <see cref="DriveType.Network"/> for SMB,
     /// AFP, NFS and WebDAV mounts on macOS and Linux (.NET reads the file system's type name with statfs),
     /// and on Windows for a mapped network drive or a UNC path. It is

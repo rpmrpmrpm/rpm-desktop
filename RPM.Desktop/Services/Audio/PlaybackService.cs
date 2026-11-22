@@ -246,9 +246,27 @@ public sealed partial class PlaybackService : IDisposable
     /// </summary>
     public bool InAlbumOrder { get; set; } = true;
 
-    /// <summary>The gain a track would play at, in dB. Zero when nothing is to be done.</summary>
+    /// <summary>The gain a track would play at, in dB. Zero when nothing is to be done. It reads the library, so
+    /// on the UI thread it can wait for the reading gate. See <see cref="GainOnWorkerAsync"/>.</summary>
     private double GainFor(string path) =>
         Normalization?.GainFor(path, InAlbumOrder) ?? 0;
+
+    /// <summary>
+    /// The same gain, read on a worker.
+    ///
+    /// <para>Every library read takes the one reading gate. A worker that holds it (a cloud rollup, a radio
+    /// list, an analysis query) makes a read on the UI thread wait, and the window stops until the worker is
+    /// done. A start of a track must not stop the window, so its gain is read here. <see cref="InAlbumOrder"/>
+    /// is read before the hop, so the answer is for the queue as it was when the start was asked for.</para>
+    /// </summary>
+    private Task<double> GainOnWorkerAsync(string path)
+    {
+        if (Normalization is not { } normalization)
+            return Task.FromResult(0d);
+
+        var inAlbumOrder = InAlbumOrder;
+        return Task.Run(() => normalization.GainFor(path, inAlbumOrder));
+    }
 
     public string? PlayingPath => _engine.PlayingPath;
 
@@ -595,8 +613,8 @@ public sealed partial class PlaybackService : IDisposable
             // If that fails, use this account's store. That is where the cover went when this machine's
             // files for the record left.
             if (CloudArt is { } art &&
-                await art.CoverAsync(track.Artist, track.Artist, track.Album, rpmId, ct)
-                    is { Length: > 0 } stored)
+                (await art.CoverAsync(track.Artist, track.Artist, track.Album, rpmId, ct)).Answers(out var stored, out _)
+                && stored is { Length: > 0 })
                 return new AlbumCover(stored, AlbumArt.SniffMime(stored), AlbumCover.SourceElsewhere);
         }
         catch
@@ -798,9 +816,25 @@ public sealed partial class PlaybackService : IDisposable
     /// <summary>Plays <paramref name="path"/> from <paramref name="startSeconds"/>, optionally stopping
     /// after <paramref name="playLengthSeconds"/> (clip preview). The tags come along because a Cast
     /// receiver puts them on the television; local playback ignores them.</summary>
+    /// <remarks>The levelling gain is worked out here from <paramref name="path"/> and handed to the engine
+    /// with the track. The engine applies it once the old track has stopped. A file outside the collection
+    /// has no reading and plays as it was recorded.</remarks>
     /// <returns>False when the sound output refused it, which has already been reported through <see
     /// cref="OutputRefused"/>.</returns>
     public bool Play(
+        string path,
+        double durationSeconds,
+        double startSeconds,
+        double? playLengthSeconds = null,
+        string? title = null,
+        string? artist = null,
+        string? album = null,
+        string? source = null)
+        => PlayAt(GainFor(path), path, durationSeconds, startSeconds, playLengthSeconds, title, artist, album, source);
+
+    /// <summary>Plays <paramref name="path"/> at a gain the caller has already read. See <see cref="Play"/>.</summary>
+    private bool PlayAt(
+        double gainDb,
         string path,
         double durationSeconds,
         double startSeconds,
@@ -815,7 +849,7 @@ public sealed partial class PlaybackService : IDisposable
         // leaves this empty. That stops a preview that failed from being read as a failure of the queue's
         // own record.
         Forget();
-        if (_engine.Play(path, durationSeconds, startSeconds, playLengthSeconds, title, artist, album, source))
+        if (_engine.Play(path, durationSeconds, startSeconds, gainDb, playLengthSeconds, title, artist, album, source))
             return true;
 
         NoteOutputRefused();
@@ -896,20 +930,24 @@ public sealed partial class PlaybackService : IDisposable
     private async Task<bool> StartCoreAsync(
         PlayRequest track, double startSeconds, TrackRoute route, CancellationToken ct)
     {
-        // Set the gain before the track starts, not after. The engine applies the gain when a track begins.
-        // Setting it first stops the opening moment of every record from playing at the previous record's
-        // level.
-        _engine.SetTrackGain(GainFor(track.Path));
+        // The gain is read on a worker while the bytes are looked for. See GainOnWorkerAsync.
+        var gain = GainOnWorkerAsync(track.Path);
 
         var found = await FindAsync(track, route, ct);
         if (found.Source is not { } source)
             return false;
 
+        var gainDb = await gain;
+
+        // A newer start can have replaced this one while the two reads ran. This one must not put its record
+        // on after the newer one has, so it ends here. The caller treats the cancellation as "superseded".
+        ct.ThrowIfCancellationRequested();
+
         // The sound output refused it. The track was found, but it is not playing. This returns true
         // anyway, because false means there was nothing to play. The queue would then skip to the next
         // record, and in the end show the "no connection" warning. The output's own message has already
         // been raised.
-        if (!Play(track.Path, track.DurationSeconds, startSeconds,
+        if (!PlayAt(gainDb, track.Path, track.DurationSeconds, startSeconds,
                   title: track.Title, artist: track.Artist, album: track.Album, source: source))
             return true;
 
@@ -987,9 +1025,11 @@ public sealed partial class PlaybackService : IDisposable
         // This is the next track, so it is a fresh start. Whatever the record before it could not reach,
         // this track asks the network again first. This is how a computer that came back gets picked up
         // again.
+        var gain = GainOnWorkerAsync(track.Path);
         if ((await FindAsync(track, TrackRoute.Anywhere, ct)).Source is not { } source)
             return false;
 
+        var gainDb = await gain;
         if (ct.IsCancellationRequested || Open(source, track.Path) is not { } pcm)
             return false;
 
@@ -1002,12 +1042,13 @@ public sealed partial class PlaybackService : IDisposable
             TrackRoute.Anywhere));
 
         _engine.QueueNext(
-            pcm, track.DurationSeconds, track.Title, track.Artist,
-            path: track.Path, seekVia: source, album: track.Album,
+            pcm, track.DurationSeconds,
             // The gain is carried with the successor, and not set now. The changeover happens on the pump,
             // seconds from here. Setting it at this moment would change the gain of the record that is
             // still playing.
-            gainDb: GainFor(track.Path));
+            gainDb: gainDb,
+            track.Title, track.Artist,
+            path: track.Path, seekVia: source, album: track.Album);
 
         return true;
     }
@@ -1264,7 +1305,10 @@ public sealed partial class PlaybackService : IDisposable
     public bool PlaySource(IPcmSource source, double durationSeconds, [Shown] string? title = null, string? artist = null)
     {
         Forget();
-        if (_engine.PlaySource(source, durationSeconds, title, artist))
+
+        // A station or a set has no levelling reading. It plays as it comes, not at the gain of the record
+        // that played before it.
+        if (_engine.PlaySource(source, durationSeconds, gainDb: 0, title, artist))
             return true;
 
         NoteOutputRefused();

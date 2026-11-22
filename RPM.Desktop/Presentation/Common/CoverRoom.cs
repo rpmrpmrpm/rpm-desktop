@@ -26,17 +26,19 @@ namespace RPM.Desktop.Presentation.Common;
 internal static class CoverRoom
 {
     /// <summary>
-    /// The room this cover paints. It is <see cref="RoomPalette.Fallback"/>, the app's own blue, where
-    /// there is no picture or it cannot be decoded.
+    /// The room this cover paints. It is the light's <see cref="RoomLight.Empty"/>, the app's own blue,
+    /// where there is no picture or it cannot be decoded.
     /// </summary>
     /// <remarks>
-    /// It decodes and resizes the picture, so it must run on a worker thread. Neither caller is on the
+    /// It decodes and resizes the picture, so it must run on a worker thread. No caller is on the
     /// drawing thread.
     /// </remarks>
-    internal static RoomPalette Of(byte[]? cover)
+    /// <param name="light"><see cref="RoomLight.Stage"/> for a room in Pegasus,
+    /// <see cref="RoomLight.Shelf"/> for one in the library.</param>
+    internal static RoomPalette Of(byte[]? cover, RoomLight light)
     {
         if (cover is not { Length: > 0 })
-            return RoomPalette.Fallback;
+            return light.Empty;
 
         try
         {
@@ -44,12 +46,13 @@ internal static class CoverRoom
             return RoomPalette.From(
                 Vec(CoverColor.Dominant(cover)),
                 Vec(CoverColor.Highlight(cover)),
-                third.Count > 2 ? Vec(third[2]) : null);
+                third.Count > 2 ? Vec(third[2]) : null,
+                light);
         }
         catch
         {
             // A picture that fails to decode is not a reason for a card to have no ground colour.
-            return RoomPalette.Fallback;
+            return light.Empty;
         }
     }
 
@@ -100,12 +103,15 @@ internal static class CoverRoom
                              .ToList();
 
         if (PlaylistFigure.Colourway.From(ring, SmartPlaylistFace.Cover(id).Seed) is not { } ink)
-            return new ListRoom(RoomPalette.Fallback, apart, Ink: null);
+            return new ListRoom(RoomLight.Shelf.Empty, apart, Ink: null);
 
         // Mid is most of what is seen, Hot is what the light is made of, and Deep is the shadow. That is
         // the order in which RoomPalette.From expects its three colours.
+        //
+        // Always the library's light, Pegasus included. This room is the list's cover, and a list has one
+        // cover wherever it is shown.
         return new ListRoom(
-            RoomPalette.From(Vec(ink.Mid), Vec(ink.Hot), Vec(ink.Deep)),
+            RoomPalette.From(Vec(ink.Mid), Vec(ink.Hot), Vec(ink.Deep), RoomLight.Shelf),
             apart,
             ink);
     }

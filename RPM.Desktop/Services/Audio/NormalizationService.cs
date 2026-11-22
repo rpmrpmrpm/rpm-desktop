@@ -126,9 +126,13 @@ public sealed class NormalizationService
 
     /// <summary>Whether two tracks are on the same album. This tells a side played in order apart from
     /// a queue that someone assembled. It decides which reading the gain comes from.</summary>
+    /// <remarks>An album is a folder in the collection, and a row's <c>Folder</c> is the folder part of its
+    /// relative path. So the two paths are compared and no row is read. The queue asks this on the UI thread
+    /// before every start, and a read there would wait for the reading gate whenever a worker holds
+    /// it.</remarks>
     public bool SameAlbum(string? onePath, string? otherPath)
     {
-        if (onePath is null || otherPath is null || !_library.IsOpen)
+        if (onePath is null || otherPath is null)
             return false;
 
         try
@@ -136,12 +140,16 @@ public sealed class NormalizationService
             if (Relative(onePath) is not { } one || Relative(otherPath) is not { } other)
                 return false;
 
-            return string.Equals(
-                _library.Db.FindByRelativePath(one)?.Folder,
-                _library.Db.FindByRelativePath(other)?.Folder,
-                StringComparison.OrdinalIgnoreCase);
+            return string.Equals(FolderOf(one), FolderOf(other), StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
+    }
+
+    /// <summary>The folder part of a relative path, as the library stores it in a row's <c>Folder</c>.</summary>
+    private static string FolderOf(string relative)
+    {
+        var slash = relative.LastIndexOf('/');
+        return slash < 0 ? "" : relative[..slash];
     }
 
     private AlbumFacts FactsFor(string folder) => _albums.GetOrAdd(folder, key =>

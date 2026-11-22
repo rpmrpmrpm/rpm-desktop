@@ -34,7 +34,7 @@ public class CoverFillTests
 
     private static Task DressAsync(
         Card card, byte[]? bytes, CancellationToken ct = default, ImageSource? art = null)
-        => CoverFill.DressAsync(card, _ => Task.FromResult(bytes),
+        => CoverFill.DressAsync(card, _ => Task.FromResult(Asked.Answer(bytes)),
                                 _ => Task.FromResult<ImageSource?>(art ?? APicture), ct);
 
     [Fact]
@@ -115,7 +115,7 @@ public class CoverFillTests
     public async Task Every_card_standing_for_the_record_is_dressed()
     {
         var cards = new List<Card> { new(), new() };
-        await CoverFill.DressAsync(() => cards, _ => Task.FromResult<byte[]?>([1, 2, 3]),
+        await CoverFill.DressAsync(() => cards, _ => Task.FromResult(Asked.Answer<byte[]?>([1, 2, 3])),
                                    _ => Task.FromResult<ImageSource?>(APicture), CancellationToken.None);
 
         Assert.All(cards, c => Assert.True(c.HasCover));
@@ -125,7 +125,7 @@ public class CoverFillTests
     public async Task Every_card_standing_for_the_record_gets_the_verdict()
     {
         var cards = new List<Card> { new(), new() };
-        await CoverFill.DressAsync(() => cards, _ => Task.FromResult<byte[]?>(null),
+        await CoverFill.DressAsync(() => cards, _ => Task.FromResult(Asked.Answer<byte[]?>(null)),
                                    _ => Task.FromResult<ImageSource?>(APicture), CancellationToken.None);
 
         Assert.All(cards, c => Assert.True(c.CoverMissing));
@@ -144,7 +144,7 @@ public class CoverFillTests
             _ =>
             {
                 cards.Add(new Card());   // the shelf filled while the read was out
-                return Task.FromResult<byte[]?>([1, 2, 3]);
+                return Task.FromResult(Asked.Answer<byte[]?>([1, 2, 3]));
             },
             _ => Task.FromResult<ImageSource?>(APicture),
             CancellationToken.None);
@@ -159,8 +159,23 @@ public class CoverFillTests
     public async Task A_decode_that_failed_leaves_the_card_alone()
     {
         var card = new Card();
-        await CoverFill.DressAsync(card, _ => Task.FromResult<byte[]?>([1, 2, 3]),
+        await CoverFill.DressAsync(card, _ => Task.FromResult(Asked.Answer<byte[]?>([1, 2, 3])),
                                    _ => Task.FromResult<ImageSource?>(null), CancellationToken.None);
+
+        Assert.False(card.HasCover);
+        Assert.False(card.CoverMissing);
+    }
+
+    /// <summary>A read that could not be answered (the cloud or the computer that holds the record did not
+    /// answer, the app's gate refused it) is not a verdict. The card is left with no picture and no made
+    /// sleeve, so the next time the shelf is built it asks again. Marking it as having no art would show a
+    /// made sleeve for a record that has artwork, for as long as the page is open.</summary>
+    [Fact]
+    public async Task A_read_that_was_not_answered_is_not_the_verdict()
+    {
+        var card = new Card();
+        await CoverFill.DressAsync(card, _ => Task.FromResult(Asked.Failed<byte[]?>("the gate refused it")),
+                                   _ => Task.FromResult<ImageSource?>(APicture), CancellationToken.None);
 
         Assert.False(card.HasCover);
         Assert.False(card.CoverMissing);

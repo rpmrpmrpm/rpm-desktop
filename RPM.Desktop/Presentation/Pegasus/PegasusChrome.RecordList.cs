@@ -49,11 +49,17 @@ public sealed partial class PegasusChrome
             : ListCoverDoor;
     }
 
+    /// <summary>A stored list's cover for the record screen. A picture that could not be drawn is shown as
+    /// none. The screen keeps nothing, so the next time it opens the list it asks again.</summary>
+    private static async Task<PlaylistArt.Drawn> KeptCoverAsync(ListCoverDoor.Kept k)
+        => (await PlaylistCovers.MadeAsync(k.NodeId, k.Name, k.Cover, k.Shelf, CancellationToken.None))
+            .Answers(out var drawn, out _) ? drawn : PlaylistArt.Drawn.None;
+
     /// <summary>The cover and the picture behind its frame, through the door.</summary>
     private static Task<PlaylistArt.Drawn> DrawListCoverAsync(ListCoverDoor door) => door switch
     {
         ListCoverDoor.Generated g => GeneratedCover.PageAsync(g.Id, CancellationToken.None),
-        ListCoverDoor.Kept k => PlaylistCovers.MadeAsync(k.NodeId, k.Name, k.Cover, k.Shelf, CancellationToken.None),
+        ListCoverDoor.Kept k => KeptCoverAsync(k),
         _ => Task.FromResult(PlaylistArt.Drawn.None),
     };
 

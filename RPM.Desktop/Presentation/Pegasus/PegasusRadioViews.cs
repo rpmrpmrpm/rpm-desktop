@@ -29,7 +29,7 @@ internal sealed class StationFace
         // station has the same colour on every machine for the seconds before its mark arrives.
         Room = CardRoomArt.Palette(SoftFigure.RingColours(station.Display) is [var first, ..]
             ? first
-            : Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF));
+            : Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF), RoomLight.Stage);
     }
 
     public RadioStation Station { get; }

@@ -1,7 +1,6 @@
 ﻿<UserControl x:Class="RPM.Desktop.Presentation.Main.RightPane.PlaylistView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:search="using:RPM.Desktop.Presentation.Main.Search"
              xmlns:model="using:RPM.Desktop.Presentation.Main.LeftPane.Models"
              xmlns:ctl="using:RPM.Desktop.Presentation.Controls"
              xmlns:common="using:RPM.Desktop.Presentation.Common"
@@ -124,9 +123,6 @@
           <StackPanel.RenderTransform>
             <TranslateTransform x:Name="PlaylistChromeShift"/>
           </StackPanel.RenderTransform>
-          <!-- The library search, first on the line as it is in the library's own header. The page wires it
-               (see MainPage.Search): the search looks through the whole collection, not this view. -->
-          <search:LibrarySearchBox x:Name="LibrarySearchSlot" OpenWidth="150" VerticalAlignment="Center"/>
           <Border x:Name="PlaylistViewToggle" CornerRadius="6" Padding="0"
                   VerticalAlignment="Center"
                   Background="{StaticResource OnGlassBrush}"
@@ -209,9 +205,12 @@
            insets 6, so 10 here puts a top-level row's first mark on 16. That is the column the pane's
            heading stands in. The drop line is set to the same 16 from code (see MarkTreeDrop). A change to
            either one must be made to both. -->
+      <!-- Extended: Cmd-click (Ctrl-click on Windows) and Shift-click select several rows, and the menu then
+           acts on the selected playlists together (see PlaylistCloudPick). A click with one of those keys
+           held only changes the selection. It does not open the row (see DropTreeRow). -->
       <ListView x:Name="Tree" Grid.Row="2"
                 ItemsSource="{Binding Visible}"
-                SelectionMode="Single"
+                SelectionMode="Extended"
                 SelectionChanged="Tree_SelectionChanged"
                 Background="Transparent"
                 Padding="10,0,16,10"

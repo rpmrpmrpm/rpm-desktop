@@ -1310,6 +1310,6 @@ public sealed partial class MainPage
     /// in a square. These are the wall's tiles, the album list, the drawer's sleeve, and the artist page's
     /// shelves. See <see cref="AlbumCovers.LoadForSquareAsync"/>.</para>
     /// </summary>
-    private Task<byte[]?> LoadAlbumCoverAsync(string folder, int edge, CancellationToken ct)
+    private Task<Asked<byte[]?>> LoadAlbumCoverAsync(string folder, int edge, CancellationToken ct)
         => AlbumCovers.LoadForSquareAsync(folder, ct, edge);
 }

@@ -1,47 +1,37 @@
-using System.Runtime.InteropServices;
-
 namespace RPM.Core.Audio;
 
 /// <summary>
 /// Scheduling for the threads that must not miss their deadline: the pump that feeds the sound
 /// device, and the decoder that keeps the pump supplied.
 ///
-/// <para>A plain <see cref="Thread"/> is not enough for audio. <see cref="Thread.Priority"/> does
-/// nothing on Unix: the runtime keeps the value but does not apply it. On macOS the pump would then
-/// run with the default quality-of-service (QoS) of a new thread, <i>unspecified</i>, which the
-/// scheduler treats as low-priority work. On Apple silicon such a thread can be placed on the
-/// <b>efficiency</b> cores, while AppKit's main thread and the compositor/GL render thread run at
-/// <c>USER_INTERACTIVE</c> on the performance cores. With a busy visualiser on the performance cores,
-/// the audio pump can end up on an efficiency core, miss a 50 ms block, and leave the device queue
-/// empty. The listener hears a glitch.</para>
+/// <para>A plain <see cref="Thread"/> is not enough for audio. On macOS a .NET thread runs at the default
+/// priority, and <see cref="Thread.Priority"/> moves it by only three steps. AppKit's main thread and the
+/// compositor's render thread run at the user-interactive level on the performance cores. With a busy
+/// visualiser there, the audio pump could be placed on an efficiency core, miss a 50 ms block, and leave
+/// the device queue empty. The listener hears a glitch.</para>
 ///
-/// <para>So the pump asks for <c>USER_INTERACTIVE</c>, the same class as the UI. The decoder asks for
-/// one class lower: it works ahead into a buffer, so it can yield to the pump, but it must not drop to
-/// the efficiency cores either.</para>
+/// <para>So the pump asks for the user-interactive level, the same as the interface. The decoder asks for
+/// one class lower: it works ahead into a buffer, so it can yield to the pump, but it must not drop to the
+/// efficiency cores either. On macOS and iOS this is the thread's scheduling priority, not its QoS class,
+/// which the system refuses for .NET threads (see <see cref="Threading.DarwinThread"/>).</para>
 /// </summary>
 public static class AudioThread
 {
-    // qos_class_t values from <sys/qos.h>. The SDK does not expose them to managed code.
-    private const uint QosUserInteractive = 0x21;
-    private const uint QosUserInitiated = 0x19;
-
     /// <summary>Marks the calling thread as the one feeding the sound device.</summary>
-    public static void EnterPlayback() => Promote(QosUserInteractive, ThreadPriority.Highest);
+    public static void EnterPlayback() => Promote(Threading.DarwinThread.Interactive, ThreadPriority.Highest);
 
     /// <summary>Marks the calling thread as one that keeps the playback thread supplied.</summary>
-    public static void EnterDecode() => Promote(QosUserInitiated, ThreadPriority.AboveNormal);
+    public static void EnterDecode() => Promote(Threading.DarwinThread.Initiated, ThreadPriority.AboveNormal);
 
-    private static void Promote(uint qosClass, ThreadPriority managed)
+    private static void Promote(int darwinPriority, ThreadPriority managed)
     {
-        // Applied on Windows, ignored on Unix. That is why the QoS call below is needed.
+        // iOS as well as macOS: same kernel, and a phone also has performance and efficiency cores.
+        if (Threading.DarwinThread.Applies)
+        {
+            Threading.DarwinThread.SetPriority(darwinPriority);
+            return;
+        }
+
         try { Thread.CurrentThread.Priority = managed; } catch { }
-
-        // iOS as well as macOS: same kernel, same qos_class_t, and a phone also has performance and
-        // efficiency cores.
-        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsIOS()) return;
-        try { pthread_set_qos_class_self_np(qosClass, 0); } catch { }
     }
-
-    [DllImport("/usr/lib/libSystem.dylib")]
-    private static extern int pthread_set_qos_class_self_np(uint qosClass, int relativePriority);
 }

@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RPM.Core.Radio;
 using RPM.Core.Threading;
+using RPM.Core.Viz;
 using RPM.Desktop.Presentation.Common;
 using RPM.Desktop.Presentation.Main.Home;
 using RPM.Desktop.Presentation.Main.LeftPane.Models;
@@ -540,7 +541,7 @@ public sealed partial class PegasusChrome
                 return;
 
             if (answer.Answers(out var mark, out _) && mark is { Length: > 0 }
-                && await Cancellable.RunAsync(() => CoverRoom.Of(mark), CancellationToken.None) is { Ran: true, Value: var painted }
+                && await Cancellable.RunAsync(() => CoverRoom.Of(mark, RoomLight.Stage), CancellationToken.None) is { Ran: true, Value: var painted }
                 && _tunerPlayerFor == uuid)
                 TunerRoom.Palette = painted;
 

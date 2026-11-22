@@ -96,8 +96,25 @@ public sealed partial class MigrationService : IDisposable
     public MigrationReport? LastReport { get; private set; }
 
     /// <summary>The window has shown the last finished import's report. The next time it opens, it
-    /// starts at the list of apps instead of showing the same report again.</summary>
-    public bool ReportSeen { get; set; }
+    /// starts at the list of apps instead of showing the same report again. Set through
+    /// <see cref="MarkReportSeen"/>.</summary>
+    public bool ReportSeen { get; private set; }
+
+    /// <summary>
+    /// Notes that the window has shown the last finished import's report.
+    ///
+    /// <para>Raises <see cref="Changed"/>, because the deck's import chip stays up until the report is
+    /// seen and redraws only on that event. Without it, the chip keeps its full ring after the report was
+    /// read, and the import looks as if it is still running. Raised once: the window redraws its report on
+    /// the same event, and marks it seen again.</para>
+    /// </summary>
+    public void MarkReportSeen()
+    {
+        if (ReportSeen)
+            return;
+        ReportSeen = true;
+        Raise();
+    }
 
     /// <summary>What the last run needs to be continued (after a sign-in expired, for example).</summary>
     public MigrationConnection? LastConnection { get; private set; }
@@ -483,7 +500,7 @@ public sealed partial class MigrationService : IDisposable
 
         public void RequestUpload() => _ = service._cloudSync.KickAsync();
 
-        public void AddPlaylist(long playlistNodeId) => _ = service._cloudSync.AddPlaylistToCloudAsync(playlistNodeId);
+        public void AddPlaylist(long playlistNodeId) => _ = service._cloudSync.AddPlaylistsToCloudAsync([playlistNodeId]);
     }
 }
 

@@ -634,7 +634,7 @@ public sealed partial class GenreWallView : UserControl
     /// Without this, every frame of a move wrote a new card width: every card drew its name again, and the
     /// pairs were dealt into a new count two or three times in one move, each time in one frame.
     ///
-    /// <para>WinUI only. On the Skia head the wall keeps re-flowing every frame.</para>
+    /// <para>Both heads. See <see cref="TileGridMove"/> for how each one draws it.</para>
     /// </remarks>
     public void BeginLiveResize() => _move.Begin();
 

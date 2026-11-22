@@ -193,15 +193,20 @@ public sealed partial class LibraryDatabase
     /// </summary>
     private readonly Gate _cuts = new("cuts");
 
-    internal int MoodWindow(SmartPlaylistId id, bool advance)
+    internal int MoodWindow(SmartPlaylistId id, MoodTurn turn)
     {
         using (_cuts.Take())
         {
+            // Another device's press count. It is that device's, so it is used and not stored: this
+            // machine's own list stays where it is.
+            if (turn.Reading is { } theirs)
+                return _moodLaunch + theirs;
+
             var pressed = _moodWindows.TryGetValue(id, out var reading) ? reading : 0;
 
             // A list that has never been advanced is at zero. Asking where it is must not store an
             // entry for it, because the pane asks for every list it draws a subtitle for.
-            if (advance)
+            if (turn.Advance)
                 _moodWindows[id] = ++pressed;
 
             // The launch of this collection plus the presses this list has had. There are two numbers
@@ -209,6 +214,24 @@ public sealed partial class LibraryDatabase
             // a restart. The presses belong to this session only.
             return _moodLaunch + pressed;
         }
+    }
+
+    /// <summary>
+    /// How one read of a list treats the mood window: as it stands, moved on by one press here, or at another
+    /// device's press count.
+    /// </summary>
+    /// <param name="Advance">A press of "Generate new" on this machine.</param>
+    /// <param name="Reading">Another device's press count (see <see cref="QuerySmartPlaylistReading"/>).</param>
+    internal readonly record struct MoodTurn(bool Advance, int? Reading)
+    {
+        /// <summary>The list as it stands.</summary>
+        public static MoodTurn Stands => new(false, null);
+
+        /// <summary>A press on this machine, or the list as it stands.</summary>
+        public static MoodTurn Of(bool advance) => new(advance, null);
+
+        /// <summary>The list after <paramref name="reading"/> presses on another device.</summary>
+        public static MoodTurn At(int reading) => new(false, reading);
     }
 
     /// <summary>Which launch of this collection the app is on. Read once, when the library is opened.
@@ -240,7 +263,7 @@ public sealed partial class LibraryDatabase
         SetMeta(MoodLaunchKey, _moodLaunch.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    private MoodShelf? _moods;
+    private readonly SessionCut<MoodShelf> _moods = new();
 
     /// <summary>
     /// The collection's moods as they stood when this session started. This is the cut that every mood
@@ -260,52 +283,53 @@ public sealed partial class LibraryDatabase
     /// holds no connection and asks the database nothing. A write that lands during the build is simply
     /// not in the cut. That gives the same answer as a write that lands a second later, and both match
     /// the rule for this session: the cut is fixed until the next launch. The only ordering that would
-    /// matter is two threads building it at once, and the lock below prevents that. Otherwise they
-    /// would get two different cuts, and the lists would disagree with each other for the rest of the
-    /// session.</para>
+    /// matter is two threads building it at once. <see cref="SessionCut{T}"/> prevents that: the second
+    /// thread waits for the first build and takes its answer. Otherwise they would get two different cuts,
+    /// and the lists would disagree with each other for the rest of the session.</para>
     /// </summary>
-    public MoodShelf SessionMoods
+    public MoodShelf SessionMoods => _moods.Get(_cuts, BuildSessionMoods);
+
+    private MoodShelf BuildSessionMoods()
     {
-        get
-        {
-            using (_cuts.Take())
-            {
-                // Read inside the lock so two threads cannot each decide it is missing and build one.
-                if (_moods is not null)
-                    return _moods;
-            }
-
-            // Built outside the lock: it is three whole-table reads and a sort, and holding the cut
-            // lock across it would make one reader wait out another's build for no gain.
-            //
-            // The catalogues' answer is read ONCE and used twice. It decides which cohort a record is
-            // cut against, and which records a list prefers. Two reads a moment apart could disagree
-            // while the styles sweep is running. A cut whose ranges and narrowings come from two
-            // different states cannot be reasoned about.
-            var facts = CatalogueFactsByFolder();
-            var counts = QueryAlbumGenreCounts();
-            var built = MoodShelf.Build(
-                QueryMeasuredMoods(),
-                MoodBands.GenreByFolder(counts, facts),
-                facts,
-                // Read here, not inside the cut, for the same reason as the catalogues' answer. One
-                // read is used once per kind, so no two lists disagree about what the listener has
-                // said while a verdict is being written on another thread.
-                LikedByKind(),
-                // What the sound pass heard, and the words and styles the other lists are found by. The
-                // date is read once, here, so a session that runs past New Year's Day keeps its New
-                // Year's Eve list until the next launch, as every list keeps its cut.
-                Hearing(counts, facts, DateTime.Now));
-
-            using (_cuts.Take())
-            {
-                // Whoever got here first wins. A second cut built in a race is thrown away rather than
-                // installed, because two lists drawn from two cuts is the exact disagreement this
-                // property exists to prevent.
-                return _moods ??= built;
-            }
-        }
+        // The catalogues' answer is read ONCE and used twice. It decides which cohort a record is cut
+        // against, and which records a list prefers. Two reads a moment apart could disagree while the
+        // styles sweep is running. A cut whose ranges and narrowings come from two different states
+        // cannot be reasoned about.
+        var facts = CatalogueFactsByFolder();
+        var counts = QueryAlbumGenreCounts();
+        return MoodShelf.Build(
+            QueryMeasuredMoods(),
+            MoodBands.GenreByFolder(counts, facts),
+            facts,
+            // Read here, not inside the cut, for the same reason as the catalogues' answer. One read is
+            // used once per kind, so no two lists disagree about what the listener has said while a
+            // verdict is being written on another thread.
+            LikedByKind(),
+            // What the sound pass heard, and the words and styles the other lists are found by. The date
+            // is read once, here, so a session that runs past New Year's Day keeps its New Year's Eve list
+            // until the next launch, as every list keeps its cut. It is the date on the listener's clock
+            // (see ListenFrom), which is not always this machine's.
+            Hearing(counts, facts, ListenerLocal(DateTime.UtcNow.Ticks)));
     }
+
+    /// <summary>
+    /// Builds <see cref="SessionProfile"/> and <see cref="SessionMoods"/> now, on the calling thread, if
+    /// no thread has built them yet.
+    ///
+    /// <para><b>Why the startup calls this.</b> Home asks for both before it can show anything, and
+    /// building them is most of its reading: about a second on a library of 41,306 tracks. The startup
+    /// calls this on a worker as soon as the library is open, while the drawing thread builds the main
+    /// page, which reads almost nothing from the library. When home asks, it gets the finished answers, or
+    /// waits for the build that is under way. See <see cref="SessionCut{T}"/>.</para>
+    ///
+    /// <para>The answers are the ones home would have built a moment later. Nothing else changes: they
+    /// are held for the session from whichever build finishes first, as they always were.</para>
+    ///
+    /// <para>The two are built side by side. Their reads still take the read gate one at a time, but the
+    /// work each does with what it read runs while the other reads.</para>
+    /// </summary>
+    public void BuildSessionCuts() =>
+        Parallel.Invoke(() => _ = SessionProfile, () => _ = SessionMoods);
 
     /// <summary>What the session's cut is given beside the meter's readings. See <see cref="ShelfHearing"/>.</summary>
     private ShelfHearing Hearing(
@@ -330,37 +354,32 @@ public sealed partial class LibraryDatabase
     /// about the new year (<see cref="HolidayMusic.IsNewYear"/>), by relative path.
     ///
     /// <para>The words are matched in code, not in SQL: the rule has word edges and exceptions ("holiday"
-    /// on its own, "Santa Barbara"), which LIKE cannot state. SQL narrows first, to the tracks whose tags
-    /// hold any of <see cref="HolidayMusic.Hints"/>, so a library of thirty thousand tracks sends back a
-    /// few hundred rows and not every title it has.</para>
+    /// on its own, "Santa Barbara"), which LIKE cannot state. The read narrows the rows as they arrive, to
+    /// the tracks whose tags hold any of <see cref="HolidayMusic.Hints"/>, so a library of forty thousand
+    /// tracks keeps a few hundred rows and not every title it has.</para>
+    ///
+    /// <para><b>Narrowed in code, not with LIKE.</b> The read gate is held for the whole read, and every
+    /// other read in the app waits for it. Twenty-eight <c>LIKE '%hint%'</c> tests over every track's tags
+    /// held it for about 155 ms on a library of 41,306 tracks. Reading the three columns and searching them
+    /// for all the hints at once (<see cref="HolidayHints"/>) is about the cost of the read alone. The search
+    /// ignores case in every script, which LIKE does only for ASCII, so it keeps every row LIKE kept.</para>
     /// </summary>
     public (IReadOnlySet<string> Holiday, IReadOnlySet<string> NewYear) QueryHolidayTracks()
     {
-        List<(string Path, string? Title, string? Album, string? Genre)> rows;
+        List<(string Path, string? Title, string? Album, string? Genre)> rows = [];
         using (ReadLock.Take())
         {
             using var cmd = Reader.CreateCommand();
-            var hints = new List<string>(HolidayMusic.Hints.Count);
-            for (int i = 0; i < HolidayMusic.Hints.Count; i++)
-            {
-                hints.Add($"tags LIKE $hint{i}");
-                cmd.Parameters.AddWithValue($"$hint{i}", $"%{HolidayMusic.Hints[i]}%");
-            }
-            cmd.CommandText =
-                $"""
-                SELECT relative_path, title, album, genre
-                FROM (SELECT relative_path, title, album, genre,
-                             COALESCE(title, '') || ' | ' || COALESCE(album, '') || ' | ' || COALESCE(genre, '') AS tags
-                      FROM tracks)
-                WHERE {string.Join(" OR ", hints)}
-                """;
+            cmd.CommandText = "SELECT title, album, genre, relative_path FROM tracks";
             using var reader = cmd.ExecuteReader();
-            rows = [];
             while (reader.Read())
-                rows.Add((reader.GetString(0),
-                          reader.IsDBNull(1) ? null : reader.GetString(1),
-                          reader.IsDBNull(2) ? null : reader.GetString(2),
-                          reader.IsDBNull(3) ? null : reader.GetString(3)));
+            {
+                var title = reader.IsDBNull(0) ? null : reader.GetString(0);
+                var album = reader.IsDBNull(1) ? null : reader.GetString(1);
+                var genre = reader.IsDBNull(2) ? null : reader.GetString(2);
+                if (Hinted(title) || Hinted(album) || Hinted(genre))
+                    rows.Add((reader.GetString(3), title, album, genre));
+            }
         }
 
         // Matched after the gate is let go, as the feeling scores are.
@@ -376,7 +395,15 @@ public sealed partial class LibraryDatabase
         return (holiday, newYear);
     }
 
-    private ListeningProfile? _profile;
+    /// <summary>Every hint at once, ignoring case. One pass over a tag finds any of them.</summary>
+    private static readonly System.Buffers.SearchValues<string> HolidayHints = System.Buffers.SearchValues.Create(
+        [.. HolidayMusic.Hints.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether a tag holds any of the holiday hints. A hint is only a reason to look closer:
+    /// <see cref="HolidayMusic.IsHoliday"/> decides.</summary>
+    private static bool Hinted(string? tag) => tag is not null && tag.AsSpan().ContainsAny(HolidayHints);
+
+    private readonly SessionCut<ListeningProfile> _profile = new();
 
     /// <summary>
     /// What the listening log says about this listener, as it stood when this session first asked.
@@ -395,26 +422,12 @@ public sealed partial class LibraryDatabase
     ///
     /// <para>Three grouped reads over the log run for the playlist pane, and the pane composes a rule
     /// for each list it offers. Without this, opening the pane would roll up the whole log once for
-    /// every list. It is built outside the lock and installed under it, the same as the mood cut. Two
+    /// every list. It is built once, the same as the mood cut (see <see cref="SessionCut{T}"/>). Two
     /// threads building it at once would get two descriptions, and the lists would disagree with each
     /// other for the whole session.</para>
     /// </remarks>
-    public ListeningProfile SessionProfile
-    {
-        get
-        {
-            using (_cuts.Take())
-            {
-                if (_profile is not null)
-                    return _profile;
-            }
-
-            var built = ReadListeningProfile(ListeningWindow.Everything, DateTime.UtcNow.Ticks);
-
-            using (_cuts.Take())
-                return _profile ??= built;
-        }
-    }
+    public ListeningProfile SessionProfile =>
+        _profile.Get(_cuts, () => ReadListeningProfile(ListeningWindow.Everything, DateTime.UtcNow.Ticks));
 
     /// <summary>One song "Your mix" may draw on: loved or played, with the record it is on.</summary>
     /// <remarks>
@@ -729,16 +742,17 @@ public sealed partial class LibraryDatabase
         /// rule that needs the clock and a rule that needs two hundred paths are still the same object to
         /// everyone who reads one.</para>
         /// </summary>
-        /// <param name="advance">Whether this read is a request for a NEW list. The other reads want the
+        /// <param name="turn">Whether this read is a request for a NEW list. The other reads want the
         /// list as it stands: opening it, playing it, counting it for the pane's subtitle, or cutting it
-        /// for the phone. Only the first moves the mood window on.</param>
+        /// for the phone. Only the first moves the mood window on. A read for another device takes the
+        /// window at that device's press count and moves nothing here.</param>
         /// <param name="readings">How many lists' worth to take in one run. One for anything somebody is
         /// about to look at. More only for the cut sent to the phone, which is sent as a run and takes its
         /// own window of it (see <see cref="SmartPlaylists.ReadingsSent"/>). This is used by the rules that
         /// hold a POOL deeper than the list they show. The others give their whole answer at once, so there
         /// is nothing deeper for them to give.</param>
         public abstract Composed Compose(
-            long nowUtcTicks, LibraryDatabase db, bool advance, int readings);
+            long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings);
 
         /// <summary>
         /// A list the track rows can answer on their own.
@@ -770,7 +784,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings) =>
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings) =>
                 new($"tracks {Join}", Where, Order,
                     NeedsNow ? [("$now", nowUtcTicks)] : Composed.Nothing);
         }
@@ -801,7 +815,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => true;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
@@ -833,7 +847,7 @@ public sealed partial class LibraryDatabase
                 var songs = pool.InFlow(
                     SmartPlaylists.MostSongs(Kind),
                     readings,
-                    db.MoodWindow(new SmartPlaylistId(Kind, Genre, Decade), advance)
+                    db.MoodWindow(new SmartPlaylistId(Kind, Genre, Decade), turn)
                         + MoodSets.Turn(Kind, Genre),
                     db.MusicalKeysOf);
 
@@ -870,7 +884,7 @@ public sealed partial class LibraryDatabase
                 var shows = Pool(db.SessionMoods, SmartPlaylistKind.Sleep, null, 0, db.RecommendRefusalsSaid())
                     .Window(
                         SmartPlaylists.MostSongs(SmartPlaylistKind.Sleep) * readings,
-                        db.MoodWindow(sleep, advance: false) + MoodSets.Turn(SmartPlaylistKind.Sleep, null));
+                        db.MoodWindow(sleep, MoodTurn.Stands) + MoodSets.Turn(SmartPlaylistKind.Sleep, null));
                 return new HashSet<string>(shows, StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -902,11 +916,11 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => Asked.CanRegenerate;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
-                var asked = Asked.Compose(nowUtcTicks, db, advance, readings);
+                var asked = Asked.Compose(nowUtcTicks, db, turn, readings);
                 var folders = JsonList(db.FoldersOnGenre(Genre));
 
                 // Appended to whatever the question already joins, rather than folded into its WHERE. An inner
@@ -950,7 +964,7 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
@@ -993,14 +1007,15 @@ public sealed partial class LibraryDatabase
             public override bool CanRegenerate => false;
 
             public override Composed Compose(
-                long nowUtcTicks, LibraryDatabase db, bool advance, int readings)
+                long nowUtcTicks, LibraryDatabase db, MoodTurn turn, int readings)
             {
                 ArgumentNullException.ThrowIfNull(db);
 
-                // The local hour, taken from the clock this rule was given, not from DateTime.Now. A rule that
-                // answers differently on two calls in the same second cannot be tested, and QuerySmartPlaylist
-                // already follows this rule. The log's own hours are local too (listen.local_hour), so the two agree.
-                var hour = new DateTime(nowUtcTicks, DateTimeKind.Utc).ToLocalTime().Hour;
+                // The listener's hour, taken from the clock this rule was given, not from DateTime.Now. A rule
+                // that answers differently on two calls in the same second cannot be tested, and
+                // QuerySmartPlaylist already follows this rule. The zone is the listener's (see ListenFrom), and
+                // the log's own hours are on the listener's clock too (listen.local_hour), so the two agree.
+                var hour = db.ListenerLocal(nowUtcTicks).Hour;
 
                 // The same genre table the profile was built from. This and the weights then cannot disagree about
                 // what kind of music a record is.
@@ -1276,7 +1291,24 @@ public sealed partial class LibraryDatabase
     /// </param>
     public IReadOnlyList<LibraryTrack> QuerySmartPlaylist(
         SmartPlaylistId id, long nowUtcTicks, bool advance, int limit = SmartPlaylists.MaxTracks)
-        => QueryRun(id, nowUtcTicks, advance, readings: 1, limit);
+        => QueryRun(id, nowUtcTicks, MoodTurn.Of(advance), readings: 1, limit);
+
+    /// <summary>
+    /// The list as another device shows it after <paramref name="reading"/> presses of "Generate new" there.
+    ///
+    /// <para><b>What the store answers a phone's press with.</b> The phone keeps its own press count per list
+    /// and sends it. The answer is the window of the pool that this many presses reach from where this
+    /// session's lists started, so each press is a new list, as a press on a computer is. Nothing is stored:
+    /// this machine's own list does not move.</para>
+    ///
+    /// <para>A kind with no pool behind it returns its ordinary list, whatever the count.</para>
+    /// </summary>
+    public IReadOnlyList<LibraryTrack> QuerySmartPlaylistReading(SmartPlaylistId id, long nowUtcTicks, int reading)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(reading);
+
+        return QueryRun(id, nowUtcTicks, MoodTurn.At(reading), readings: 1, limit: SmartPlaylists.MaxTracks);
+    }
 
     /// <summary>
     /// The same list, several readings deep, in one run.
@@ -1299,16 +1331,16 @@ public sealed partial class LibraryDatabase
         ArgumentOutOfRangeException.ThrowIfLessThan(readings, 1);
 
         return QueryRun(
-            id, nowUtcTicks, advance: false, readings,
+            id, nowUtcTicks, MoodTurn.Stands, readings,
             limit: SmartPlaylists.MostSongs(id.Kind) * readings);
     }
 
     private IReadOnlyList<LibraryTrack> QueryRun(
-        SmartPlaylistId id, long nowUtcTicks, bool advance, int readings, int limit)
+        SmartPlaylistId id, long nowUtcTicks, MoodTurn turn, int readings, int limit)
     {
         // Composed before the gate is taken, never inside it. See SmartPlaylistRule.Compose for what
         // it costs when it is the other way round.
-        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance, readings);
+        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, turn, readings);
 
         using (ReadLock.Take())
         {
@@ -1380,7 +1412,7 @@ public sealed partial class LibraryDatabase
         // move the reader on to the next one.
         var shown = pool.Window(
             SmartPlaylists.MostSongs(id.Kind),
-            MoodWindow(id, advance: false) + MoodSets.Turn(id.Kind, id.Genre)).Count;
+            MoodWindow(id, MoodTurn.Stands) + MoodSets.Turn(id.Kind, id.Genre)).Count;
         return pool.Count > shown;
     }
 
@@ -1440,7 +1472,7 @@ public sealed partial class LibraryDatabase
         // The playlist pane asks it once per offered list, 84 times on this collection. While composition ran
         // under the gate, the reading connection was held for about eleven seconds, against about 300 ms of
         // actual query time.
-        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, advance: false, readings: 1);
+        var composed = SmartPlaylistRule.For(id).Compose(nowUtcTicks, this, MoodTurn.Stands, readings: 1);
 
         using (ReadLock.Take())
         {

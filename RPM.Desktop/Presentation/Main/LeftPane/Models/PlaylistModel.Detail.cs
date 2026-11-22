@@ -691,6 +691,18 @@ public sealed partial class PlaylistModel
         var borrowed = IsBorrowed;
         var shelf = borrowed ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
 
+        // Set when a playlist's picture could not be drawn because a sleeve could not be read. That is
+        // "not asked" and not an answer, as in ResetCoverRequest.
+        var unanswered = false;
+        async Task<byte[]?> Made(long list)
+        {
+            if ((await PlaylistCovers.MadeAsync(list, item.Name, item.Cover, shelf, CancellationToken.None))
+                .Answers(out var drawn, out _))
+                return drawn.Cover;
+            unanswered = true;
+            return null;
+        }
+
         byte[]? bytes;
         try
         {
@@ -704,14 +716,10 @@ public sealed partial class PlaylistModel
                 PlaylistRowKind.Smart
                     => await GeneratedCover.SquareAsync(item.SmartId, CancellationToken.None),
 
-                PlaylistRowKind.Playlist when item.NodeId is { } list
-                    => (await PlaylistCovers.MadeAsync(
-                            list, item.Name, item.Cover, shelf, CancellationToken.None)).Cover,
+                PlaylistRowKind.Playlist when item.NodeId is { } list => await Made(list),
 
                 // A nested reference is the list that it points to, so both have one picture.
-                PlaylistRowKind.Ref when item.RefPlaylistId is { } target
-                    => (await PlaylistCovers.MadeAsync(
-                            target, item.Name, item.Cover, shelf, CancellationToken.None)).Cover,
+                PlaylistRowKind.Ref when item.RefPlaylistId is { } target => await Made(target),
 
                 _ => null,
             };
@@ -719,6 +727,12 @@ public sealed partial class PlaylistModel
         catch
         {
             bytes = null;   // a picture that cannot be drawn means the tile keeps its glyph
+        }
+
+        if (unanswered)
+        {
+            item.ResetTileRequest();
+            return;
         }
 
         if (bytes is not { Length: > 0 })
@@ -874,8 +888,8 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     internal static bool AppFolder(PlaylistRowKind kind, bool holdsGeneratedListsOnly) =>
         kind == PlaylistRowKind.SmartFolder || (kind == PlaylistRowKind.Folder && holdsGeneratedListsOnly);
 
-    /// <summary>The moods folder, on either shelf. It is the one row that wears a picture of its own in
-    /// place of the app folders' wand (see <see cref="MarkImage"/>).</summary>
+    /// <summary>The moods folder, on either shelf. It wears a picture of its own in place of the app
+    /// folders' wand (see <see cref="MarkImage"/>).</summary>
     public bool IsMoodsFolder =>
         MoodsFolder(Kind, HoldsGeneratedListsOnly, Parent is null, Name, SmartPlaylistFace.MoodsFolderName);
 
@@ -886,6 +900,18 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     internal static bool MoodsFolder(
         PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, string moodsName) =>
         AppFolder(kind, holdsGeneratedListsOnly) && topLevel && name == moodsName;
+
+    /// <summary>The decades folder, on either shelf. It wears the clock (<see
+    /// cref="SmartPlaylistFace.DecadesFolderGlyph"/>) in place of the app folders' wand. The iPhone and
+    /// Android apps draw the same clock on it.</summary>
+    public bool IsDecadesFolder =>
+        DecadesFolder(Kind, HoldsGeneratedListsOnly, Parent is null, Name, SmartPlaylistFace.DecadesFolderName);
+
+    /// <summary>The rule behind <see cref="IsDecadesFolder"/>, separate so that it can be tested. It goes by
+    /// the name, for the reason <see cref="MoodsFolder"/> gives.</summary>
+    internal static bool DecadesFolder(
+        PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, string decadesName) =>
+        AppFolder(kind, holdsGeneratedListsOnly) && topLevel && name == decadesName;
 
     /// <summary>
     /// The generated list that this row is drawn as, or null if it is drawn as itself.
@@ -1123,6 +1149,8 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
     public string Glyph => Kind switch
     {
         PlaylistRowKind.NowPlaying => "\uf04b",   // play
+        PlaylistRowKind.Folder or PlaylistRowKind.SmartFolder when IsDecadesFolder =>
+            SmartPlaylistFace.DecadesFolderGlyph,
         PlaylistRowKind.Folder when HoldsGeneratedListsOnly => SmartPlaylistFace.FolderGlyph,
         PlaylistRowKind.Folder => "\uf07b",       // folder
         PlaylistRowKind.Playlist when Face is { } lent => SmartPlaylistFace.Glyph(lent.Kind),
@@ -1625,8 +1653,10 @@ public sealed partial class PlaylistTrackRow : INotifyPropertyChanged, RPM.Deskt
                 var row = await Task.Run(() => TrackHome.RowFor(path));
                 if (row is null)
                     return null;
-                var bytes = await RemoteSleeve.ForAsync(row, artist, album);
-                return bytes is { Length: > 0 }
+                // A sleeve that could not be fetched is drawn as none here. Nothing is kept, so the next
+                // draw asks again.
+                return (await RemoteSleeve.ForAsync(row, artist, album)).Answers(out var bytes, out _)
+                       && bytes is { Length: > 0 }
                     ? await Task.Run(() => ThumbCache.Get(bytes, maxEdge))
                     : null;
 

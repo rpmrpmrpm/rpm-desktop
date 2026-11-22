@@ -227,11 +227,17 @@ public static class FpcalcRunner
     /// <see cref="FpcalcFailure.Unreadable"/>. Guessing wrong in that direction is cheap, because the file
     /// is read again on the next pass. Guessing wrong in the other direction marks a track as
     /// unfingerprintable for as long as nobody edits it.</para>
+    ///
+    /// <para>"Empty fingerprint" and "Not enough audio data" mean that fpcalc decoded the whole file and
+    /// it holds too little audio for Chromaprint: a jingle of two or three seconds, or a stream with no
+    /// samples. The same bytes give the same answer every time, so these are verdicts on the file.</para>
     /// </summary>
     internal static FpcalcFailure Classify(string stderr) =>
         Mentions(stderr, "Could not open the input file") ? FpcalcFailure.Unopened :
         Mentions(stderr, "Could not find any audio stream") ||
         Mentions(stderr, "Error decoding the audio source") ||
+        Mentions(stderr, "Empty fingerprint") ||
+        Mentions(stderr, "Not enough audio data") ||
         Mentions(stderr, "Could not calculate fingerprint") ||
         Mentions(stderr, "Unable to calculate fingerprint") ? FpcalcFailure.Unreadable :
         Mentions(stderr, "Unknown option") ||

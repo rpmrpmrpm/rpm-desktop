@@ -747,8 +747,8 @@ public sealed partial class HomeFeatureCard : INotifyPropertyChanged, Services.A
     /// lists whose cover IS a room (<see cref="CoverOverlay.Roomed"/>) that wash is the still room, so
     /// the plate moves what the square holds. Until the wash arrives, and permanently where nothing is
     /// composed, the mark's own colour in the tree stands in. One colour is all there is then, so
-    /// <see cref="RoomPalette.From"/> is given it as the tint, with nothing for the accent, and it
-    /// turns a hue for the second family.</para>
+    /// <see cref="RoomPalette.From"/> is given it as the tint, with nothing for the accent, and the
+    /// second family is grey.</para>
     ///
     /// <para>So this answers twice for most lists, and the room is recoloured while it is being
     /// watched. <see cref="CardRoom"/> keeps the movement going across the change.</para>
@@ -759,7 +759,7 @@ public sealed partial class HomeFeatureCard : INotifyPropertyChanged, Services.A
     /// <see cref="HomeView.LoadListFaceAsync"/>.</para>
     /// </remarks>
     public RoomPalette? Room =>
-        Door is null && Station is null ? null : _room ?? CardRoomArt.Palette(InkColor);
+        Door is null && Station is null ? null : _room ?? CardRoomArt.Palette(InkColor, RoomLight.Shelf);
 
     /// <summary>The colours read from the list's own cover, or from the station's own mark. It is
     /// called once, from the worker that fetched it, and only where a picture came back.</summary>
@@ -1505,7 +1505,7 @@ public sealed partial class HomeView : UserControl
     /// embedded art, the computer on this network that holds the record, and then the cloud. It is
     /// handed in and not read here, in the same way as for the artist page and the genre page, so
     /// every shelf in the app reads a cover in the same way.</summary>
-    public Func<string, int, CancellationToken, Task<byte[]?>>? CoverLoader { get; set; }
+    public Func<string, int, CancellationToken, Task<Asked<byte[]?>>>? CoverLoader { get; set; }
 
     /// <summary>Ten milliseconds of every sixteen: the genre page's share, not the wall's five. This
     /// screen IS what the reader is waiting for, and its rows are blank squares until the pictures
@@ -2877,25 +2877,26 @@ public sealed partial class HomeView : UserControl
     /// shared door, so this card and that list on an artist's page are the same square. It is always
     /// a borrowed shelf: kept lists are only offered on one (see <see cref="ReadKeptLists"/>).</para>
     /// </remarks>
-    private static Task<byte[]?> ListCoverAsync(HomeListCard card, CancellationToken ct)
+    private static Task<Asked<byte[]?>> ListCoverAsync(HomeListCard card, CancellationToken ct)
         => ListCoverAsync(card.Door, card.Name, ct, card.ChosenCover);
 
     /// <summary>The same, for a caller that has the door and the name but no card: the quick
     /// selection's entries, which are one type across four kinds. It is split and not copied. If a
     /// list's picture were found one way here and another way in the row above, there would be two
     /// pictures of one list.</summary>
-    private static async Task<byte[]?> ListCoverAsync(
+    private static async Task<Asked<byte[]?>> ListCoverAsync(
         HomeListDoor door, string name, CancellationToken ct, PlaylistCover? chosen = null)
     {
+        // A generated list's picture is drawn here from its name and colours, so it always answers.
         if (door.Generated is { } id)
-            return await GeneratedCover.SquareAsync(id, ct);
+            return Asked.Answer(await GeneratedCover.SquareAsync(id, ct));
 
         if (door.Kept is { } node)
             return (await PlaylistCovers.MadeAsync(
                 node, name, chosen ?? new PlaylistCover.Automatic(),
-                PlaylistShelf.Borrowed, ct)).Cover;
+                PlaylistShelf.Borrowed, ct)).Then(drawn => drawn.Cover);
 
-        return null;
+        return Asked.Answer<byte[]?>(null);
     }
 
     // The rows' two hems.
@@ -4331,15 +4332,14 @@ public sealed partial class HomeView : UserControl
     /// asked for it first.</para>
     ///
     /// <para>No picture gives the same verdict as the cover path: the entry is TOLD there is none, and
-    /// falls back to the radio glyph in its own colour. A walk that merely failed is not told apart
-    /// from a station that has nothing. The walk itself does not keep a failure, so the next read
-    /// asks again.</para>
+    /// falls back to the radio glyph in its own colour. A walk that could not fetch a candidate and found
+    /// nothing is not a verdict: the entry is left as it is, and the next read asks again.</para>
     /// </summary>
     private async Task FillQuickStationAsync(
         HomeQuickCard card, RadioStation station, CancellationToken ct)
     {
-        var found = await RadioStationItem.LogoForAsync(station);
-        if (ct.IsCancellationRequested)
+        var asked = await RadioStationItem.LogoForAsync(station);
+        if (ct.IsCancellationRequested || !asked.Answers(out var found, out _))
             return;
 
         if (found.Picture is null)
@@ -4388,18 +4388,21 @@ public sealed partial class HomeView : UserControl
     /// record, the list's own picture for a list. Each is the door that kind is read by everywhere
     /// else in the app. A station is not here; it is dressed and not decoded, by
     /// <see cref="FillQuickStationAsync"/>.</summary>
-    private Task<byte[]?> QuickCoverAsync(HomeQuickCard card, CancellationToken ct) => card.Kind switch
+    private Task<Asked<byte[]?>> QuickCoverAsync(HomeQuickCard card, CancellationToken ct) => card.Kind switch
     {
+        // With no loader handed over yet, nothing could be asked. That is not "no cover".
+        QuickPickKind.Song or QuickPickKind.Album or QuickPickKind.Radio when card.Folder is not { Length: > 0 } =>
+            Task.FromResult(Asked.Answer<byte[]?>(null)),
         QuickPickKind.Song or QuickPickKind.Album or QuickPickKind.Radio =>
-            CoverLoader is { } load && card.Folder is { Length: > 0 } folder
-                ? load(folder, ArtScaler.TileEdge, ct)
-                : Task.FromResult<byte[]?>(null),
+            CoverLoader is { } load
+                ? load(card.Folder!, ArtScaler.TileEdge, ct)
+                : Task.FromResult(Asked.Failed<byte[]?>("no cover loader yet")),
 
         QuickPickKind.Playlist when card.Door is { } door => ListCoverAsync(door, card.Title, ct),
 
         // No station here. A station's square is not a picture this screen decodes. It is the row's
         // whole dressing: see FillQuickStationAsync, which never reaches this.
-        _ => Task.FromResult<byte[]?>(null),
+        _ => Task.FromResult(Asked.Answer<byte[]?>(null)),
     };
 
     /// <summary>
@@ -5764,7 +5767,7 @@ public sealed partial class HomeView : UserControl
                 return;
             }
 
-            if (await Cancellable.RunAsync(() => CoverRoom.Of(mark), ct)
+            if (await Cancellable.RunAsync(() => CoverRoom.Of(mark, RoomLight.Shelf), ct)
                     is { Ran: true, Value: { } painted }
                 && !ct.IsCancellationRequested)
                 card.ShowRoom(painted);
@@ -5903,7 +5906,7 @@ public sealed partial class HomeView : UserControl
             // other way round reads as it changing its mind. It runs on a worker, because the reading
             // decodes and resizes the picture.
             if (drawn.Wash is { Length: > 0 } wash
-                && await Cancellable.RunAsync(() => CoverRoom.Of(wash), ct)
+                && await Cancellable.RunAsync(() => CoverRoom.Of(wash, RoomLight.Shelf), ct)
                     is { Ran: true, Value: { } painted }
                 && !ct.IsCancellationRequested)
                 card.ShowRoom(painted);

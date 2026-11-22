@@ -836,6 +836,13 @@ public sealed partial class CloudSyncService : IDisposable
 
             NoteStorageFull();
         }
+        catch (CloudOfflineException)
+        {
+            // The gate refused a request. Nothing was sent and nothing went wrong, so nothing is shown. The
+            // queue is in the database. The next kick starts it again, and so does the line coming back
+            // (see the app's network listener).
+            _log.LogInformation("[Cloud] Sync stopped: the app is offline");
+        }
         catch (Exception ex)
         {
             _log.LogError(ex, "[Cloud] Sync stopped");

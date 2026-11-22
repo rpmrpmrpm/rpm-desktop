@@ -45,12 +45,17 @@ public sealed partial class AudioEngine : IDisposable
     private readonly Equalizer _eq = new(Rate, Channels);
 
     /// <summary>
-    /// The gain for the track being played, as a linear multiplier. A track is played at the level of
-    /// the previous track. 1.0 means no change, which is what an unmeasured track gets.
+    /// The gain for the track being played, as a linear multiplier. 1.0 means no change, which is what an
+    /// unmeasured track gets.
     ///
-    /// <para>The writer is whoever starts a track, and the pump reads it. It is volatile and not
-    /// locked, because the pump has a 50 ms deadline and must never wait for the UI thread. See
-    /// <see cref="_gate"/>.</para>
+    /// <para>Two places write it, and both are on the far side of the old track. The worker writes it when
+    /// a track starts, after <see cref="Teardown"/> has stopped the old pump (see <see cref="AdoptGain"/>).
+    /// The pump writes it at a gapless change, when it moves onto the next source (see
+    /// <see cref="TryChain"/>). The caller of <see cref="Play"/> never writes it: the old track's pump is
+    /// still reading it at that moment, so a gain written then is applied to the old track.</para>
+    ///
+    /// <para>It is volatile and not locked, because the pump has a 50 ms deadline and must never wait for
+    /// the UI thread. See <see cref="_gate"/>.</para>
     /// </summary>
     private volatile float _gainTarget = 1f;
 
@@ -64,9 +69,11 @@ public sealed partial class AudioEngine : IDisposable
     /// </summary>
     private float _gainNow = 1f;
 
-    /// <summary>The same gain in dB. A replacement sink must be told the gain in dB, and an ffmpeg
-    /// filter cannot take the linear value above. Guarded by <see cref="_gate"/>. Only the sink swap
-    /// and the setter use it, never the pump.</summary>
+    /// <summary>The gain of the track the engine was last told to play, in dB. A replacement sink must be
+    /// told the gain in dB, and an ffmpeg filter cannot take the linear value above. A seek and a sink
+    /// swap restart the track with it. Guarded by <see cref="_gate"/>. It is written with the rest of the
+    /// playing state, so it always belongs to the same track as <see cref="_playing"/>. The pump never
+    /// reads it.</summary>
     private double _gainDb;
 
     /// <summary>How far the gain moves toward its target on each frame. A 50 ms block at 44.1 kHz is

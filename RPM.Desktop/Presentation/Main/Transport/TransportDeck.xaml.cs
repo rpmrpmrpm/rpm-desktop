@@ -3,12 +3,12 @@ using Microsoft.UI.Xaml.Media;
 namespace RPM.Desktop.Presentation.Main.Transport;
 
 /// <summary>
-/// The deck: the bar along the foot of the main screen. The pane pill is on the left edge. The transport floats
-/// in the exact centre. The state chrome sits on the right: the rip, the cloud, the cast pill and the menu.
+/// The deck: the bar along the foot of the main screen. Home and the search are on the left edge. The transport
+/// floats in the exact centre. The state chrome sits on the right: the rip, the cloud, the cast pill and the menu.
 ///
 /// <para>The deck drives everything through the one shared player model (<see cref="AttachTransport"/>). The
-/// buttons are Commands on that model, so the bar plays whatever the player is playing. The deck does not
-/// decide the pane. It reports the pill's click and paints whatever <see cref="SetPaneOpen"/> tells it.</para>
+/// buttons are Commands on that model, so the bar plays whatever the player is playing. The deck decides no view
+/// and opens no search itself. It reports the press, and the page does the rest.</para>
 /// </summary>
 internal sealed partial class TransportDeck : UserControl
 {
@@ -16,8 +16,8 @@ internal sealed partial class TransportDeck : UserControl
     {
         InitializeComponent();
 
-        // The picker only reports the choice, and the deck passes it on. As with the pane pill and the hamburger,
-        // nothing here decides anything about the app.
+        // The picker only reports the choice, and the deck passes it on. As with the home and search keys and the
+        // hamburger, nothing here decides anything about the app.
         ViewPickerContent.Chosen += view =>
         {
             ViewFlyout.Hide();
@@ -25,8 +25,9 @@ internal sealed partial class TransportDeck : UserControl
         };
     }
 
-    /// <summary>The pane pill was clicked: open the left pane if it is closed, close it if it is open.</summary>
-    public event Action? PaneToggleRequested;
+    /// <summary>The search key was pressed: the library search over the window, as Cmd or Ctrl+F asks for
+    /// it.</summary>
+    public event Action? SearchRequested;
 
     /// <summary>The home key was pressed. Carries nothing: there is one home and the page that shows
     /// it knows where it goes.</summary>
@@ -44,7 +45,7 @@ internal sealed partial class TransportDeck : UserControl
 
     /// <summary>A line of the view menu was pressed. The deck reports the choice, then paints whatever
     /// <see cref="SetView"/> reports. Which of the three views is up is not the deck's decision. It is the same
-    /// as for the pane pill and the pane.</summary>
+    /// as for the home key and home.</summary>
     public event Action<AppView>? ViewRequested;
 
     private AppView _view = AppView.Library;
@@ -135,28 +136,15 @@ internal sealed partial class TransportDeck : UserControl
 
     private void QueueFlyout_Closed(object? sender, object e) => QueueCardContent.Closed();
 
-    // ── the pane pill ─────────────────────────────────────────────────────────
-    // The glyph is a little window. Its drawer slides out of the left edge, the same move the pane makes. When
-    // closed, the drawer is a sliver at the frame's edge, and the clip hides the rest. Hovering nudges it out.
-    // Opening throws it fully out with a small overshoot, so the button has some spring.
-
-    private const double PaneDrawerTucked = -7;    // a 3px sliver of the 10px drawer shows
-    private const double PaneDrawerPeek = -5;      // hover: a touch more
-    private const double PaneDrawerOut = 0;        // open: the whole drawer
-    private const double PaneDrawerMs = 220;
-
-    private double _paneDrawerX = PaneDrawerTucked;
-    private bool _paneOpen;
-    private bool _paneHover;
-    private bool _paneClipped;
-    private EventHandler<object>? _paneTick;
-
-    private void PanePill_Click(object sender, RoutedEventArgs e) => PaneToggleRequested?.Invoke();
+    // ── home and the search ───────────────────────────────────────────────────
 
     /// <summary>The reader asked for home. This is a request, not an action. The deck does not know what is on the
     /// right-hand pane, and it cannot put that pane away. See MainPage, which owns the pane and every surface in
-    /// it. It works like the pane pill above and the view menu beside it.</summary>
+    /// it. It works like the search key beside it and the view menu.</summary>
     private void HomePill_Click(object sender, RoutedEventArgs e) => HomeRequested?.Invoke();
+
+    /// <summary>The reader asked for the search. A request too: the bar it opens belongs to the shell.</summary>
+    private void SearchPill_Click(object sender, RoutedEventArgs e) => SearchRequested?.Invoke();
 
     private static readonly SolidColorBrush HomeGlyphIdle =
         new(Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
@@ -171,93 +159,5 @@ internal sealed partial class TransportDeck : UserControl
         HomeGlyph.Foreground = active
             ? Presentation.Common.SelectedSegment.Ink(true)
             : HomeGlyphIdle;   // the deck's own resting ink, not the rails': nothing else here dims
-    }
-
-    /// <summary>Called on every apply of the pane's own state: the drawer follows it.</summary>
-    public void SetPaneOpen(bool open)
-    {
-        _paneOpen = open;
-        EnsurePaneClip();
-        GlidePaneDrawer();
-    }
-
-    private void PanePill_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        _paneHover = true;
-        GlidePaneDrawer();
-    }
-
-    private void PanePill_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        _paneHover = false;
-        GlidePaneDrawer();
-    }
-
-    /// <summary>The drawer has to vanish into the frame, not hang off it. A clip geometry needs a measured size, so
-    /// it is cut again whenever the icon's size changes.</summary>
-    private void EnsurePaneClip()
-    {
-        if (_paneClipped)
-            return;
-        _paneClipped = true;
-        PaneIconClip.SizeChanged += (_, args) => Cut(args.NewSize.Width, args.NewSize.Height);
-        Cut(PaneIconClip.ActualWidth, PaneIconClip.ActualHeight);   // already laid out, so cut it now
-
-        void Cut(double w, double h)
-        {
-            if (w <= 0 || h <= 0)
-                return;
-            PaneIconClip.Clip = new RectangleGeometry
-            {
-                Rect = new Windows.Foundation.Rect(0, 0, w, h),
-            };
-        }
-    }
-
-    private void GlidePaneDrawer()
-    {
-        double target = _paneOpen ? PaneDrawerOut : _paneHover ? PaneDrawerPeek : PaneDrawerTucked;
-        if (Math.Abs(_paneDrawerX - target) < 0.01)
-            return;
-
-        StopPaneGlide();
-        double from = _paneDrawerX;
-        // Opening springs past the mark and settles back. Tucking away is a plain ease-out, because a drawer being
-        // pushed shut does not bounce.
-        bool spring = target > from;
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        double startMs = -1;
-        _paneTick = (_, _) =>
-        {
-            double now = sw.Elapsed.TotalMilliseconds;
-            if (startMs < 0)
-                startMs = now;
-            double t = Math.Min(1, (now - startMs) / PaneDrawerMs);
-            double e = spring ? BackOut(t) : 1 - Math.Pow(1 - t, 3);
-            _paneDrawerX = from + (target - from) * e;
-            PaneDrawerShift.X = _paneDrawerX;
-            if (t >= 1)
-            {
-                _paneDrawerX = target;
-                PaneDrawerShift.X = target;
-                StopPaneGlide();
-            }
-        };
-        CompositionTarget.Rendering += _paneTick;
-
-        // Overshoot ease, using the standard back-out constants. It goes past the target, then settles.
-        static double BackOut(double t)
-        {
-            const double c1 = 1.70158, c3 = c1 + 1;
-            return 1 + c3 * Math.Pow(t - 1, 3) + c1 * Math.Pow(t - 1, 2);
-        }
-    }
-
-    private void StopPaneGlide()
-    {
-        if (_paneTick is null)
-            return;
-        CompositionTarget.Rendering -= _paneTick;
-        _paneTick = null;
     }
 }

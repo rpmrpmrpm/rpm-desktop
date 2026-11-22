@@ -229,6 +229,10 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         PegasusOverlay.CoversChanged += Cover;
         VizOverlay.CoversChanged += Cover;
 
+        // The search over the window belongs to the library window. Another view coming up puts it away,
+        // without giving the keyboard back to a window that is no longer in front.
+        views.Changed += _ => SearchLayer.Close(giveKeyboardBack: false);
+
         // The problem screen over the library, for when reading the open collection failed.
         WatchLibraryTrouble();
 
@@ -553,7 +557,11 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     private void OnPreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
         if (e.Handled)
+        {
+            if (e.Key == Windows.System.VirtualKey.F)
+                RPM.Core.Diagnostics.Said.Line("search", "shortcut: F was handled before the window saw it");
             return;
+        }
 
         // Every key while Pegasus is up starts its screensaver's wait again. The press that brings its
         // screens back does nothing else, down to its release, except the media keys and the shortcuts
@@ -624,9 +632,14 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
         var focused = XamlRoot is { } root
             ? Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) as DependencyObject
             : null;
-        var shortcut = Shortcuts.For(e.Key, HeldKeys.Now, OperatingSystem.IsMacOS(), RouteFrom(focused));
+        var held = HeldKeys.Now;
+        var shortcut = Shortcuts.For(e.Key, held, OperatingSystem.IsMacOS(), RouteFrom(focused));
         if (shortcut == Shortcut.None)
+        {
+            if (e.Key == Windows.System.VirtualKey.F && held != Modifier.None)
+                RPM.Core.Diagnostics.Said.Line("search", $"shortcut: F with {held} held is not the search");
             return false;
+        }
 
         e.Handled = true;
         if (HeldKeys.IsRepeat(e) && !Shortcuts.ActsOnRepeat(shortcut))
@@ -654,13 +667,20 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
     }
 
     /// <summary>
-    /// Cmd+F or Ctrl+F: the search field of the view in front. Pegasus goes to its wall and focuses its
+    /// Cmd+F or Ctrl+F: the search of the view in front. Pegasus goes to its wall and focuses its
     /// field. The mini player opens its collection if it is shut and focuses its field. The library
-    /// window chooses among its own fields (see <see cref="MainPage.FocusSearch"/>). Nothing happens
+    /// window opens its search over the whole window (<see cref="SearchLibrary"/>), unless the keyboard is
+    /// in a side pane with a field of its own (see <see cref="MainPage.FocusSearch"/>). Nothing happens
     /// while the full-screen visualizer is up, which covers the library but is not a view of its own.
     /// </summary>
     private void SearchInFront()
     {
+        var focused = XamlRoot is { } root
+            ? Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root)
+            : null;
+        RPM.Core.Diagnostics.Said.Line("search", $"shortcut: {App.Services.GetRequiredService<ViewModeService>().Current} view, "
+                            + $"focus on {FocusName(focused)}{(VizOverlay.IsShowing ? ", visualizer up: nothing" : "")}");
+
         if (VizOverlay.IsShowing)
             return;
 
@@ -673,9 +693,39 @@ public sealed partial class ShellPage : Microsoft.UI.Xaml.Controls.Page
                 App.Services.GetRequiredService<RPaMpService>().View.SearchCollection();
                 break;
             case AppView.Library:
-                LibraryPage?.FocusSearch();
+                SearchLibrary();
                 break;
         }
+    }
+
+    /// <summary>
+    /// The library search over the whole window: Cmd or Ctrl+F on the library window, and the deck's search
+    /// key. Nothing while a screen stands in front of the library: the problem screen over a collection that
+    /// could not be read (the bar would open behind it and take the keyboard out of sight), or a setup page in
+    /// place of the library (there is no library page, and no deck).
+    /// </summary>
+    internal void SearchLibrary()
+    {
+        if (ProblemFrame.Visibility == Visibility.Visible || OnSetup || LibraryPage is not { } page)
+        {
+            RPM.Core.Diagnostics.Said.Line("search", "shortcut: no library on screen, nothing to search");
+            return;
+        }
+
+        page.FocusSearch(SearchLayer);
+    }
+
+    /// <summary>The focused element for a ring line: its type, and the first name above it.</summary>
+    private static string FocusName(object? focused)
+    {
+        if (focused is not DependencyObject node)
+            return "nothing";
+
+        var type = node.GetType().Name;
+        for (var up = node; up is not null; up = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(up))
+            if (up is FrameworkElement { Name.Length: > 0 } named)
+                return $"{type} in {named.Name}";
+        return type;
     }
 
     /// <summary>

@@ -140,6 +140,19 @@ public class BorrowedGeneratedRowTests
         PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, bool wearsIt)
         => Assert.Equal(wearsIt, PlaylistTreeItem.MoodsFolder(kind, holdsGeneratedListsOnly, topLevel, name, "Moods"));
 
+    /// <summary>The decades folder wears the clock on both shelves, as on the phones. The moods, a folder
+    /// somebody happens to have called Decades, and a folder of that name further down keep what they had.
+    /// </summary>
+    [Theory]
+    [InlineData(PlaylistRowKind.SmartFolder, false, true, "Decades", true)]
+    [InlineData(PlaylistRowKind.Folder, true, true, "Decades", true)]
+    [InlineData(PlaylistRowKind.SmartFolder, false, true, "Moods", false)]
+    [InlineData(PlaylistRowKind.Folder, false, true, "Decades", false)]
+    [InlineData(PlaylistRowKind.Folder, true, false, "Decades", false)]
+    public void Only_the_decades_folder_wears_the_clock(
+        PlaylistRowKind kind, bool holdsGeneratedListsOnly, bool topLevel, string name, bool wearsIt)
+        => Assert.Equal(wearsIt, PlaylistTreeItem.DecadesFolder(kind, holdsGeneratedListsOnly, topLevel, name, "Decades"));
+
     /// <summary>An empty folder says nothing about who made it, so it is drawn as a folder, and so is
     /// one that holds nothing but empty folders.</summary>
     [Fact]

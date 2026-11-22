@@ -65,10 +65,15 @@ public sealed record RecordingFact(
     /// stays. That is expected for this field.</summary>
     public const string Sound = "sound";
 
+    /// <summary>How the record sounds on the arousal axis: brightness, onsets per second and dynamics, from the
+    /// loudness decode. The mood lists are cut from these. Written by the store for records it measures, so a
+    /// list can be built for an account that has no desktop to measure its files.</summary>
+    public const string Mood = "mood";
+
     /// <summary>Every field this build knows. Anything else is refused, not stored, so a client
     /// cannot fill the pool with names that no code reads.</summary>
     public static readonly IReadOnlySet<string> Fields =
-        new HashSet<string>(StringComparer.Ordinal) { Level, Grid, Key, Energy, Cues, Edges, Bands, Shape, Sound };
+        new HashSet<string>(StringComparer.Ordinal) { Level, Grid, Key, Energy, Cues, Edges, Bands, Shape, Sound, Mood };
 
     /// <summary>The maximum value length. Large enough for a beat grid (a few hundred numbers) and
     /// small enough to keep rows a manageable size.</summary>

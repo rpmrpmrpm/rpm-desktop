@@ -1,10 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-#if RPM_WINUI
 using System.Numerics;
 using Microsoft.UI.Xaml.Controls.Primitives;
-#endif
 
 namespace RPM.Desktop.Presentation.Main;
 
@@ -32,8 +30,10 @@ namespace RPM.Desktop.Presentation.Main;
 /// <para>The repeater must not be its scroller's direct content. The scroller moves its content through the
 /// content's composition visual, so a scale on the content would replace the scroll.</para>
 ///
-/// <para>WinUI only. On the Skia head the grids keep re-flowing on every frame, and these calls do
-/// nothing.</para>
+/// <para><b>Both heads.</b> The scale is the repeater's composition visual's matrix, and the slides are
+/// composition animations (see <see cref="Common.TileGlide"/>). On the Skia head Uno's compositor runs them on
+/// the drawing thread, but nothing in them is layout. The move switches off with the album wall's
+/// (<c>RPM_PANE_FREEZE</c>, see <c>AlbumWallView.WallFreeze</c>).</para>
 /// </remarks>
 internal sealed class TileGridMove
 {
@@ -68,7 +68,6 @@ internal sealed class TileGridMove
         _scroller = scroller;
         _tiles = tiles;
         _shape = shape;
-#if RPM_WINUI
         _name = name;
         tiles.ElementPrepared += (_, e) => StopGlide(e.Element);
         tiles.ElementClearing += (_, e) => StopGlide(e.Element);
@@ -77,7 +76,6 @@ internal sealed class TileGridMove
             if (!e.IsIntermediate)
                 _heldOffset = null;
         };
-#endif
     }
 
     /// <summary>Whether a move is holding the grid.</summary>
@@ -90,13 +88,11 @@ internal sealed class TileGridMove
     /// column count until <see cref="Expect"/> or <see cref="End"/> changes the count.</summary>
     public void Begin()
     {
-#if RPM_WINUI
         if (_held is not null || Library.AlbumWallView.Freeze != Library.AlbumWallView.WallFreeze.Scale
             || !Shown || _shape() is not { Columns: > 0, Width: > 0 } now)
             return;
         _held = now;
         _scale = 1;
-#endif
     }
 
     /// <summary>
@@ -134,9 +130,7 @@ internal sealed class TileGridMove
             return false;
         LayLive(held);
         _scale = available / held.Laid;
-#if RPM_WINUI
         ApplyScale();
-#endif
         return true;
     }
 
@@ -156,10 +150,8 @@ internal sealed class TileGridMove
         {
             _held = null;
             _scale = 1;
-#if RPM_WINUI
             Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(_tiles).TransformMatrix =
                 Matrix4x4.Identity;
-#endif
             _tiles.Width = double.NaN;
             _tiles.HorizontalAlignment = HorizontalAlignment.Stretch;
             settle();
@@ -202,7 +194,6 @@ internal sealed class TileGridMove
     /// <param name="change">Lays the grid out in its new shape.</param>
     private void Rearrange(Shape from, double scaleFrom, Shape? to, double scaleTo, Action change)
     {
-#if RPM_WINUI
         var count = _tiles.ItemsSourceView?.Count ?? 0;
         if (count == 0 || !Shown || from.Pitch <= 0 || from.Columns <= 0)
         {
@@ -285,18 +276,11 @@ internal sealed class TileGridMove
         }
         RPM.Core.Diagnostics.Scope.Said("panes",
             $"{_name}: {from.Columns} -> {shape.Columns} columns, {slid} tiles slid, {faded} faded in");
-#else
-        change();
-#endif
     }
 
-#if RPM_WINUI
     /// <summary>How long a tile takes to reach its new place. The album wall's cards take the same
     /// time.</summary>
-    private const double GlideMs = 220;
-
-    /// <summary>How long a tile that comes into view takes to fade in.</summary>
-    private const double FadeMs = 160;
+    private const double GlideMs = Common.TileGlide.SlideMs;
 
     /// <summary>What the grid is called on the <c>panes</c> channel.</summary>
     private readonly string _name;
@@ -315,9 +299,8 @@ internal sealed class TileGridMove
     /// size against its place's, and when.</summary>
     private readonly Dictionary<int, (Vector2 Offset, float Size, long Started)> _glides = new();
 
-    /// <summary>The elements that have been given a slide or a fade, so that only those are ever
-    /// stopped.</summary>
-    private readonly HashSet<UIElement> _gliding = new();
+    /// <summary>The slides and fades on the tiles' elements.</summary>
+    private readonly Common.TileGlide _tileGlide = new();
 
     /// <summary>Where the top of the viewport is, from the top of the grid. An offset asked for to hold the
     /// reader is the one the next frame is drawn at, even before the scroller reports it.</summary>
@@ -395,62 +378,12 @@ internal sealed class TileGridMove
     }
 
     /// <summary>Starts <paramref name="element"/> <paramref name="offset"/> away from its place, in the grid's
-    /// units, at <paramref name="size"/> times its own size, and slides it home. The size is scaled about the
-    /// tile's top-left corner, which is the corner its place is measured to.</summary>
-    private void Slide(FrameworkElement element, Vector2 offset, float size)
-    {
-        StopGlide(element);
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        var compositor = visual.Compositor;
-        var ease = PaneGlide.Ease(compositor);
+    /// units, at <paramref name="size"/> times its own size, and slides it home.</summary>
+    private void Slide(FrameworkElement element, Vector2 offset, float size) => _tileGlide.Slide(element, offset, size);
 
-        var slide = compositor.CreateVector3KeyFrameAnimation();
-        slide.InsertKeyFrame(0f, new Vector3(offset, 0));
-        slide.InsertKeyFrame(1f, Vector3.Zero, ease);
-        slide.Duration = TimeSpan.FromMilliseconds(GlideMs);
-        visual.StartAnimation("Translation", slide);
+    private void Fade(FrameworkElement element) => _tileGlide.Fade(element);
 
-        if (Math.Abs(size - 1) >= 0.005f)
-        {
-            visual.CenterPoint = Vector3.Zero;
-            var grow = compositor.CreateVector3KeyFrameAnimation();
-            grow.InsertKeyFrame(0f, new Vector3(size, size, 1));
-            grow.InsertKeyFrame(1f, Vector3.One, ease);
-            grow.Duration = TimeSpan.FromMilliseconds(GlideMs);
-            visual.StartAnimation("Scale", grow);
-        }
-        _gliding.Add(element);
-    }
-
-    private void Fade(FrameworkElement element)
-    {
-        StopGlide(element);
-        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        var compositor = visual.Compositor;
-        var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(0f, 0f);
-        fade.InsertKeyFrame(1f, 1f, PaneGlide.Ease(compositor));
-        fade.Duration = TimeSpan.FromMilliseconds(FadeMs);
-        visual.StartAnimation("Opacity", fade);
-        _gliding.Add(element);
-    }
-
-    /// <summary>Puts an element that was given a slide or a fade back where layout put it, at full opacity.
-    /// Does nothing for an element that was never given one: stopping an animation on a property that a
-    /// visual does not have throws.</summary>
-    private void StopGlide(UIElement element)
-    {
-        if (!_gliding.Remove(element))
-            return;
-        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(element);
-        visual.StopAnimation("Translation");
-        visual.Properties.InsertVector3("Translation", Vector3.Zero);
-        visual.StopAnimation("Scale");
-        visual.Scale = Vector3.One;
-        visual.StopAnimation("Opacity");
-        visual.Opacity = 1;
-    }
-#endif
+    /// <summary>Puts an element that was given a slide or a fade back where layout put it. See
+    /// <see cref="Common.TileGlide.Stop"/>.</summary>
+    private void StopGlide(UIElement element) => _tileGlide.Stop(element);
 }

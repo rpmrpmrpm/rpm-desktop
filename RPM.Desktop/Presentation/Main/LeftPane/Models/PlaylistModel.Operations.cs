@@ -205,19 +205,36 @@ public sealed partial class PlaylistModel
     /// </summary>
     public void AddToCloud(PlaylistTreeItem item)
     {
-        if (Mine is null || item.NodeId is not { } id) return;
-        _ = RunCloudAsync(cloud => cloud.AddPlaylistToCloudAsync(id), "add", item.Name);
+        if (item.NodeId is not { } id) return;
+        AddPlaylistsToCloud([id], $"the playlist {item.Name}");
+    }
+
+    /// <summary>Puts several playlists in the cloud at once, from a selection in the tree. See
+    /// <see cref="PlaylistCloudPick"/>.</summary>
+    /// <param name="which">What the log calls them if this fails.</param>
+    public void AddPlaylistsToCloud(IReadOnlyList<long> playlistNodeIds, string which)
+    {
+        if (Mine is null || playlistNodeIds.Count == 0) return;
+        _ = RunCloudAsync(cloud => cloud.AddPlaylistsToCloudAsync(playlistNodeIds), "add", which);
     }
 
     /// <summary>Takes a playlist out of the cloud, and with it the tracks that were only in the cloud for
     /// its sake.</summary>
     public void RemoveFromCloud(PlaylistTreeItem item)
     {
-        if (Mine is null || item.NodeId is not { } id) return;
-        _ = RunCloudAsync(cloud => cloud.RemovePlaylistFromCloudAsync(id), "remove", item.Name);
+        if (item.NodeId is not { } id) return;
+        RemovePlaylistsFromCloud([id], $"the playlist {item.Name}");
     }
 
-    private async Task RunCloudAsync(Func<CloudSyncService, Task> work, string what, string name)
+    /// <summary>Takes several playlists out of the cloud at once, from a selection in the tree.</summary>
+    /// <param name="which">What the log calls them if this fails.</param>
+    public void RemovePlaylistsFromCloud(IReadOnlyList<long> playlistNodeIds, string which)
+    {
+        if (Mine is null || playlistNodeIds.Count == 0) return;
+        _ = RunCloudAsync(cloud => cloud.RemovePlaylistsFromCloudAsync(playlistNodeIds), "remove", which);
+    }
+
+    private async Task RunCloudAsync(Func<CloudSyncService, Task> work, string what, string which)
     {
         try
         {
@@ -226,7 +243,7 @@ public sealed partial class PlaylistModel
         catch (Exception ex)
         {
             App.Services.GetRequiredService<ILogger<PlaylistModel>>()
-                .LogError(ex, "[Playlists] Could not {What} the playlist {Name} in the cloud", what, name);
+                .LogError(ex, "[Playlists] Could not {What} {Which} in the cloud", what, which);
         }
     }
 

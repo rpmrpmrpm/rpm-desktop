@@ -1417,8 +1417,18 @@ public sealed partial class RadioStationItem(RadioStation station) : INotifyProp
     /// station. The row stops at the first candidate that is big enough. A walk that stopped at the first
     /// candidate that decodes would pick a different picture for a station whose first logo is a 32-pixel
     /// favicon.</para>
+    ///
+    /// <para>Unanswered when the walk found nothing and a candidate could not be fetched (see <see
+    /// cref="Settlement.Complete"/>). The station may well have a logo, so a caller must not keep "no
+    /// logo" for it.</para>
     /// </summary>
-    public static Task<FoundLogo> LogoForAsync(RadioStation station) => SettledFor(station);
+    public static async Task<Asked<FoundLogo>> LogoForAsync(RadioStation station)
+    {
+        var row = await RowFor(station);
+        return row.Logo.Picture is null && !row.Complete
+            ? Asked.Failed<FoundLogo>("a logo could not be fetched")
+            : Asked.Answer(row.Logo);
+    }
 
     /// <summary> The same station's picture, decoded at <paramref name="edge"/> pixels, for a surface
     /// drawn larger than a row's well: Pegasus's station cards and its tuner's player.
@@ -1930,7 +1940,9 @@ public sealed partial class RadioModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     private async Task FetchCurrentLogoAsync(RadioStation station)
     {
-        var found = await RadioStationItem.LogoForAsync(station);
+        // A logo that could not be fetched shows as none. The badge keeps nothing, so the next tune asks
+        // again.
+        var found = (await RadioStationItem.LogoForAsync(station)).Answers(out var logo, out _) ? logo : default;
 
         if (!string.Equals(station.Uuid, _logoFor, StringComparison.Ordinal))
             return;

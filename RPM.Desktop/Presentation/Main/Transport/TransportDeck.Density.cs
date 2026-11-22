@@ -1,16 +1,17 @@
 namespace RPM.Desktop.Presentation.Main.Transport;
 
 /// <summary>
-/// How much of the deck fits. The bar holds three groups at fixed sizes: the pane pill on the left, the
+/// How much of the deck fits. The bar holds three groups at fixed sizes: home and the search on the left, the
 /// transport in the exact centre, and the state chrome on the right. On a narrow window there is not room
 /// for all three. The middle stays centred, and the two edges run under it or off it.
 ///
 /// <para>Things are removed in order of how little they are worth on a small window. Cast goes first. It
 /// sits where the volume readout ends, so those two meet before anything else does. Then the volume slider
 /// gives up a third of its length and leaves altogether. The two keys on either side still change the volume
-/// without it, five at a time. Then the view picker goes. Then the pane pill and the menu, which can be
-/// reached elsewhere in the window. Last, the whole volume group goes: the mark, the keys and the readout.
-/// That leaves the four keys the bar exists for: stop, back, play and forward.</para>
+/// without it, five at a time. Then the view picker goes. Then the search key and the menu, which can be
+/// reached elsewhere (Cmd or Ctrl+F, the window's own menu). Last, the whole volume group goes: the mark, the
+/// keys and the readout. That leaves home and the four keys the bar exists for: stop, back, play and
+/// forward.</para>
 ///
 /// <para>Every width below is a fixed value from the deck's markup. So the space the deck needs at a given
 /// step does not depend on how it looks right now. Hiding a pill changes the demand, never the width on
@@ -50,9 +51,6 @@ internal sealed partial class TransportDeck
     /// <summary>A deck pill: a 16-wide mark, 14 of padding either side, and the hairline.</summary>
     private const double DeckPillWidth = 46;
 
-    /// <summary>The pane pill is wider. Its mark is the little window, 26 across.</summary>
-    private const double PanePillWidth = 56;
-
     /// <summary>The smallest step: only the four transport keys.</summary>
     private const int DeckStageFloor = 6;
 
@@ -89,7 +87,7 @@ internal sealed partial class TransportDeck
 
         ViewButton.Visibility = Vis(stage < 4);
 
-        PanePill.Visibility = Vis(stage < 5);
+        SearchPill.Visibility = Vis(stage < 5);
         MenuPill.Visibility = Vis(stage < 5);
 
         // The mark, the two keys and the readout form one group, with the rule in front of it. On the last step the
@@ -120,7 +118,8 @@ internal sealed partial class TransportDeck
                 transport += (stage >= 2 ? VolumeSliderShortWidth : VolumeSliderWidth) + DeckSpacing;
         }
 
-        var left = stage < 5 ? PanePillWidth : 0;
+        // Home never leaves. The search key leaves with the menu.
+        var left = DeckPillWidth + (stage < 5 ? DeckPillSpacing + DeckPillWidth : 0);
 
         var right = ChipsWidth();
         if (stage < 1)
@@ -131,8 +130,8 @@ internal sealed partial class TransportDeck
             right += DeckPillWidth + DeckPillSpacing;   // the menu
 
         // The transport is centred by a Grid whose two edge columns are stars. Whatever is left after the middle
-        // is split evenly between them, however unequal the two groups are. The right edge has three pills to
-        // the left edge's one, so it runs out of room first. A row that adds up to less than the deck does not
+        // is split evenly between them, however unequal the two groups are. The right edge has more pills than
+        // the left edge's two, so it runs out of room first. A row that adds up to less than the deck does not
         // show whether it fits. The wider group must fit in half of the leftover. The other side's spare width is
         // not available to it.
         var edge = Math.Max(left, right);
