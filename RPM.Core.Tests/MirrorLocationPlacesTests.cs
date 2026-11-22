@@ -171,6 +171,10 @@ public class MirrorLocationPlacesTests : IDisposable
     [Fact]
     public void A_database_another_program_has_open_stays_where_it_is_until_the_next_open()
     {
+        // Windows only: the move asks Windows whether another handle has the file open, and Windows refuses to
+        // rename a file that is open. On macOS and Linux an idle connection holds no lock, so nothing stops the move.
+        if (!OperatingSystem.IsWindows())
+            return;
         Add(MirrorLocation.InFolder(_music), "A/B/01.flac");
 
         using (var other = new SqliteConnection($"Data Source={InFolderFile};Pooling=False"))
@@ -328,6 +332,10 @@ public class MirrorLocationPlacesTests : IDisposable
     [Fact]
     public void An_older_copy_that_is_in_use_is_never_opened_in_place_of_the_newer()
     {
+        // Windows only: the move asks Windows whether another handle has the file open, and Windows refuses to
+        // rename a file that is open. On macOS and Linux an idle connection holds no lock, so nothing stops the move.
+        if (!OperatingSystem.IsWindows())
+            return;
         Add(MirrorLocation.InFolder(_music), "A/B/01.flac");
         Open(Local(On));
         File.Copy(OffDiskFile, InFolderFile);
