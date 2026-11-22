@@ -168,6 +168,24 @@ public sealed record CatalogSongCover(string? Cover, string? Album, string? Arti
     public static readonly CatalogSongCover None = new(null, null, null, null);
 }
 
+/// <summary>
+/// Whether some songs' lyrics are explicit, decided song by song. Served by <c>GET /metadata/advisory</c>:
+/// one entry per song asked about, in the order asked.
+///
+/// <para>The server matches each song against the iTunes store by title, act and length. A store song
+/// marked "explicit" or "cleaned" (the edited version of an explicit song) makes the song explicit; one
+/// marked "notExplicit" makes it not explicit. Serialized camelCase: <c>{ songs: [{ title, seconds,
+/// explicit }] }</c>.</para>
+/// </summary>
+public sealed record CatalogAdvisoryAnswer(IReadOnlyList<CatalogAdvisorySong> Songs);
+
+/// <summary>One song of a <see cref="CatalogAdvisoryAnswer"/>.</summary>
+/// <param name="Title">The title as it was asked.</param>
+/// <param name="Seconds">The length as it was asked, 0 when it was not given.</param>
+/// <param name="Explicit">True when the song is explicit, false when the store says it is not, and null
+/// when the store has no song that matches closely enough. Null is "not known", never "clean".</param>
+public sealed record CatalogAdvisorySong(string Title, int Seconds, bool? Explicit);
+
 /// <summary>One music DVD a search turned up.</summary>
 public sealed record CatalogDvd(
     string ReleaseId,

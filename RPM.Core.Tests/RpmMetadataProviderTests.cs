@@ -256,5 +256,9 @@ public class RpmMetadataProviderTests
 
         public Task<Asked<CatalogSongCover>> GetSongCoverAsync(string artist, string title, int size, CancellationToken ct = default)
             => throw new NotSupportedException();
+
+        public Task<Asked<CatalogAdvisoryAnswer>> GetAdvisoryAsync(
+            string artist, string? album, IReadOnlyList<(string Title, int Seconds)> songs, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 }

@@ -159,6 +159,24 @@ public sealed partial class RpmMetadataApi : IRpmMetadataApi
         return Bodied(await AskAsync(q, CatalogWireJson.Default.CatalogSongCover, NotFound.IsAFailure, ct));
     }
 
+    /// <summary>Not known is an answer (explicit null on a 200), never a 404. So a 404, an empty body or a 503
+    /// (the store could not be asked in time) is a failure, and the songs are asked about again later.</summary>
+    public async Task<Asked<CatalogAdvisoryAnswer>> GetAdvisoryAsync(
+        string artist, string? album, IReadOnlyList<(string Title, int Seconds)> songs, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(artist) || songs.Count == 0)
+            return Asked.Answer(new CatalogAdvisoryAnswer([]));
+
+        var q = new System.Text.StringBuilder($"metadata/advisory?artist={Uri.EscapeDataString(artist.Trim())}");
+        if (!string.IsNullOrWhiteSpace(album))
+            q.Append("&album=").Append(Uri.EscapeDataString(album.Trim()));
+        foreach (var (title, seconds) in songs)
+            q.Append("&title=").Append(Uri.EscapeDataString(title.Trim())).Append("&seconds=").Append(Math.Max(seconds, 0));
+
+        return Bodied(await AskAsync(q.ToString(), CatalogWireJson.Default.CatalogAdvisoryAnswer, NotFound.IsAFailure, ct))
+            .Then(Whole);
+    }
+
     // ── what came off the wire, made usable ───────────────────────────────
     //
     // Three of these shapes declare a list that cannot be null, and their callers read it without checking.
@@ -171,6 +189,9 @@ public sealed partial class RpmMetadataApi : IRpmMetadataApi
 
     private static CatalogDisc? Whole(CatalogDisc? wire)
         => wire is null ? null : wire with { Tracks = wire.Tracks ?? [] };
+
+    private static CatalogAdvisoryAnswer Whole(CatalogAdvisoryAnswer wire)
+        => wire with { Songs = wire.Songs ?? [] };
 
     private static CatalogPlays Whole(CatalogPlays wire)
         => wire with { Tracks = wire.Tracks ?? [], Plays = wire.Plays ?? [] };

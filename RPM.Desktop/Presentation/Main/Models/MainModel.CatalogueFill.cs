@@ -22,8 +22,9 @@ namespace RPM.Desktop.Presentation.Main.Models;
 /// folder, a finished rip, the setup wizard, or music dropped into the inbox while the app runs. The inbox
 /// sweep that follows the library opening does not, because nothing in the background starts itself off the
 /// library opening; the records it queued are picked up by the next add. Each record is one unit of work that
-/// asks the <see cref="Services.Shell.Governor"/> first, in the network lane, because a record is one or two
-/// requests to the rpm API and nothing else.</para>
+/// asks the <see cref="Services.Shell.Governor"/> first, in the network lane, because a record is only requests
+/// to the rpm API: one or two for the release, one for the explicit flags of its songs, and a few for single
+/// songs still unknown, a few seconds apart (see <see cref="AdvisoryFill.AskStoreAsync"/>).</para>
 ///
 /// <para><b>Quiet.</b> Signed out, offline, a refusal: the pass stops without a word, and the records it did not
 /// reach are asked about after the next add. A record the catalogue answered is not asked about again this
@@ -165,9 +166,16 @@ public sealed partial class MainModel
                         if (!(await CatalogueFill.FindAsync(catalogue, album, ct)).Answers(out var release, out _))
                             return;
 
-                        if (release is not null
-                            && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release)))
+                        var took = release is not null
+                                   && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release));
+
+                        // The songs the release gave no explicit flag, asked about song by song. Not answering stops
+                        // the pass in the same way, after what did arrive is put on the rows.
+                        var (reached, bySong) = await FillAdvisoryBySongAsync(db, group, album, Still, ct);
+                        if (took || bySong)
                             filled++;
+                        if (!reached)
+                            return;
                     }
 
                     if (wantsDisc)
@@ -266,6 +274,67 @@ public sealed partial class MainModel
             _queueSource.ApplyEditsInPlace(changed);
         return true;
     }
+    /// <summary>
+    /// Asks the rpm API, song by song, about the songs of one queued record that still have no explicit flag (or
+    /// Clean) after the release fill, and puts what it says on the rows (see <see cref="AdvisoryFill.AskStoreAsync"/>).
+    /// A flag set in the queue is not asked about. Part of the record's one unit of work: the requests for single
+    /// songs are a few seconds apart, and stop when the pass may no longer run.
+    /// </summary>
+    /// <returns>Whether the API answered (false stops the pass), and whether any row took a flag.</returns>
+    private async Task<(bool Reached, bool Changed)> FillAdvisoryBySongAsync(
+        LibraryDatabase db, QueueGroup group, CatalogueFill.Album album, Func<bool> still, CancellationToken ct)
+    {
+        var open = db.WholeQueue.RowsInGroup(group.Artist, group.Album)
+            .Where(r => r.Wanted.Advisory == r.Current.Advisory && AdvisoryFill.Wants(r.Wanted.Advisory))
+            .ToList();
+        var api = App.Services.GetRequiredService<IRpmMetadataApi>();
+        if (open.Count == 0 || !api.IsAvailable)
+            return (true, false);
+
+        var asked = await AdvisoryFill.AskStoreAsync(
+            api, album.Artist, album.Title, [.. open.Select(r => AdvisoryFill.SongOf(r.Wanted))],
+            async (wait, token) => still() && _settings.ImportFillFromCatalogue && await Cancellable.DelayAsync(wait, token),
+            ct);
+        if (!asked.Answers(out var store, out _))
+            return (false, false);
+
+        var answers = new Dictionary<long, bool?>();
+        for (var i = 0; i < open.Count; i++)
+            if (store.Explicit[i] == true)
+                answers[open[i].Id] = true;
+
+        var changed = answers.Count > 0 && await OnInterfaceAsync(() => ApplyAdvisoryBySong(answers));
+        return (store.Whole, changed);
+    }
+
+    /// <summary>Puts the API's song-by-song explicit flags on queued rows, read again at the moment of writing. On
+    /// the interface thread, like <see cref="ApplyCatalogueFill"/>.</summary>
+    /// <returns>Whether any row took a flag.</returns>
+    private bool ApplyAdvisoryBySong(IReadOnlyDictionary<long, bool?> answers)
+    {
+        if (!_library.IsOpen || _importing)
+            return false;
+
+        var changed = new List<TrackRow>();
+        foreach (var (id, answer) in answers)
+        {
+            if (_library.Db.QueueRowById(id) is not { } stored)
+                continue;
+            var filled = AdvisoryFill.FillBySong(stored.Wanted, stored.Current, answer);
+            if (!ReferenceEquals(filled, stored.Wanted))
+                changed.Add(QueueTreeSource.MaterializeRow(stored with { Wanted = filled }));
+        }
+
+        if (changed.Count == 0)
+            return false;
+
+        if (_queueSource.WriteBackMany(changed))
+            _ = _queueSource.RebuildAsync(_queueFilter);
+        else
+            _queueSource.ApplyEditsInPlace(changed);
+        return true;
+    }
+
     /// <summary>
     /// Whether a queued record should be given a disc picture from the rpm API: it has no picture of its disc
     /// held against it, the person has not taken one away, and none came with its files.

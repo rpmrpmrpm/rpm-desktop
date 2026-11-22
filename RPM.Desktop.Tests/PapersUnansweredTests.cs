@@ -162,6 +162,10 @@ public class PapersUnansweredTests : IDisposable
 
         public Task<Asked<CatalogSongCover>> GetSongCoverAsync(string artist, string title, int size, CancellationToken ct = default)
             => throw new NotSupportedException();
+
+        public Task<Asked<CatalogAdvisoryAnswer>> GetAdvisoryAsync(
+            string artist, string? album, IReadOnlyList<(string Title, int Seconds)> songs, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     /// <summary>Wikidata and Wikipedia: every request answered by <paramref name="answer"/>, where null

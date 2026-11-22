@@ -109,4 +109,15 @@ public interface IRpmMetadataApi
     /// time, and that is unanswered too.</returns>
     Task<Asked<CatalogSongCover>> GetSongCoverAsync(
         string artist, string title, int size, CancellationToken ct = default);
+
+    /// <summary>
+    /// Whether songs are explicit, decided song by song by the server (see <see cref="CatalogAdvisoryAnswer"/>).
+    /// </summary>
+    /// <param name="album">The album the songs are on: every song of it is answered in one request. Null to
+    /// ask about one song on its own by artist and title; <paramref name="songs"/> must then hold one song.</param>
+    /// <param name="songs">Each song's title and length in whole seconds, 0 when the length is not known.</param>
+    /// <returns>One answer per song, in the same order. <see cref="Asked{T}.Unanswered"/> when the API could not
+    /// be asked or did not answer, which includes the server's 503 for a store it could not reach.</returns>
+    Task<Asked<CatalogAdvisoryAnswer>> GetAdvisoryAsync(
+        string artist, string? album, IReadOnlyList<(string Title, int Seconds)> songs, CancellationToken ct = default);
 }

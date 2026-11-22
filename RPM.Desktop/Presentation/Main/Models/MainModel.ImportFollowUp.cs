@@ -3,6 +3,7 @@ using RPM.Core.Diagnostics;
 using RPM.Core.Import;
 using RPM.Core.Library;
 using RPM.Core.Metadata.Providers;
+using RPM.Core.Models;
 using RPM.Core.Threading;
 
 namespace RPM.Desktop.Presentation.Main.Models;
@@ -168,7 +169,8 @@ public sealed partial class MainModel
             }
         }
 
-        // The explicit flag, from the release the album is linked to or the one the catalogue is sure of.
+        // The explicit flag, from the release the album is linked to or the one the catalogue is sure of. The songs
+        // the release gives no flag are then asked about song by song.
         if (Catalog.Search.Providers.FirstOrDefault(p => p.Id == RpmMetadataProvider.ProviderId)
                 is { IsAvailable: true } catalogue)
         {
@@ -180,11 +182,35 @@ public sealed partial class MainModel
                 if (!(await CatalogueFill.FindAsync(catalogue, record, ct)).Answers(out var release, out _))
                     return ((true, false), (flagged, discs));
 
-                if (release is not null)
+                var plan = release is not null ? AdvisoryFill.Plan(rows, release, album.Leave) : [];
+                var planned = plan.Select(c => c.Row.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var open = rows
+                    .Where(r => !planned.Contains(r.RelativePath) && !album.Leave.Contains(r.RelativePath)
+                                && AdvisoryFill.Wants(r.Advisory ?? ContentAdvisory.Unknown))
+                    .ToList();
+
+                var reached = true;
+                if (open.Count > 0)
                 {
-                    var plan = AdvisoryFill.Plan(rows, release, album.Leave);
-                    flagged = AdvisoryFill.Write(db, root, plan, path => _playback.HoldsOpen(path));
+                    var asked = await AdvisoryFill.AskStoreAsync(
+                        App.Services.GetRequiredService<IRpmMetadataApi>(), record.Artist, record.Title,
+                        [.. open.Select(AdvisoryFill.SongOf)],
+                        async (wait, token) => _settings.ImportFillFromCatalogue && await Cancellable.DelayAsync(wait, token),
+                        ct);
+                    if (asked.Answers(out var store, out _))
+                    {
+                        plan = [.. plan, .. AdvisoryFill.PlanBySong(open, store.Explicit)];
+                        reached = store.Whole;
+                    }
+                    else
+                    {
+                        reached = false;
+                    }
                 }
+
+                flagged = AdvisoryFill.Write(db, root, plan, path => _playback.HoldsOpen(path));
+                if (!reached)
+                    return ((true, false), (flagged, discs));
             }
         }
 

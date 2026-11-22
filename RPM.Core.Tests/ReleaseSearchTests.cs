@@ -335,6 +335,10 @@ public class ReleaseSearchTests
         public Task<Asked<CatalogSongCover>> GetSongCoverAsync(string artist, string title, int size, CancellationToken ct = default)
             => throw new NotSupportedException();
 
+        public Task<Asked<CatalogAdvisoryAnswer>> GetAdvisoryAsync(
+            string artist, string? album, IReadOnlyList<(string Title, int Seconds)> songs, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
         /// <summary>The cover request does not answer.</summary>
         public bool Fails { get; init; }
     }

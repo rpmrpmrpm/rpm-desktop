@@ -82,6 +82,24 @@ public class CatalogWireJsonTests
     /// which is why the client fills these lists in at the seam rather than handing the answer
     /// straight to a window that enumerates them.
     /// </summary>
+    /// <summary>The advisory route's answer, exactly as the live server writes it: an unknown song has
+    /// <c>explicit</c> null, which must not read as false.</summary>
+    [Fact]
+    public void An_advisory_answer_keeps_not_known_apart_from_not_explicit()
+    {
+        const string written = """
+            {"songs":[{"title":"Crime Wave","seconds":224,"explicit":true},
+                      {"title":"Shake It Off","seconds":219,"explicit":false},
+                      {"title":"Flight 187","seconds":251,"explicit":null}]}
+            """;
+
+        var read = JsonSerializer.Deserialize(written, CatalogWireJson.Default.CatalogAdvisoryAnswer);
+
+        Assert.NotNull(read);
+        Assert.Equal([true, false, null], read.Songs.Select(s => s.Explicit));
+        Assert.Equal(("Crime Wave", 224), (read.Songs[0].Title, read.Songs[0].Seconds));
+    }
+
     [Fact]
     public void A_missing_list_is_null_rather_than_empty()
     {

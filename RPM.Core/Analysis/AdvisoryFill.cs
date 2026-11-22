@@ -12,8 +12,10 @@ namespace RPM.Core.Analysis;
 ///
 /// <para><b>Where the answer comes from.</b> The rpm API's release listing carries a flag per track. The API
 /// takes it from the iTunes store, and only for a store album that has the same title, artist and track count as
-/// the release (see <c>ITunesAdvisoryClient</c>). The app does not ask a store itself. A song the listing has
-/// no flag for stays as it is.</para>
+/// the release (see <c>ITunesAdvisoryClient</c>), or, when the store has no such album, song by song. A song
+/// the listing gives no flag is then asked about on the API's song-by-song route (see
+/// <see cref="AskStoreAsync"/>). The app never asks a store itself. A song neither answers stays as it
+/// is.</para>
 ///
 /// <para><b>How a song is matched to a track of the listing.</b> The titles must be the same once case, accents,
 /// punctuation, a "feat." credit and a trailing note in brackets are set aside. Where both lengths are known they
@@ -40,7 +42,10 @@ public static partial class AdvisoryFill
     /// <param name="Seconds">The length, or 0 when it is not known.</param>
     /// <param name="Disc">The disc number, or 0 when the song names none (read as disc 1).</param>
     /// <param name="Track">The track number on its disc, or 0 when it has none.</param>
-    public sealed record Song(string? Title, double Seconds, uint Disc, uint Track, ContentAdvisory Advisory);
+    /// <param name="Artist">The song's own artist, used when the song is asked about on its own (see
+    /// <see cref="AskStoreAsync"/>). Null to use the record's.</param>
+    public sealed record Song(
+        string? Title, double Seconds, uint Disc, uint Track, ContentAdvisory Advisory, string? Artist = null);
 
     /// <summary>Whether a song's flag is one this fill may change: none, or Clean.</summary>
     public static bool Wants(ContentAdvisory advisory)
@@ -103,8 +108,7 @@ public static partial class AdvisoryFill
         if (wanted.Advisory != current.Advisory)
             return wanted;
 
-        var song = new Song(wanted.Title, wanted.DurationSeconds, wanted.DiscNumber, wanted.TrackNumber, wanted.Advisory);
-        return Decide(song, release, songsOnRecord) is { } flag && flag != wanted.Advisory
+        return Decide(SongOf(wanted), release, songsOnRecord) is { } flag && flag != wanted.Advisory
             ? wanted with { Advisory = flag, TagsEdited = true }
             : wanted;
     }
@@ -127,8 +131,7 @@ public static partial class AdvisoryFill
             if (leave?.Contains(row.RelativePath) == true)
                 continue;
             var was = row.Advisory ?? ContentAdvisory.Unknown;
-            var song = new Song(row.Title, row.DurationSeconds, row.DiscNumber, row.TrackNumber, was);
-            if (Decide(song, release, rows.Count) is { } flag && flag != was)
+            if (Decide(SongOf(row), release, rows.Count) is { } flag && flag != was)
                 changes.Add(new Change(row, was, flag));
         }
         return changes;

@@ -32,5 +32,6 @@ namespace RPM.Fingerprint.Catalog;
 [JsonSerializable(typeof(CatalogDisc))]
 [JsonSerializable(typeof(CatalogCover))]
 [JsonSerializable(typeof(CatalogSongCover))]
+[JsonSerializable(typeof(CatalogAdvisoryAnswer))]
 [JsonSerializable(typeof(CoverSearchResponse))]
 public sealed partial class CatalogWireJson : JsonSerializerContext;
