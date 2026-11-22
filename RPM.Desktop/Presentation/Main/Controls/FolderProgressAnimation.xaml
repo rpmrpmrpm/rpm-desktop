@@ -254,10 +254,12 @@
                 VerticalAlignment="Center"
                 MinWidth="200">
 
-            <StackPanel Spacing="24" HorizontalAlignment="Center">
+            <!-- The words sit close under the art: the art's box is only as tall as the magnifier's path needs
+                 (the folder is 120 high and the glass swings 22 above and below it), and the gap is small. -->
+            <StackPanel Spacing="8" HorizontalAlignment="Center">
 
                 <!-- Animation icons -->
-                <Grid Width="240" Height="180" HorizontalAlignment="Center">
+                <Grid Width="240" Height="130" HorizontalAlignment="Center">
 
                     <!-- Folder icon -->
                     <Viewbox Width="160" Height="120"

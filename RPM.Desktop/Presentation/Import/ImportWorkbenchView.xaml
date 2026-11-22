@@ -167,9 +167,10 @@
                    Visibility="{Binding QueueTreeVisibility}"
                    Background="{StaticResource GridSurfaceBrush}"/>
 
-    <!-- Scan in progress: a magnifier animation takes the tree's place. There is no caption. The count line says
-         "scanning for audio files" until there is a total to count against. -->
+    <!-- Scan in progress: a magnifier animation takes the tree's place, with "Importing files" over the bar. The
+         count line says "scanning for audio files" until there is a total to count against. -->
       <local:FolderProgressAnimation Grid.Row="3" Grid.ColumnSpan="2" Visibility="{Binding ScanningVisibility}"
+                                     Caption="{loc:Str Key=Queue_ScanCaption}"
                                      ProgressMax="{Binding ScanProgressMax}"
                                      ProgressValue="{Binding ScanProgressValue}"
                                      IsIndeterminate="{Binding ScanIsIndeterminate}"
