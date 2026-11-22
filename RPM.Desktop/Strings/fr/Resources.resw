@@ -5283,8 +5283,12 @@
     <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre, year or explicit marks.</comment>
   </data>
   <data name="Queue_TagStageCaption" xml:space="preserve">
-    <value>Place à vos tags ! Nous récupérons les genres, sous-genres, années, mentions explicites et images de disque dans le catalogue.</value>
-    <comment>Line above the progress bar in the import queue's tag stage, shown right after music is added: rpm fills in what the new records lack from its catalogue before the queue opens for editing.</comment>
+    <value>Récupération des informations sur les albums</value>
+    <comment>Line above the progress bar in the import queue's tag stage, shown right after music is added: rpm fills in genres, subgenres, years, explicit marks and disc pictures from its catalogue before the queue opens for editing.</comment>
+  </data>
+  <data name="Queue_ScanCaption" xml:space="preserve">
+    <value>Importation des fichiers</value>
+    <comment>Line above the progress bar in the import queue while added music is being read in, before the tag stage.</comment>
   </data>
   <data name="Queue_TagStageAlbum" xml:space="preserve">
     <value>Album {0} sur {1} : {2} – {3}</value>
