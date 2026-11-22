@@ -5280,7 +5280,7 @@
   </data>
   <data name="Queue_CatalogueFilled" xml:space="preserve">
     <value>Records filled in from the catalogue: {0}</value>
-    <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre or year.</comment>
+    <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre, year or explicit marks.</comment>
   </data>
   <data name="QueueDup_InLibrary" xml:space="preserve">
     <value>The collection already holds this track, in a copy at least as good.</value>
@@ -6563,11 +6563,11 @@
     <comment>Settings hint under the required tags checkboxes.</comment>
   </data>
   <data name="Settings_CatalogueFill" xml:space="preserve">
-    <value>Fill in missing genre and year when music is added</value>
-    <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue and fills blank genre, subgenre and year in the import queue.</comment>
+    <value>Fill in what’s missing when music is added</value>
+    <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue, fills blank genre, subgenre and year in the import queue, marks explicit songs and finds a picture of the disc.</comment>
   </data>
   <data name="Settings_CatalogueFillHint" xml:space="preserve">
-    <value>rpm looks each record up in its catalogue and fills in the genre, subgenre and year wherever they’re blank or not on rpm’s genre list. Anything you’ve already set stays put, and nothing is written to your files until you import.</value>
+    <value>rpm looks each record up in its catalogue and fills in the genre, subgenre and year wherever they’re blank or not on rpm’s genre list. It also marks the songs with explicit lyrics, and finds a picture of the disc when your files didn’t come with one. Anything you’ve already set stays put, and nothing is written to your files until you import.</value>
     <comment>Settings hint under the catalogue fill toggle.</comment>
   </data>
   <data name="Queue_ChipDuplicates" xml:space="preserve">
@@ -6841,6 +6841,26 @@
   <data name="Queue_TagPanelDiscLabel" xml:space="preserve">
     <value>Disc</value>
     <comment>Button under one of the two picture wells in the import tag panel: which picture it changes.</comment>
+  </data>
+  <data name="Queue_ArtInFiles" xml:space="preserve">
+    <value>In the files</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The picture is inside the music files.</comment>
+  </data>
+  <data name="Queue_ArtInFolder" xml:space="preserve">
+    <value>In the folder</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The picture is an image file beside the music files.</comment>
+  </data>
+  <data name="Queue_ArtFoundOnline" xml:space="preserve">
+    <value>Found online</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. rpm found the picture online by itself. 'Picture' is the implied subject (feminine in French and Spanish).</comment>
+  </data>
+  <data name="Queue_ArtPicked" xml:space="preserve">
+    <value>Picked by you</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The person chose this picture in rpm. 'Picture' is the implied subject (feminine in French and Spanish).</comment>
+  </data>
+  <data name="Queue_ArtNone" xml:space="preserve">
+    <value>None yet</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The record has no such picture yet. 'Picture' is the implied subject (feminine in French and Spanish, 'Bild' in German).</comment>
   </data>
   <data name="Viz_AlignOff" xml:space="preserve">
     <value>Follow words by ear</value>

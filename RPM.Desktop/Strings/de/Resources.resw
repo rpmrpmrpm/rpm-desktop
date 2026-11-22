@@ -5280,7 +5280,7 @@
   </data>
   <data name="Queue_CatalogueFilled" xml:space="preserve">
     <value>Aus dem Katalog ergänzte Platten: {0}</value>
-    <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre or year.</comment>
+    <comment>Import queue status line after the background catalogue fill; {0} is how many records got a genre, subgenre, year or explicit marks.</comment>
   </data>
   <data name="QueueDup_InLibrary" xml:space="preserve">
     <value>Die Sammlung enthält diesen Titel bereits, in mindestens gleicher Qualität.</value>
@@ -6563,11 +6563,11 @@
     <comment>Settings hint under the required tags checkboxes.</comment>
   </data>
   <data name="Settings_CatalogueFill" xml:space="preserve">
-    <value>Fehlendes Genre und Jahr beim Hinzufügen von Musik ergänzen</value>
-    <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue and fills blank genre, subgenre and year in the import queue.</comment>
+    <value>Fehlendes beim Hinzufügen von Musik ergänzen</value>
+    <comment>Settings &gt; Collection, required tags card: toggle that looks each added record up in the catalogue, fills blank genre, subgenre and year in the import queue, marks explicit songs and finds a picture of the disc.</comment>
   </data>
   <data name="Settings_CatalogueFillHint" xml:space="preserve">
-    <value>rpm schlägt jede Platte in seinem Katalog nach und ergänzt Genre, Subgenre und Jahr, wo sie leer sind oder nicht auf der Genreliste von rpm stehen. Was du schon eingetragen hast, bleibt, und in deine Dateien wird erst beim Import etwas geschrieben.</value>
+    <value>rpm schlägt jede Platte in seinem Katalog nach und ergänzt Genre, Subgenre und Jahr, wo sie leer sind oder nicht auf der Genreliste von rpm stehen. Außerdem markiert es Titel mit expliziten Texten und sucht ein Bild der Disc, wenn deine Dateien keins mitbringen. Was du schon eingetragen hast, bleibt, und in deine Dateien wird erst beim Import etwas geschrieben.</value>
     <comment>Settings hint under the catalogue fill toggle.</comment>
   </data>
   <data name="Queue_ChipDuplicates" xml:space="preserve">
@@ -6841,6 +6841,26 @@
   <data name="Queue_TagPanelDiscLabel" xml:space="preserve">
     <value>Disc</value>
     <comment>Button under one of the two picture wells in the import tag panel: which picture it changes.</comment>
+  </data>
+  <data name="Queue_ArtInFiles" xml:space="preserve">
+    <value>In den Dateien</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The picture is inside the music files.</comment>
+  </data>
+  <data name="Queue_ArtInFolder" xml:space="preserve">
+    <value>Im Ordner</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The picture is an image file beside the music files.</comment>
+  </data>
+  <data name="Queue_ArtFoundOnline" xml:space="preserve">
+    <value>Online gefunden</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. rpm found the picture online by itself. 'Picture' is the implied subject (feminine in French and Spanish).</comment>
+  </data>
+  <data name="Queue_ArtPicked" xml:space="preserve">
+    <value>Von dir gewählt</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The person chose this picture in rpm. 'Picture' is the implied subject (feminine in French and Spanish).</comment>
+  </data>
+  <data name="Queue_ArtNone" xml:space="preserve">
+    <value>Noch keins</value>
+    <comment>Caption under a picture well (cover or disc) in the import queue's tag panel: where the record's picture is. The record has no such picture yet. 'Picture' is the implied subject (feminine in French and Spanish, 'Bild' in German).</comment>
   </data>
   <data name="Viz_AlignOff" xml:space="preserve">
     <value>Wörter nach Gehör folgen</value>
