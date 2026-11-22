@@ -128,6 +128,7 @@ public sealed partial class MainModel
                     return;
 
                 IReadOnlyList<QueueGroup> groups;
+                var bySongLater = new List<(QueueGroup Group, CatalogueFill.Album Album)>();
                 using (var page = await sweep.Next(ct))
                 {
                     if (!page.Go || !Still())
@@ -168,14 +169,13 @@ public sealed partial class MainModel
 
                         var took = release is not null
                                    && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release));
-
-                        // The songs the release gave no explicit flag, asked about song by song. Not answering stops
-                        // the pass in the same way, after what did arrive is put on the rows.
-                        var (reached, bySong) = await FillAdvisoryBySongAsync(db, group, album, Still, ct);
-                        if (took || bySong)
+                        if (took)
                             filled++;
-                        if (!reached)
-                            return;
+
+                        // The songs the release gave no explicit flag are asked about song by song, but only after
+                        // every record in the queue has had its release fill. The song requests are seconds apart,
+                        // and genre, style and year must not wait behind them.
+                        bySongLater.Add((group, album));
                     }
 
                     if (wantsDisc)
@@ -186,6 +186,22 @@ public sealed partial class MainModel
 
                     if (!await Cancellable.DelayAsync(FillBreath, ct))
                         return;
+                }
+
+                // Then the explicit flags, song by song, for the records the release left without them. A record
+                // that has left the queue since has nothing to ask about (the import follow-up takes it). When the
+                // API does not answer, only this part stops: the release fill above is already done.
+                foreach (var (group, album) in bySongLater)
+                {
+                    using var slot = await sweep.Next(ct);
+                    if (!slot.Go || !Still() || !_settings.ImportFillFromCatalogue)
+                        return;
+
+                    var (reached, bySong) = await FillAdvisoryBySongAsync(db, group, album, Still, ct);
+                    if (bySong)
+                        filled++;
+                    if (!reached)
+                        break;
                 }
             }
         }
@@ -277,10 +293,11 @@ public sealed partial class MainModel
     /// <summary>
     /// Asks the rpm API, song by song, about the songs of one queued record that still have no explicit flag (or
     /// Clean) after the release fill, and puts what it says on the rows (see <see cref="AdvisoryFill.AskStoreAsync"/>).
-    /// A flag set in the queue is not asked about. Part of the record's one unit of work: the requests for single
-    /// songs are a few seconds apart, and stop when the pass may no longer run.
+    /// A flag set in the queue is not asked about. One unit of work, run after the release fill of every queued
+    /// record: the requests for single songs are a few seconds apart, and stop when the pass may no longer run.
     /// </summary>
-    /// <returns>Whether the API answered (false stops the pass), and whether any row took a flag.</returns>
+    /// <returns>Whether every request was answered (false ends the song-by-song part of the pass, never the release
+    /// fill, which has run by then), and whether any row took a flag.</returns>
     private async Task<(bool Reached, bool Changed)> FillAdvisoryBySongAsync(
         LibraryDatabase db, QueueGroup group, CatalogueFill.Album album, Func<bool> still, CancellationToken ct)
     {
