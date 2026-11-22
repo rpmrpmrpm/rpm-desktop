@@ -37,10 +37,11 @@ if (!Directory.Exists(root))
 
 // The library's own database, opened where the app keeps it. Read for what the catalogues said, never
 // written: the tag is the source of truth and the mirror follows it.
-// Where the app keeps the database of a library in a network folder: LocalData.Libraries in the app.
-var thisComputer = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RPM", MirrorLocation.LibrariesFolderName);
-using var db = new LibraryDatabase(MirrorLocation.For(root, thisComputer));
+// Where the app keeps the library's database: its settings say, as they do in the app. Opened with the
+// defaults instead, a database that the app keeps off the music folder's disk would be carried back.
+var places = DatabasePlaces.FromAppSettings(
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RPM"));
+using var db = new LibraryDatabase(MirrorLocation.For(root, places));
 
 var coverage = db.CountReleaseCoverage();
 var facts = db.CatalogueFactsByFolder();

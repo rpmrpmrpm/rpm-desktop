@@ -337,8 +337,9 @@ public class MirrorLocationTests : IDisposable
         Assert.Equal(["A/B/01.flac"], Paths(where));
         Assert.True(File.Exists(InFolderFile));
 
-        // This computer's copy is left where it is.
-        Assert.True(File.Exists(local));
+        // This computer's copy is renamed aside, not deleted, so a later open cannot find it as a database.
+        Assert.False(File.Exists(local));
+        Assert.Equal(["A/B/01.flac"], PathsInFile(local + LibraryDatabase.MovedSuffix));
     }
 
     [Fact]

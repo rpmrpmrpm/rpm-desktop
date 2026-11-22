@@ -36,15 +36,19 @@ public sealed partial class LibraryService : IDisposable
 {
     private readonly object _gate = new();
     private readonly Account.AuthService _auth;
+    private readonly SettingsService? _settings;
 
     /// <param name="auth">Who is signed in. This decides whether the mirror may show the records that exist
     /// only in the cloud. The rule is kept here, not in the cloud services, because it must be on the
     /// mirror before anything reads it. It is applied inside <see cref="Open"/>, before the <see
     /// cref="Changed"/> event sends every view to the database. So no view draws the wall with the wrong
     /// rule.</param>
-    public LibraryService(Account.AuthService auth)
+    /// <param name="settings">Where library databases are kept (<see cref="SettingsService.DatabasePlaces"/>).
+    /// Null in tests, which use the default places.</param>
+    public LibraryService(Account.AuthService auth, SettingsService? settings = null)
     {
         _auth = auth;
+        _settings = settings;
         _auth.Changed += OnAccountChanged;
     }
 
@@ -355,13 +359,17 @@ public sealed partial class LibraryService : IDisposable
         Raise("ReleaseKept");
     }
 
+    /// <summary>Where the user's library keeps its database: the places in the settings, or the defaults when
+    /// there are no settings (tests).</summary>
+    public DatabasePlaces DatabasePlaces => _settings?.DatabasePlaces ?? new DatabasePlaces(LocalData.Libraries);
+
     public void Open(string libraryRoot)
     {
         // The new mirror is built before the old one is released. Building it reaches the disk: it creates
         // the .rpm folder, opens two SQLite connections and migrates them. So it can fail. If the old
         // mirror were closed first and the build then failed, the field would hold a disposed mirror. Every
         // later read would throw ObjectDisposedException, and only a restart would recover.
-        var opened = new LibraryDatabase(MirrorLocation.For(libraryRoot, LocalData.Libraries))
+        var opened = new LibraryDatabase(MirrorLocation.For(libraryRoot, DatabasePlaces))
         {
             LocalRowsOnly = !_auth.IsLoggedIn,
         };

@@ -50,6 +50,7 @@ public sealed partial class LibrarySettingsPage : Page
         InitRequiredTags();
         InitSharing();
         InitNas();
+        InitDatabase();
         ShowKept();
         RefreshFingerprintStatus();
         RefreshAnalysisTagStatus();
@@ -73,6 +74,7 @@ public sealed partial class LibrarySettingsPage : Page
         (string Key, FrameworkElement Card)[] sections =
         [
             ("Settings_MusicFolder", FolderCard),
+            ("Settings_Database", DatabaseCard),
             ("Share_Title", SharingCard),
             ("Settings_Naming", NamingCard),
             ("Settings_ImportAction", ImportActionCard),
@@ -440,6 +442,7 @@ public sealed partial class LibrarySettingsPage : Page
         PathText.Text = _settings.LibraryPath;
         FolderStatus.Text = "";
         ShowKept();
+        ShowDatabaseNow();
 
         // The pass over the new collection (reconcile, report, queue the inbox) is run by the library
         // page, when it is raised by Opened. Running it here as well would run two syncs over one

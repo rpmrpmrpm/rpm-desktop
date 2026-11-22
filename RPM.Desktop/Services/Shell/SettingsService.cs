@@ -204,7 +204,14 @@ public sealed partial class SettingsService
         RPM.Core.Crashes.CrashConsent CrashConsent = RPM.Core.Crashes.CrashConsent.NotAsked,
         string? CrashInstallId = null,
         // The NAS the library is on, or null for a library on this computer or on a share mounted by hand.
-        RPM.Desktop.Services.Nas.NasLocation? LibraryNas = null);
+        RPM.Desktop.Services.Nas.NasLocation? LibraryNas = null,
+        // Where library databases are kept when they are not in the music folder. The three names are the
+        // keys that RPM.Core.Library.DatabasePlaces.FromAppSettings reads; change both together.
+        string? LibraryDatabaseFolder = null,
+        bool LibraryDatabaseOffMusicDisk = false,
+        IReadOnlyList<string>? LibraryDatabaseFoldersBefore = null,
+        // The note that suggests the switch above for a music folder on a spinning disk was closed.
+        bool SpinningDiskNoteDismissed = false);
 
     private Model _model = new(null);
 
@@ -256,6 +263,59 @@ public sealed partial class SettingsService
         get => _model.LibraryNas;
         set => Update(_model with { LibraryNas = value });
     }
+
+    /// <summary>
+    /// The folder this computer keeps library databases in when they are not in their music folder, or null
+    /// for the default (<see cref="LocalData.Libraries"/>). A network library always keeps its database
+    /// here, and a local one does when <see cref="LibraryDatabaseOffMusicDisk"/> is on.
+    ///
+    /// <para>The folder it replaces is remembered (<see cref="DatabasePlaces"/>), so the next open finds a
+    /// database that is still there and moves it across. A change applies when the library is next opened:
+    /// the open library's database is in use until then.</para>
+    /// </summary>
+    public string? LibraryDatabaseFolder
+    {
+        get => _model.LibraryDatabaseFolder;
+        set
+        {
+            var was = LibraryDatabaseFolderInUse;
+            var now = string.IsNullOrWhiteSpace(value) ? null : value;
+            var before = (_model.LibraryDatabaseFoldersBefore ?? [])
+                .Where(p => !string.Equals(p, was, StringComparison.OrdinalIgnoreCase))
+                .Append(was)
+                .ToList();
+            Update(_model with { LibraryDatabaseFolder = now, LibraryDatabaseFoldersBefore = before }, notify: false);
+        }
+    }
+
+    /// <summary>The database folder in use: the chosen one, or the default.</summary>
+    public string LibraryDatabaseFolderInUse => _model.LibraryDatabaseFolder ?? LocalData.Libraries;
+
+    /// <summary>Whether a music folder on this computer's own disk keeps its database in
+    /// <see cref="LibraryDatabaseFolderInUse"/> rather than in its <c>.rpm</c> folder. For a music folder on a
+    /// slow disk. It applies when the library is next opened, which moves the database (see
+    /// <see cref="RPM.Core.Library.MirrorLocation"/>).</summary>
+    public bool LibraryDatabaseOffMusicDisk
+    {
+        get => _model.LibraryDatabaseOffMusicDisk;
+        set => Update(_model with { LibraryDatabaseOffMusicDisk = value }, notify: false);
+    }
+
+    /// <summary>Whether the note that suggests <see cref="LibraryDatabaseOffMusicDisk"/> for a music folder on
+    /// a spinning disk has been closed. Set only by the note's own buttons.</summary>
+    public bool SpinningDiskNoteDismissed
+    {
+        get => _model.SpinningDiskNoteDismissed;
+        set => Update(_model with { SpinningDiskNoteDismissed = value }, notify: false);
+    }
+
+    /// <summary>Where the library's database is kept, as <see cref="RPM.Core.Library.MirrorLocation"/> reads
+    /// it. The earlier folders include the default one, so a database there is found after the first
+    /// change too.</summary>
+    public RPM.Core.Library.DatabasePlaces DatabasePlaces =>
+        new(LibraryDatabaseFolderInUse,
+            _model.LibraryDatabaseOffMusicDisk,
+            [.. _model.LibraryDatabaseFoldersBefore ?? [], LocalData.Libraries]);
 
     /// <summary>
     /// Whether this computer offers its library to the computers it is paired with, and looks for theirs.

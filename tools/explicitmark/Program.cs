@@ -67,10 +67,11 @@ var found = answers.Values
 Console.WriteLine($"{answers.Count} tracks in the scan, {found.Count} found explicit " +
                   $"({found.Count(a => a.Adv == 0)} unflagged, {found.Count(a => a.Adv == 2)} flagged Clean when scanned)");
 
-// Where the app keeps the database of a library in a network folder: LocalData.Libraries in the app.
-var thisComputer = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RPM", MirrorLocation.LibrariesFolderName);
-using var db = new LibraryDatabase(MirrorLocation.For(root, thisComputer));
+// Where the app keeps the library's database: its settings say, as they do in the app. Opened with the
+// defaults instead, a database that the app keeps off the music folder's disk would be carried back.
+var places = DatabasePlaces.FromAppSettings(
+    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RPM"));
+using var db = new LibraryDatabase(MirrorLocation.For(root, places));
 
 var files = new List<(string Path, string? RpmId, string Label)>();
 var cloudOnly = new List<(string RpmId, ContentAdvisory Was, string Label)>();

@@ -208,9 +208,13 @@ public sealed class NasLibraryService(
         if (move is not MoveResult.Done)
             return (null, move, null);
 
+        // The file the open library is using, wherever the settings keep it, carried to the place a network
+        // library's database goes.
+        var source = library.Db.DatabasePath;
+        var thisComputer = settings.DatabasePlaces.ThisComputer;
         await Task.Run(() => LibraryMove.CarryDatabase(
-            RPM.Core.Library.MirrorLocation.For(from, LocalData.Libraries).DatabasePath,
-            System.IO.Path.Combine(LocalData.Libraries, newId, RPM.Core.Library.LibraryDatabase.DataFileName)), cancellation);
+            source,
+            System.IO.Path.Combine(thisComputer, newId, RPM.Core.Library.LibraryDatabase.DataFileName)), cancellation);
         journal.Delete();
         WritePending(null);
         return (null, move, ready);

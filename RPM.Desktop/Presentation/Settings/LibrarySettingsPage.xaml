@@ -94,6 +94,82 @@
         </StackPanel>
       </Border>
 
+      <!-- Where the collection's database is kept: in the music folder, or in a database folder on a faster
+           disk. Filled in code (LibrarySettingsPage.Database.cs). A change applies at the next start,
+           because the open database is in use until then. -->
+      <Border x:Name="DatabaseCard" Style="{StaticResource ContentBorderStyle}" Padding="18">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf1c0;" FontSize="12"
+                      Foreground="#66FFFFFF" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Str Key=Settings_Database}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="White" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="{loc:Str Key=Settings_DatabaseHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+
+          <!-- The one-time suggestion for a music folder on a spinning disk. Shown in code, only when the
+               disks were asked and the answer was clear. -->
+          <Border x:Name="SpinningNote" Background="#14FFFFFF" CornerRadius="8" Padding="14"
+                  Visibility="Collapsed">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{loc:Str Key=Settings_DatabaseSpinning}"
+                         TextWrapping="Wrap" Foreground="#CCFFFFFF" FontSize="12" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ctl:RpmPrimaryButton Click="OnSpinningYes">
+                  <TextBlock Text="{loc:Str Key=Settings_DatabaseSpinningYes}" VerticalAlignment="Center" />
+                </ctl:RpmPrimaryButton>
+                <Button Click="OnSpinningNo" Style="{StaticResource GlassButtonStyle}" Padding="12,0">
+                  <TextBlock Text="{loc:Str Key=Settings_DatabaseSpinningNo}" VerticalAlignment="Center" />
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <ToggleSwitch x:Name="DatabaseOffDiskToggle"
+                        Header="{loc:Str Key=Settings_DatabaseOffDisk}"
+                        Toggled="OnDatabaseOffDiskToggled"
+                        OffContent="" OnContent="" />
+          <TextBlock Text="{loc:Str Key=Settings_DatabaseOffDiskHint}"
+                     FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+
+          <TextBlock Text="{loc:Str Key=Settings_DatabaseFolder}" FontSize="12" Foreground="#CCFFFFFF"
+                     Margin="0,4,0,0" />
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="DatabaseFolderText"
+                       Grid.Column="0"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="#CCFFFFFF"
+                       FontFamily="Consolas,Menlo,monospace"
+                       FontSize="12" />
+
+            <Button x:Name="DatabaseDefaultButton" Grid.Column="1" Click="OnDefaultDatabaseFolder"
+                    Style="{StaticResource GlassButtonStyle}" Padding="12,0" Visibility="Collapsed">
+              <TextBlock Text="{loc:Str Key=Settings_DatabaseFolderDefault}" VerticalAlignment="Center" />
+            </Button>
+
+            <ctl:RpmPrimaryButton Grid.Column="2" Click="OnChangeDatabaseFolder">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Style="{StaticResource FaIcon}" Glyph="&#xf07b;" FontSize="11"
+                          VerticalAlignment="Center" />
+                <TextBlock Text="{loc:Str Key=Settings_Change}" VerticalAlignment="Center" />
+              </StackPanel>
+            </ctl:RpmPrimaryButton>
+          </Grid>
+
+          <TextBlock x:Name="DatabaseNowText" FontSize="12" Foreground="#88FFFFFF" TextWrapping="Wrap" />
+          <TextBlock x:Name="DatabaseStatus" Text="{loc:Str Key=Settings_DatabaseNextStart}"
+                     FontSize="12" Foreground="#FFD466" TextWrapping="Wrap" Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
       <!-- Sharing over the local network. The switch is the only part of the machinery the user has to
            think about. Below it are the name of this computer and the list of computers it shares with. -->
       <Border x:Name="SharingCard" Style="{StaticResource ContentBorderStyle}" Padding="18">

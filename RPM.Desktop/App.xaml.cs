@@ -720,7 +720,7 @@ public partial class App : Application
         // is not mounted yet, and one on a network volume keeps its database elsewhere. The library is
         // opened about a second from here, and the open stops the read first. See MirrorReadAhead.
         if (!GalleryMode.Active && settings.LibraryNas is null && settings.LibraryPath is { } libraryPath)
-            RPM.Core.Library.MirrorReadAhead.Start(libraryPath);
+            RPM.Core.Library.MirrorReadAhead.Start(libraryPath, settings.DatabasePlaces);
 
         // The chosen language, before anything is built with a string in it.
         if (settings.Language is { } language)

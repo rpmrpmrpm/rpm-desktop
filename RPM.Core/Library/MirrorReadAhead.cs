@@ -39,7 +39,10 @@ public static class MirrorReadAhead
     /// write-ahead log, on a worker. Only a folder on this computer's own disks whose database is already
     /// there is read (see <see cref="MirrorLocation.OwnDiskDatabase"/>). That question reaches the disk, so
     /// it is asked on the worker too. Does nothing if a read is already under way. Never throws.</summary>
-    public static void Start(string libraryRoot)
+    /// <param name="places">Where the settings keep the library's database. With
+    /// <see cref="DatabasePlaces.OffMusicDisk"/> on, the database folder's file is read instead. Null reads
+    /// the music folder's file only.</param>
+    public static void Start(string libraryRoot, DatabasePlaces? places = null)
     {
         lock (Lock)
         {
@@ -50,7 +53,7 @@ public static class MirrorReadAhead
             _stop = stop;
             _reading = Task.Run(() =>
             {
-                if (MirrorLocation.OwnDiskDatabase(libraryRoot) is not { } databasePath)
+                if (MirrorLocation.OwnDiskDatabase(libraryRoot, places) is not { } databasePath)
                     return;
 
                 Read(databasePath, stop.Token);

@@ -852,13 +852,12 @@ public sealed partial class LibraryDatabase : IDisposable
         MirrorReadAhead.Finish();
 
         Root = location.Root;
-        DatabasePath = location.DatabasePath;
-        var path = DatabasePath;
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(location.DatabasePath)!);
 
-        // Before the first connection, because a connection would create an empty file at the path.
-        if (location.CarryFrom is { } from && !File.Exists(path))
-            Carry(from, path);
+        // Before the first connection, because a connection would create an empty file at the path. A move
+        // that could not be made leaves the database where it is, and that file is opened (see Prepare).
+        DatabasePath = Prepare(location);
+        var path = DatabasePath;
 
         // A MirrorConnection, so a command that SQLite refuses is reported (Refused) before it leaves.
         _connection = new MirrorConnection(new SqliteConnectionStringBuilder
@@ -868,10 +867,11 @@ public sealed partial class LibraryDatabase : IDisposable
             Pooling = false,
         }.ToString(), ReportRefusal);
         _connection.Open();
-        Execute("PRAGMA journal_mode=WAL");
-        Execute($"PRAGMA cache_size=-{BackgroundCacheKib}");
         try
         {
+            // Inside the try: a file that is not a database fails here, and its handle must be closed too.
+            Execute("PRAGMA journal_mode=WAL");
+            Execute($"PRAGMA cache_size=-{BackgroundCacheKib}");
             Upgrade.Run(this);
         }
         catch

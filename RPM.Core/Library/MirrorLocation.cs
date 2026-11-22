@@ -27,10 +27,23 @@ namespace RPM.Core.Library;
 /// favourites. It is copied as files, together with its <c>-wal</c> file, and SQLite opens only the copy.
 /// The folder's file is not changed or deleted. In the other direction, a folder on this computer's own
 /// disk that has an id and no <c>library.db</c> (a library moved off a network volume) gets this computer's
-/// database for that id copied into it. A copy is made only when the destination has no file, so a database
-/// is never replaced.</para>
+/// database for that id moved into it (see below). A copy is made only when the destination has no file,
+/// so a database is never replaced.</para>
+///
+/// <para><b>Off the music folder's disk.</b> When <see cref="DatabasePlaces.OffMusicDisk"/> is on, a music
+/// folder on this computer's own disk is treated like a network folder: it gets an id file, and its
+/// database is kept under the id in <see cref="DatabasePlaces.ThisComputer"/>. This is for a music folder
+/// on a slow disk, such as a spinning hard disk, when another disk is faster. Only the database leaves
+/// the folder. The id file and everything else in <c>.rpm</c> stay with the music. See
+/// <c>MirrorLocation.Places.cs</c> for every state and what each one opens.</para>
+///
+/// <para><b>Moving, not copying, on this computer.</b> A database that is carried from one place on this
+/// computer to another (into the database folder, back into the music folder, or from a database folder
+/// chosen earlier) is moved: it is copied with SQLite's backup API while no other connection can write it,
+/// the copy is checked, and only then is the old file renamed aside (<c>library.db.moved</c>). It is never
+/// deleted. So no place keeps a stale copy that a later open could find and open instead.</para>
 /// </summary>
-public sealed class MirrorLocation
+public sealed partial class MirrorLocation
 {
     /// <summary>The id file's name in the music folder's <c>.rpm</c>.</summary>
     public const string IdFileName = "library.json";
@@ -39,12 +52,14 @@ public sealed class MirrorLocation
     /// id.</summary>
     public const string LibrariesFolderName = "libraries";
 
-    private MirrorLocation(string root, string databasePath, Carried? carryFrom, bool onThisComputer)
+    private MirrorLocation(
+        string root, string databasePath, Carried? carryFrom, bool onThisComputer, IReadOnlyList<string>? setAside = null)
     {
         Root = root;
         DatabasePath = databasePath;
         CarryFrom = carryFrom;
         OnThisComputer = onThisComputer;
+        SetAside = setAside ?? [];
     }
 
     /// <summary>The music folder.</summary>
@@ -53,17 +68,24 @@ public sealed class MirrorLocation
     /// <summary>The database file.</summary>
     public string DatabasePath { get; }
 
-    /// <summary>True when the database is kept on this computer because the music folder is on a
-    /// network volume.</summary>
+    /// <summary>True when the database is kept in the database folder on this computer, not in the music
+    /// folder: because the music folder is on a network volume, or because
+    /// <see cref="DatabasePlaces.OffMusicDisk"/> is on.</summary>
     public bool OnThisComputer { get; }
 
-    /// <summary>A database to copy to <see cref="DatabasePath"/> if no file is there when it is opened.
-    /// Null when there is none to copy.</summary>
+    /// <summary>A database to carry to <see cref="DatabasePath"/> if no file is there when it is opened.
+    /// Null when there is none to carry.</summary>
     internal Carried? CarryFrom { get; }
 
-    /// <summary>A database to copy in, and whether it is on the network volume. The two are one value
-    /// because the second decides how the copy is read. A file on the share is copied as files, and it is
-    /// never opened with SQLite there (see <c>LibraryDatabase.Carry</c>).
+    /// <summary>Older copies of this library's database, renamed aside before the database is opened. There
+    /// is one when two places both hold a database for this library; the newer one is kept (see
+    /// <see cref="Newest"/>). Empty almost always.</summary>
+    internal IReadOnlyList<string> SetAside { get; }
+
+    /// <summary>A database to carry in, and whether it is on the network volume. The two are one value
+    /// because the second decides how the copy is made. A file on the share is copied as files, it is
+    /// never opened with SQLite there, and it is left as it was (see <c>LibraryDatabase.Carry</c>). A file
+    /// on this computer is moved: copied with the backup API, checked, and then renamed aside.
     /// </summary>
     internal sealed record Carried(string Path, bool OnNetworkVolume);
 
@@ -92,19 +114,38 @@ public sealed class MirrorLocation
     /// <remarks>Reaches the disk. It moves a <c>.grooves</c> folder to <c>.rpm</c>, asks for the folder's
     /// volume, and reads the id file. The first time a network folder is opened, it also writes the id
     /// file.</remarks>
-    public static MirrorLocation For(string libraryRoot, string thisComputer)
+    public static MirrorLocation For(string libraryRoot, string thisComputer) =>
+        For(libraryRoot, new DatabasePlaces(thisComputer));
+
+    /// <summary>Where the user's library at <paramref name="libraryRoot"/> keeps its database, with the
+    /// database folder and the choice to keep it off the music folder's disk taken from
+    /// <paramref name="places"/>.</summary>
+    /// <exception cref="DirectoryNotFoundException">The music folder is not there.</exception>
+    /// <exception cref="InvalidDataException">The folder's <c>.rpm/library.json</c> does not hold a library
+    /// id, and the id is needed to find the database.</exception>
+    /// <exception cref="IOException">The id file is empty or locked, because another open is writing it.
+    /// Opening again recovers.</exception>
+    /// <remarks>Reaches the disk, as <see cref="For(string, string)"/> does. When two places hold a database
+    /// for this library, it also opens both read-only to see which is newer.</remarks>
+    public static MirrorLocation For(string libraryRoot, DatabasePlaces places)
     {
+        ArgumentNullException.ThrowIfNull(places);
+
         // Asked here as well as through the volume. On Windows, a missing folder under C:\ is on a fixed
         // drive. Only macOS and Linux answer NoRootDirectory for it.
         if (!Directory.Exists(libraryRoot))
             throw new DirectoryNotFoundException($"The music folder {libraryRoot} is not there.");
 
-        return For(libraryRoot, thisComputer, VolumeOf(libraryRoot));
+        return For(libraryRoot, places, VolumeOf(libraryRoot));
     }
 
     /// <summary><see cref="For(string, string)"/> with the volume already asked, so a test can stand a
     /// network volume in.</summary>
-    internal static MirrorLocation For(string libraryRoot, string thisComputer, DriveType volume)
+    internal static MirrorLocation For(string libraryRoot, string thisComputer, DriveType volume) =>
+        For(libraryRoot, new DatabasePlaces(thisComputer), volume);
+
+    /// <summary><see cref="For(string, DatabasePlaces)"/> with the volume already asked.</summary>
+    internal static MirrorLocation For(string libraryRoot, DatabasePlaces places, DriveType volume)
     {
         // This runs before the id file is written. Writing the id file creates .rpm, and that would stop
         // the move.
@@ -122,27 +163,25 @@ public sealed class MirrorLocation
             case DriveType.Network:
             {
                 var id = LibraryId.ReadOrCreate(libraryRoot);
+                var here = OffDiskPath(places.ThisComputer, id);
+
+                // A database left in a database folder chosen earlier is this computer's newest copy. The
+                // share's own file is older than it, so it is moved across instead.
+                if (!File.Exists(here) && Former(places, id) is { } former)
+                    return new MirrorLocation(
+                        libraryRoot, here, new Carried(former, OnNetworkVolume: false), onThisComputer: true);
+
                 return new MirrorLocation(
                     libraryRoot,
-                    Path.Combine(thisComputer, id, LibraryDatabase.DataFileName),
+                    here,
                     carryFrom: File.Exists(inFolder) ? new Carried(inFolder, OnNetworkVolume: true) : null,
                     onThisComputer: true);
             }
 
             default:
-            {
-                // The id is read only when there is no database in the folder. It matters only for copying
-                // one in. An unreadable id file must not stop a folder that has a database.
-                Carried? carryBack = null;
-                if (!File.Exists(inFolder) && LibraryId.Read(libraryRoot) is { } id)
-                {
-                    var onThisComputer = Path.Combine(thisComputer, id, LibraryDatabase.DataFileName);
-                    if (File.Exists(onThisComputer))
-                        carryBack = new Carried(onThisComputer, OnNetworkVolume: false);
-                }
-
-                return new MirrorLocation(libraryRoot, inFolder, carryBack, onThisComputer: false);
-            }
+                return places.OffMusicDisk
+                    ? OffTheMusicDisk(libraryRoot, places, inFolder)
+                    : InTheMusicFolder(libraryRoot, places, inFolder);
         }
     }
 
@@ -160,7 +199,12 @@ public sealed class MirrorLocation
     /// thread while the real open has not happened yet (see <see cref="MirrorReadAhead"/>). A folder whose
     /// legacy folder has not been moved yet answers null, which only means nothing is read ahead.
     /// </remarks>
-    public static string? OwnDiskDatabase(string libraryRoot)
+    public static string? OwnDiskDatabase(string libraryRoot) => OwnDiskDatabase(libraryRoot, places: null);
+
+    /// <summary><see cref="OwnDiskDatabase(string)"/>, which also finds the database in the database folder
+    /// when <paramref name="places"/> keeps it off the music folder's disk. Nothing is changed and nothing
+    /// is created: the id file is only read.</summary>
+    public static string? OwnDiskDatabase(string libraryRoot, DatabasePlaces? places)
     {
         try
         {
@@ -170,10 +214,15 @@ public sealed class MirrorLocation
             if (VolumeOf(libraryRoot) is DriveType.Network or DriveType.NoRootDirectory)
                 return null;
 
+            if (places is { OffMusicDisk: true } && LibraryId.Read(libraryRoot) is { } id
+                && OffDiskPath(places.ThisComputer, id) is var off && File.Exists(off))
+                return off;
+
             var file = InFolderPath(libraryRoot);
             return File.Exists(file) ? file : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                       or InvalidDataException)
         {
             return null;
         }
@@ -322,6 +371,33 @@ public sealed class MirrorLocation
             return id;
         }
 
+        /// <summary>Writes a known id back into a folder that has lost its id file (see
+        /// <c>MirrorLocation.RecoverId</c>). Created with <see cref="FileMode.CreateNew"/> like
+        /// <see cref="ReadOrCreate"/>, so an id file that another open writes first is kept, and its id is
+        /// returned instead.</summary>
+        public static string Restore(string libraryRoot, string id)
+        {
+            var path = PathIn(libraryRoot);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            try
+            {
+                using var created = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                created.Write(Encoding.UTF8.GetBytes(Format(id)));
+                created.Flush(flushToDisk: true);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                return Read(libraryRoot) ?? throw new IOException($"{path} was removed while it was being read.");
+            }
+
+            Said.Line("db", $"wrote library id {id} back into the music folder");
+            return id;
+        }
+
+        /// <summary>Whether the text is an id: 32 lowercase hex digits.</summary>
+        public static bool IsId(string text) =>
+            text.Length == 32 && text.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
+
         public static string Format(string id) => $"{{\"id\":\"{id}\"}}\n";
 
         /// <summary>The id in the file's text, or null when the text does not hold a valid one.</summary>
@@ -336,7 +412,7 @@ public sealed class MirrorLocation
                     return null;
 
                 var id = value.GetString()!;
-                return id.Length == 32 && id.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f') ? id : null;
+                return IsId(id) ? id : null;
             }
             catch (JsonException)
             {
