@@ -23,6 +23,14 @@ public static class KaraokeLines
     /// seconds.</summary>
     public const double Earliest = 1.0;
 
+    /// <summary>The shortest time a line of words is the sung line, in seconds, unless the playhead is moved
+    /// past it (see <see cref="Handovers"/>).</summary>
+    public const double Shortest = 1.0;
+
+    /// <summary>How finely the rules are followed through the song when the hand-overs are worked out, in
+    /// seconds.</summary>
+    private const double Step = 0.01;
+
     /// <summary>
     /// The piece to show at <paramref name="seconds"/>, or -1 before the first line. This is not always
     /// the piece the stamps point at (<see cref="LyricScore.IndexAt"/>).
@@ -46,6 +54,9 @@ public static class KaraokeLines
     ///
     /// <para>A line whose words were shared out by length, and not measured, has no measured start or end.
     /// It goes by the stamps.</para>
+    ///
+    /// <para>These are the rules alone. A screen asks <see cref="Handovers"/>, which also gives every line a
+    /// moment of its own.</para>
     /// </summary>
     /// <param name="score">The score being shown.</param>
     /// <param name="seconds">The record's time.</param>
@@ -73,6 +84,80 @@ public static class KaraokeLines
             return at;
 
         return next;
+    }
+
+    /// <summary>
+    /// When each piece of <paramref name="score"/> takes over as the sung piece: the rules of <see cref="Held"/>,
+    /// and then every line of words is the sung line for at least <see cref="Shortest"/>.
+    ///
+    /// <para>A sheet can stamp a line a quarter of a second before the next, and the measured words of the line
+    /// before can run up to the next one's. In JT's "Oh", for one, the rules alone hold "You get these beautiful
+    /// crystal slippers, baby" through its last measured word, and then move straight on to the line after the
+    /// next: the line in between is never lit. So the moments are worked out once, by following the rules through
+    /// the song, and the pieces after a line that would be passed over move on later. A seek still lands
+    /// wherever it lands.</para>
+    ///
+    /// <para>The measured words are read once, here. Make a new one when they change.</para>
+    /// </summary>
+    /// <param name="score">The score being shown.</param>
+    /// <param name="measured">The measured words of a piece, as for <see cref="Held"/>.</param>
+    public static KaraokeHandovers Handovers(LyricScore score, Func<int, IReadOnlyList<WordSpan>?> measured)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+        ArgumentNullException.ThrowIfNull(measured);
+
+        var parts = score.Parts;
+        var at = new double[parts.Count];
+        Array.Fill(at, double.PositiveInfinity);
+        if (parts.Count == 0)
+            return new KaraokeHandovers(at);
+
+        var words = new IReadOnlyList<WordSpan>?[parts.Count];
+        for (var p = 0; p < parts.Count; p++)
+            words[p] = Words(score, p, measured);
+        int Rule(double seconds) => Held(score, seconds, p => words[p]);
+
+        // The rules are followed through the song in small steps, and each hand-over is then found exactly
+        // between the last two steps. A piece the rules pass over takes over with the one after it.
+        var sung = words.Max(w => w is null ? 0.0 : w[^1].To);
+        var end = Math.Max(parts[^1].From, sung) + WaitLongest + 1;
+        var reached = -1;
+        var before = -1.0;
+        for (var seconds = -1.0; seconds <= end && reached < parts.Count - 1; seconds += Step)
+        {
+            var piece = Rule(seconds);
+            if (piece > reached)
+            {
+                var low = before;
+                var high = seconds;
+                for (var k = 0; k < 40; k++)
+                {
+                    var mid = (low + high) / 2;
+                    if (Rule(mid) > reached)
+                        high = mid;
+                    else
+                        low = mid;
+                }
+
+                // Stamps and measured words are given to the hundredth, so the moment is put back on the
+                // microsecond it came from: a line takes over at its moment, not a hair after it.
+                var round = Math.Round(high * 1e6) / 1e6;
+                if (Rule(round) > reached)
+                    high = round;
+                for (var q = reached + 1; q <= piece; q++)
+                    at[q] = high;
+                reached = piece;
+            }
+            before = seconds;
+        }
+
+        // Every line of words is sung for a moment: the pieces after a line that would be passed over move on
+        // later.
+        for (var p = 0; p < parts.Count - 1; p++)
+            if (!parts[p].IsRest && double.IsFinite(at[p]))
+                at[p + 1] = Math.Max(at[p + 1], at[p] + Shortest);
+
+        return new KaraokeHandovers(at);
     }
 
     /// <summary>
@@ -121,4 +206,43 @@ public static class KaraokeLines
     /// <summary>The measured words of a piece, or null for a rest and for a piece with none.</summary>
     private static IReadOnlyList<WordSpan>? Words(LyricScore score, int part, Func<int, IReadOnlyList<WordSpan>?> measured)
         => !score.Parts[part].IsRest && measured(part) is { Count: > 0 } words ? words : null;
+}
+
+/// <summary>When each piece of a score takes over as the sung piece (see <see
+/// cref="KaraokeLines.Handovers"/>).</summary>
+public sealed class KaraokeHandovers
+{
+    private readonly double[] _at;
+
+    internal KaraokeHandovers(double[] at) => _at = at;
+
+    /// <summary>The piece to show at <paramref name="seconds"/>, or -1 before the first line.</summary>
+    public int At(double seconds)
+    {
+        int low = 0, high = _at.Length - 1, found = -1;
+        while (low <= high)
+        {
+            var mid = (low + high) / 2;
+            if (_at[mid] <= seconds)
+            {
+                found = mid;
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid - 1;
+            }
+        }
+        return found;
+    }
+
+    /// <summary>When the next piece after <paramref name="seconds"/> takes over, or null when none
+    /// does.</summary>
+    public double? Next(double seconds)
+    {
+        foreach (var at in _at)
+            if (at > seconds && double.IsFinite(at))
+                return at;
+        return null;
+    }
 }

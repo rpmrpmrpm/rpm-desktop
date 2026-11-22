@@ -224,6 +224,7 @@ public sealed partial class PegasusChrome : UserControl
 
             _lyricWordSpans[i] = [.. words];
             _lyricWordMeasured[i] = true;
+            _wordsHeard++;
             _asked.Add(i);
         }
     }
@@ -993,6 +994,7 @@ public sealed partial class PegasusChrome : UserControl
                 _lyricWordSpans[line] = [.. placed];
                 if (line < _lyricWordMeasured.Length)
                     _lyricWordMeasured[line] = true;
+                _wordsHeard++;
 
                 // Other devices can use this too. What the record said about this line is filed under the
                 // track playing.
@@ -1044,9 +1046,32 @@ public sealed partial class PegasusChrome : UserControl
     /// MEASURED, the record says when the line really starts and ends, and <see cref="KaraokeLines.Held"/>
     /// uses that: a line is held while its last word is still sung, waits for a voice measured to come well
     /// after its stamp, and takes over just before its first measured word when the voice comes before the
-    /// stamp. A line whose words were shared out goes by the sheet's own stamps.</para>
+    /// stamp. A line whose words were shared out goes by the sheet's own stamps. Every line of words is sung
+    /// for at least <see cref="KaraokeLines.Shortest"/>, so none is passed over.</para>
+    ///
+    /// <para>The moments are worked out once for the score and its measured words (<see
+    /// cref="KaraokeLines.Handovers"/>), and again when the score or a line's measured words change.</para>
     /// </summary>
-    private int SungAt(double pos) => KaraokeLines.Held(_score, pos, Measured);
+    private int SungAt(double pos)
+    {
+        if (_handovers is null || !ReferenceEquals(_handoversOf, _score) || _handoversHeard != _wordsHeard)
+        {
+            _handovers = KaraokeLines.Handovers(_score, Measured);
+            _handoversOf = _score;
+            _handoversHeard = _wordsHeard;
+        }
+        return _handovers.At(pos);
+    }
+
+    /// <summary>The hand-over moments <see cref="SungAt"/> goes by, the score they were worked out for, and
+    /// <see cref="_wordsHeard"/> as it was then.</summary>
+    private KaraokeHandovers? _handovers;
+    private LyricScore? _handoversOf;
+    private int _handoversHeard;
+
+    /// <summary>Counts the lines whose words were measured, from the record or from the cloud. It moves on
+    /// each time one is, so the hand-overs are worked out again.</summary>
+    private int _wordsHeard;
 
     /// <summary>The measured words of a piece of the score, or null for a rest and for a line whose words
     /// were shared out across it.</summary>
