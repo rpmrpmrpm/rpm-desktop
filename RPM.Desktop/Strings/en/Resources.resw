@@ -9042,6 +9042,26 @@
     <value>Remove this album from your iPhone? It stays in your cloud library.</value>
     <comment>Title of the dialog that removes one downloaded album from the iPhone.</comment>
   </data>
+  <data name="Rpm_Download_StopPlaylistQuestion" xml:space="preserve">
+    <value>Stop downloading this playlist?</value>
+    <comment>iPhone: title of the dialog that stops a playlist download.</comment>
+  </data>
+  <data name="Rpm_Download_RemovePlaylistQuestion" xml:space="preserve">
+    <value>Remove this playlist from your iPhone? It stays in your cloud library.</value>
+    <comment>iPhone: title of the dialog that removes one downloaded playlist from the phone. Songs that a downloaded album also holds stay on the phone.</comment>
+  </data>
+  <data name="Rpm_Downloads_SummaryOnePlaylist" xml:space="preserve">
+    <value>1 playlist ({0})</value>
+    <comment>iPhone downloads, when the only download is one playlist, with the space it uses, e.g. '1 playlist (240 MB)'. {0} = the size.</comment>
+  </data>
+  <data name="Rpm_Downloads_SummaryMixed" xml:space="preserve">
+    <value>{0} downloads ({1})</value>
+    <comment>iPhone downloads, when playlists are among them: how many albums and playlists in all, then the space they use, e.g. '14 downloads (3.2 GB)'. {0} = count, {1} = size.</comment>
+  </data>
+  <data name="Rpm_Downloads_RemoveMixedQuestion" xml:space="preserve">
+    <value>Remove {0} downloads from your iPhone? They stay in your cloud library.</value>
+    <comment>iPhone: title of the dialog that removes several downloads from the phone when playlists are among them. {0} = how many.</comment>
+  </data>
   <data name="Phone_Download_RemoveQuestion" xml:space="preserve">
     <value>Remove this album from your phone? It stays in your cloud library.</value>
     <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>

@@ -9042,6 +9042,26 @@
     <value>Supprimer cet album de votre iPhone ? Il reste dans votre bibliothèque cloud.</value>
     <comment>Title of the dialog that removes one downloaded album from the iPhone.</comment>
   </data>
+  <data name="Rpm_Download_StopPlaylistQuestion" xml:space="preserve">
+    <value>Arrêter le téléchargement de cette playlist ?</value>
+    <comment>iPhone: title of the dialog that stops a playlist download.</comment>
+  </data>
+  <data name="Rpm_Download_RemovePlaylistQuestion" xml:space="preserve">
+    <value>Retirer cette playlist de votre iPhone ? Elle reste dans votre bibliothèque cloud.</value>
+    <comment>iPhone: title of the dialog that removes one downloaded playlist from the phone. Songs that a downloaded album also holds stay on the phone.</comment>
+  </data>
+  <data name="Rpm_Downloads_SummaryOnePlaylist" xml:space="preserve">
+    <value>1 playlist ({0})</value>
+    <comment>iPhone downloads, when the only download is one playlist, with the space it uses, e.g. '1 playlist (240 MB)'. {0} = the size.</comment>
+  </data>
+  <data name="Rpm_Downloads_SummaryMixed" xml:space="preserve">
+    <value>{0} téléchargements ({1})</value>
+    <comment>iPhone downloads, when playlists are among them: how many albums and playlists in all, then the space they use, e.g. '14 downloads (3.2 GB)'. {0} = count, {1} = size.</comment>
+  </data>
+  <data name="Rpm_Downloads_RemoveMixedQuestion" xml:space="preserve">
+    <value>Retirer {0} téléchargements de votre iPhone ? Ils restent dans votre bibliothèque cloud.</value>
+    <comment>iPhone: title of the dialog that removes several downloads from the phone when playlists are among them. {0} = how many.</comment>
+  </data>
   <data name="Phone_Download_RemoveQuestion" xml:space="preserve">
     <value>Supprimer cet album de votre téléphone ? Il reste dans votre bibliothèque cloud.</value>
     <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
