@@ -11559,4 +11559,56 @@
     <value>Wähle, wie deine Alben in der Sammlung erscheinen. Du kannst jederzeit oben in der Sammlung umschalten.</value>
     <comment>Phone welcome, the layout step: the line under Wizard_LayoutTitle. The phone's Wizard_LayoutBody, with two choices.</comment>
   </data>
+  <data name="Radio_HomeTuner" xml:space="preserve">
+    <value>Tuner öffnen</value>
+    <comment>Wide button on the phone's radio home, under the banner. Opens the tuner page with the dial and the full station list.</comment>
+  </data>
+  <data name="Radio_TunerTitle" xml:space="preserve">
+    <value>Tuner</value>
+    <comment>Title of the phone's tuner page (the dial, the search field and the station list), opened from the radio home.</comment>
+  </data>
+  <data name="Radio_HomeNearYou" xml:space="preserve">
+    <value>In deiner Nähe</value>
+    <comment>Line over a banner card on the phone's radio home that holds up one of the most played stations of the listener's country.</comment>
+  </data>
+  <data name="Radio_HomeOnRepeat" xml:space="preserve">
+    <value>Hörst du oft</value>
+    <comment>Line over a banner card on the phone's radio home that holds up a station the listener tunes to often.</comment>
+  </data>
+  <data name="Radio_HomeLocal" xml:space="preserve">
+    <value>Lokale Sender</value>
+    <comment>Heading over the row of the listener's country's most played stations on the phone's radio home.</comment>
+  </data>
+  <data name="Radio_HomePopular" xml:space="preserve">
+    <value>Am beliebtesten</value>
+    <comment>Heading over the row of the world's most played stations on the phone's radio home.</comment>
+  </data>
+  <data name="Radio_HomePinned" xml:space="preserve">
+    <value>Angeheftet</value>
+    <comment>Line under a station on the radio home's Quick selection (phone): the listener pinned it there.</comment>
+  </data>
+  <data name="Radio_HomeSaved" xml:space="preserve">
+    <value>Gespeichert</value>
+    <comment>Line under a station on the radio home's Quick selection (phone): one of the listener's saved (hearted) stations.</comment>
+  </data>
+  <data name="Radio_HomeForYou" xml:space="preserve">
+    <value>Für dich</value>
+    <comment>Line under a station on the radio home's Quick selection (phone): suggested because it plays the genres the listener tunes to.</comment>
+  </data>
+  <data name="Radio_HomeQuickEmpty" xml:space="preserve">
+    <value>Halte einen Sender gedrückt, um ihn hier anzuheften. Deine gespeicherten Sender erscheinen hier auch.</value>
+    <comment>Shown under the radio home's Quick selection heading (phone) while it has no stations yet.</comment>
+  </data>
+  <data name="Radio_Pin" xml:space="preserve">
+    <value>An die Schnellauswahl anheften</value>
+    <comment>Long-press menu on a radio station (phone): puts it first on the radio home's Quick selection.</comment>
+  </data>
+  <data name="Radio_Unpin" xml:space="preserve">
+    <value>Von der Schnellauswahl lösen</value>
+    <comment>Long-press menu on a pinned radio station (phone): takes it off the radio home's Quick selection.</comment>
+  </data>
+  <data name="Radio_Unsave" xml:space="preserve">
+    <value>Aus gespeicherten Sendern entfernen</value>
+    <comment>Long-press menu on a saved radio station (phone): the opposite of Radio_Save.</comment>
+  </data>
 </root>
