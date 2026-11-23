@@ -699,6 +699,7 @@ public sealed partial class TrackInfoView : UserControl
         // would be two round trips, two cache entries, and a visualizer that still had to wait for its
         // own answer on a record this pane had the words for all along. One question, one answer, and
         // whichever of the two opens first warms the other.
+        var isExplicit = false;
         if (App.Services.GetRequiredService<RPaMpService>().Transport.Deck is { } deck
             && string.Equals(deck.FilePath, path, StringComparison.Ordinal))
         {
@@ -706,6 +707,7 @@ public sealed partial class TrackInfoView : UserControl
             title = deck.Title;
             album = deck.Album;
             seconds = deck.DurationSeconds;
+            isExplicit = deck.IsExplicit;
         }
 
         if (seconds <= 0 || string.IsNullOrWhiteSpace(title))
@@ -721,7 +723,7 @@ public sealed partial class TrackInfoView : UserControl
         try
         {
             sheet = await App.Services.GetRequiredService<LyricsService>()
-                .ForAsync(artist, title, album, seconds, path, cts.Token);
+                .ForAsync(artist, title, album, seconds, path, cts.Token, isExplicit: isExplicit);
         }
         catch (OperationCanceledException)
         {

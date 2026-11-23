@@ -19,6 +19,10 @@ namespace RPM.Core.Lyrics;
 /// nothing does this fall back to a search. A search result is accepted only when its length is close
 /// enough for the words to be expected to line up.</para>
 ///
+/// <para><b>An explicit record is the exception.</b> LRCLIB often holds a clean sheet and an explicit sheet
+/// for one song, and the exact lookup cannot tell them apart. For a record marked explicit, the exact answer
+/// and the search's candidates are compared, and the uncensored one is kept. See <see cref="ExplicitLyrics"/>.</para>
+///
 /// <para>Everything here is an optional extra, but a failure is not an answer. No match, or words without
 /// timings, comes back as no sheet. A failure to ask (no network, a 5xx or 429 response, or the app being
 /// offline) and a body that cannot be parsed both throw. The caller writes "no sheet" down, so it must
@@ -63,13 +67,22 @@ public sealed class LrcLibLookup(FetchJson fetch)
     /// </summary>
     /// <param name="durationSeconds">The recording's length. Zero or less skips the exact lookup and widens
     /// the fallback. A stream with no known length has to work this way.</param>
+    /// <param name="isExplicit">The record is marked explicit, by its own flag or its album's. LRCLIB often
+    /// has a clean sheet and an explicit sheet for one song, with the same names and nearly the same length,
+    /// and the exact lookup can return the clean one. So for an explicit record the exact answer is not
+    /// trusted outright. It and every search candidate within the slack are compared, and
+    /// <see cref="ExplicitLyrics.Pick"/> keeps the uncensored one.</param>
     public async Task<LyricSheet> FindAsync(
-        string? artist, string? title, string? album, double durationSeconds, CancellationToken ct = default)
+        string? artist, string? title, string? album, double durationSeconds, CancellationToken ct = default,
+        bool isExplicit = false)
     {
         // A title is the one thing that cannot be guessed. An artist can be missing on a loose file, and the
         // search will still find it. A track with no title cannot be looked up at all.
         if (string.IsNullOrWhiteSpace(title))
             return LyricSheet.Empty;
+
+        if (isExplicit)
+            return await FindUncensoredAsync(artist, title, album, durationSeconds, ct);
 
         if (durationSeconds > 0)
         {
@@ -80,6 +93,52 @@ public sealed class LrcLibLookup(FetchJson fetch)
 
         return await SearchAsync(artist, title, durationSeconds, ct);
     }
+
+    /// <summary>
+    /// The sheet for an explicit record. Both lookups are made. The exact answer and every search candidate
+    /// within the slack are compared by <see cref="ExplicitLyrics.Pick"/>.
+    ///
+    /// <para>A failure of either request throws, as everywhere else in this class. Returning the exact answer
+    /// alone when the search failed would let the caller store the clean sheet that this method exists to get
+    /// past.</para>
+    ///
+    /// <para>With no candidate at all, this returns no sheet. The ordinary path, given the same two answers,
+    /// would find nothing either, so it is not asked again.</para>
+    /// </summary>
+    private async Task<LyricSheet> FindUncensoredAsync(
+        string? artist, string? title, string? album, double duration, CancellationToken ct)
+    {
+        var exact = duration > 0 ? await GetAsync(artist, title, album, duration, ct) : LyricSheet.Empty;
+
+        var url = $"{Base}/search?track_name={Esc(title)}&artist_name={Esc(artist)}";
+        var json = await fetch(url, ct);
+
+        var found = new List<LyricSheet>();
+        if (json is not null)
+        {
+            // A body that will not parse throws. See the class remarks.
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var candidate in doc.RootElement.EnumerateArray())
+                {
+                    if (FitsLength(candidate, duration) && Read(candidate) is { IsSynced: true } sheet)
+                        found.Add(sheet);
+                }
+            }
+        }
+
+        return ExplicitLyrics.Pick(exact, found);
+    }
+
+    /// <summary>Whether a search candidate's length is close enough to the recording's for its timings to
+    /// line up. A candidate that does not state a length, or a recording with no known length, fits.</summary>
+    private static bool FitsLength(JsonElement candidate, double duration)
+        => !(duration > 0
+             && candidate.ValueKind == JsonValueKind.Object
+             && candidate.TryGetProperty("duration", out var d)
+             && d.TryGetDouble(out var seconds)
+             && Math.Abs(seconds - duration) > DurationSlackSeconds);
 
     /// <summary>
     /// Every synced sheet this recording has, best timing first. The exact lookup's answer comes first when

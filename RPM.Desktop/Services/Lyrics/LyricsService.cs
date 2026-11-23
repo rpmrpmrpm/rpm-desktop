@@ -72,21 +72,27 @@ public sealed class LyricsService
     /// LRCLIB, because it is the newest choice the owner made, on any of their computers. It is kept for
     /// the session only, like the tag's: the cloud is where it lives. Leave it out to keep to this
     /// machine and LRCLIB.</param>
+    /// <param name="isExplicit">The record shows the E mark, as the caller knows it. The library is also
+    /// asked, by <paramref name="filePath"/>, whether the track or its album is marked explicit. For an
+    /// explicit record LRCLIB is asked for the uncensored sheet (see <see cref="LrcLibLookup.FindAsync"/>),
+    /// and its answer is kept apart from the ordinary one (see <see cref="Slot"/>).</param>
     public async Task<LyricSheet> ForAsync(
         string? artist, string? title, string? album, double durationSeconds,
-        string? filePath = null, CancellationToken ct = default, string? rpmId = null)
+        string? filePath = null, CancellationToken ct = default, string? rpmId = null, bool isExplicit = false)
     {
         if (string.IsNullOrWhiteSpace(title))
             return LyricSheet.Empty;
 
         var key = Key(artist, title, album, durationSeconds);
+        var marked = await ExplicitAsync(key, filePath, isExplicit);
+        var slot = Slot(key, marked);
 
         // Five places to look, cheapest and closest first: this session, the file itself, the sheet the
         // owner chose on a desktop (where the caller gave the record's cloud id), this user's own folder,
         // then LRCLIB.
         lock (_seen)
         {
-            if (_seen.TryGetValue(key, out var hit))
+            if (_seen.TryGetValue(slot, out var hit))
                 return hit;
         }
 
@@ -106,7 +112,7 @@ public sealed class LyricsService
         {
             lock (_seen)
             {
-                _seen[key] = own;
+                _seen[slot] = own;
             }
             _ = Task.Run(() => Score(filePath, own));
             return own;
@@ -121,7 +127,7 @@ public sealed class LyricsService
         {
             lock (_seen)
             {
-                _seen[key] = chosen;
+                _seen[slot] = chosen;
             }
             _ = Task.Run(() => Score(filePath, chosen));
             return chosen;
@@ -129,11 +135,11 @@ public sealed class LyricsService
 
         // Runs off the UI thread. This code runs while a visualizer is drawing, and a frame must not wait
         // for a file read.
-        if (await Task.Run(() => LyricCache.Get(key)) is { } remembered)
+        if (await Task.Run(() => LyricCache.Get(slot)) is { } remembered)
         {
             lock (_seen)
             {
-                _seen[key] = remembered;
+                _seen[slot] = remembered;
             }
             _ = Task.Run(() => Score(filePath, remembered));
             return remembered;
@@ -142,7 +148,7 @@ public sealed class LyricsService
         LyricSheet sheet;
         try
         {
-            sheet = await _lrclib.FindAsync(artist, title, album, durationSeconds, ct);
+            sheet = await _lrclib.FindAsync(artist, title, album, durationSeconds, ct, marked);
         }
         catch (OperationCanceledException)
         {
@@ -162,11 +168,11 @@ public sealed class LyricsService
         // and asking again on every play is the cost this cache removes.
         lock (_seen)
         {
-            _seen[key] = sheet;
+            _seen[slot] = sheet;
         }
         _ = Task.Run(() =>
         {
-            LyricCache.Put(key, sheet);
+            LyricCache.Put(slot, sheet);
             Score(filePath, sheet);
         });
         return sheet;
@@ -194,14 +200,7 @@ public sealed class LyricsService
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(filePath) || !_library.IsOpen)
-                return;
-
-            if (_library.Root is not { Length: > 0 } root)
-                return;
-
-            var relative = Path.GetRelativePath(root, filePath).Replace(Path.DirectorySeparatorChar, '/');
-            if (relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+            if (InLibrary(filePath) is not { } relative)
                 return;
 
             _library.Db.SaveLyricValence(relative, LyricValence.Read(sheet));
@@ -209,6 +208,88 @@ public sealed class LyricsService
         catch
         {
             // Nothing on screen depends on this working, so the error is ignored.
+        }
+    }
+
+    /// <summary>The file's path inside the user's own open library, as the library stores it, or null for
+    /// no file, no open library, or a file outside it.</summary>
+    private string? InLibrary(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !_library.IsOpen)
+            return null;
+
+        if (_library.Root is not { Length: > 0 } root)
+            return null;
+
+        var relative = Path.GetRelativePath(root, filePath).Replace(Path.DirectorySeparatorChar, '/');
+        return relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative)
+            ? null
+            : relative;
+    }
+
+    /// <summary>
+    /// Whether the record is explicit: <paramref name="isExplicit"/> from the caller, or the library's own
+    /// flag for the track or its album (<see cref="RPM.Core.Library.LibraryDatabase.IsExplicitRecord"/>).
+    ///
+    /// <para>The answer is kept for the session under the record's <see cref="Key"/>. <see cref="AnotherAsync"/>
+    /// and <see cref="Adopt"/> read it from there, so a sheet the user chooses is kept in the same
+    /// <see cref="Slot"/> that the next lookup reads first. The library is read off the calling thread, and a
+    /// failure to read it counts as not explicit.</para>
+    /// </summary>
+    private async Task<bool> ExplicitAsync(string key, string? filePath, bool isExplicit)
+    {
+        lock (_seen)
+        {
+            if (_explicit.TryGetValue(key, out var known) && (known || !isExplicit))
+                return known;
+        }
+
+        var marked = isExplicit || await Task.Run(() =>
+        {
+            try
+            {
+                return InLibrary(filePath) is { } relative && _library.Db.IsExplicitRecord(relative);
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        // A "no" without a file to ask the library about is not kept. A later caller that names the file may
+        // still find the album marked.
+        if (marked || !string.IsNullOrWhiteSpace(filePath))
+        {
+            lock (_seen)
+            {
+                _explicit[key] = marked;
+            }
+        }
+        return marked;
+    }
+
+    /// <summary>Whether each record asked about this session is explicit, by its <see cref="Key"/>. See
+    /// <see cref="ExplicitAsync"/>.</summary>
+    private readonly Dictionary<string, bool> _explicit = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Where a record's answer is kept, in the session copy and in the cache folder. An explicit record has
+    /// its own entry, apart from the ordinary one for the same names and length.
+    ///
+    /// <para>The ordinary entry holds the exact lookup's answer, and for an explicit song that can be the
+    /// clean sheet. A separate entry means that answer is not read back for an explicit record, and LRCLIB is
+    /// asked for the uncensored sheet instead. A sheet the user chooses for an explicit record is kept in the
+    /// explicit entry, so it still comes before LRCLIB.</para>
+    /// </summary>
+    private static string Slot(string key, bool isExplicit) => isExplicit ? key + "|explicit" : key;
+
+    /// <summary>The <see cref="Slot"/> of a record that <see cref="ForAsync"/> has already asked about. A
+    /// record not asked about this session uses the ordinary entry.</summary>
+    private string SlotOf(string key)
+    {
+        lock (_seen)
+        {
+            return Slot(key, _explicit.TryGetValue(key, out var marked) && marked);
         }
     }
 
@@ -238,11 +319,12 @@ public sealed class LyricsService
             return LyricSheet.Empty;
 
         var key = Key(artist, title, album, durationSeconds);
+        var slot = SlotOf(key);
 
         IReadOnlyList<LyricSheet> all;
         lock (_seen)
         {
-            _alternates.TryGetValue(key, out var held);
+            _alternates.TryGetValue(slot, out var held);
             all = held.Sheets ?? [];
         }
 
@@ -266,13 +348,13 @@ public sealed class LyricsService
         LyricSheet next;
         lock (_seen)
         {
-            var at = _alternates.TryGetValue(key, out var held) ? held.At : 0;
+            var at = _alternates.TryGetValue(slot, out var held) ? held.At : 0;
 
             // If the list holds only the sheet already on screen, there is nothing to step to. The method
             // returns Empty, so the same words are not faded onto themselves.
-            if (all.Count == 1 && _seen.TryGetValue(key, out var only) && Same(only, all[0]))
+            if (all.Count == 1 && _seen.TryGetValue(slot, out var only) && Same(only, all[0]))
             {
-                _alternates[key] = (all, 0);
+                _alternates[slot] = (all, 0);
                 return LyricSheet.Empty;
             }
 
@@ -280,15 +362,15 @@ public sealed class LyricsService
 
             // The first press on a record that has not been changed moves to index 1, not index 0. Index 0
             // is the choice the automatic path made, and it is the sheet on screen when the reader presses.
-            if (Same(all[at], _seen.TryGetValue(key, out var showing) ? showing : LyricSheet.Empty))
+            if (Same(all[at], _seen.TryGetValue(slot, out var showing) ? showing : LyricSheet.Empty))
                 at = (at + 1) % all.Count;
 
             next = all[at];
-            _alternates[key] = (all, at);
-            _seen[key] = next;
+            _alternates[slot] = (all, at);
+            _seen[slot] = next;
         }
 
-        _ = Task.Run(() => LyricCache.Put(key, next));
+        _ = Task.Run(() => LyricCache.Put(slot, next));
 
         // The event is raised rather than left for others to find. The visualizer asks once per record, so
         // without it the visualizer would keep the replaced sheet for the rest of the track.
@@ -324,14 +406,15 @@ public sealed class LyricsService
             return LyricSheet.Empty;
 
         var key = Key(artist, title, album, durationSeconds);
+        var slot = SlotOf(key);
 
         lock (_seen)
         {
-            _seen[key] = sheet;
-            _alternates.Remove(key);
+            _seen[slot] = sheet;
+            _alternates.Remove(slot);
         }
 
-        _ = Task.Run(() => LyricCache.Put(key, sheet));
+        _ = Task.Run(() => LyricCache.Put(slot, sheet));
 
         Replaced?.Invoke(key, sheet);
         return sheet;

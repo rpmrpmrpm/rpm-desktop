@@ -192,6 +192,30 @@ public sealed partial class LibraryDatabase
     }
 
     /// <summary>
+    /// Whether the track at <paramref name="relativePath"/> is marked explicit, or any track of its album is.
+    /// That is the same rule that puts the E on a track and on an album (<see cref="QueryExplicitAlbums"/>).
+    /// The lyrics lookup uses it to prefer the uncensored sheet. False for a path the library does not hold.
+    /// </summary>
+    public bool IsExplicitRecord(string relativePath)
+    {
+        ArgumentNullException.ThrowIfNull(relativePath);
+
+        using (ReadLock.Take())
+        {
+            using var cmd = Reader.CreateCommand();
+            cmd.CommandText =
+                $"""
+                 SELECT EXISTS (
+                     SELECT 1 FROM tracks
+                      WHERE folder = (SELECT folder FROM tracks WHERE relative_path = $path)
+                        AND advisory = {(int)ContentAdvisory.Explicit})
+                 """;
+            cmd.Parameters.AddWithValue("$path", relativePath);
+            return Convert.ToInt64(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+    }
+
+    /// <summary>
     /// Every node in the tree, in sibling order. The caller assembles the hierarchy from the parent
     /// links.
     ///

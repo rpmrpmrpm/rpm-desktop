@@ -121,7 +121,7 @@ public sealed partial class PegasusChrome : UserControl
             // LyricsService.ForAsync).
             sheet = await App.Services.GetRequiredService<LyricsService>()
                 .ForAsync(deck!.Artist, deck.Title, deck.Album, deck.DurationSeconds, deck.FilePath, cts.Token,
-                          rpmId: deck.RpmId);
+                          rpmId: deck.RpmId, isExplicit: deck.IsExplicit);
 
             // What the cloud keeps of this record's lyrics: how far the sheet is off the record, and the words
             // measured off it. It is read before the sheet goes up, so the sheet goes up once, where the record
@@ -315,7 +315,7 @@ public sealed partial class PegasusChrome : UserControl
 
             var sheet = await App.Services.GetRequiredService<LyricsService>()
                 .ForAsync(next.Artist, next.Title, next.Album, next.DurationSeconds, next.FilePath, ct,
-                          rpmId: next.RpmId);
+                          rpmId: next.RpmId, isExplicit: next.IsExplicit);
             if (!sheet.IsSynced || !_alignWords || string.IsNullOrWhiteSpace(next.RpmId)
                 || App.Services.GetRequiredService<LyricAlignment>().IsAvailable)
                 return;
