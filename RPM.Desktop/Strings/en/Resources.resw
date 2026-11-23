@@ -11459,6 +11459,18 @@
     <value>No colour</value>
     <comment>iPhone settings: what VoiceOver reads for the first colour bubble under Settings_Colour, which keeps the app's own white glass.</comment>
   </data>
+  <data name="Settings_CoverCorners" xml:space="preserve">
+    <value>Cover corners</value>
+    <comment>iPhone settings, Appearance: the title of the card with a slider that sets how round the corners of every album and playlist cover are, from square to round.</comment>
+  </data>
+  <data name="Settings_CoverCornersSharp" xml:space="preserve">
+    <value>Sharp</value>
+    <comment>iPhone settings, under Settings_CoverCorners: the word at the left end of the slider, for square cover corners.</comment>
+  </data>
+  <data name="Settings_CoverCornersRound" xml:space="preserve">
+    <value>Round</value>
+    <comment>iPhone settings, under Settings_CoverCorners: the word at the right end of the slider, for round cover corners.</comment>
+  </data>
   <data name="Settings_StartupSound" xml:space="preserve">
     <value>Play the opening sound</value>
     <comment>Phone settings, General: switch for the short sound rpm plays when it opens.</comment>
