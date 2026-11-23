@@ -9066,6 +9066,14 @@
     <value>¿Eliminar este álbum de tu teléfono? Seguirá en tu biblioteca en la nube.</value>
     <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
   </data>
+  <data name="Phone_Download_RemovePlaylistQuestion" xml:space="preserve">
+    <value>¿Quitar esta lista de reproducción de tu teléfono? Seguirá en tu biblioteca en la nube.</value>
+    <comment>Android phone: title of the dialog that removes one downloaded playlist from the phone. Songs that a downloaded album also holds stay on the phone. Rpm_Download_RemovePlaylistQuestion says iPhone.</comment>
+  </data>
+  <data name="Phone_Downloads_RemoveMixedQuestion" xml:space="preserve">
+    <value>¿Quitar {0} descargas de tu teléfono? Seguirán en tu biblioteca en la nube.</value>
+    <comment>Android phone: title of the dialog that removes several downloads from the phone when playlists are among them. {0} = how many. Rpm_Downloads_RemoveMixedQuestion says iPhone.</comment>
+  </data>
   <data name="Rpm_Downloads_Title" xml:space="preserve">
     <value>Descargas</value>
     <comment>Heading of the downloads card on the iPhone profile tab, and of the downloads list.</comment>

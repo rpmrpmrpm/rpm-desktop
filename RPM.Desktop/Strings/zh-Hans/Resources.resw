@@ -9066,6 +9066,14 @@
     <value>要从手机移除这张专辑吗？它仍会保留在你的云端音乐库中。</value>
     <comment>Android phone: title of the dialog that removes one downloaded album from the phone. Rpm_Download_RemoveQuestion says iPhone.</comment>
   </data>
+  <data name="Phone_Download_RemovePlaylistQuestion" xml:space="preserve">
+    <value>要从手机移除此播放列表吗？它仍保留在你的云端资料库中。</value>
+    <comment>Android phone: title of the dialog that removes one downloaded playlist from the phone. Songs that a downloaded album also holds stay on the phone. Rpm_Download_RemovePlaylistQuestion says iPhone.</comment>
+  </data>
+  <data name="Phone_Downloads_RemoveMixedQuestion" xml:space="preserve">
+    <value>要从手机移除 {0} 项下载吗？它们仍保留在你的云端资料库中。</value>
+    <comment>Android phone: title of the dialog that removes several downloads from the phone when playlists are among them. {0} = how many. Rpm_Downloads_RemoveMixedQuestion says iPhone.</comment>
+  </data>
   <data name="Rpm_Downloads_Title" xml:space="preserve">
     <value>下载</value>
     <comment>Heading of the downloads card on the iPhone profile tab, and of the downloads list.</comment>
