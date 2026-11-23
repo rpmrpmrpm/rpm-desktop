@@ -11491,6 +11491,26 @@
     <value>与背景相配</value>
     <comment>Phone settings: what VoiceOver/TalkBack reads for the first colour bubble under Settings_Colour, which gives the buttons and cards the colour of the chosen background, like a theme.</comment>
   </data>
+  <data name="Settings_LandscapePlayer" xml:space="preserve">
+    <value>横屏播放器</value>
+    <comment>Phone settings, Appearance: the title of the card that chooses how the player looks when the phone is turned on its side (landscape).</comment>
+  </data>
+  <data name="Settings_LandscapePlayerHint" xml:space="preserve">
+    <value>手机横放时播放器的样子。</value>
+    <comment>Phone settings, under Settings_LandscapePlayer: one line that says what the choice is for.</comment>
+  </data>
+  <data name="Settings_LandscapeClassic" xml:space="preserve">
+    <value>经典</value>
+    <comment>Phone settings, Settings_LandscapePlayer: the choice that keeps the full-screen stage with its visualisers.</comment>
+  </data>
+  <data name="Settings_LandscapeModern" xml:space="preserve">
+    <value>现代</value>
+    <comment>Phone settings, Settings_LandscapePlayer: the choice that shows the cover on the left and the title, progress and keys on the right, over the moving room.</comment>
+  </data>
+  <data name="Rpm_Stage_Room" xml:space="preserve">
+    <value>Lava</value>
+    <comment>Phone player on its side: the name of the visualiser that is the app's own moving room of coloured blobs (metaballs), as Tv_RoomStyleLava names it on the TV.</comment>
+  </data>
   <data name="Playlists_RowFolder" xml:space="preserve">
     <value>文件夹</value>
     <comment>Playlists tab (iPhone and Android phone): the line under a folder's name on its tile or row, where a record shows its artist.</comment>
