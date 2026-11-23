@@ -11435,6 +11435,30 @@
     <value>Aero</value>
     <comment>Phone backdrop tile: folds of warm copper light on black, with a fine grain. A name, so untranslated.</comment>
   </data>
+  <data name="Settings_BackgroundGraphite" xml:space="preserve">
+    <value>Graphite</value>
+    <comment>iPhone backdrop tile: a plain dark grey, with no picture.</comment>
+  </data>
+  <data name="Settings_BackgroundCocoa" xml:space="preserve">
+    <value>Cacao</value>
+    <comment>iPhone backdrop tile: rows of soft brown squares, like a bar of chocolate.</comment>
+  </data>
+  <data name="Settings_BackgroundDim" xml:space="preserve">
+    <value>Assombrir l’arrière-plan</value>
+    <comment>iPhone settings, Appearance, under the backdrop tiles, and the welcome's look step: the label over a slider that darkens the app's background so text reads more easily.</comment>
+  </data>
+  <data name="Settings_BackgroundBlur" xml:space="preserve">
+    <value>Flouter l’arrière-plan</value>
+    <comment>iPhone settings, Appearance, under Settings_BackgroundDim: the label over a slider that blurs the app's background.</comment>
+  </data>
+  <data name="Settings_Colour" xml:space="preserve">
+    <value>Couleur des boutons et des cartes</value>
+    <comment>iPhone settings, Appearance, and the welcome's look step: heading over a row of colour bubbles that tint the app's bubbles, cards, buttons, switches and sliders.</comment>
+  </data>
+  <data name="Settings_ColourNone" xml:space="preserve">
+    <value>Aucune couleur</value>
+    <comment>iPhone settings: what VoiceOver reads for the first colour bubble under Settings_Colour, which keeps the app's own white glass.</comment>
+  </data>
   <data name="Settings_StartupSound" xml:space="preserve">
     <value>Jouer le son d’ouverture</value>
     <comment>Phone settings, General: switch for the short sound rpm plays when it opens.</comment>
@@ -11470,6 +11494,14 @@
   <data name="Settings_ArticleLanguagePhone" xml:space="preserve">
     <value>Comme votre téléphone ({0})</value>
     <comment>Phone settings: the first choice of description language, the phone's own. {0} is that language's name in itself, e.g. 'Nederlands'.</comment>
+  </data>
+  <data name="Settings_AppLanguage" xml:space="preserve">
+    <value>Langue de l’app</value>
+    <comment>iPhone settings, General: heading over the choice of the language the app is shown in.</comment>
+  </data>
+  <data name="Settings_AppLanguagePhone" xml:space="preserve">
+    <value>Comme votre téléphone</value>
+    <comment>iPhone settings and welcome: the first choice of app language, which follows the phone's own language.</comment>
   </data>
   <data name="Settings_PlayerBars" xml:space="preserve">
     <value>Barres animées dans le lecteur</value>
@@ -11542,6 +11574,18 @@
   <data name="Wizard_Phone_LookHint" xml:space="preserve">
     <value>Choisissez l’image derrière toute l’app. Vous pourrez la changer à tout moment dans les Réglages.</value>
     <comment>Phone welcome, the look step: the line under Wizard_LookTitle, over the backdrop tiles. The phone's Wizard_LookBackgroundHint.</comment>
+  </data>
+  <data name="Wizard_Phone_LookAllHint" xml:space="preserve">
+    <value>Choisissez l’image derrière toute l’app, adoucissez-la si vous le souhaitez, et donnez une couleur à vos boutons et à vos cartes. Vous pourrez tout changer à tout moment dans les Réglages.</value>
+    <comment>iPhone welcome, the look step: the line under Wizard_LookTitle, over the backdrop tiles, the dim and blur sliders and the colour bubbles.</comment>
+  </data>
+  <data name="Wizard_Phone_LanguageTitle" xml:space="preserve">
+    <value>Choisissez votre langue</value>
+    <comment>iPhone welcome, the language step: its heading, over the list of the app's languages.</comment>
+  </data>
+  <data name="Wizard_Phone_LanguageHint" xml:space="preserve">
+    <value>rpm parle cinq langues. Vous pourrez la changer à tout moment dans les Réglages.</value>
+    <comment>iPhone welcome, the language step: the line under Wizard_Phone_LanguageTitle.</comment>
   </data>
   <data name="Wizard_Phone_PlayerTitle" xml:space="preserve">
     <value>Faisons un tour !</value>
