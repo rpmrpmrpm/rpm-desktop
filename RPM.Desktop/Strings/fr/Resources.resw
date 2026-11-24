@@ -6152,11 +6152,55 @@
   </data>
   <data name="Cloud_BecomeSupporter" xml:space="preserve">
     <value>Devenir soutien</value>
-    <comment>Button that opens the page where supporting rpm is bought.</comment>
+    <comment>Button that opens the page where supporting rpm is bought, or on the iPhone and Android phone the store's subscription sheet. Also the title of that sheet.</comment>
   </data>
   <data name="Supporter_Manage" xml:space="preserve">
     <value>Gérer l'abonnement</value>
-    <comment>Button in Settings for a paying supporter. Opens the Stripe page where the subscription is cancelled or the card is changed.</comment>
+    <comment>Button for a paying supporter. Desktop and web Settings: opens the Stripe page where the subscription is cancelled or the card is changed. iPhone Profile and Android phone Settings: opens the store's subscription page.</comment>
+  </data>
+  <data name="Supporter_StoreBody" xml:space="preserve">
+    <value>Les soutiens financent l'hébergement et le développement de rpm.</value>
+    <comment>iPhone and Android phone subscription sheet: the line under the title, above the list of what supporters get.</comment>
+  </data>
+  <data name="Supporter_OtherAccount" xml:space="preserve">
+    <value>Cet abonnement appartient à un autre compte rpm.</value>
+    <comment>iPhone and Android phone: the store subscription on this phone was bought while signed in to a different rpm account.</comment>
+  </data>
+  <data name="Supporter_PurchaseFailed" xml:space="preserve">
+    <value>L'achat n'a pas pu être confirmé. Réessayez.</value>
+    <comment>iPhone and Android phone subscription sheet: the store took the payment but rpm's server could not confirm it yet. The app tries again on its next start.</comment>
+  </data>
+  <data name="Supporter_PurchasePending" xml:space="preserve">
+    <value>L'achat attend une approbation.</value>
+    <comment>iPhone and Android phone subscription sheet: a parent must approve the purchase (Ask to Buy), or the payment is not complete yet.</comment>
+  </data>
+  <data name="Supporter_ThroughAppStore" xml:space="preserve">
+    <value>Vous soutenez rpm via l'App Store.</value>
+    <comment>iPhone Profile page: a supporter whose App Store subscription pays. Shown above Manage subscription.</comment>
+  </data>
+  <data name="Supporter_ThroughGooglePlay" xml:space="preserve">
+    <value>Vous soutenez rpm via Google Play.</value>
+    <comment>Android phone Settings: a supporter whose Google Play subscription pays. Shown above Manage subscription.</comment>
+  </data>
+  <data name="Supporter_PlanWeek" xml:space="preserve">
+    <value>{0} par semaine</value>
+    <comment>Android phone subscription sheet: the weekly plan. {0} is the price as Google Play formats it.</comment>
+  </data>
+  <data name="Supporter_PlanMonth" xml:space="preserve">
+    <value>{0} par mois</value>
+    <comment>Android phone subscription sheet: the monthly plan. {0} is the price as Google Play formats it.</comment>
+  </data>
+  <data name="Supporter_PlanYear" xml:space="preserve">
+    <value>{0} par an</value>
+    <comment>Android phone subscription sheet: the yearly plan. {0} is the price as Google Play formats it.</comment>
+  </data>
+  <data name="Supporter_RenewsGooglePlay" xml:space="preserve">
+    <value>L'abonnement se renouvelle jusqu'à ce que vous le résiliiez. Vous pouvez le résilier à tout moment dans Google Play.</value>
+    <comment>Android phone subscription sheet: under the plans, how renewal and cancelling work.</comment>
+  </data>
+  <data name="Supporter_StoreUnavailable" xml:space="preserve">
+    <value>Google Play n'est pas disponible pour le moment. Réessayez plus tard.</value>
+    <comment>Android phone subscription sheet: Google Play could not be asked for the plans (no Play Store on the device, or no connection).</comment>
   </data>
   <data name="Supporter_CheckoutFailed" xml:space="preserve">
     <value>Les paiements ne sont pas disponibles pour le moment. Veuillez réessayer plus tard.</value>
@@ -6165,6 +6209,14 @@
   <data name="Supporter_NoSubscription" xml:space="preserve">
     <value>Ce compte n'a pas d'abonnement.</value>
     <comment>Shown under Manage subscription for a supporter who did not pay through Stripe (for example, support given by rpm).</comment>
+  </data>
+  <data name="Supporter_ManageInAppStore" xml:space="preserve">
+    <value>Gérez votre abonnement dans l'App Store.</value>
+    <comment>Desktop and web Settings, under Manage subscription: the account's support is paid through the App Store, so there is no Stripe page to open.</comment>
+  </data>
+  <data name="Supporter_ManageInGooglePlay" xml:space="preserve">
+    <value>Gérez votre abonnement dans Google Play.</value>
+    <comment>Desktop and web Settings, under Manage subscription: the account's support is paid through Google Play, so there is no Stripe page to open.</comment>
   </data>
   <data name="Web_BetaSupporter" xml:space="preserve">
     <value>Les soutiens peuvent utiliser rpm dès maintenant, sans code.</value>
@@ -9622,9 +9674,9 @@
     <value>Bienvenue dans rpm.</value>
     <comment>Under "All set!" on the last Android TV set-up screen.</comment>
   </data>
-  <data name="Tv_Setup_SupporterScan" xml:space="preserve">
-    <value>Scannez le code pour devenir soutien depuis votre téléphone.</value>
-    <comment>Under the QR code on the Android TV set-up's supporter screen.</comment>
+  <data name="Tv_Setup_SupporterPhone" xml:space="preserve">
+    <value>Devenez soutien dans rpm sur votre téléphone.</value>
+    <comment>Android TV set-up's supporter screen, under the list of what supporters get: where to subscribe.</comment>
   </data>
   <data name="Tv_Setup_Thanks" xml:space="preserve">
     <value>Vous soutenez rpm. Merci !</value>

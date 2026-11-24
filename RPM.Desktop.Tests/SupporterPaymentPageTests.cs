@@ -27,6 +27,28 @@ public class SupporterPaymentPageTests
             SupporterService.PaymentPage.Read(HttpStatusCode.NotFound, """{"error":"This account has no payments."}"""));
     }
 
+    [Theory]
+    [InlineData("apple", "Supporter_ManageInAppStore")]
+    [InlineData("google", "Supporter_ManageInGooglePlay")]
+    public void Not_found_naming_a_store_says_where_the_subscription_is_managed(string store, string note)
+    {
+        var page = SupporterService.PaymentPage.Read(HttpStatusCode.NotFound, $$"""{"error":"This account pays through a store.","store":"{{store}}"}""");
+
+        var inStore = Assert.IsType<SupporterService.PaymentPage.InStore>(page);
+        Assert.Equal(store, inStore.Store);
+        Assert.Equal(note, inStore.NoteKey);
+    }
+
+    [Theory]
+    [InlineData("""{"error":"x","store":"stripe"}""")]
+    [InlineData("""{"error":"x","store":42}""")]
+    [InlineData("not json")]
+    [InlineData("")]
+    public void Not_found_naming_no_known_store_is_no_payments(string body)
+    {
+        Assert.IsType<SupporterService.PaymentPage.NoPayments>(SupporterService.PaymentPage.Read(HttpStatusCode.NotFound, body));
+    }
+
     [Fact]
     public void A_service_that_fails_is_a_failure()
     {

@@ -194,6 +194,9 @@ public sealed partial class CloudSettingsPage : Page
                 case SupporterService.PaymentPage.At page:
                     SupporterLinks.OpenPage(page);
                     break;
+                case SupporterService.PaymentPage.InStore inStore:
+                    ShowManageNote(inStore.NoteKey);
+                    break;
                 case SupporterService.PaymentPage.NoPayments:
                     ShowManageNote("Supporter_NoSubscription");
                     break;

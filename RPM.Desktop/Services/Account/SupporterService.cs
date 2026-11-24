@@ -239,16 +239,25 @@ public sealed partial class SupporterService
         /// <summary>The account has never started a Stripe checkout, so there is no portal to open.</summary>
         public sealed record NoPayments : PaymentPage;
 
+        /// <summary>The account pays through a store: <c>apple</c> (the App Store) or <c>google</c> (Google
+        /// Play). The subscription is managed there, and the app says so.</summary>
+        public sealed record InStore(string Store) : PaymentPage
+        {
+            /// <summary>The string that says where to manage the subscription.</summary>
+            public string NoteKey => Store == "apple" ? "Supporter_ManageInAppStore" : "Supporter_ManageInGooglePlay";
+        }
+
         /// <summary>No page could be had: signed out, offline, or the service refused.</summary>
         public sealed record Failed : PaymentPage;
 
         /// <summary>
         /// Reads the service's answer. Only an <c>https</c> address is accepted, because the app opens it
-        /// in the browser without asking. A 404 is the service saying the account has no payments.
+        /// in the browser without asking. A 404 is the service saying the account has no Stripe payments;
+        /// it names the store when a store subscription pays.
         /// </summary>
         public static PaymentPage Read(System.Net.HttpStatusCode status, string? body)
         {
-            if (status == System.Net.HttpStatusCode.NotFound) return new NoPayments();
+            if (status == System.Net.HttpStatusCode.NotFound) return StoreIn(body) is { } store ? new InStore(store) : new NoPayments();
             if ((int)status is < 200 or > 299 || string.IsNullOrEmpty(body)) return new Failed();
 
             try
@@ -265,6 +274,26 @@ public sealed partial class SupporterService
             catch (System.Text.Json.JsonException)
             {
                 return new Failed();
+            }
+        }
+
+        /// <summary>The store a 404 names, when it is one the app knows.</summary>
+        private static string? StoreIn(string? body)
+        {
+            if (string.IsNullOrEmpty(body)) return null;
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                return json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && json.RootElement.TryGetProperty("store", out var store)
+                    && store.ValueKind == System.Text.Json.JsonValueKind.String
+                    && store.GetString() is "apple" or "google"
+                        ? store.GetString()
+                        : null;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;
             }
         }
     }
