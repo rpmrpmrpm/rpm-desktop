@@ -210,6 +210,10 @@ public sealed partial class PegasusChrome
         if (LadderTakesBack())
             return;
 
+        // Inside a playlist folder, Back goes up to the folder that holds it (see PegasusChrome.PlaylistsScreen).
+        if (PlaylistsTakesBack())
+            return;
+
         if (_trail.Count <= 1)
         {
             _trail.Clear();

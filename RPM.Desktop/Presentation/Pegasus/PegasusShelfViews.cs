@@ -351,10 +351,14 @@ internal sealed class ShelfCard
     }
 
     /// <summary>Puts the picture in the frame, over the stand-in.</summary>
-    public void Show(ImageSource picture)
+    /// <param name="fade">Whether the picture fades in (<see cref="Common.PictureFade"/>), as a playlist
+    /// folder's cover does. Every other picture is put in at once.</param>
+    public void Show(ImageSource picture, bool fade = false)
     {
         _art.Source = picture;
         _stand.Visibility = Visibility.Collapsed;
+        if (fade)
+            Common.PictureFade.In(_art);
     }
 }
 
