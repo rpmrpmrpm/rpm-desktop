@@ -466,12 +466,18 @@
                                       Visibility="{x:Bind TileGlyphVisibility, Mode=OneWay}"/>
                             <!-- The moods folder's mark, as faint as the glyphs beside it and in the square
                                  that they are measured to (PlaylistIcons.GlyphBox). -->
-                            <Image Source="{x:Bind MarkImage, Mode=OneWay}" Width="34" Height="34" Opacity="0.4"/>
+                            <Image Source="{x:Bind TileMarkImage, Mode=OneWay}" Width="34" Height="34" Opacity="0.4"/>
                           </Grid>
                         </Viewbox>
                         <Border CornerRadius="6">
                           <Image Source="{x:Bind TileImage, Mode=OneWay}" Stretch="UniformToFill"
                                  Visibility="{x:Bind TileImageVisibility, Mode=OneWay}"/>
+                        </Border>
+                        <!-- A folder's square: the folder frame with its name, over its picture, drawn as one
+                             (FolderCover). It fades in when it arrives, so the frame never shows over an empty
+                             window. It is null on every row that is not a folder. -->
+                        <Border CornerRadius="6">
+                          <Image common:PictureFade.Source="{x:Bind FolderImage, Mode=OneWay}" Stretch="UniformToFill"/>
                         </Border>
                         <!-- The hairline that the wall draws round every cover, over both layers. -->
                         <Border CornerRadius="6" BorderThickness="1" BorderBrush="#22FFFFFF"

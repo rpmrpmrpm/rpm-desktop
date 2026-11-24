@@ -103,7 +103,7 @@ internal static class CoverOverlay
     /// <summary>The quality that a cover carrying hard black-and-white type is written at. A JPEG codec
     /// spends its bits on smooth falls and on the rings around an edge. The whole frame is made of edges.
     /// See <c>PlaylistArt.Encoded</c>, where the same figure is explained for the advisory mark.</summary>
-    private const int FrameQuality = 97;
+    internal const int FrameQuality = 97;
 
     /// <summary>The quality that the room alone is written at, for the page's wash. The wash is about to be
     /// blurred until it is no longer a picture. So anything above this figure is bits spent on detail that
@@ -116,7 +116,7 @@ internal static class CoverOverlay
     /// <param name="Border">Everything that the file draws black.</param>
     /// <param name="Text">Everything that it draws white: the list's name down the band, and the app's own
     /// name in the corner.</param>
-    private readonly record struct FrameInk(SKColor Border, SKColor Text);
+    internal readonly record struct FrameInk(SKColor Border, SKColor Text);
 
     /// <summary>
     /// The border's colour and the lettering's. Both come straight out of the palette asset.
@@ -149,7 +149,7 @@ internal static class CoverOverlay
     /// <param name="room">The list's room. Its <see cref="CoverRoom.ListRoom.Ink"/> is the three palette
     /// entries as the asset lists them. <see cref="CoverRoom.ListRoom.Colours"/> is those three after they
     /// have been saturated and lifted for the shader. They cannot be read back as a palette colour.</param>
-    private static FrameInk Ink(CoverRoom.ListRoom room)
+    internal static FrameInk Ink(CoverRoom.ListRoom room)
     {
         if (room.Ink is not { } trio)
             return Unpainted(room.Colours);
@@ -236,7 +236,7 @@ internal static class CoverOverlay
 
     /// <summary>The contrast between two colours, as a ratio from 1 to 21. This is the WCAG
     /// relative-luminance measure, which anybody can check this figure against.</summary>
-    private static float Contrast(SKColor a, SKColor b)
+    internal static float Contrast(SKColor a, SKColor b)
     {
         var one = Luminance(a);
         var two = Luminance(b);
@@ -259,9 +259,12 @@ internal static class CoverOverlay
     /// <remarks> The file is greyscale. It has a black field, white lettering, and antialiased greys where
     /// they meet. So one table per channel IS a two-colour ramp. Zero maps to the border. 255 maps to the
     /// lettering. Every soft edge in the drawing lands in between. Alpha is left alone. That keeps the
-    /// window a hole, and its edge as soft as it was drawn.
+    /// window a hole, and its edge as soft as it was drawn. Skia applies the table to colours with the
+    /// alpha divided out, so a half-covered pixel at the window's edge is read by its own grey.
+    ///
+    /// <para>The folder frame (<see cref="FolderCover"/>) is inked through the same ramp.</para>
     /// </remarks>
-    private static SKColorFilter Ramp(FrameInk ink)
+    internal static SKColorFilter Ramp(FrameInk ink)
     {
         var alpha = new byte[256];
         var red = new byte[256];
@@ -548,7 +551,7 @@ internal static class CoverOverlay
         return SKRect.Create((width - side) / 2f, (height - side) / 2f, side, side);
     }
 
-    private static SKSamplingOptions Smooth => new(SKFilterMode.Linear, SKMipmapMode.Linear);
+    internal static SKSamplingOptions Smooth => new(SKFilterMode.Linear, SKMipmapMode.Linear);
 
     /// <summary>Draws the drawing in this list's two inks, then the name in its band. It is one method, so
     /// that the still cover and the card's own frame cannot end up as two different frames.</summary>
@@ -688,7 +691,7 @@ internal static class CoverOverlay
     /// about to be blurred until it is no longer a picture. So full-resolution colour there would be bytes
     /// spent on something that nobody sees.</para>
     /// </remarks>
-    private static byte[]? Encoded(SKSurface surface, int quality, SKJpegEncoderDownsample chroma)
+    internal static byte[]? Encoded(SKSurface surface, int quality, SKJpegEncoderDownsample chroma)
     {
         using var drawn = surface.Snapshot();
 

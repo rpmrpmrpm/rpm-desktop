@@ -667,9 +667,12 @@ public sealed partial class PlaylistModel
     ///   <item>a <b>generated list</b> is its name on its own palette, and nothing is read from the
     ///   disk for it;</item>
     ///   <item>a <b>folder</b> is a place and not a list. It has a picture only if someone chose one.
-    ///   Without one it keeps the folder glyph, as a file browser does;</item>
-    ///   <item>every other row (Now playing, the folder of the generated lists) has no picture. These
-    ///   are the rows of the app itself, and their glyph is their face.</item>
+    ///   Without one it keeps the folder glyph, as a file browser does. That is the rule only where the
+    ///   folder frame drawing is missing. With it, every folder, the app's own included, wears the folder
+    ///   frame with its name in the bar (<see cref="FolderCover"/>), over that chosen picture, the app's
+    ///   own folder's photograph, or a still room. It goes to <see cref="PlaylistTreeItem.FolderImage"/>,
+    ///   which the tile fades in;</item>
+    ///   <item>every other row (Now playing) has no picture. Its glyph is its face.</item>
     /// </list>
     ///
     /// <para>The picture is set on the item and never on a row, for the reason given in
@@ -690,6 +693,12 @@ public sealed partial class PlaylistModel
 
         var borrowed = IsBorrowed;
         var shelf = borrowed ? PlaylistShelf.Borrowed : PlaylistShelf.Own;
+
+        if (item.IsFolderCovered)
+        {
+            await LoadFolderTileCoreAsync(item, shelf, decodeEdge);
+            return;
+        }
 
         // Set when a playlist's picture could not be drawn because a sleeve could not be read. That is
         // "not asked" and not an answer, as in ResetCoverRequest.
@@ -743,6 +752,32 @@ public sealed partial class PlaylistModel
         catch { shown = null; }
 
         item.SetTileImage(shown);
+    }
+
+    /// <summary>
+    /// The square of a folder on the grid: the folder frame, lettered with the folder's name, over the
+    /// picture chosen for it, the app's own folder's photograph, or a still room (<see cref="FolderCover"/>).
+    /// The picture and the frame are one square, so they come in together.
+    /// </summary>
+    private static async Task LoadFolderTileCoreAsync(PlaylistTreeItem item, PlaylistShelf shelf, int decodeEdge)
+    {
+        ImageSource? shown = null;
+        try
+        {
+            var chosen = item.Kind == PlaylistRowKind.Folder && item.NodeId is { } folder
+                ? await PlaylistCovers.ChosenAsync(folder, item.Cover, shelf, CancellationToken.None)
+                : null;
+
+            if (await FolderCover.DrawAsync(item.FolderFace, item.DisplayName, chosen, CancellationToken.None)
+                is { Length: > 0 } bytes)
+                shown = await RemoteImage.DecodeAsync(bytes, decodeEdge);
+        }
+        catch
+        {
+            shown = null;   // a cover that cannot be drawn leaves the folder's square empty
+        }
+
+        item.SetFolderImage(shown);
     }
 
     /// <summary>The playlists that a song can be added to, with their depth, which is used to indent the
@@ -866,6 +901,7 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
             OnChanged(nameof(TileGlyphSize));
             OnChanged(nameof(GlyphBrush));
             OnChanged(nameof(MarkImage));
+            OnChanged(nameof(TileMarkImage));
             OnChanged(nameof(GlyphVisibility));
             OnChanged(nameof(TileGlyphVisibility));
         }
@@ -1074,6 +1110,13 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
             // The row binds DisplayName, not Name. Rows stay after a reload, so a rename must raise
             // the change for the binding itself.
             OnChanged(nameof(DisplayName));
+
+            // A folder's square on the grid has the name set in it, so a renamed folder draws it again.
+            if (IsFolderCovered && _tileEdge > 0)
+            {
+                _tileRequested = false;
+                EnsureTileLoaded(_tileEdge);
+            }
         }
     }
 
@@ -1343,11 +1386,52 @@ public sealed partial class PlaylistTreeItem : INotifyPropertyChanged
         _tileImage is null ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
     /// <summary>The plain glyph is shown until a picture is loaded, and hidden after that. They are
-    /// never shown together, or a tile with a cover would show its glyph under it.</summary>
+    /// never shown together, or a tile with a cover would show its glyph under it. A folder that wears the
+    /// folder frame (<see cref="IsFolderCovered"/>) shows no glyph: its square stays empty until its cover
+    /// fades in.</summary>
     public Microsoft.UI.Xaml.Visibility TileGlyphVisibility =>
-        _tileImage is null && !IsMoodsFolder
+        _tileImage is null && !IsMoodsFolder && !IsFolderCovered
             ? Microsoft.UI.Xaml.Visibility.Visible
             : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    /// <summary>The moods folder's mark on the grid, or null. A folder that wears the folder frame has no
+    /// mark there, as it has no glyph.</summary>
+    public ImageSource? TileMarkImage => IsFolderCovered ? null : MarkImage;
+
+    // ── the cover of a folder on the grid ──
+
+    /// <summary>
+    /// Whether the grid draws this row as a folder in the folder frame (<see cref="FolderCover"/>): every
+    /// folder, the app's own included, when the frame drawing is there. The tree beside the grid keeps its
+    /// small glyphs. At twelve points the frame would be a dark dot.
+    /// </summary>
+    public bool IsFolderCovered => RightPane.PlaylistIcons.OpensAsFolder(Kind) && FolderCover.Has();
+
+    /// <summary>Which of the app's own folders this is, for its cover: the moods, the decades, or a plain
+    /// folder. The folder of the generated lists that are not moods holds lists of many kinds, so it is
+    /// plain, as on the phones.</summary>
+    internal FolderFace FolderFace =>
+        IsMoodsFolder ? FolderFace.Moods : IsDecadesFolder ? FolderFace.Decades : FolderFace.Plain;
+
+    private ImageSource? _folderImage;
+
+    /// <summary>The square the grid shows for a folder (<see cref="IsFolderCovered"/>), once it is drawn.
+    /// It is null on every other row. The tile fades it in (<see cref="PictureFade"/>).</summary>
+    public ImageSource? FolderImage
+    {
+        get => _folderImage;
+        private set
+        {
+            if (Equals(_folderImage, value)) return;
+            _folderImage = value;
+            OnChanged();
+        }
+    }
+
+    /// <summary>Called by <see cref="PlaylistModel.LoadTileCoverAsync"/> when a folder's square has been
+    /// drawn and decoded. The work runs off the UI thread, and this call brings the result back to
+    /// it.</summary>
+    internal void SetFolderImage(ImageSource? image) => FolderImage = image;
 
     /// <summary>
     /// Starts the tile picture of this row, once. It is called when the repeater creates a tile for this

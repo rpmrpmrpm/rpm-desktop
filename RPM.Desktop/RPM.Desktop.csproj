@@ -371,15 +371,20 @@
          unconditional Include of a file that is not there fails the copy. -->
     <Content Include="Assets\PlaylistMark.png" Condition="Exists('Assets\PlaylistMark.png')"
              CopyToOutputDirectory="PreserveNewest" />
-    <!-- The frames a generated playlist's cover is drawn inside (CoverOverlay). Read off disk by
-         SkiaSharp when a cover is composed, and by ms-appx from the markup where the room drifts
-         behind one live, so the file has to be in the output folder either way. -->
+    <!-- The frames a generated playlist's cover is drawn inside (CoverOverlay), and the frame a
+         playlist folder's cover is drawn inside (FolderCover). Read off disk by SkiaSharp when a cover
+         is composed, and by ms-appx from the markup where the room drifts behind one live, so the file
+         has to be in the output folder either way. -->
     <Content Include="Assets\PlaylistOverlays\*.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- The photograph behind the frame, one per generated playlist that has one (PlaylistPhotos).
          Written by scripts/gen_playlist_photos.py, read off disk by SkiaSharp on whichever thread is
          composing the cover. A missing file is a list that draws its figure instead, so a pruned
          install degrades rather than breaks. -->
     <Content Include="Assets\PlaylistPhotos\*.jpg" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The photograph behind the frame of each of the app's own playlist folders (FolderPhotos). Written
+         by scripts/gen_folder_photos.py in the rpm repo and read off disk by SkiaSharp when a folder's
+         cover is composed. A missing file is a folder that stands on a still room instead. -->
+    <Content Include="Assets\FolderPhotos\*.jpg" CopyToOutputDirectory="PreserveNewest" />
     <!-- Font Awesome 5 Pro, solid and regular. The licence does not allow publishing the font files,
          so they are not in the repo: RpmIconFonts below copies them from a private checkout. -->
     <Content Include="Assets\Fonts\fa-solid-900.ttf" CopyToOutputDirectory="PreserveNewest" />

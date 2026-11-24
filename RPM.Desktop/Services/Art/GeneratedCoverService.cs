@@ -119,27 +119,7 @@ internal static class GeneratedCoverService
             return null;
 
         var canvas = surface.Canvas;
-        canvas.Clear(SKColors.Black);
-
-        using var image = SKImage.FromBitmap(source);
-
-        // Scaled until the SHORT side reaches the square. Both sides then cover it, and the long side overhangs.
-        // Centred, because nothing here knows where the subject of a picture is. The middle is wrong less often
-        // than any corner.
-        var fill = Math.Max((float)Edge / source.Width, (float)Edge / source.Height);
-        canvas.DrawImage(
-            image, SKRect.Create(source.Width, source.Height),
-            Centred(source.Width * fill, source.Height * fill),
-            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-
-        // SKBlendMode.Color takes hue and saturation from the paint, and lightness from what is under it. That keeps
-        // a picture a picture, rather than turning it into a coloured rectangle.
-        using (var wash = new SKPaint
-        {
-            Color = tint.WithAlpha((byte)(TintStrength * 255)),
-            BlendMode = SKBlendMode.Color,
-        })
-            canvas.DrawRect(SKRect.Create(Edge, Edge), wash);
+        Washed(canvas, source, tint, Edge);
 
         // The app's mark goes last, over everything. It is a label on the picture, not part of it. It is drawn in
         // the same place, and for the same reason, as the advisory lockup on a drawn cover. It comes after the wash,
@@ -154,8 +134,41 @@ internal static class GeneratedCoverService
         return data?.ToArray();
     }
 
-    /// <summary>A box of this size, centred on the square. A box bigger than the square is the ordinary case,
-    /// because filling the square means exactly that.</summary>
-    private static SKRect Centred(float width, float height) =>
-        SKRect.Create((Edge - width) / 2f, (Edge - height) / 2f, width, height);
+    /// <summary>
+    /// Clears the square of <paramref name="edge"/> pixels to black, fills it with the photograph, and lays
+    /// <paramref name="tint"/> over it as a hue at <see cref="TintStrength"/>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Framed"/> draws a list's photograph with it, and <c>FolderCover</c> draws a playlist folder's
+    /// photograph with it, so a folder and the lists in it are washed by one rule.
+    /// </remarks>
+    internal static void Washed(SKCanvas canvas, SKBitmap source, SKColor tint, int edge)
+    {
+        canvas.Clear(SKColors.Black);
+
+        using var image = SKImage.FromBitmap(source);
+
+        // Scaled until the SHORT side reaches the square. Both sides then cover it, and the long side overhangs.
+        // Centred, because nothing here knows where the subject of a picture is. The middle is wrong less often
+        // than any corner.
+        var fill = Math.Max((float)edge / source.Width, (float)edge / source.Height);
+        canvas.DrawImage(
+            image, SKRect.Create(source.Width, source.Height),
+            Centred(edge, source.Width * fill, source.Height * fill),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+
+        // SKBlendMode.Color takes hue and saturation from the paint, and lightness from what is under it. That keeps
+        // a picture a picture, rather than turning it into a coloured rectangle.
+        using var wash = new SKPaint
+        {
+            Color = tint.WithAlpha((byte)(TintStrength * 255)),
+            BlendMode = SKBlendMode.Color,
+        };
+        canvas.DrawRect(SKRect.Create(edge, edge), wash);
+    }
+
+    /// <summary>A box of this size, centred on a square of <paramref name="edge"/>. A box bigger than the square is
+    /// the ordinary case, because filling the square means exactly that.</summary>
+    private static SKRect Centred(int edge, float width, float height) =>
+        SKRect.Create((edge - width) / 2f, (edge - height) / 2f, width, height);
 }
