@@ -43,6 +43,47 @@ public sealed partial class GalleryPage : Page
         SetStatus($"Main window → {tag}.");
     }
 
+    /// <summary>The setup's last step, after an import of 42 albums. The gallery runs signed out, so the
+    /// supporter ask shows (see <see cref="RPM.Desktop.Presentation.Setup.Steps.WizardDoneStep.AsksForSupport"/>).</summary>
+    private void WizardDone_Click(object sender, RoutedEventArgs e)
+    {
+        OpenWizardDone();
+        SetStatus("Main window → setup, last step.");
+    }
+
+    private static void OpenWizardDone() =>
+        Services.GetRequiredService<NavigationService>().Navigate(
+            typeof(RPM.Desktop.Presentation.Setup.WizardPage),
+            new GalleryWizardDone(new RPM.Desktop.Presentation.Setup.Steps.ImportOutcome(42, 517, Skipped: false)));
+
+    /// <summary>
+    /// <c>--gallery-open=wizard-done</c>: opens the setup's last step at launch, for photographing it
+    /// without a click on this panel. A click from outside the app cannot reach the panel while another
+    /// app is in front. It waits for the shell to have shown its first page, as <see cref="GalleryShoot"/>
+    /// does, because the shell's own first navigation would replace a page opened before it.
+    /// </summary>
+    /// <param name="asked">The value after <c>--gallery-open=</c>, or null when the switch is not given.</param>
+    public static void OpenOnLaunch(string? asked)
+    {
+        if (asked != "wizard-done")
+            return;
+
+        var dispatcher = Services.GetRequiredService<Microsoft.UI.Dispatching.DispatcherQueue>();
+        var ticks = 0;
+        RPM.Desktop.Services.Shell.Ticker.Every(dispatcher, TimeSpan.FromMilliseconds(500), () =>
+        {
+            // 80 seconds, as the shoot allows for a cold start.
+            if (++ticks > 160)
+                return false;
+
+            if (!Shell.ShellPage.HasRevealed)
+                return true;
+
+            OpenWizardDone();
+            return false;
+        });
+    }
+
     /// <summary> One record, opened on its own page, with everything a record can carry: a sleeve, a
     /// pressing, stars given and stars averaged, songs marked, half of it in the cloud, a wall of
     /// reviews and comments under it, and a row of suggestions along the foot.

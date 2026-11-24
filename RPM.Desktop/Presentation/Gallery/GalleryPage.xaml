@@ -50,6 +50,8 @@
                         Content="Library workbench"/>
                 <Button Style="{StaticResource GalleryButton}" Tag="WizardPage" Click="Page_Click"
                         Content="First-run setup"/>
+                <Button Style="{StaticResource GalleryButton}" Click="WizardDone_Click"
+                        Content="First-run setup, last step"/>
                 <Button Style="{StaticResource GalleryButton}" Click="AlbumPage_Click"
                         Content="Album page (full, with reviews)"/>
 

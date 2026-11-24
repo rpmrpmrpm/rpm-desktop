@@ -126,6 +126,14 @@ public sealed partial class WizardPage : Microsoft.UI.Xaml.Controls.Page
             return;
         }
 
+        if (e.Parameter is Gallery.GalleryWizardDone done)
+        {
+            DoneStep.Show(done.Outcome);
+            Show(WizardStep.Done);
+            SetupLoop.Play();
+            return;
+        }
+
         // The shell says where to start. Any other navigation (a stray one, or a gallery entry) starts
         // at the beginning. That is the only answer that is safe without a library behind it.
         var route = e.Parameter as OpeningRoute? ?? OpeningRoute.PickFolder;

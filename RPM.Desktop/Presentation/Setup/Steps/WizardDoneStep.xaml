@@ -13,7 +13,10 @@
        than tall and half empty.
 
        Both buttons finish. Becoming a supporter opens a browser and lands on the library anyway. A
-       purchase that completes somewhere else must not leave the app parked here waiting for it. -->
+       purchase that completes somewhere else must not leave the app parked here waiting for it.
+
+       The card and the Become a supporter button show only for an account that does not support rpm,
+       or when nobody is signed in. WizardDoneStep.AsksForSupport decides. -->
 
   <!-- Centred, as the first step is: the heading and what it heads are one group in the middle of the
        window, with the air above and below it shared (TopSpace and BottomSpace). The top margin keeps

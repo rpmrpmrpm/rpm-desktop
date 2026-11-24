@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -38,22 +39,32 @@ public sealed partial class WizardDoneStep : UserControl
     private static readonly Windows.UI.Color Cyan = Windows.UI.Color.FromArgb(0xFF, 0x04, 0xC8, 0xFF);
     private static readonly Windows.UI.Color Gold = Windows.UI.Color.FromArgb(0xFF, 0xEF, 0xAF, 0x12);
 
-    /// <summary>
-    /// Whether the last step asks for support: the card with the perks, and the Become a supporter
-    /// button. Off while rpm is not taking supporters yet; the card is kept whole, so turning this back on
-    /// is all it takes to bring it back.
-    /// </summary>
-    private const bool AsksForSupport = false;
-
     public WizardDoneStep()
     {
         InitializeComponent();
         Kicker.Text = WizardSteps.Kicker(WizardSteps.Count);
         BuildPerks();
 
-        SupportCard.Visibility = AsksForSupport ? Visibility.Visible : Visibility.Collapsed;
-        SupportButton.Visibility = AsksForSupport ? Visibility.Visible : Visibility.Collapsed;
+        // Hidden until the account's standing is read on arrival (see Arrived).
+        ShowAsk(false);
     }
+
+    /// <summary>
+    /// Whether the last step asks for support: the card with the perks, and the Become a supporter
+    /// button.
+    ///
+    /// <para>It asks an account that the server has said is not a supporter, and it asks when nobody is
+    /// signed in, because then there is no account that could already support rpm. A closed beta tester
+    /// has the supporter features, so is not asked, as on the cloud settings page.</para>
+    ///
+    /// <para><b>An unknown standing does not ask.</b> A supporter who is asked to support rpm because a
+    /// request failed has been told something that is not true.</para>
+    /// </summary>
+    /// <param name="signedIn">Whether there is an account. No default: signed out asks, and an account
+    /// with no answer does not, so every caller must say which it is.</param>
+    /// <param name="standing">What this session has heard from the server, or null.</param>
+    public static bool AsksForSupport(bool signedIn, SupporterService.Status? standing) =>
+        !signedIn || standing is { IsSupporter: false };
 
     /// <summary>
     /// The import's result, from the step before.
@@ -84,10 +95,40 @@ public sealed partial class WizardDoneStep : UserControl
         FinishButton.Content = Loc.Get(_empty ? "Wizard_GoImport" : "Wizard_Finish");
     }
 
-    /// <summary>Called by the host once this step is on screen. There is nothing to re-read yet. It
-    /// exists because the host says what has arrived, rather than the step guessing from a visibility
-    /// change.</summary>
-    public void Arrived() { }
+    /// <summary>Called by the host once this step is on screen. The step reads the account's standing
+    /// here, rather than the step guessing from a visibility change, so the ask follows the account
+    /// signed in now.</summary>
+    public void Arrived() => _ = ReadStandingAsync();
+
+    /// <summary>Counts the reads of the standing. An answer that arrives after a newer read has started
+    /// is dropped, so a slow answer cannot hide or show the ask over a newer one.</summary>
+    private int _reads;
+
+    private async Task ReadStandingAsync()
+    {
+        var read = ++_reads;
+        var auth = App.Services.GetRequiredService<AuthService>();
+        var supporter = App.Services.GetRequiredService<SupporterService>();
+
+        // What this session has already heard draws at once; the answer to the new request follows.
+        ShowAsk(AsksForSupport(auth.IsLoggedIn, supporter.Current));
+        if (!auth.IsLoggedIn)
+            return;
+
+        // GetAsync gives null on any failure. The standing heard before is kept then.
+        var heard = await supporter.GetAsync() ?? supporter.Current;
+        if (read != _reads)
+            return;
+
+        ShowAsk(AsksForSupport(auth.IsLoggedIn, heard));
+    }
+
+    private void ShowAsk(bool asks)
+    {
+        var shown = asks ? Visibility.Visible : Visibility.Collapsed;
+        SupportCard.Visibility = shown;
+        SupportButton.Visibility = shown;
+    }
 
     /// <summary>How many columns the perks are laid out in.</summary>
     private const int PerkColumns = 2;

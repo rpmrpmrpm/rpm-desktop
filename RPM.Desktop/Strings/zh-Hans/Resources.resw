@@ -6132,7 +6132,7 @@
   </data>
   <data name="Supporter_Later" xml:space="preserve">
     <value>暂不</value>
-    <comment>Storage-full window: closes it without doing anything.</comment>
+    <comment>Storage-full window: closes it without doing anything. Also the phone welcome's support step: goes on without becoming a supporter.</comment>
   </data>
   <data name="Supporters_Title" xml:space="preserve">
     <value>仅限支持者</value>
@@ -8768,11 +8768,11 @@
   </data>
   <data name="Wizard_SupportTitle" xml:space="preserve">
     <value>请考虑支持 rpm</value>
-    <comment>Setup wizard step 3, heading over the supporter pitch.</comment>
+    <comment>Setup wizard step 3, heading over the supporter pitch. Also the heading of the phone welcome's support step.</comment>
   </data>
   <data name="Wizard_SupportPitch" xml:space="preserve">
     <value>rpm 由一个热爱音乐的小团队打造，我们相信收藏并拥有属于自己的音乐。支持者让 rpm 得以持续：他们承担托管费用，并帮助我们开发新功能。</value>
-    <comment>Setup wizard step 3, the supporter pitch.</comment>
+    <comment>Setup wizard step 3, the supporter pitch. Also the line under the heading of the phone welcome's support step.</comment>
   </data>
   <data name="Wizard_Finish" xml:space="preserve">
     <value>打开我的收藏</value>

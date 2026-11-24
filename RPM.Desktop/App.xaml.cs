@@ -972,7 +972,14 @@ public partial class App : Application
             Presentation.Gallery.GalleryWindow.OpenOrFocus();
 
         if (gallery)
+        {
             Presentation.Gallery.GalleryShoot.Fire();
+
+            // `--gallery-open=wizard-done`: the setup's last step, opened once the shell is up. See
+            // GalleryPage.OpenOnLaunch.
+            Presentation.Gallery.GalleryPage.OpenOnLaunch(Environment.GetCommandLineArgs()
+                .FirstOrDefault(a => a.StartsWith("--gallery-open=", StringComparison.Ordinal))?["--gallery-open=".Length..]);
+        }
 
         if (placeGenres)
             Presentation.Dev.GenrePlacerWindow.OpenOrFocus();

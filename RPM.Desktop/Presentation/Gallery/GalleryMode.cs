@@ -44,3 +44,9 @@ public static class GalleryMode
 /// looking at something.</para> </summary>
 /// <param name="Folder">Library-relative album folder, forward slashes.</param>
 public sealed record GalleryAlbumRequest(string Folder);
+
+/// <summary> "Open the setup on its last step, after this import." The navigation parameter that the
+/// gallery sends to <see cref="Setup.WizardPage"/>. Reaching the last step for real needs a folder from
+/// the system's folder picker, which the gallery cannot drive. </summary>
+/// <param name="Outcome">What the import step is taken to have ended with.</param>
+public sealed record GalleryWizardDone(Setup.Steps.ImportOutcome Outcome);

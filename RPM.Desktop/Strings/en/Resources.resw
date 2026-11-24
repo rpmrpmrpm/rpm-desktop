@@ -6132,7 +6132,7 @@
   </data>
   <data name="Supporter_Later" xml:space="preserve">
     <value>Not now</value>
-    <comment>Storage-full window: closes it without doing anything.</comment>
+    <comment>Storage-full window: closes it without doing anything. Also the phone welcome's support step: goes on without becoming a supporter.</comment>
   </data>
   <data name="Supporters_Title" xml:space="preserve">
     <value>Supporters only</value>
@@ -8768,11 +8768,11 @@
   </data>
   <data name="Wizard_SupportTitle" xml:space="preserve">
     <value>Please consider supporting rpm</value>
-    <comment>Setup wizard step 3, heading over the supporter pitch.</comment>
+    <comment>Setup wizard step 3, heading over the supporter pitch. Also the heading of the phone welcome's support step.</comment>
   </data>
   <data name="Wizard_SupportPitch" xml:space="preserve">
     <value>rpm is made by a small team of people who love music, and who believe in collecting and owning your own. Supporters help keep it going: they cover the hosting costs and help us build new features.</value>
-    <comment>Setup wizard step 3, the supporter pitch.</comment>
+    <comment>Setup wizard step 3, the supporter pitch. Also the line under the heading of the phone welcome's support step.</comment>
   </data>
   <data name="Wizard_Finish" xml:space="preserve">
     <value>Open my collection</value>
