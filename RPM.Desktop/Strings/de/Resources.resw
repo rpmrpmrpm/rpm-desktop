@@ -6150,6 +6150,10 @@
     <value>Der Karaoke-Modus steht nur Unterstützern von rpm zur Verfügung. Bitte unterstütze rpm.</value>
     <comment>Supporters-only window: shown when word by word lyric timing is switched on by an account that is not a supporter. On the iPhone app, the line under the greyed-out karaoke switch on the Profile page.</comment>
   </data>
+  <data name="Supporters_Colour" xml:space="preserve">
+    <value>Farben für Schaltflächen und Karten stehen nur Unterstützern von rpm zur Verfügung. Bitte unterstütze rpm.</value>
+    <comment>iPhone and Android phone settings, Appearance, and the welcome's look step: the line under the greyed-out colour bubbles (Settings_Colour) for an account that is not a supporter.</comment>
+  </data>
   <data name="Cloud_BecomeSupporter" xml:space="preserve">
     <value>Unterstützer werden</value>
     <comment>Button that opens the page where supporting rpm is bought, or on the iPhone and Android phone the store's subscription sheet. Also the title of that sheet.</comment>
