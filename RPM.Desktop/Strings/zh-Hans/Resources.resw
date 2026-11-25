@@ -11537,11 +11537,11 @@
   </data>
   <data name="Settings_ColourNone" xml:space="preserve">
     <value>无颜色</value>
-    <comment>iPhone settings: what VoiceOver reads for the first colour bubble under Settings_Colour, which keeps the app's own white glass.</comment>
+    <comment>Phone settings: what VoiceOver/TalkBack reads for the first colour bubble under Settings_Colour, which keeps the app's own white glass. This is the default.</comment>
   </data>
   <data name="Settings_ColourTheme" xml:space="preserve">
     <value>与背景相配</value>
-    <comment>Phone settings: what VoiceOver/TalkBack reads for the first colour bubble under Settings_Colour, which gives the buttons and cards the colour of the chosen background, like a theme.</comment>
+    <comment>Phone settings: what VoiceOver/TalkBack reads for the second colour bubble under Settings_Colour, which gives the buttons and cards the colour of the chosen background, like a theme.</comment>
   </data>
   <data name="Settings_LandscapePlayer" xml:space="preserve">
     <value>横屏播放器</value>
