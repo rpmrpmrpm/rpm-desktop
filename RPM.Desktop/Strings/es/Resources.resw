@@ -1023,11 +1023,63 @@
   </data>
   <data name="Login_Forgot" xml:space="preserve">
     <value>¿Olvidaste tu contraseña?</value>
-    <comment>Sign-in dialog: link under the password field. Opens rpmrpmrpm.com/forgot-password in the browser.</comment>
+    <comment>Sign-in screens: the link to reset a forgotten password. The desktop opens rpmrpmrpm.com/forgot-password in the browser, the phones open a reset card on the sign-in screen, and the TVs show a QR code to the same page.</comment>
   </data>
   <data name="Login_ForgotNoBrowser" xml:space="preserve">
     <value>No se pudo abrir el navegador. Para restablecer tu contraseña, ve a rpmrpmrpm.com/forgot-password.</value>
     <comment>Sign-in dialog error: 'Forgot password?' was clicked and the system would not open a browser.</comment>
+  </data>
+  <data name="Reset_Title" xml:space="preserve">
+    <value>Restablece tu contraseña</value>
+    <comment>Phone sign-in screen, the password reset card: its heading. Opened by "Forgot password?" (Login_Forgot).</comment>
+  </data>
+  <data name="Reset_Subtitle" xml:space="preserve">
+    <value>¡No pasa nada! Escribe tu correo y te enviaremos un código para elegir una contraseña nueva.</value>
+    <comment>Phone password reset card, first step: under the heading, above the email field.</comment>
+  </data>
+  <data name="Reset_Send" xml:space="preserve">
+    <value>Enviar código</value>
+    <comment>Phone password reset card, first step: the button that emails the reset code.</comment>
+  </data>
+  <data name="Reset_CodeSent" xml:space="preserve">
+    <value>Hemos enviado un código de seis dígitos a {0}. Escríbelo junto con tu contraseña nueva.</value>
+    <comment>Phone password reset card, second step: above the code and new password fields. {0} is the email address.</comment>
+  </data>
+  <data name="Reset_NewPassword" xml:space="preserve">
+    <value>Contraseña nueva</value>
+    <comment>Phone password reset card, second step: placeholder of the new password field.</comment>
+  </data>
+  <data name="Reset_Save" xml:space="preserve">
+    <value>Guardar contraseña</value>
+    <comment>Phone password reset card, second step: the button that changes the password.</comment>
+  </data>
+  <data name="Reset_Done" xml:space="preserve">
+    <value>¡Listo! Tu contraseña nueva ya funciona. Inicia sesión con ella.</value>
+    <comment>Phone sign-in screen: shown on the sign-in card after the password was changed, when signing in with it did not happen by itself.</comment>
+  </data>
+  <data name="Reset_NeedEmail" xml:space="preserve">
+    <value>Escribe el correo de tu cuenta de rpm.</value>
+    <comment>Phone password reset card, first step: Send code was pressed with no email typed in.</comment>
+  </data>
+  <data name="Reset_NeedFields" xml:space="preserve">
+    <value>Escribe el código y tu contraseña nueva.</value>
+    <comment>Phone password reset card, second step: Set new password was pressed with a field empty.</comment>
+  </data>
+  <data name="Reset_CodeExpired" xml:space="preserve">
+    <value>Ese código ha caducado. Pide uno nuevo abajo.</value>
+    <comment>Phone password reset card, second step: the code was too old. "Below" is the Send a new code button (SignUp_Resend).</comment>
+  </data>
+  <data name="Reset_SendFailed" xml:space="preserve">
+    <value>No se pudo enviar el correo. Inténtalo de nuevo en un minuto.</value>
+    <comment>Phone password reset card: the reset email could not be sent.</comment>
+  </data>
+  <data name="Reset_Failed" xml:space="preserve">
+    <value>No se pudo cambiar la contraseña. Inténtalo de nuevo.</value>
+    <comment>Phone password reset card, second step: the password could not be changed for another reason.</comment>
+  </data>
+  <data name="Tv_SignIn_ForgotScan" xml:space="preserve">
+    <value>Escanea el código con la cámara del teléfono y elige una contraseña nueva en el teléfono.</value>
+    <comment>Under the QR code in the TV sign-in pop-up for "Forgot password?". The code opens rpmrpmrpm.com/forgot-password.</comment>
   </data>
   <data name="Login_Google" xml:space="preserve">
     <value>Google</value>
