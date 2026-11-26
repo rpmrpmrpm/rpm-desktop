@@ -1177,16 +1177,13 @@ public sealed partial class RadioStationItem(RadioStation station) : INotifyProp
                 // row needs to know what shape it is. See FoundLogo.Fills.
                 var (width, height) = Services.Art.ArtScaler.BoundsOf(bytes);
 
-                // A well is a small dark square. A mark with nothing behind it sits in it as a shape
-                // floating on the pane, not as a badge. So the shape is read off the fetched bytes on a
-                // worker thread. It is a decode, three passes over the pixels and a blur, for a row that
-                // may be scrolled past. It is the same question the walk asked when it chose this
-                // picture, and it must be the same one. A rounded tile has alpha and is not a mark. A
-                // ground made under one would be work nobody ever sees. See TransparentMark.StandsAlone.
+                // Every logo stands on a made ground, a mark with nothing behind it and a full square
+                // picture alike, so every station's well is the same kind of badge (StationDress on the
+                // phones). The ground is made on a worker thread: it is a decode, three passes over the
+                // pixels and a blur, for a row that may be scrolled past. Whether the logo is a mark on
+                // nothing is still read, for the diagnostic below. See TransparentMark.StandsAlone.
                 var alone = TransparentMark.StandsAlone(bytes);
-                var made = alone
-                    ? await Task.Run(() => TransparentMark.Ground(bytes, settled.Url))
-                    : null;
+                var made = await Task.Run(() => TransparentMark.Ground(bytes, settled.Url));
 
                 // What decided the ground. A null ink means the palette was used instead of the mark's
                 // own colours. The ink is read again only when the diagnostic is on.
