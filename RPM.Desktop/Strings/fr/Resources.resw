@@ -2258,7 +2258,7 @@
   </data>
   <data name="Playlists_NewPlaylist" xml:space="preserve">
     <value>Nouvelle liste</value>
-    <comment>Toolbar/menu action to create a playlist.</comment>
+    <comment>Toolbar/menu action to create a playlist. On the phones also the first row of the playlist picker, and the title of the card that names the new playlist.</comment>
   </data>
   <data name="Playlists_NewFolder" xml:space="preserve">
     <value>Nouveau dossier</value>
@@ -7523,8 +7523,8 @@
     <comment>Title of the confirmation when a song chosen is already in the playlist picked (iPhone playlist picker, and every add to playlist on the desktop), and the line shown when a write found it there. {0} is the playlist name.</comment>
   </data>
   <data name="Rpm_PlaylistPick_Empty" xml:space="preserve">
-    <value>Aucune liste de lecture. Créez-en une dans l'onglet Listes, ou choisissez-en une pour le cloud dans rpm sur votre ordinateur.</value>
-    <comment>Empty state of the iPhone playlist picker at the top of the tree.</comment>
+    <value>Aucune liste de lecture.</value>
+    <comment>Empty state of the phones' playlist picker at the top of the tree, under its New playlist row.</comment>
   </data>
   <data name="Rpm_PlaylistPick_EmptyFolder" xml:space="preserve">
     <value>Ce dossier est vide.</value>
@@ -7540,7 +7540,7 @@
   </data>
   <data name="Rpm_NewPlaylist_In" xml:space="preserve">
     <value>Dans {0}</value>
-    <comment>Line under the name field of the iPhone new-playlist sheet, saying which folder the playlist is being made in. {0} = the folder. Hidden when it is not in one.</comment>
+    <comment>Line under the name field of the phones' new-playlist sheet and of the card that names a playlist made from the playlist picker, saying which folder the playlist is being made in. {0} = the folder. Hidden when it is not in one.</comment>
   </data>
   <data name="Rpm_NewPlaylist_Search" xml:space="preserve">
     <value>Rechercher des titres à ajouter</value>
@@ -7564,7 +7564,7 @@
   </data>
   <data name="Rpm_NewPlaylist_Create" xml:space="preserve">
     <value>Créer</value>
-    <comment>Confirms the iPhone new-playlist sheet.</comment>
+    <comment>Confirms the phones' new-playlist sheet, and the card that names a playlist made from the playlist picker.</comment>
   </data>
   <data name="Rpm_Share_Title" xml:space="preserve">
     <value>Bibliothèques</value>
