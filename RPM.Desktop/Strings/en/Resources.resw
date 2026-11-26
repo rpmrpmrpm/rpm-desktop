@@ -4134,6 +4134,10 @@
   <data name="Rpm_Profile_Playback" xml:space="preserve">
     <value>Playback</value>
   </data>
+  <data name="Rpm_Profile_PlaybackQuality" xml:space="preserve">
+    <value>Playback quality</value>
+    <comment>iPhone and Android phone settings, Playback tab: heading of the card with the streaming quality pickers (Rpm_Profile_QualityWifi, Rpm_Profile_QualityCellular). The tab itself is Rpm_Profile_Playback.</comment>
+  </data>
   <data name="Rpm_Profile_QualityDetail" xml:space="preserve">
     <value>The original is exactly as it was uploaded. A lower bitrate uses less data and less space on your phone.</value>
     <comment>Settings, Profile page: what the quality choices do.</comment>
@@ -4167,8 +4171,8 @@
     <value>On cellular</value>
   </data>
   <data name="Rpm_Profile_QualityDownload" xml:space="preserve">
-    <value>For downloads</value>
-    <comment>iPhone settings, Playback card: label of the third quality picker, the bitrate albums are downloaded at. Sits under Rpm_Profile_QualityCellular.</comment>
+    <value>Download quality</value>
+    <comment>iPhone and Android phone settings: label of the quality picker for the bitrate albums are downloaded at.</comment>
   </data>
   <data name="Rpm_Profile_QualityDownloadDetail" xml:space="preserve">
     <value>Applies to new downloads. Albums already on your phone keep their bitrate. A bitrate that is not ready yet is prepared first, then downloaded.</value>
@@ -4928,6 +4932,10 @@
   <data name="Settings_EqOn" xml:space="preserve">
     <value>Equalizer on</value>
     <comment>Settings, Sound: the equalizer's on/off switch.</comment>
+  </data>
+  <data name="Settings_EqClipWarning" xml:space="preserve">
+    <value>Keeping the equalizer on this adjustment might damage hearing or speakers.</value>
+    <comment>Settings, equalizer: red warning under the sliders while the preamp and the bands together push the sound past full scale, so it clips.</comment>
   </data>
   <data name="Settings_EqPreset" xml:space="preserve">
     <value>Preset</value>
@@ -6185,6 +6193,14 @@
   <data name="Supporter_Later" xml:space="preserve">
     <value>Not now</value>
     <comment>Storage-full window: closes it without doing anything. Also the phone welcome's support step: goes on without becoming a supporter.</comment>
+  </data>
+  <data name="Supporter_NudgeTitle" xml:space="preserve">
+    <value>Enjoying rpm?</value>
+    <comment>Phones: title of the small pop-up that asks a listener who is not a supporter to consider becoming one. Shown once every 50 launches. Its buttons are Cloud_BecomeSupporter and Supporter_Later.</comment>
+  </data>
+  <data name="Supporter_NudgeBody" xml:space="preserve">
+    <value>Supporters keep rpm running and growing. If it's part of your days, please consider becoming one!</value>
+    <comment>Phones: the line in the pop-up under Supporter_NudgeTitle.</comment>
   </data>
   <data name="Supporters_Title" xml:space="preserve">
     <value>Supporters only</value>

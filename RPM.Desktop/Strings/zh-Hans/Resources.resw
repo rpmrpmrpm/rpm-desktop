@@ -4134,6 +4134,10 @@
   <data name="Rpm_Profile_Playback" xml:space="preserve">
     <value>播放</value>
   </data>
+  <data name="Rpm_Profile_PlaybackQuality" xml:space="preserve">
+    <value>播放音质</value>
+    <comment>iPhone and Android phone settings, Playback tab: heading of the card with the streaming quality pickers (Rpm_Profile_QualityWifi, Rpm_Profile_QualityCellular). The tab itself is Rpm_Profile_Playback.</comment>
+  </data>
   <data name="Rpm_Profile_QualityDetail" xml:space="preserve">
     <value>原始音质与上传时完全一致。较低的码率占用更少的流量和手机空间。</value>
     <comment>Settings, Profile page: what the quality choices do.</comment>
@@ -4167,8 +4171,8 @@
     <value>移动网络下</value>
   </data>
   <data name="Rpm_Profile_QualityDownload" xml:space="preserve">
-    <value>下载时</value>
-    <comment>iPhone settings, Playback card: label of the third quality picker, the bitrate albums are downloaded at. Sits under Rpm_Profile_QualityCellular.</comment>
+    <value>下载音质</value>
+    <comment>iPhone and Android phone settings: label of the quality picker for the bitrate albums are downloaded at.</comment>
   </data>
   <data name="Rpm_Profile_QualityDownloadDetail" xml:space="preserve">
     <value>适用于新的下载。手机上已有的专辑保留原来的码率。尚未准备好的码率会先准备，然后再下载。</value>
@@ -4928,6 +4932,10 @@
   <data name="Settings_EqOn" xml:space="preserve">
     <value>启用均衡器</value>
     <comment>Settings, Sound: the equalizer's on/off switch.</comment>
+  </data>
+  <data name="Settings_EqClipWarning" xml:space="preserve">
+    <value>保持当前均衡器设置可能会损伤听力或扬声器。</value>
+    <comment>Settings, equalizer: red warning under the sliders while the preamp and the bands together push the sound past full scale, so it clips.</comment>
   </data>
   <data name="Settings_EqPreset" xml:space="preserve">
     <value>预设</value>
@@ -6185,6 +6193,14 @@
   <data name="Supporter_Later" xml:space="preserve">
     <value>暂不</value>
     <comment>Storage-full window: closes it without doing anything. Also the phone welcome's support step: goes on without becoming a supporter.</comment>
+  </data>
+  <data name="Supporter_NudgeTitle" xml:space="preserve">
+    <value>喜欢 rpm 吗？</value>
+    <comment>Phones: title of the small pop-up that asks a listener who is not a supporter to consider becoming one. Shown once every 50 launches. Its buttons are Cloud_BecomeSupporter and Supporter_Later.</comment>
+  </data>
+  <data name="Supporter_NudgeBody" xml:space="preserve">
+    <value>支持者让 rpm 持续运行、不断成长。如果 rpm 已融入你的日常，不妨考虑成为支持者！</value>
+    <comment>Phones: the line in the pop-up under Supporter_NudgeTitle.</comment>
   </data>
   <data name="Supporters_Title" xml:space="preserve">
     <value>仅限支持者</value>
