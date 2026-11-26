@@ -60,15 +60,15 @@ public sealed record StationSieve
         if (Format is not null && !IsFormat(station.Codec, Format))
             return false;
 
-        // The admin's tags where they set some (RadioStation.ShownTags). The ads rule below keeps the
-        // directory's own.
+        // The admin's tags where they set some (RadioStation.ShownTags). The ads read the admin's mark,
+        // else the rule on the directory's own tags (RadioStation.CarriesAds).
         if (Genre is not null && !RadioGenres.Is(station.Genres, Genre))
             return false;
 
         return Ads switch
         {
-            AdsWanted.With => RadioAds.CarriesAds(station.Tags, station.Name, station.Homepage),
-            AdsWanted.Without => !RadioAds.CarriesAds(station.Tags, station.Name, station.Homepage),
+            AdsWanted.With => station.CarriesAds,
+            AdsWanted.Without => !station.CarriesAds,
             _ => true,
         };
     }

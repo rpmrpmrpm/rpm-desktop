@@ -2,11 +2,13 @@ namespace RPM.Core.Radio;
 
 /// <summary>
 /// How the admin changed the way one station is shown: its title, its tags, the line on its
-/// banner card. Each value is null where the station's own is used.
+/// banner card, and whether it carries advertising. Each value is null where the station's own is used.
 /// </summary>
 /// <param name="Tags">Replaces the directory's tags for which genres the station is listed under.
 /// The ads rule still reads the directory's own (<see cref="RadioAds"/>).</param>
-public sealed record StationEdit(string? Name, IReadOnlyList<string>? Tags, string? Description);
+/// <param name="Ads">True for a station the admin knows carries advertising, false for one that does
+/// not. It overrides the ads rule (<see cref="RadioStation.CarriesAds"/>).</param>
+public sealed record StationEdit(string? Name, IReadOnlyList<string>? Tags, string? Description, bool? Ads = null);
 
 /// <summary>
 /// The station edits the rpm API publishes in <c>radio/state</c>, read whenever a station is drawn.
@@ -113,6 +115,7 @@ public static class StationEdits
                 if (!other._byUuid.TryGetValue(uuid, out var theirs)
                     || edit.Name != theirs.Name
                     || edit.Description != theirs.Description
+                    || edit.Ads != theirs.Ads
                     || !SameTags(edit.Tags, theirs.Tags))
                 {
                     return false;
@@ -138,7 +141,8 @@ public static class StationEdits
             return new StationEdit(
                 string.IsNullOrWhiteSpace(edit.Name) ? null : edit.Name.Trim(),
                 tags is { Count: > 0 } ? tags : null,
-                string.IsNullOrWhiteSpace(edit.Description) ? null : edit.Description.Trim());
+                string.IsNullOrWhiteSpace(edit.Description) ? null : edit.Description.Trim(),
+                edit.Ads);
         }
     }
 }

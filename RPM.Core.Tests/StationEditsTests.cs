@@ -191,6 +191,34 @@ public sealed class StationEditsTests : IDisposable
     }
 
     [Fact]
+    public void The_admins_ads_mark_wins_over_the_rule()
+    {
+        // Tagged commercial, so the rule marks it; the admin says it carries none.
+        var marked = Station(Kept, "Radio X", tags: ["commercial"]);
+        // Says nothing, so the rule does not mark it; the admin says it carries ads.
+        var quiet = Station(Other, "Radio Y");
+        Assert.True(marked.CarriesAds);
+        Assert.False(quiet.CarriesAds);
+
+        StationEdits.Replace(SetOf(
+            (Kept, new StationEdit(null, null, null, Ads: false)),
+            (Other, new StationEdit(null, null, null, Ads: true))));
+
+        Assert.False(marked.CarriesAds);
+        Assert.True(quiet.CarriesAds);
+        Assert.True(new StationSieve { Ads = AdsWanted.With }.Keeps(quiet));
+    }
+
+    [Fact]
+    public void A_change_of_only_the_ads_is_a_change()
+    {
+        var a = SetOf((Kept, new StationEdit(null, null, null, Ads: true)));
+        var b = SetOf((Kept, new StationEdit(null, null, null, Ads: false)));
+
+        Assert.False(a.SameAs(b));
+    }
+
+    [Fact]
     public void A_retagged_station_already_in_the_answer_is_not_added_twice()
     {
         var answer = new[] { Station(Kept, "K") };

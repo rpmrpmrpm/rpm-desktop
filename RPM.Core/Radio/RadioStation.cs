@@ -34,6 +34,14 @@ public sealed record RadioStation
     public string Display => StationEdits.Of(this)?.Name ?? ShownName ?? RadioNames.Clean(Name);
 
     /// <summary>
+    /// Whether the station carries advertising: what the admin said where they said it
+    /// (<see cref="StationEdits"/>), otherwise the ads rule on the directory's own tags, name and
+    /// website (<see cref="RadioAds.CarriesAds"/>). Every AD mark and the ads filter read this.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool CarriesAds => StationEdits.Of(this)?.Ads ?? RadioAds.CarriesAds(Tags, Name, Homepage);
+
+    /// <summary>
     /// The name to print INSTEAD, when the list this station was found in shows that the plain name
     /// would not tell it apart from another station. For example, both of Concertzender's stations
     /// reduce to "Concertzender", so both keep their straplines. Set by

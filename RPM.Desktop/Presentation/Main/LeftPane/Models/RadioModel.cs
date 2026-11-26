@@ -47,13 +47,14 @@ public sealed partial class RadioStationItem(RadioStation station) : INotifyProp
     }
 
     /// <summary>
-    /// Whether this station's own tags say it carries advertising. See <see cref="RadioAds.CarriesAds"/>.
+    /// Whether this station carries advertising: the admin's mark, else its own tags. See
+    /// <see cref="RadioStation.CarriesAds"/>.
     ///
     /// <para>False for nearly every station. That is not a claim that there is no advertising. Hardly any
     /// stations say anything about it either way, so no badge means "not stated", not "no
     /// advertising".</para>
     /// </summary>
-    public bool HasAds => RadioAds.CarriesAds(Station.Tags, Station.Name, Station.Homepage);
+    public bool HasAds => Station.CarriesAds;
 
     /// <summary> Whether the station was on the air when the directory last checked it. This is the lamp
     /// beside its name.

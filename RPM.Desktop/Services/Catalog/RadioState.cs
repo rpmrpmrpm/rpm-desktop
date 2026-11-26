@@ -244,7 +244,7 @@ internal static partial class RadioState
             // after the snapshot and before Changed, so anyone who draws on Changed sees both.
             var edited = StationEdits.Replace(new StationEdits.Set(
                 (read.Edits ?? []).Select(e => KeyValuePair.Create(
-                    e.Key, new StationEdit(e.Value.Name, e.Value.Tags, e.Value.Description)))));
+                    e.Key, new StationEdit(e.Value.Name, e.Value.Tags, e.Value.Description, e.Value.Ads)))));
 
             var moved = was.Logos != next.Logos
                         || !was.Hidden.SetEquals(next.Hidden)
@@ -296,6 +296,10 @@ internal static partial class RadioState
         [JsonPropertyName("name")] public string? Name { get; init; }
         [JsonPropertyName("tags")] public string[]? Tags { get; init; }
         [JsonPropertyName("description")] public string? Description { get; init; }
+
+        /// <summary>True for a station that carries advertising, false for one that does not. The API
+        /// leaves it out when the admin did not set it.</summary>
+        [JsonPropertyName("ads")] public bool? Ads { get; init; }
     }
 
     /// <summary>The one answer this reads. A published build is Native AOT, which serializes from this and
