@@ -244,13 +244,25 @@ public sealed partial class ArtworkService
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             using var response = await _http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
-                return null;
+                return NoDisc(
+                    artist, album,
+                    RPM.Core.Net.OnlineGateHandler.WasRefused(response)
+                        ? "the gate refused it, the app believes it is offline"
+                        : $"HTTP {(int)response.StatusCode}");
 
             var disc = await response.Content.ReadFromJsonAsync(ArtworkServiceJson.Default.DiscResult, ct);
             if (disc?.Disc is not { Length: > 0 } url)
-                return null;
+                return null;   // The API knows no disc picture for this album. That is ordinary.
 
-            var bytes = await ImageHttp.GetByteArrayAsync(url, ct);
+            byte[]? bytes;
+            try
+            {
+                bytes = await ImageHttp.GetByteArrayAsync(url, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return NoDisc(artist, album, $"the picture at {url}: {ex.GetType().Name}: {ex.Message}");
+            }
             if (bytes is not { Length: > 0 } || DiscStamp.HasAlpha(bytes))
                 return bytes;
 
@@ -260,8 +272,21 @@ public sealed partial class ArtworkService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return null;
+            return NoDisc(artist, album, $"{ex.GetType().Name}: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// No disc picture, because the API or the picture could not be reached. The reason is written to the diagnostics
+    /// channel, as <see cref="Nothing"/> does for the artist's art: on screen, a lookup that failed and an album with no
+    /// disc picture both show the drawn disc. Read it with <c>rpmscope log --channel net</c>.
+    /// </summary>
+    private static byte[]? NoDisc(string artist, string album, string why)
+    {
+        if (RPM.Core.Diagnostics.Scope.On)
+            RPM.Core.Diagnostics.Scope.Said("net", $"disc \"{artist}\" / \"{album}\": {why}");
+
+        return null;
     }
 
     /// <summary>The pictures themselves, as opposed to the URLs of them. These are cached like everything else. A

@@ -27,9 +27,10 @@ namespace RPM.Desktop.Presentation.Main.Models;
 /// songs still unknown, a few seconds apart (see <see cref="AdvisoryFill.AskStoreAsync"/>).</para>
 ///
 /// <para><b>Quiet.</b> Signed out, offline, a refusal: the pass stops without a word, and the records it did not
-/// reach are asked about after the next add. A record the catalogue answered is not asked about again this
-/// session, whether or not a sure release was found, so a second add does not repeat the first one's
-/// requests. The only thing the user is told is how many records were filled, on the queue's status line.</para>
+/// reach are asked about after the next add. A catalogue search that is not answered stops only the searches: the
+/// rest of the records are still asked for their disc pictures, which another part of the API answers. A record
+/// the catalogue answered is not asked about again this session, whether or not a sure release was found, so a
+/// second add does not repeat the first one's requests. The only thing the user is told is how many records were filled, on the queue's status line.</para>
 ///
 /// <para><b>The rows are re-read at the moment of writing.</b> The answer arrives seconds after the record was
 /// read, and the user may have typed a genre in the meantime. The fill is applied to what the store holds then,
@@ -173,6 +174,10 @@ public sealed partial class MainModel
         {
             while (Interlocked.Exchange(ref _fillAgain, 0) == 1)
             {
+                // False once the catalogue has not answered in this round. Its searches then stop, and the disc
+                // pictures go on. The next round, after music is added, asks the catalogue again.
+                var catalogueAnswers = true;
+
                 // The rpm catalogue is MusicBrainz behind the API. It needs a signed-in session, and without one
                 // there is nothing to ask. Discogs is not asked: it needs the user's own account, and its genres
                 // are filled by the style sweep where a record is linked.
@@ -235,29 +240,48 @@ public sealed partial class MainModel
 
                     TagStageAt(key, album?.Artist ?? group.Artist, album?.Title ?? group.Album);
 
-                    if (album is not null)
+                    // Whether the catalogue gave an answer about this record. A record it did not answer for is not
+                    // remembered as asked, so the next add, or the import follow-up, asks about it again.
+                    var answered = album is null;
+                    if (album is not null && catalogueAnswers)
                     {
                         // Not answering is not an answer about this record. The rest of the records would get the
-                        // same silence, so the pass stops, and the next add asks again. The stage ends with it.
+                        // same silence, so the catalogue is not asked again in this round. The disc pictures go on:
+                        // they come from another part of the API, which may still answer.
                         if (!(await CatalogueFill.FindAsync(catalogue, album, ct)).Answers(out var release, out _))
-                            return;
+                        {
+                            catalogueAnswers = false;
+                            Said.Line("import", "catalogue fill: the catalogue did not answer; disc pictures only from here");
+                        }
+                        else
+                        {
+                            answered = true;
+                            var took = release is not null
+                                       && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release));
+                            if (took)
+                                filled++;
 
-                        var took = release is not null
-                                   && await OnInterfaceAsync(() => ApplyCatalogueFill([.. rows.Select(r => r.Id)], release));
-                        if (took)
-                            filled++;
+                            // The songs the release gave no explicit flag are asked about song by song, but only
+                            // after every record in the queue has had its release fill. The song requests are seconds
+                            // apart, and genre, style and year must not wait behind them.
+                            bySongLater.Add((group, album));
+                        }
+                    }
 
-                        // The songs the release gave no explicit flag are asked about song by song, but only after
-                        // every record in the queue has had its release fill. The song requests are seconds apart,
-                        // and genre, style and year must not wait behind them.
-                        bySongLater.Add((group, album));
+                    if (!answered && !wantsDisc)
+                    {
+                        TagStageDone(key);
+                        continue;   // Nothing more to ask about it in this round.
                     }
 
                     if (wantsDisc)
                         await FetchQueueDiscAsync(db, rows, ct);
 
-                    lock (_fillAsked)
-                        _fillAsked.Add(key);
+                    if (answered)
+                    {
+                        lock (_fillAsked)
+                            _fillAsked.Add(key);
+                    }
                     TagStageDone(key);
 
                     if (!await Cancellable.DelayAsync(FillBreath, ct))

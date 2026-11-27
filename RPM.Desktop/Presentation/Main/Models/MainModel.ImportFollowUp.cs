@@ -25,7 +25,9 @@ namespace RPM.Desktop.Presentation.Main.Models;
 ///
 /// <para><b>Governed and quiet.</b> One album is one unit of work that asks the governor first, in the network lane,
 /// in the last wave: nobody waits for it. It never holds up the import, which is finished before it starts. Signed
-/// out, offline or refused, it stops without a word. It follows the same setting as the fill.</para>
+/// out, offline or refused, it stops without a word. When the catalogue does not answer, the rest of the albums are
+/// still asked for their disc pictures, and only the explicit flags wait for the next import. It follows the same
+/// setting as the fill.</para>
 /// </summary>
 public sealed partial class MainModel
 {
@@ -73,6 +75,11 @@ public sealed partial class MainModel
         int flagged = 0, discs = 0;
         var drained = false;
 
+        // False once the catalogue has not answered. The rest of the albums would get the same silence, so their
+        // explicit flags are not asked about in this round. Their disc pictures still are: another part of the API
+        // answers those.
+        var catalogueAnswers = true;
+
         try
         {
             while (true)
@@ -92,11 +99,14 @@ public sealed partial class MainModel
                 if (!slot.Go || !Still() || !_settings.ImportFillFromCatalogue)
                     break;
 
-                var (asked, ok) = await FollowUpOneAsync(db, root, next, ct);
+                var (asked, ok) = await FollowUpOneAsync(db, root, next, catalogueAnswers, ct);
                 flagged += ok.Flagged;
                 discs += ok.Discs;
-                if (!asked.Reached)
-                    break;   // the API did not answer; the rest would get the same silence
+                if (!asked.Reached && catalogueAnswers)
+                {
+                    catalogueAnswers = false;
+                    Said.Line("import", "follow-up: the catalogue did not answer; disc pictures only from here");
+                }
 
                 if (asked.Network && !await Cancellable.DelayAsync(FollowUpBreath, ct))
                     break;
@@ -138,10 +148,11 @@ public sealed partial class MainModel
         }
     }
 
-    /// <summary>The follow-up for one album folder. Returns whether the network was used and reached, and what
-    /// was written.</summary>
+    /// <summary>The follow-up for one album folder. Returns whether the network was used, whether the catalogue
+    /// answered, and what was written. With <paramref name="askCatalogue"/> false only the disc picture is asked
+    /// for.</summary>
     private async Task<((bool Network, bool Reached) Asked, (int Flagged, int Discs) Done)> FollowUpOneAsync(
-        LibraryDatabase db, string root, FollowUpAlbum album, CancellationToken ct)
+        LibraryDatabase db, string root, FollowUpAlbum album, bool askCatalogue, CancellationToken ct)
     {
         var rows = db.QueryUnderFolder(album.Folder)
             .Where(r => string.Equals(FolderOf(r.RelativePath), album.Folder, StringComparison.OrdinalIgnoreCase))
@@ -171,7 +182,8 @@ public sealed partial class MainModel
 
         // The explicit flag, from the release the album is linked to or the one the catalogue is sure of. The songs
         // the release gives no flag are then asked about song by song.
-        if (Catalog.Search.Providers.FirstOrDefault(p => p.Id == RpmMetadataProvider.ProviderId)
+        if (askCatalogue
+            && Catalog.Search.Providers.FirstOrDefault(p => p.Id == RpmMetadataProvider.ProviderId)
                 is { IsAvailable: true } catalogue)
         {
             var meta = db.GetAlbumMeta(album.Folder);
